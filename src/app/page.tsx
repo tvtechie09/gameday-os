@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { sponsors, venues } from "@/lib/data";
 
 const capabilities = [
   "Create and manage venue field pages",
@@ -18,7 +19,7 @@ export default function Home() {
               GameDay OS
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--muted)]">
-              A clean operating shell for sports venues to organize fields, sessions, sponsors, and QR-accessible public field pages.
+              A venue-first operating system for sports fields: build venues, publish field pages, prepare sessions, and place sponsors where visitors already scan.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -36,7 +37,7 @@ export default function Home() {
             </div>
           </div>
           <div className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4 shadow-sm">
-            <div className="rounded-md bg-[var(--foreground)] p-4 text-white">
+            <div className="rounded-md bg-[var(--black-soft)] p-4 text-white">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-bold">Field page preview</p>
                 <span className="rounded-md bg-white/15 px-2 py-1 text-xs font-semibold">QR ready</span>
@@ -47,11 +48,11 @@ export default function Home() {
                   <p className="mt-2 text-2xl font-black">Field status</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-md bg-[var(--grass)] p-4">
+                  <div className="rounded-md bg-[var(--field)] p-4">
                     <p className="text-xs font-semibold text-white/75">Session</p>
                     <p className="mt-1 text-lg font-extrabold">Ready</p>
                   </div>
-                  <div className="rounded-md bg-[var(--clay)] p-4">
+                  <div className="rounded-md bg-[var(--warning)] p-4">
                     <p className="text-xs font-semibold text-white/75">Sponsor</p>
                     <p className="mt-1 text-lg font-extrabold">Slot</p>
                   </div>
@@ -63,6 +64,25 @@ export default function Home() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-black">Built around the venue</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Venues, fields, and sessions are ready for Supabase while sponsors remain local for now.</p>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            {[
+              ["Venues", venues.length],
+              ["Fields", "DB"],
+              ["Sessions", "DB"],
+              ["Sponsors", sponsors.length],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+                <p className="text-lg font-black">{value}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {capabilities.map((capability) => (
             <div key={capability} className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">

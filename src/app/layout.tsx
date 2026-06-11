@@ -16,8 +16,7 @@ export const metadata: Metadata = {
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/admin", label: "Admin" },
-  { href: "/admin/venues/new", label: "Venue setup" },
-  { href: "/fields/preview", label: "Field page" },
+  { href: "/fields/field-1", label: "QR preview" },
 ];
 
 export default function RootLayout({
@@ -29,10 +28,10 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body>
         <div className="min-h-screen">
-          <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--background)_92%,white)]/95 backdrop-blur">
+          <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-white/95 backdrop-blur">
             <nav className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
               <Link href="/" className="flex items-center gap-3" aria-label="GameDay OS home">
-                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--foreground)] text-sm font-black text-white">
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--black-soft)] text-sm font-black text-white">
                   GD
                 </span>
                 <span>
@@ -40,7 +39,7 @@ export default function RootLayout({
                   <span className="block text-xs font-medium text-[var(--muted)]">Venue operations</span>
                 </span>
               </Link>
-              <div className="flex gap-1 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--panel)] p-1">
+              <div className="flex gap-1 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--background)] p-1">
                 {navItems.map((item) => (
                   <Link
                     key={item.href}

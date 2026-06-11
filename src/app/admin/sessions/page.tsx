@@ -1,0 +1,116 @@
+import Link from "next/link";
+import { EmptyState } from "@/components/empty-state";
+import { getFields } from "@/lib/services/fields";
+import { getSessions } from "@/lib/services/sessions";
+import { getVenues } from "@/lib/services/venues";
+import type { Field, Session, Venue } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
+
+function formatSessionTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function groupSessions(venues: Venue[], fields: Field[], sessions: Session[]) {
+  return venues
+    .map((venue) => {
+      const venueFields = fields.filter((field) => field.venueId === venue.id);
+      const fieldGroups = venueFields
+        .map((field) => ({
+          field,
+          sessions: sessions.filter((session) => session.fieldId === field.id),
+        }))
+        .filter((group) => group.sessions.length > 0);
+
+      return { venue, fieldGroups };
+    })
+    .filter((group) => group.fieldGroups.length > 0);
+}
+
+export default async function SessionsPage() {
+  let venues: Venue[] = [];
+  let fields: Field[] = [];
+  let sessions: Session[] = [];
+  let errorMessage: string | null = null;
+
+  try {
+    [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : "Unable to load sessions.";
+  }
+
+  const groupedSessions = groupSessions(venues, fields, sessions);
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Sessions</p>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Session list</h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
+            Real sessions from Supabase, grouped by venue and field.
+          </p>
+        </div>
+        <Link href="/admin/sessions/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+          New session
+        </Link>
+      </div>
+
+      {errorMessage ? (
+        <div className="mt-8 rounded-lg border border-red-200 bg-red-50 p-5">
+          <h2 className="text-lg font-black text-red-950">Unable to load sessions</h2>
+          <p className="mt-2 text-sm leading-6 text-red-800">{errorMessage}</p>
+        </div>
+      ) : sessions.length > 0 ? (
+        <div className="mt-8 grid gap-5">
+          {groupedSessions.map((venueGroup) => (
+            <section key={venueGroup.venue.id} className="rounded-lg border border-[var(--line)] bg-white p-5">
+              <div className="border-b border-[var(--line)] pb-4">
+                <h2 className="text-xl font-black">{venueGroup.venue.name}</h2>
+                <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{venueGroup.venue.address}</p>
+              </div>
+
+              <div className="mt-5 grid gap-4">
+                {venueGroup.fieldGroups.map((fieldGroup) => (
+                  <div key={fieldGroup.field.id} className="rounded-lg bg-[var(--background)] p-4">
+                    <h3 className="text-lg font-black">{fieldGroup.field.name}</h3>
+                    <div className="mt-3 grid gap-3">
+                      {fieldGroup.sessions.map((session) => (
+                        <article key={session.id} className="rounded-lg border border-[var(--line)] bg-white p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <h4 className="font-black">{session.title}</h4>
+                              <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+                                {session.homeTeam} vs. {session.awayTeam}
+                              </p>
+                              <p className="mt-1 text-sm text-[var(--muted)]">{formatSessionTime(session.startTime)}</p>
+                            </div>
+                            <span className="w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                              {session.status}
+                            </span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-8">
+          <EmptyState
+            title="No sessions yet"
+            message="Create a session and attach it to a Supabase field so parents can see current and upcoming activity."
+            actionHref="/admin/sessions/new"
+            actionLabel="Create session"
+          />
+        </div>
+      )}
+    </section>
+  );
+}
