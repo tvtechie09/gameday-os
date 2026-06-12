@@ -1,32 +1,33 @@
 import Link from "next/link";
-import { sponsors } from "@/lib/data";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
+import { getSponsors } from "@/lib/services/sponsors";
 import { getVenues } from "@/lib/services/venues";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminDashboard() {
-  let venueCount: number | string = "-";
-  let fieldCount: number | string = "-";
-  let sessionCount: number | string = "-";
-
+async function loadCount(label: string, load: () => Promise<unknown[]>) {
   try {
-    const [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
-    venueCount = venues.length;
-    fieldCount = fields.length;
-    sessionCount = sessions.length;
-  } catch {
-    venueCount = "!";
-    fieldCount = "!";
-    sessionCount = "!";
+    return (await load()).length;
+  } catch (error) {
+    console.error(`Failed to load ${label} count`, error);
+    return 0;
   }
+}
+
+export default async function AdminDashboard() {
+  const [venueCount, fieldCount, sessionCount, sponsorCount] = await Promise.all([
+    loadCount("venues", getVenues),
+    loadCount("fields", getFields),
+    loadCount("sessions", getSessions),
+    loadCount("sponsors", getSponsors),
+  ]);
 
   const dashboardCards = [
-    { label: "Venues", value: venueCount, note: "Venue profiles from Supabase.", href: "/admin/venues" },
-    { label: "Fields", value: fieldCount, note: "Field pages from Supabase.", href: "/admin/fields" },
-    { label: "Sessions", value: sessionCount, note: "Game day blocks from Supabase.", href: "/admin/sessions" },
-    { label: "Sponsors", value: sponsors.length, note: "Sponsor placements for field pages.", href: "/admin/sponsors" },
+    { label: "Total Venues", value: venueCount, note: "Venue profiles from Supabase.", href: "/admin/venues" },
+    { label: "Total Fields", value: fieldCount, note: "Field pages from Supabase.", href: "/admin/fields" },
+    { label: "Total Sessions", value: sessionCount, note: "Game day blocks from Supabase.", href: "/admin/sessions" },
+    { label: "Total Sponsors", value: sponsorCount, note: "Sponsor profiles from Supabase.", href: "/admin/sponsors" },
   ];
 
   return (

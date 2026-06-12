@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { EmptyState } from "@/components/empty-state";
 import { FieldQrCode } from "@/components/field-qr-code";
 import { getPublicFieldUrl } from "@/lib/public-url";
-import { getFields } from "@/lib/services/fields";
+import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getVenues } from "@/lib/services/venues";
 import type { Field, Venue } from "@/lib/types";
 
@@ -26,6 +27,26 @@ function groupFieldsByVenue(fields: Field[], venues: Venue[]) {
 }
 
 export default async function FieldsPage() {
+  async function updateFieldStatusAction(formData: FormData) {
+    "use server";
+
+    const fieldId = String(formData.get("field_id") ?? "").trim();
+    const status = readFieldStatus(String(formData.get("status") ?? "open"));
+
+    if (!fieldId) {
+      return;
+    }
+
+    try {
+      await updateFieldStatus(fieldId, status);
+      revalidatePath("/admin/fields");
+      revalidatePath("/admin/dashboard");
+      revalidatePath(`/fields/${fieldId}`);
+    } catch (error) {
+      console.error("Failed to update field status", error);
+    }
+  }
+
   let fields: Field[] = [];
   let venues: Venue[] = [];
   let errorMessage: string | null = null;
@@ -72,7 +93,12 @@ export default async function FieldsPage() {
                   <article key={field.id} className="rounded-lg bg-[var(--background)] p-4">
                     <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
                       <div className="min-w-0">
-                        <h3 className="text-lg font-black">{field.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-black">{field.name}</h3>
+                          <span className={`w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
+                            {getFieldStatusLabel(field.status)}
+                          </span>
+                        </div>
                         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{group.venue.name}</p>
                         <p className={field.mapX !== null && field.mapY !== null ? "mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]" : "mt-2 w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"}>
                           {field.mapX !== null && field.mapY !== null ? "Map coordinates set" : "No map coordinates"}
@@ -90,6 +116,22 @@ export default async function FieldsPage() {
                             Print QR
                           </Link>
                         </div>
+                        <form action={updateFieldStatusAction} className="mt-4 grid gap-2 rounded-lg border border-[var(--line)] bg-white p-3 sm:grid-cols-[1fr_auto]">
+                          <input name="field_id" type="hidden" value={field.id} />
+                          <label className="grid gap-1">
+                            <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Quick status</span>
+                            <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={field.status} name="status">
+                              {fieldStatuses.map((status) => (
+                                <option key={status} value={status}>
+                                  {getFieldStatusLabel(status)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <button className="min-h-10 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white sm:self-end" type="submit">
+                            Update
+                          </button>
+                        </form>
                         <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(field.updatedAt)}</p>
                       </div>
                       <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">
@@ -110,7 +152,12 @@ export default async function FieldsPage() {
                   <article key={field.id} className="rounded-lg bg-[var(--background)] p-4">
                     <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
                       <div className="min-w-0">
-                        <h3 className="text-lg font-black">{field.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-black">{field.name}</h3>
+                          <span className={`w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
+                            {getFieldStatusLabel(field.status)}
+                          </span>
+                        </div>
                         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Unmatched venue</p>
                         <p className={field.mapX !== null && field.mapY !== null ? "mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]" : "mt-2 w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"}>
                           {field.mapX !== null && field.mapY !== null ? "Map coordinates set" : "No map coordinates"}
@@ -125,6 +172,22 @@ export default async function FieldsPage() {
                             Print QR
                           </Link>
                         </div>
+                        <form action={updateFieldStatusAction} className="mt-4 grid gap-2 rounded-lg border border-[var(--line)] bg-white p-3 sm:grid-cols-[1fr_auto]">
+                          <input name="field_id" type="hidden" value={field.id} />
+                          <label className="grid gap-1">
+                            <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Quick status</span>
+                            <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={field.status} name="status">
+                              {fieldStatuses.map((status) => (
+                                <option key={status} value={status}>
+                                  {getFieldStatusLabel(status)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <button className="min-h-10 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white sm:self-end" type="submit">
+                            Update
+                          </button>
+                        </form>
                         <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(field.updatedAt)}</p>
                       </div>
                       <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">

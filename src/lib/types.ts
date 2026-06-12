@@ -1,5 +1,5 @@
 export type VenueStatus = "Draft" | "Live";
-export type FieldStatus = "Ready" | "Maintenance" | "Weather hold";
+export type FieldStatus = "open" | "active" | "delayed" | "closed" | "maintenance";
 export type SessionStatus = "scheduled" | "active" | "final";
 export type InningHalf = "top" | "bottom";
 export type SessionLinkLabel = "GameChanger" | "SidelineHD" | "YouTube" | "SportsEngine" | "TeamSnap" | "Other";

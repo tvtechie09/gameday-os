@@ -50,7 +50,7 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-md bg-[var(--field)] p-4">
                     <p className="text-xs font-semibold text-white/75">Session</p>
-                    <p className="mt-1 text-lg font-extrabold">Ready</p>
+                    <p className="mt-1 text-lg font-extrabold">Open</p>
                   </div>
                   <div className="rounded-md bg-[var(--warning)] p-4">
                     <p className="text-xs font-semibold text-white/75">Sponsor</p>

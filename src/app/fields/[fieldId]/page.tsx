@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
-import { getField } from "@/lib/services/fields";
+import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { getPublicFieldUrl } from "@/lib/public-url";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { getActivationLabel, getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
@@ -169,6 +169,35 @@ function AlertStack({ alerts }: { alerts: Alert[] }) {
           <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{alert.message}</p>
         </article>
       ))}
+    </section>
+  );
+}
+
+function FieldStatusBanner({ field }: { field: Field }) {
+  if (field.status === "open" || field.status === "active") {
+    return null;
+  }
+
+  const copy = {
+    delayed: {
+      title: "Field delayed",
+      message: "This field is currently delayed. Check the active alerts and today's schedule before heading over.",
+    },
+    closed: {
+      title: "Field closed",
+      message: "This field is currently closed. Please wait for venue updates before using this field.",
+    },
+    maintenance: {
+      title: "Field under maintenance",
+      message: "This field is temporarily under maintenance and may not be available for play.",
+    },
+  }[field.status];
+
+  return (
+    <section className={`rounded-lg border p-5 ${getFieldStatusClass(field.status)}`}>
+      <p className="text-xs font-black uppercase tracking-[0.16em]">{getFieldStatusLabel(field.status)}</p>
+      <h2 className="mt-1 text-2xl font-black">{copy.title}</h2>
+      <p className="mt-2 text-sm font-semibold leading-6">{copy.message}</p>
     </section>
   );
 }
@@ -377,6 +406,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
             ) : null}
 
             <AlertStack alerts={publicAlerts} />
+
+            {field ? <FieldStatusBanner field={field} /> : null}
 
             <section
               className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-5 shadow-sm" : "rounded-lg border-2 bg-white p-5 shadow-sm"}
@@ -624,7 +655,13 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </div>
                 <div className="rounded-lg bg-[var(--background)] p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Field status</p>
-                  <p className="mt-1 text-lg font-black">{field?.status ?? "Not found"}</p>
+                  {field ? (
+                    <p className={`mt-2 w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
+                      {getFieldStatusLabel(field.status)}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-lg font-black">Not found</p>
+                  )}
                 </div>
               </div>
             </section>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getField, updateField } from "@/lib/services/fields";
+import { fieldStatuses, getField, getFieldStatusLabel, readFieldStatus, updateField } from "@/lib/services/fields";
 import { getVenues } from "@/lib/services/venues";
 
 type EditFieldPageProps = {
@@ -29,6 +29,7 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
     const venueId = String(formData.get("venue_id") ?? "").trim();
     const name = String(formData.get("name") ?? "").trim();
     const sportType = String(formData.get("sport_type") ?? "").trim();
+    const status = readFieldStatus(String(formData.get("status") ?? field?.status ?? "open"));
     const mapLabel = String(formData.get("map_label") ?? "").trim();
 
     if (!venueId || !name || !sportType) {
@@ -39,6 +40,7 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
       venue_id: venueId,
       name,
       sport_type: sportType,
+      status,
       map_label: mapLabel || null,
       map_x: readOptionalCoordinate(formData, "map_x"),
       map_y: readOptionalCoordinate(formData, "map_y"),
@@ -89,6 +91,16 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
         <label className="grid gap-2">
           <span className="text-sm font-bold">Sport type</span>
           <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={field.sportType} name="sport_type" required />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Field status</span>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={field.status} name="status" required>
+            {fieldStatuses.map((status) => (
+              <option key={status} value={status}>
+                {getFieldStatusLabel(status)}
+              </option>
+            ))}
+          </select>
         </label>
         <section className="grid gap-5 border-t border-[var(--line)] pt-5">
           <div>

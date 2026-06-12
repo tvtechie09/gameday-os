@@ -10,6 +10,14 @@ type Message = {
   text: string;
 };
 
+const fieldStatusOptions = [
+  { label: "Open", value: "open" },
+  { label: "Active", value: "active" },
+  { label: "Delayed", value: "delayed" },
+  { label: "Closed", value: "closed" },
+  { label: "Maintenance", value: "maintenance" },
+];
+
 export function FieldForm({ venues }: { venues: Venue[] }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -105,6 +113,23 @@ export function FieldForm({ venues }: { venues: Venue[] }) {
           required
           type="text"
         />
+      </label>
+
+      <label className="grid gap-2">
+        <span className="text-sm font-bold">Field status</span>
+        <select
+          className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+          defaultValue="open"
+          disabled={!hasVenues || isSaving}
+          name="status"
+          required
+        >
+          {fieldStatusOptions.map((status) => (
+            <option key={status.value} value={status.value}>
+              {status.label}
+            </option>
+          ))}
+        </select>
       </label>
 
       <section className="grid gap-5 border-t border-[var(--line)] pt-5">

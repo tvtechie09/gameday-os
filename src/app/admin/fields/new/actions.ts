@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createField } from "@/lib/services/fields";
-import type { Field } from "@/lib/types";
+import { createField, fieldStatuses, readFieldStatus } from "@/lib/services/fields";
+import type { Field, FieldStatus } from "@/lib/types";
 
 export type CreateFieldResult = {
   field?: Field;
@@ -22,6 +22,7 @@ export async function createFieldAction(formData: FormData): Promise<CreateField
   const venueId = String(formData.get("venue_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const sportType = String(formData.get("sport_type") ?? "").trim();
+  const status = readFieldStatus(String(formData.get("status") ?? "open")) as FieldStatus;
   const mapLabel = String(formData.get("map_label") ?? "").trim();
 
   if (!venueId || !name || !sportType) {
@@ -33,6 +34,7 @@ export async function createFieldAction(formData: FormData): Promise<CreateField
       venue_id: venueId,
       name,
       sport_type: sportType,
+      status: fieldStatuses.includes(status) ? status : "open",
       map_label: mapLabel || null,
       map_x: readOptionalCoordinate(formData, "map_x"),
       map_y: readOptionalCoordinate(formData, "map_y"),

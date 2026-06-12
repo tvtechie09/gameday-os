@@ -1,12 +1,14 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { getPublicFieldUrl } from "@/lib/public-url";
 import { getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
-import { getFields } from "@/lib/services/fields";
+import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
 import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
+import { getSponsors } from "@/lib/services/sponsors";
 import { getVenues } from "@/lib/services/venues";
-import type { Alert, Field, Resource, ResourceActivation, Session, Venue } from "@/lib/types";
+import type { Alert, Field, Resource, ResourceActivation, Session, Sponsor, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -140,21 +142,46 @@ function SummaryCard({ label, value, note }: { label: string; value: number; not
   );
 }
 
-export default async function VenueOperationsDashboard() {
-  const now = new Date();
-  let venues: Venue[] = [];
-  let fields: Field[] = [];
-  let sessions: Session[] = [];
-  let activeAlerts: Alert[] = [];
-  let resources: Resource[] = [];
-  let activations: ResourceActivation[] = [];
-  let errorMessage: string | null = null;
-
+async function safeLoad<T>(label: string, load: () => Promise<T[]>): Promise<T[]> {
   try {
-    [venues, fields, sessions, activeAlerts, resources, activations] = await Promise.all([getVenues(), getFields(), getSessions(), getActiveAlerts(), getResources(), getResourceActivations()]);
+    return await load();
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load venue operations.";
+    console.error(`Failed to load dashboard ${label}`, error);
+    return [];
   }
+}
+
+export default async function VenueOperationsDashboard() {
+  async function updateDashboardFieldStatusAction(formData: FormData) {
+    "use server";
+
+    const fieldId = String(formData.get("field_id") ?? "").trim();
+    const status = readFieldStatus(String(formData.get("status") ?? "open"));
+
+    if (!fieldId) {
+      return;
+    }
+
+    try {
+      await updateFieldStatus(fieldId, status);
+      revalidatePath("/admin/dashboard");
+      revalidatePath("/admin/fields");
+      revalidatePath(`/fields/${fieldId}`);
+    } catch (error) {
+      console.error("Failed to update dashboard field status", error);
+    }
+  }
+
+  const now = new Date();
+  const [venues, fields, sessions, sponsors, activeAlerts, resources, activations] = await Promise.all([
+    safeLoad<Venue>("venues", getVenues),
+    safeLoad<Field>("fields", getFields),
+    safeLoad<Session>("sessions", getSessions),
+    safeLoad<Sponsor>("sponsors", getSponsors),
+    safeLoad<Alert>("active alerts", getActiveAlerts),
+    safeLoad<Resource>("resources", getResources),
+    safeLoad<ResourceActivation>("resource activations", getResourceActivations),
+  ]);
 
   const todaySessions = sessions
     .filter((session) => isSameDay(session.startTime, now))
@@ -184,16 +211,14 @@ export default async function VenueOperationsDashboard() {
         </Link>
       </div>
 
-      {errorMessage ? (
-        <div className="mt-8 rounded-lg border border-red-200 bg-red-50 p-5">
-          <h2 className="text-lg font-black text-red-950">Unable to load dashboard</h2>
-          <p className="mt-2 text-sm leading-6 text-red-800">{errorMessage}</p>
-        </div>
-      ) : (
-        <>
-          <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Total venues" note="Configured venues" value={venues.length} />
             <SummaryCard label="Total fields" note="QR-ready fields" value={fields.length} />
+            <SummaryCard label="Total sessions" note="All sessions from Supabase" value={sessions.length} />
+            <SummaryCard label="Total sponsors" note="Sponsor profiles from Supabase" value={sponsors.length} />
+          </section>
+
+          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Games today" note="All sessions today" value={todaySessions.length} />
             <SummaryCard label="Active games" note="Live now" value={activeGames.length} />
             <SummaryCard label="Upcoming games" note="Future scheduled games" value={upcomingGames.length} />
@@ -339,6 +364,9 @@ export default async function VenueOperationsDashboard() {
                       <div>
                         <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{operation.venue?.name ?? "Venue unavailable"}</p>
                         <h3 className="mt-1 text-xl font-black">{operation.field.name}</h3>
+                        <span className={`mt-2 inline-flex w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(operation.field.status)}`}>
+                          Field {getFieldStatusLabel(operation.field.status)}
+                        </span>
                       </div>
                       <span className={`w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getStatusClass(status, delayed)}`}>
                         {delayed ? "Delayed" : status}
@@ -377,6 +405,22 @@ export default async function VenueOperationsDashboard() {
                     </div>
 
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      <form action={updateDashboardFieldStatusAction} className="grid gap-2 rounded-lg border border-[var(--line)] bg-white p-3 sm:col-span-3 sm:grid-cols-[1fr_auto]">
+                        <input name="field_id" type="hidden" value={operation.field.id} />
+                        <label className="grid gap-1">
+                          <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Quick field status</span>
+                          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={operation.field.status} name="status">
+                            {fieldStatuses.map((statusOption) => (
+                              <option key={statusOption} value={statusOption}>
+                                {getFieldStatusLabel(statusOption)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button className="min-h-10 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white sm:self-end" type="submit">
+                          Update
+                        </button>
+                      </form>
                       {visibleSession ? (
                         <Link href={`/admin/sessions/${visibleSession.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold">
                           Edit Session
@@ -450,8 +494,6 @@ export default async function VenueOperationsDashboard() {
               )}
             </div>
           </section>
-        </>
-      )}
     </section>
   );
 }
