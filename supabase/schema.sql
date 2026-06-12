@@ -69,6 +69,22 @@ create table if not exists public.resource_activations (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.volunteer_roles (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  field_id uuid not null references public.fields(id) on delete cascade,
+  session_id uuid references public.sessions(id) on delete set null,
+  role_type text not null check (role_type in ('scorekeeper', 'stream_operator', 'audio_operator', 'announcer', 'scoreboard_operator', 'field_admin', 'other')),
+  display_name text not null,
+  contact_name text,
+  contact_email text,
+  contact_phone text,
+  status text not null default 'requested' check (status in ('requested', 'approved', 'active', 'ended', 'rejected')),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.tournaments (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -177,6 +193,10 @@ create index if not exists resource_activations_venue_id_idx on public.resource_
 create index if not exists resource_activations_field_id_idx on public.resource_activations(field_id);
 create index if not exists resource_activations_session_id_idx on public.resource_activations(session_id);
 create index if not exists resource_activations_status_idx on public.resource_activations(status);
+create index if not exists volunteer_roles_venue_id_idx on public.volunteer_roles(venue_id);
+create index if not exists volunteer_roles_field_id_idx on public.volunteer_roles(field_id);
+create index if not exists volunteer_roles_session_id_idx on public.volunteer_roles(session_id);
+create index if not exists volunteer_roles_status_idx on public.volunteer_roles(status);
 create index if not exists sessions_field_id_idx on public.sessions(field_id);
 create index if not exists sessions_tournament_id_idx on public.sessions(tournament_id);
 create index if not exists sponsor_assignments_sponsor_id_idx on public.sponsor_assignments(sponsor_id);
@@ -196,6 +216,7 @@ alter table public.venues enable row level security;
 alter table public.fields enable row level security;
 alter table public.resources enable row level security;
 alter table public.resource_activations enable row level security;
+alter table public.volunteer_roles enable row level security;
 alter table public.tournaments enable row level security;
 alter table public.sessions enable row level security;
 alter table public.sponsors enable row level security;
@@ -222,6 +243,10 @@ create policy "Public can read resources"
 
 create policy "Public can read resource activations"
   on public.resource_activations for select
+  using (true);
+
+create policy "Public can read volunteer roles"
+  on public.volunteer_roles for select
   using (true);
 
 create policy "Public can read tournaments"

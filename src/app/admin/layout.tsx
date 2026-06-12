@@ -11,6 +11,7 @@ const adminNavItems = [
   { href: "/admin/import", label: "Import" },
   { href: "/admin/alerts", label: "Alerts" },
   { href: "/admin/resources", label: "Resources" },
+  { href: "/admin/volunteers", label: "Volunteers" },
   { href: "/admin/sponsors", label: "Sponsors" },
 ];
 

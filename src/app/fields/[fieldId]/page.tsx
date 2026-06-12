@@ -12,6 +12,7 @@ import { getVenue } from "@/lib/services/venues";
 import type { Alert, Field, Resource, ResourceActivation, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
 import { ResourceActivationForm } from "./resource-activation-form";
+import { VolunteerRoleForm } from "./volunteer-role-form";
 
 type FieldPageProps = {
   params: Promise<{
@@ -701,6 +702,10 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                   ))}
                 </div>
               </section>
+            ) : null}
+
+            {field && venue ? (
+              <VolunteerRoleForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
             ) : null}
 
             {field && venue ? (

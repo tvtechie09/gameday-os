@@ -329,6 +329,76 @@ export type Database = {
           },
         ];
       };
+      volunteer_roles: {
+        Row: {
+          id: string;
+          venue_id: string;
+          field_id: string;
+          session_id: string | null;
+          role_type: string;
+          display_name: string;
+          contact_name: string | null;
+          contact_email: string | null;
+          contact_phone: string | null;
+          status: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          field_id: string;
+          session_id?: string | null;
+          role_type: string;
+          display_name: string;
+          contact_name?: string | null;
+          contact_email?: string | null;
+          contact_phone?: string | null;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          field_id?: string;
+          session_id?: string | null;
+          role_type?: string;
+          display_name?: string;
+          contact_name?: string | null;
+          contact_email?: string | null;
+          contact_phone?: string | null;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_roles_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_roles_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_roles_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sessions: {
         Row: {
           id: string;

@@ -8,7 +8,8 @@ import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
 import { getVenues } from "@/lib/services/venues";
-import type { Alert, Field, Resource, ResourceActivation, Session, Sponsor, Venue } from "@/lib/types";
+import { getVolunteerRoleLabel, getVolunteerRoles } from "@/lib/services/volunteer-roles";
+import type { Alert, Field, Resource, ResourceActivation, Session, Sponsor, Venue, VolunteerRole } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -173,7 +174,7 @@ export default async function VenueOperationsDashboard() {
   }
 
   const now = new Date();
-  const [venues, fields, sessions, sponsors, activeAlerts, resources, activations] = await Promise.all([
+  const [venues, fields, sessions, sponsors, activeAlerts, resources, activations, volunteerRoles] = await Promise.all([
     safeLoad<Venue>("venues", getVenues),
     safeLoad<Field>("fields", getFields),
     safeLoad<Session>("sessions", getSessions),
@@ -181,6 +182,7 @@ export default async function VenueOperationsDashboard() {
     safeLoad<Alert>("active alerts", getActiveAlerts),
     safeLoad<Resource>("resources", getResources),
     safeLoad<ResourceActivation>("resource activations", getResourceActivations),
+    safeLoad<VolunteerRole>("volunteer roles", getVolunteerRoles),
   ]);
 
   const todaySessions = sessions
@@ -197,6 +199,7 @@ export default async function VenueOperationsDashboard() {
   const venueWideResources = resources.filter((resource) => !resource.fieldId);
   const fieldAssignedResources = resources.filter((resource) => resource.fieldId);
   const pendingActivations = activations.filter((activation) => activation.status === "requested");
+  const pendingVolunteerRoles = volunteerRoles.filter((role) => role.status === "requested");
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -262,6 +265,32 @@ export default async function VenueOperationsDashboard() {
               </div>
             ) : (
               <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No pending activation requests.</p>
+            )}
+          </section>
+
+          <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black">Pending volunteer requests</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Game operation roles waiting for approval.</p>
+              </div>
+              <Link href="/admin/volunteers" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                Review volunteers
+              </Link>
+            </div>
+            {pendingVolunteerRoles.length > 0 ? (
+              <div className="mt-4 grid gap-3">
+                {pendingVolunteerRoles.slice(0, 4).map((role) => (
+                  <article className="rounded-lg bg-[var(--background)] p-4" key={role.id}>
+                    <h3 className="text-base font-black">{getVolunteerRoleLabel(role.roleType)}</h3>
+                    <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+                      {role.displayName} · {venuesById.get(role.venueId)?.name ?? "Venue unavailable"} · {fieldsById.get(role.fieldId)?.name ?? "Field unavailable"}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No pending volunteer requests.</p>
             )}
           </section>
 

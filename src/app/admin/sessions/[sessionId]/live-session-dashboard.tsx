@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { InningHalf, Session, SessionLinkLabel, SessionStatus } from "@/lib/types";
+import type { InningHalf, Session, SessionLinkLabel, SessionStatus, VolunteerRole, VolunteerRoleType } from "@/lib/types";
 import { updateSessionStateAction, type UpdateSessionStateResult } from "./actions";
 
 type GameState = {
@@ -41,6 +41,20 @@ function stateFromSession(session: Session): GameState {
     secondary_link_url: session.secondaryLinkUrl ?? "",
     notes: session.notes ?? "",
   };
+}
+
+function getVolunteerRoleLabel(type: VolunteerRoleType) {
+  const labels: Record<VolunteerRoleType, string> = {
+    scorekeeper: "Scorekeeper",
+    stream_operator: "Stream Operator",
+    audio_operator: "Audio Operator",
+    announcer: "Announcer",
+    scoreboard_operator: "Scoreboard Operator",
+    field_admin: "Field Admin",
+    other: "Volunteer",
+  };
+
+  return labels[type];
 }
 
 function nextHalfInning(state: GameState): GameState {
@@ -140,7 +154,7 @@ function LinkUrlInput({
   );
 }
 
-export function LiveSessionDashboard({ session }: { session: Session }) {
+export function LiveSessionDashboard({ session, volunteerRoles }: { session: Session; volunteerRoles: VolunteerRole[] }) {
   const [gameState, setGameState] = useState<GameState>(() => stateFromSession(session));
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
@@ -350,6 +364,30 @@ export function LiveSessionDashboard({ session }: { session: Session }) {
             </select>
           </label>
         </div>
+      </section>
+
+      <section className="rounded-lg border border-[var(--line)] bg-white p-5 sm:p-6">
+        <h2 className="text-xl font-black">Volunteer roles</h2>
+        {volunteerRoles.length > 0 ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {volunteerRoles.map((role) => (
+              <article className="rounded-lg bg-[var(--background)] p-4" key={role.id}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-black">{getVolunteerRoleLabel(role.roleType)}</p>
+                  <span className="rounded-md bg-white px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">{role.status}</span>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-[var(--muted)]">{role.displayName}</p>
+                {role.contactName || role.contactEmail || role.contactPhone ? (
+                  <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+                    {[role.contactName, role.contactEmail, role.contactPhone].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No approved or active volunteer roles for this session.</p>
+        )}
       </section>
 
       <section className="rounded-lg border border-[var(--line)] bg-white p-5 sm:p-6">

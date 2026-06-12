@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getField } from "@/lib/services/fields";
 import { getSession } from "@/lib/services/sessions";
 import { getVenue } from "@/lib/services/venues";
+import { getVolunteerRolesBySessionId } from "@/lib/services/volunteer-roles";
+import type { VolunteerRole } from "@/lib/types";
 import { LiveSessionDashboard } from "./live-session-dashboard";
 
 type SessionDashboardPageProps = {
@@ -25,11 +27,12 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
   let session: Awaited<ReturnType<typeof getSession>> = null;
   let field: Awaited<ReturnType<typeof getField>> = null;
   let venue: Awaited<ReturnType<typeof getVenue>> = null;
+  let volunteerRoles: VolunteerRole[] = [];
 
   try {
     session = await getSession(sessionId);
     if (session) {
-      field = await getField(session.fieldId);
+      [field, volunteerRoles] = await Promise.all([getField(session.fieldId), getVolunteerRolesBySessionId(session.id)]);
       venue = field ? await getVenue(field.venueId) : null;
     }
   } catch (error) {
@@ -94,7 +97,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
         ) : null}
       </div>
 
-      <LiveSessionDashboard session={session} />
+      <LiveSessionDashboard session={session} volunteerRoles={volunteerRoles} />
     </section>
   );
 }

@@ -12,6 +12,8 @@ export type ResourceType = "camera" | "audio" | "scoreboard" | "display" | "netw
 export type ResourceStatus = "active" | "inactive" | "maintenance" | "unknown";
 export type ResourceActivationType = "parent_camera" | "livestream_link" | "bluetooth_speaker" | "scoreboard_operator" | "announcer" | "other";
 export type ResourceActivationStatus = "requested" | "active" | "ended" | "rejected";
+export type VolunteerRoleType = "scorekeeper" | "stream_operator" | "audio_operator" | "announcer" | "scoreboard_operator" | "field_admin" | "other";
+export type VolunteerRoleStatus = "requested" | "approved" | "active" | "ended" | "rejected";
 
 export interface Venue {
   id: string;
@@ -164,6 +166,22 @@ export interface ResourceActivation {
   notes: string | null;
   startsAt: string;
   endsAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VolunteerRole {
+  id: string;
+  venueId: string;
+  fieldId: string;
+  sessionId: string | null;
+  roleType: VolunteerRoleType;
+  displayName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  status: VolunteerRoleStatus;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 }
