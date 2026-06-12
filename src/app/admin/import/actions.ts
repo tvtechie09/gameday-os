@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSession, getSessions } from "@/lib/services/sessions";
-import type { Session, SessionLinkLabel } from "@/lib/types";
+import type { Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
 
 export type ImportSessionRow = {
   fieldId: string;
@@ -10,6 +10,7 @@ export type ImportSessionRow = {
   startTime: string;
   homeTeam: string;
   awayTeam: string;
+  sportType?: SessionSportType | "" | null;
   status: Session["status"];
   primaryLinkLabel?: SessionLinkLabel | "" | null;
   primaryLinkUrl?: string | null;
@@ -66,6 +67,7 @@ export async function importSessionsAction(rows: ImportSessionRow[]): Promise<Im
         title: row.title,
         home_team: row.homeTeam,
         away_team: row.awayTeam,
+        sport_type: row.sportType,
         start_time: row.startTime,
         status: row.status,
         primary_link_label: row.primaryLinkLabel,

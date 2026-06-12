@@ -21,6 +21,14 @@ type FieldOperations = {
   hasNoUpcomingSessions: boolean;
 };
 
+type DashboardPageProps = {
+  searchParams?: Promise<{
+    sport?: string;
+  }>;
+};
+
+const sportFilters = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
+
 function isSameDay(value: string, date: Date) {
   const sessionDate = new Date(value);
   return (
@@ -152,7 +160,10 @@ async function safeLoad<T>(label: string, load: () => Promise<T[]>): Promise<T[]
   }
 }
 
-export default async function VenueOperationsDashboard() {
+export default async function VenueOperationsDashboard({ searchParams }: DashboardPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const selectedSport = sportFilters.find((sport) => sport === resolvedSearchParams?.sport) ?? "all";
+
   async function updateDashboardFieldStatusAction(formData: FormData) {
     "use server";
 
@@ -188,6 +199,7 @@ export default async function VenueOperationsDashboard() {
   const todaySessions = sessions
     .filter((session) => isSameDay(session.startTime, now))
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const visibleTodaySessions = selectedSport === "all" ? todaySessions : todaySessions.filter((session) => session.sportType === selectedSport);
   const activeGames = sessions.filter((session) => isActiveSession(session, now));
   const upcomingGames = sessions.filter((session) => isUpcomingSession(session, now));
   const upcomingToday = todaySessions.filter((session) => isUpcomingSession(session, now));
@@ -483,10 +495,29 @@ export default async function VenueOperationsDashboard() {
           </section>
 
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
-            <h2 className="text-xl font-black">Today&apos;s schedule</h2>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-xl font-black">Today&apos;s schedule</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Filter by sport without changing the operations totals above.</p>
+              </div>
+              <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+                <Link className={selectedSport === "all" ? "whitespace-nowrap rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white" : "whitespace-nowrap rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]"} href="/admin/dashboard">
+                  All
+                </Link>
+                {sportFilters.map((sport) => (
+                  <Link
+                    className={selectedSport === sport ? "whitespace-nowrap rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white" : "whitespace-nowrap rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]"}
+                    href={`/admin/dashboard?sport=${sport}`}
+                    key={sport}
+                  >
+                    {sport}
+                  </Link>
+                ))}
+              </div>
+            </div>
             <div className="mt-4 grid gap-3">
-              {todaySessions.length > 0 ? (
-                todaySessions.map((session) => {
+              {visibleTodaySessions.length > 0 ? (
+                visibleTodaySessions.map((session) => {
                   const field = fieldsById.get(session.fieldId);
                   const venue = field ? venuesById.get(field.venueId) : null;
                   const status = getSessionStatus(session, now);

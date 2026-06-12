@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ChangeEvent } from "react";
-import type { Field, Session, SessionLinkLabel, Venue } from "@/lib/types";
+import type { Field, Session, SessionLinkLabel, SessionSportType, Venue } from "@/lib/types";
 import { importSessionsAction, type ImportSessionRow, type ImportSessionsResult } from "./actions";
 
 type CsvRow = Record<string, string>;
@@ -13,6 +13,7 @@ type AppColumn =
   | "time"
   | "homeTeam"
   | "awayTeam"
+  | "sportType"
   | "status"
   | "primaryLinkLabel"
   | "primaryLinkUrl"
@@ -35,6 +36,7 @@ const appColumns: Array<{ key: AppColumn; label: string; required?: boolean }> =
   { key: "time", label: "Time", required: true },
   { key: "homeTeam", label: "Home Team", required: true },
   { key: "awayTeam", label: "Away Team", required: true },
+  { key: "sportType", label: "Sport Type" },
   { key: "status", label: "Status", required: true },
   { key: "primaryLinkLabel", label: "Primary Link Label" },
   { key: "primaryLinkUrl", label: "Primary Link URL" },
@@ -44,10 +46,11 @@ const appColumns: Array<{ key: AppColumn; label: string; required?: boolean }> =
 ];
 
 const sampleCsv = `# Venue and field names must match existing GameDay OS records exactly.
-Venue,Field,Session Title,Date,Time,Home Team,Away Team,Status,Primary Link Label,Primary Link URL,Secondary Link Label,Secondary Link URL,Notes
-Example Sports Complex,Field 1,Pool Play Game,2026-07-12,09:00 AM,Home Team,Away Team,scheduled,GameChanger,https://example.com/gamechanger,YouTube,https://example.com/stream,Bring chairs`;
+Venue,Field,Session Title,Date,Time,Home Team,Away Team,Sport Type,Status,Primary Link Label,Primary Link URL,Secondary Link Label,Secondary Link URL,Notes
+Example Sports Complex,Field 1,Pool Play Game,2026-07-12,09:00 AM,Home Team,Away Team,baseball,scheduled,GameChanger,https://example.com/gamechanger,YouTube,https://example.com/stream,Bring chairs`;
 
 const linkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
+const sportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
 
 function parseCsvLine(line: string) {
   const values: string[] = [];
@@ -115,6 +118,7 @@ function guessMapping(headers: string[]) {
     primaryLinkUrl: ["primarylinkurl", "primaryurl"],
     secondaryLinkLabel: ["secondarylinklabel"],
     secondaryLinkUrl: ["secondarylinkurl", "secondaryurl"],
+    sportType: ["sporttype", "sport"],
     status: ["status", "gamestatus"],
     time: ["time", "starttime"],
     title: ["sessiontitle", "title", "gametitle"],
@@ -169,6 +173,11 @@ function parseStatus(value: string): Session["status"] | null {
   return status === "active" || status === "final" || status === "scheduled" ? status : null;
 }
 
+function parseSportType(value: string): SessionSportType {
+  const sportType = value.toLowerCase();
+  return sportTypes.find((type) => type === sportType) ?? "baseball";
+}
+
 function readCell(row: CsvRow, mapping: Partial<Record<AppColumn, string>>, key: AppColumn) {
   const header = mapping[key];
   return header ? row[header]?.trim() ?? "" : "";
@@ -212,12 +221,14 @@ function validateRows({
     const homeTeam = readCell(row, mapping, "homeTeam");
     const awayTeam = readCell(row, mapping, "awayTeam");
     const rawStatus = readCell(row, mapping, "status").toLowerCase();
+    const rawSportType = readCell(row, mapping, "sportType");
     const primaryLinkLabel = readCell(row, mapping, "primaryLinkLabel");
     const secondaryLinkLabel = readCell(row, mapping, "secondaryLinkLabel");
     const parsedDate = parseDateTime(date, time);
     const venue = venuesByName.get(normalize(venueName));
     const field = venue ? fieldsByVenueAndName.get(`${venue.id}|${normalize(fieldName)}`) : null;
     const status = parseStatus(rawStatus);
+    const sportType = parseSportType(rawSportType);
 
     if (!venue) {
       const matches = closestNames(venueName, venues.map((item) => item.name));
@@ -246,6 +257,7 @@ function validateRows({
         primaryLinkUrl: readCell(row, mapping, "primaryLinkUrl") || null,
         secondaryLinkLabel: secondaryLinkLabel as SessionLinkLabel | "",
         secondaryLinkUrl: readCell(row, mapping, "secondaryLinkUrl") || null,
+        sportType,
         startTime: parsedDate.toISOString(),
         status,
         title,

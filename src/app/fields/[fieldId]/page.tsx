@@ -126,6 +126,18 @@ function formatInning(session: Session) {
   return `${session.inningHalf === "top" ? "Top" : "Bottom"} ${session.inning}`;
 }
 
+function isDiamondSport(session: Session) {
+  return session.sportType === "baseball" || session.sportType === "softball";
+}
+
+function formatPeriod(session: Session) {
+  if (session.inning > 0) {
+    return `Period ${session.inning}`;
+  }
+
+  return "Period not set";
+}
+
 function getGameLinks(session: Session) {
   const links: { label: string; url: string }[] = [];
   const candidates = [
@@ -204,6 +216,8 @@ function FieldStatusBanner({ field }: { field: Field }) {
 }
 
 function SessionCard({ session }: { session: Session }) {
+  const diamondSport = isDiamondSport(session);
+
   return (
     <article className="rounded-lg border border-[var(--line)] bg-white p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -218,9 +232,15 @@ function SessionCard({ session }: { session: Session }) {
           <p className="mt-2 text-base font-black">
             {session.homeTeam} {session.homeScore} · {session.awayTeam} {session.awayScore}
           </p>
-          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-            {formatInning(session)} · Count {session.balls}-{session.strikes} · Outs {session.outs}
-          </p>
+          {diamondSport ? (
+            <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+              {formatInning(session)} · Count {session.balls}-{session.strikes} · Outs {session.outs}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+              {formatPeriod(session)} · {session.gameStatus}
+            </p>
+          )}
           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{formatSessionTime(session.startTime)}</p>
         </div>
         <span className="w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
@@ -367,6 +387,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   const fieldMarker = field && field.mapX !== null && field.mapY !== null
     ? { label: field.mapLabel ?? field.name, x: field.mapX, y: field.mapY }
     : null;
+  const currentSessionIsDiamondSport = currentSession ? isDiamondSport(currentSession) : false;
 
   return (
     <section className="min-h-screen bg-white">
@@ -440,22 +461,39 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                         <p className="mt-1 truncate text-lg font-black sm:text-xl">{currentSession.awayTeam}</p>
                       </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-3 gap-2">
-                      <div className="rounded-lg bg-[var(--background)] p-3">
-                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Inning</p>
-                        <p className="mt-1 text-sm font-black">{formatInning(currentSession)}</p>
+                    {currentSessionIsDiamondSport ? (
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        <div className="rounded-lg bg-[var(--background)] p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Inning</p>
+                          <p className="mt-1 text-sm font-black">{formatInning(currentSession)}</p>
+                        </div>
+                        <div className="rounded-lg bg-[var(--background)] p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Count</p>
+                          <p className="mt-1 text-sm font-black">
+                            {currentSession.balls}-{currentSession.strikes}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-[var(--background)] p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Outs</p>
+                          <p className="mt-1 text-sm font-black">{currentSession.outs}</p>
+                        </div>
                       </div>
-                      <div className="rounded-lg bg-[var(--background)] p-3">
-                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Count</p>
-                        <p className="mt-1 text-sm font-black">
-                          {currentSession.balls}-{currentSession.strikes}
-                        </p>
+                    ) : (
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        <div className="rounded-lg bg-[var(--background)] p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Home score</p>
+                          <p className="mt-1 text-sm font-black">{currentSession.homeScore}</p>
+                        </div>
+                        <div className="rounded-lg bg-[var(--background)] p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Away score</p>
+                          <p className="mt-1 text-sm font-black">{currentSession.awayScore}</p>
+                        </div>
+                        <div className="rounded-lg bg-[var(--background)] p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Period</p>
+                          <p className="mt-1 text-sm font-black">{formatPeriod(currentSession)}</p>
+                        </div>
                       </div>
-                      <div className="rounded-lg bg-[var(--background)] p-3">
-                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Outs</p>
-                        <p className="mt-1 text-sm font-black">{currentSession.outs}</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                   <span className="mt-4 inline-flex rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
                     {currentSession.gameStatus}
