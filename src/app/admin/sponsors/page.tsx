@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { EmptyState } from "@/components/empty-state";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
@@ -170,7 +171,7 @@ export default async function SponsorsPage({ searchParams }: SponsorsPageProps) 
                     })()}
                     <div className="flex gap-4">
                       {sponsor.logoUrl ? (
-                        <img alt="" className="h-14 w-14 rounded-lg border border-[var(--line)] object-contain p-1" src={sponsor.logoUrl} />
+                        <Image alt="" className="h-14 w-14 rounded-lg border border-[var(--line)] object-contain p-1" height={56} src={sponsor.logoUrl} unoptimized width={56} />
                       ) : (
                         <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-lg font-black text-[var(--accent-strong)]">
                           {sponsor.name.slice(0, 1)}

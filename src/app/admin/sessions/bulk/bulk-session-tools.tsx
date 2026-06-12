@@ -140,6 +140,9 @@ function SessionPreview({
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
                       {venue?.name ?? "Venue unavailable"} · {field?.name ?? "Field unavailable"}
                     </p>
+                    <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                      {session.sportType}
+                    </p>
                     <p className="mt-1 text-sm text-[var(--muted)]">{formatSessionTime(session.startTime)}</p>
                   </div>
                   <span className="w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">

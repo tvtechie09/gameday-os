@@ -2,8 +2,9 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
+import { getTournaments } from "@/lib/services/tournaments";
 import { getVenues } from "@/lib/services/venues";
-import type { Field, Session, Venue } from "@/lib/types";
+import type { Field, Session, Tournament, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -45,15 +46,17 @@ export default async function SessionsPage() {
   let venues: Venue[] = [];
   let fields: Field[] = [];
   let sessions: Session[] = [];
+  let tournaments: Tournament[] = [];
   let errorMessage: string | null = null;
 
   try {
-    [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
+    [venues, fields, sessions, tournaments] = await Promise.all([getVenues(), getFields(), getSessions(), getTournaments()]);
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "Unable to load sessions.";
   }
 
   const groupedSessions = groupSessions(venues, fields, sessions);
+  const tournamentsById = new Map(tournaments.map((tournament) => [tournament.id, tournament]));
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -102,6 +105,14 @@ export default async function SessionsPage() {
                               <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
                                 {session.homeTeam} vs. {session.awayTeam}
                               </p>
+                              <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                                {session.sportType}
+                              </p>
+                              {session.tournamentId ? (
+                                <p className="mt-2 text-sm font-bold text-[var(--accent-strong)]">
+                                  {tournamentsById.get(session.tournamentId)?.name ?? "Tournament unavailable"}
+                                </p>
+                              ) : null}
                               <p className="mt-2 text-lg font-black">
                                 {session.homeTeam} {session.homeScore} · {session.awayTeam} {session.awayScore}
                               </p>

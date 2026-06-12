@@ -1,18 +1,21 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
-import type { InningHalf, Session, SessionLinkLabel } from "@/lib/types";
+import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
 
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type SessionUpdateRow = Database["public"]["Tables"]["sessions"]["Update"];
 
 const sessionSelect =
-  "id,field_id,title,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,notes,created_at,updated_at";
+  "id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,notes,created_at,updated_at";
 
 const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
+const validSportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
 
 export type CreateSessionInput = {
   field_id: string;
+  tournament_id?: string | null;
   title: string;
+  sport_type?: SessionSportType | "" | null;
   home_team: string;
   away_team: string;
   start_time: string;
@@ -77,11 +80,17 @@ function readLinkLabel(value: string | null | undefined): SessionLinkLabel | nul
   return validLinkLabels.find((label) => label === value) ?? null;
 }
 
+function readSportType(value: string | null | undefined): SessionSportType {
+  return validSportTypes.find((sportType) => sportType === value) ?? "baseball";
+}
+
 function mapSession(row: SessionRow): Session {
   return {
     id: row.id,
     fieldId: row.field_id,
+    tournamentId: readOptionalText(row.tournament_id),
     title: row.title,
+    sportType: readSportType(row.sport_type),
     homeTeam: row.home_team,
     awayTeam: row.away_team,
     startTime: row.start_time,
@@ -154,7 +163,9 @@ export async function createSession(data: CreateSessionInput): Promise<Session> 
     .from("sessions")
     .insert({
       field_id: data.field_id,
+      tournament_id: readOptionalText(data.tournament_id),
       title: data.title,
+      sport_type: readSportType(data.sport_type),
       home_team: data.home_team,
       away_team: data.away_team,
       start_time: data.start_time,
@@ -183,7 +194,9 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
     .from("sessions")
     .update({
       field_id: data.field_id,
+      tournament_id: readOptionalText(data.tournament_id),
       title: data.title,
+      sport_type: readSportType(data.sport_type),
       home_team: data.home_team,
       away_team: data.away_team,
       start_time: data.start_time,
@@ -348,7 +361,9 @@ export async function duplicateSessionsToDate(data: DuplicateSessionsInput): Pro
 
     return {
       field_id: session.field_id,
+      tournament_id: session.tournament_id,
       title: session.title,
+      sport_type: readSportType(session.sport_type),
       home_team: session.home_team,
       away_team: session.away_team,
       start_time: startTime.toISOString(),

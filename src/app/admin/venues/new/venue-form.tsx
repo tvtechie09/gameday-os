@@ -145,6 +145,34 @@ export function VenueForm() {
         </div>
       </section>
 
+      <section className="grid gap-5 border-t border-[var(--line)] pt-5">
+        <div>
+          <h2 className="text-lg font-black">Venue map</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+            Optional field map shown to parents on public field pages.
+          </p>
+        </div>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Map Image URL</span>
+          <input
+            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            disabled={isSaving}
+            name="map_image_url"
+            placeholder="https://"
+            type="url"
+          />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Map Notes</span>
+          <textarea
+            className="min-h-24 rounded-lg border border-[var(--line)] bg-white p-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            disabled={isSaving}
+            name="map_notes"
+            placeholder="Parking, entrance, walking path, or field numbering notes."
+          />
+        </label>
+      </section>
+
       <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-5 sm:flex-row sm:justify-end">
         <button
           type="reset"

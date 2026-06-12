@@ -1,17 +1,19 @@
 import { SessionForm } from "./session-form";
 import { getFields } from "@/lib/services/fields";
+import { getTournaments } from "@/lib/services/tournaments";
 import { getVenues } from "@/lib/services/venues";
-import type { Field, Venue } from "@/lib/types";
+import type { Field, Tournament, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewSessionPage() {
   let venues: Venue[] = [];
   let fields: Field[] = [];
+  let tournaments: Tournament[] = [];
   let errorMessage: string | null = null;
 
   try {
-    [venues, fields] = await Promise.all([getVenues(), getFields()]);
+    [venues, fields, tournaments] = await Promise.all([getVenues(), getFields(), getTournaments()]);
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "Unable to load venues and fields.";
   }
@@ -32,7 +34,7 @@ export default async function NewSessionPage() {
           <p className="mt-2 text-sm leading-6 text-red-800">{errorMessage}</p>
         </div>
       ) : (
-        <SessionForm fields={fields} venues={venues} />
+        <SessionForm fields={fields} tournaments={tournaments} venues={venues} />
       )}
     </section>
   );

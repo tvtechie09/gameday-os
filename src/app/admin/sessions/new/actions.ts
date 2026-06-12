@@ -11,6 +11,7 @@ export type CreateSessionResult = {
 
 const validStatuses = ["scheduled", "active", "final"] as const;
 const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
+const validSportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
 
 function readOptionalText(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
@@ -24,9 +25,11 @@ function readLinkLabel(formData: FormData, key: string) {
 
 export async function createSessionAction(formData: FormData): Promise<CreateSessionResult> {
   const fieldId = String(formData.get("field_id") ?? "").trim();
+  const tournamentId = String(formData.get("tournament_id") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const homeTeam = String(formData.get("home_team") ?? "").trim();
   const awayTeam = String(formData.get("away_team") ?? "").trim();
+  const sportType = String(formData.get("sport_type") ?? "baseball").trim();
   const startTime = String(formData.get("start_time") ?? "").trim();
   const endTime = String(formData.get("end_time") ?? "").trim();
   const status = String(formData.get("status") ?? "scheduled").trim();
@@ -39,10 +42,16 @@ export async function createSessionAction(formData: FormData): Promise<CreateSes
     return { error: "Choose a valid session status." };
   }
 
+  if (!validSportTypes.includes(sportType as Session["sportType"])) {
+    return { error: "Choose a valid sport type." };
+  }
+
   try {
     const session = await createSession({
       field_id: fieldId,
+      tournament_id: tournamentId || null,
       title,
+      sport_type: sportType as Session["sportType"],
       home_team: homeTeam,
       away_team: awayTeam,
       start_time: new Date(startTime).toISOString(),

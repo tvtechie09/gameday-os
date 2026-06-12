@@ -15,6 +15,8 @@ export async function createVenueAction(formData: FormData): Promise<CreateVenue
   const address = String(formData.get("address") ?? "").trim();
   const logoUrl = String(formData.get("logo_url") ?? "").trim();
   const bannerUrl = String(formData.get("banner_url") ?? "").trim();
+  const mapImageUrl = String(formData.get("map_image_url") ?? "").trim();
+  const mapNotes = String(formData.get("map_notes") ?? "").trim();
   const primaryColor = String(formData.get("primary_color") ?? "").trim();
   const secondaryColor = String(formData.get("secondary_color") ?? "").trim();
 
@@ -29,6 +31,8 @@ export async function createVenueAction(formData: FormData): Promise<CreateVenue
       address,
       logo_url: logoUrl || null,
       banner_url: bannerUrl || null,
+      map_image_url: mapImageUrl || null,
+      map_notes: mapNotes || null,
       primary_color: primaryColor || null,
       secondary_color: secondaryColor || null,
     });

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
@@ -60,7 +61,7 @@ export default async function SponsorDetailPage({ params, searchParams }: Sponso
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex gap-4">
             {sponsor.logoUrl ? (
-              <img alt="" className="h-20 w-20 rounded-lg border border-[var(--line)] object-contain p-2" src={sponsor.logoUrl} />
+              <Image alt="" className="h-20 w-20 rounded-lg border border-[var(--line)] object-contain p-2" height={80} src={sponsor.logoUrl} unoptimized width={80} />
             ) : (
               <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-2xl font-black text-[var(--accent-strong)]">
                 {sponsor.name.slice(0, 1)}

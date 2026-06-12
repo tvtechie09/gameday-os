@@ -10,6 +10,15 @@ type EditFieldPageProps = {
 
 export const dynamic = "force-dynamic";
 
+function readOptionalCoordinate(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "").trim();
+  if (!value) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default async function EditFieldPage({ params }: EditFieldPageProps) {
   const { fieldId } = await params;
   const [field, venues] = await Promise.all([getField(fieldId), getVenues()]);
@@ -20,12 +29,20 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
     const venueId = String(formData.get("venue_id") ?? "").trim();
     const name = String(formData.get("name") ?? "").trim();
     const sportType = String(formData.get("sport_type") ?? "").trim();
+    const mapLabel = String(formData.get("map_label") ?? "").trim();
 
     if (!venueId || !name || !sportType) {
       return;
     }
 
-    await updateField(fieldId, { venue_id: venueId, name, sport_type: sportType });
+    await updateField(fieldId, {
+      venue_id: venueId,
+      name,
+      sport_type: sportType,
+      map_label: mapLabel || null,
+      map_x: readOptionalCoordinate(formData, "map_x"),
+      map_y: readOptionalCoordinate(formData, "map_y"),
+    });
     revalidatePath("/admin/fields");
     revalidatePath(`/fields/${fieldId}`);
     redirect("/admin/fields");
@@ -73,6 +90,28 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
           <span className="text-sm font-bold">Sport type</span>
           <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={field.sportType} name="sport_type" required />
         </label>
+        <section className="grid gap-5 border-t border-[var(--line)] pt-5">
+          <div>
+            <h2 className="text-lg font-black">Map position</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+              Optional marker placement for the venue map. Use percentages from the left and top edges.
+            </p>
+          </div>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Map Label</span>
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={field.mapLabel ?? ""} name="map_label" placeholder="Field 1, Diamond A, Court 3" />
+          </label>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="grid gap-2">
+              <span className="text-sm font-bold">Map X Position</span>
+              <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={field.mapX ?? ""} max="100" min="0" name="map_x" placeholder="0-100" step="0.1" type="number" />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-bold">Map Y Position</span>
+              <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={field.mapY ?? ""} max="100" min="0" name="map_y" placeholder="0-100" step="0.1" type="number" />
+            </label>
+          </div>
+        </section>
         <div className="flex justify-end border-t border-[var(--line)] pt-5">
           <button className="min-h-11 rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white" type="submit">
             Save field

@@ -10,6 +10,8 @@ export type CreateVenueInput = {
   address: string;
   logo_url?: string | null;
   banner_url?: string | null;
+  map_image_url?: string | null;
+  map_notes?: string | null;
   primary_color?: string | null;
   secondary_color?: string | null;
 };
@@ -29,6 +31,8 @@ function mapVenue(row: VenueRow): Venue {
     status: row.status === "Live" ? "Live" : "Draft",
     logoUrl: row.logo_url ?? null,
     bannerUrl: row.banner_url ?? null,
+    mapImageUrl: row.map_image_url ?? null,
+    mapNotes: row.map_notes ?? null,
     primaryColor: row.primary_color ?? null,
     secondaryColor: row.secondary_color ?? null,
     updatedAt: row.updated_at,
@@ -46,7 +50,7 @@ export async function getVenues(): Promise<Venue[]> {
   const supabase = getSupabaseServerClient();
   const { data: venues, error: venuesError } = await supabase
     .from("venues")
-    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,primary_color,secondary_color,created_at,updated_at")
+    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .order("created_at", { ascending: false });
 
   if (venuesError) {
@@ -71,7 +75,7 @@ export async function getVenue(id: string): Promise<Venue | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("venues")
-    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,primary_color,secondary_color,created_at,updated_at")
+    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -92,11 +96,13 @@ export async function createVenue(data: CreateVenueInput): Promise<Venue> {
       address: data.address,
       logo_url: data.logo_url,
       banner_url: data.banner_url,
+      map_image_url: data.map_image_url,
+      map_notes: data.map_notes,
       primary_color: data.primary_color,
       secondary_color: data.secondary_color,
       status: "Draft",
     })
-    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,primary_color,secondary_color,created_at,updated_at")
+    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .single();
 
   if (error) {
@@ -116,12 +122,14 @@ export async function updateVenue(id: string, data: UpdateVenueInput): Promise<V
       address: data.address,
       logo_url: data.logo_url,
       banner_url: data.banner_url,
+      map_image_url: data.map_image_url,
+      map_notes: data.map_notes,
       primary_color: data.primary_color,
       secondary_color: data.secondary_color,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,primary_color,secondary_color,created_at,updated_at")
+    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .single();
 
   if (error) {

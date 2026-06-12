@@ -74,6 +74,9 @@ export default async function FieldsPage() {
                       <div className="min-w-0">
                         <h3 className="text-lg font-black">{field.name}</h3>
                         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{group.venue.name}</p>
+                        <p className={field.mapX !== null && field.mapY !== null ? "mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]" : "mt-2 w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"}>
+                          {field.mapX !== null && field.mapY !== null ? "Map coordinates set" : "No map coordinates"}
+                        </p>
                         <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                           <CopyLinkButton value={getPublicFieldUrl(field.id)} />
@@ -109,6 +112,9 @@ export default async function FieldsPage() {
                       <div className="min-w-0">
                         <h3 className="text-lg font-black">{field.name}</h3>
                         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Unmatched venue</p>
+                        <p className={field.mapX !== null && field.mapY !== null ? "mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]" : "mt-2 w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"}>
+                          {field.mapX !== null && field.mapY !== null ? "Map coordinates set" : "No map coordinates"}
+                        </p>
                         <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                           <CopyLinkButton value={getPublicFieldUrl(field.id)} />

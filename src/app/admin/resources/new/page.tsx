@@ -1,0 +1,24 @@
+import Link from "next/link";
+import { getFields } from "@/lib/services/fields";
+import { getVenues } from "@/lib/services/venues";
+import { ResourceForm } from "./resource-form";
+
+export const dynamic = "force-dynamic";
+
+export default async function NewResourcePage() {
+  const [venues, fields] = await Promise.all([getVenues(), getFields()]);
+
+  return (
+    <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <Link href="/admin/resources" className="text-sm font-bold text-[var(--accent-strong)]">Back to resources</Link>
+      <div className="mt-5">
+        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Inventory</p>
+        <h1 className="mt-2 text-3xl font-black sm:text-4xl">Create resource</h1>
+        <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
+          Track cameras, audio, scoreboard, network, and streaming gear by venue or field.
+        </p>
+      </div>
+      <ResourceForm fields={fields} venues={venues} />
+    </section>
+  );
+}

@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { getPublicFieldUrl } from "@/lib/public-url";
+import { getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { getFields } from "@/lib/services/fields";
+import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
+import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getVenues } from "@/lib/services/venues";
-import type { Field, Session, Venue } from "@/lib/types";
+import type { Alert, Field, Resource, ResourceActivation, Session, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -142,10 +145,13 @@ export default async function VenueOperationsDashboard() {
   let venues: Venue[] = [];
   let fields: Field[] = [];
   let sessions: Session[] = [];
+  let activeAlerts: Alert[] = [];
+  let resources: Resource[] = [];
+  let activations: ResourceActivation[] = [];
   let errorMessage: string | null = null;
 
   try {
-    [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
+    [venues, fields, sessions, activeAlerts, resources, activations] = await Promise.all([getVenues(), getFields(), getSessions(), getActiveAlerts(), getResources(), getResourceActivations()]);
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "Unable to load venue operations.";
   }
@@ -160,6 +166,8 @@ export default async function VenueOperationsDashboard() {
   const fieldOperations = buildFieldOperations(fields, venues, sessions, now);
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
+  const activeResources = resources.filter((resource) => resource.status === "active");
+  const pendingActivations = activations.filter((activation) => activation.status === "requested");
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -183,12 +191,69 @@ export default async function VenueOperationsDashboard() {
         </div>
       ) : (
         <>
-          <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
             <SummaryCard label="Total venues" note="Configured venues" value={venues.length} />
             <SummaryCard label="Total fields" note="QR-ready fields" value={fields.length} />
             <SummaryCard label="Games today" note="All sessions today" value={todaySessions.length} />
             <SummaryCard label="Active games" note="Live now" value={activeGames.length} />
             <SummaryCard label="Upcoming games" note="Future scheduled games" value={upcomingGames.length} />
+            <SummaryCard label="Resources" note="Active inventory" value={activeResources.length} />
+          </section>
+
+          <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black">Pending resource activations</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Volunteer and parent requests waiting for approval.</p>
+              </div>
+              <Link href="/admin/resources/activations" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                Review requests
+              </Link>
+            </div>
+            {pendingActivations.length > 0 ? (
+              <div className="mt-4 grid gap-3">
+                {pendingActivations.slice(0, 4).map((activation) => (
+                  <article className="rounded-lg bg-[var(--background)] p-4" key={activation.id}>
+                    <h3 className="text-base font-black">{getActivationLabel(activation.activationType)}</h3>
+                    <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+                      {activation.displayName} · {venuesById.get(activation.venueId)?.name ?? "Venue unavailable"} · {fieldsById.get(activation.fieldId)?.name ?? "Field unavailable"}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No pending activation requests.</p>
+            )}
+          </section>
+
+          <section className="mt-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black">Active alerts</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Current communications visible on public field pages.</p>
+              </div>
+              <Link href="/admin/alerts/new" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                New alert
+              </Link>
+            </div>
+            {activeAlerts.length > 0 ? (
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {activeAlerts.map((alert) => (
+                  <article className={`rounded-lg border p-4 ${getAlertTone(alert.alertType)}`} key={alert.id}>
+                    <p className="text-xs font-black uppercase tracking-[0.14em]">{getAlertLabel(alert.alertType)}</p>
+                    <h3 className="mt-1 text-lg font-black">{alert.title}</h3>
+                    <p className="mt-2 text-sm leading-6">{alert.message}</p>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] opacity-75">
+                      {venuesById.get(alert.venueId)?.name ?? "Venue unavailable"}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-lg border border-[var(--line)] bg-white p-5 text-sm leading-6 text-[var(--muted)]">
+                No active alerts right now.
+              </p>
+            )}
           </section>
 
           {delayedGames.length > 0 ? (
@@ -215,12 +280,14 @@ export default async function VenueOperationsDashboard() {
                 const venueFieldIds = new Set(venueFields.map((field) => field.id));
                 const venueActiveGames = activeGames.filter((session) => venueFieldIds.has(session.fieldId));
                 const venueUpcomingToday = upcomingToday.filter((session) => venueFieldIds.has(session.fieldId));
+                const venueResources = resources.filter((resource) => resource.venueId === venue.id);
+                const venueActiveResources = venueResources.filter((resource) => resource.status === "active");
 
                 return (
                   <article key={venue.id} className="rounded-lg border border-[var(--line)] bg-white p-5">
                     <h3 className="text-lg font-black">{venue.name}</h3>
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{venue.address || "No address listed"}</p>
-                    <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div className="rounded-lg bg-[var(--background)] p-3">
                         <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Fields</p>
                         <p className="mt-1 text-xl font-black">{venueFields.length}</p>
@@ -232,6 +299,10 @@ export default async function VenueOperationsDashboard() {
                       <div className="rounded-lg bg-[var(--accent-soft)] p-3">
                         <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">Today</p>
                         <p className="mt-1 text-xl font-black text-[var(--accent-strong)]">{venueUpcomingToday.length}</p>
+                      </div>
+                      <div className="rounded-lg bg-[var(--background)] p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Resources</p>
+                        <p className="mt-1 text-xl font-black">{venueActiveResources.length}/{venueResources.length}</p>
                       </div>
                     </div>
                   </article>
@@ -279,6 +350,9 @@ export default async function VenueOperationsDashboard() {
                       {operation.currentSession ? (
                         <>
                           <h4 className="mt-2 text-lg font-black">{operation.currentSession.title}</h4>
+                          <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                            {operation.currentSession.sportType}
+                          </p>
                           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{formatDateTime(operation.currentSession.startTime)}</p>
                           <p className="mt-3 text-lg font-black">{formatScore(operation.currentSession)}</p>
                         </>
@@ -292,6 +366,9 @@ export default async function VenueOperationsDashboard() {
                       {operation.nextSession ? (
                         <>
                           <h4 className="mt-2 text-base font-black">{operation.nextSession.title}</h4>
+                          <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                            {operation.nextSession.sportType}
+                          </p>
                           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{formatDateTime(operation.nextSession.startTime)}</p>
                         </>
                       ) : (
@@ -339,6 +416,9 @@ export default async function VenueOperationsDashboard() {
                             </span>
                           </div>
                           <h3 className="mt-2 text-lg font-black">{session.title}</h3>
+                          <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                            {session.sportType}
+                          </p>
                           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
                             {venue?.name ?? "Venue unavailable"} · {field?.name ?? "Field unavailable"}
                           </p>

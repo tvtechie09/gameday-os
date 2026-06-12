@@ -21,6 +21,8 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
     const address = String(formData.get("address") ?? "").trim();
     const logoUrl = String(formData.get("logo_url") ?? "").trim();
     const bannerUrl = String(formData.get("banner_url") ?? "").trim();
+    const mapImageUrl = String(formData.get("map_image_url") ?? "").trim();
+    const mapNotes = String(formData.get("map_notes") ?? "").trim();
     const primaryColor = String(formData.get("primary_color") ?? "").trim();
     const secondaryColor = String(formData.get("secondary_color") ?? "").trim();
 
@@ -34,6 +36,8 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
       address,
       logo_url: logoUrl || null,
       banner_url: bannerUrl || null,
+      map_image_url: mapImageUrl || null,
+      map_notes: mapNotes || null,
       primary_color: primaryColor || null,
       secondary_color: secondaryColor || null,
     });
@@ -102,6 +106,22 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
               <input className="h-11 rounded-lg border border-[var(--line)] bg-white px-2" defaultValue={venue.secondaryColor ?? "#111827"} name="secondary_color" type="color" />
             </label>
           </div>
+        </section>
+        <section className="grid gap-5 border-t border-[var(--line)] pt-5">
+          <div>
+            <h2 className="text-lg font-black">Venue map</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+              Optional field map shown to parents on public field pages.
+            </p>
+          </div>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Map Image URL</span>
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={venue.mapImageUrl ?? ""} name="map_image_url" placeholder="https://" type="url" />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Map Notes</span>
+            <textarea className="min-h-24 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base" defaultValue={venue.mapNotes ?? ""} name="map_notes" />
+          </label>
         </section>
         <div className="flex justify-end border-t border-[var(--line)] pt-5">
           <button className="min-h-11 rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white" type="submit">

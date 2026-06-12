@@ -3,13 +3,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getFields } from "@/lib/services/fields";
 import { getSession, updateSession } from "@/lib/services/sessions";
-import type { SessionLinkLabel } from "@/lib/types";
+import { getTournaments } from "@/lib/services/tournaments";
+import type { SessionLinkLabel, SessionSportType } from "@/lib/types";
 
 type EditSessionPageProps = {
   params: Promise<{ sessionId: string }>;
 };
 
 const linkLabels: SessionLinkLabel[] = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"];
+const sportTypes: SessionSportType[] = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"];
 
 function toDateTimeLocal(value: string) {
   return new Date(value).toISOString().slice(0, 16);
@@ -29,13 +31,15 @@ export const dynamic = "force-dynamic";
 
 export default async function EditSessionPage({ params }: EditSessionPageProps) {
   const { sessionId } = await params;
-  const [session, fields] = await Promise.all([getSession(sessionId), getFields()]);
+  const [session, fields, tournaments] = await Promise.all([getSession(sessionId), getFields(), getTournaments()]);
 
   async function updateSessionAction(formData: FormData) {
     "use server";
 
     const fieldId = String(formData.get("field_id") ?? "").trim();
+    const tournamentId = String(formData.get("tournament_id") ?? "").trim();
     const title = String(formData.get("title") ?? "").trim();
+    const sportType = String(formData.get("sport_type") ?? "baseball").trim();
     const homeTeam = String(formData.get("home_team") ?? "").trim();
     const awayTeam = String(formData.get("away_team") ?? "").trim();
     const startTime = String(formData.get("start_time") ?? "").trim();
@@ -48,7 +52,9 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
 
     await updateSession(sessionId, {
       field_id: fieldId,
+      tournament_id: tournamentId || null,
       title,
+      sport_type: sportTypes.find((type) => type === sportType) ?? "baseball",
       home_team: homeTeam,
       away_team: awayTeam,
       start_time: new Date(startTime).toISOString(),
@@ -103,6 +109,23 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
         <label className="grid gap-2">
           <span className="text-sm font-bold">Session title</span>
           <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={session.title} name="title" required />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Tournament</span>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={session.tournamentId ?? ""} name="tournament_id">
+            <option value="">No tournament</option>
+            {tournaments.map((tournament) => (
+              <option key={tournament.id} value={tournament.id}>{tournament.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Sport</span>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={session.sportType} name="sport_type" required>
+            {sportTypes.map((sportType) => (
+              <option key={sportType} value={sportType}>{sportType}</option>
+            ))}
+          </select>
         </label>
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2">

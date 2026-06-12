@@ -3,6 +3,73 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      alerts: {
+        Row: {
+          id: string;
+          title: string;
+          message: string;
+          alert_type: string;
+          venue_id: string;
+          tournament_id: string | null;
+          field_id: string | null;
+          start_time: string;
+          end_time: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          message: string;
+          alert_type: string;
+          venue_id: string;
+          tournament_id?: string | null;
+          field_id?: string | null;
+          start_time: string;
+          end_time: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          message?: string;
+          alert_type?: string;
+          venue_id?: string;
+          tournament_id?: string | null;
+          field_id?: string | null;
+          start_time?: string;
+          end_time?: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "alerts_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "alerts_tournament_id_fkey";
+            columns: ["tournament_id"];
+            isOneToOne: false;
+            referencedRelation: "tournaments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "alerts_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       venues: {
         Row: {
           id: string;
@@ -15,6 +82,8 @@ export type Database = {
           status: string;
           logo_url: string | null;
           banner_url: string | null;
+          map_image_url: string | null;
+          map_notes: string | null;
           primary_color: string | null;
           secondary_color: string | null;
           created_at: string;
@@ -31,6 +100,8 @@ export type Database = {
           status?: string;
           logo_url?: string | null;
           banner_url?: string | null;
+          map_image_url?: string | null;
+          map_notes?: string | null;
           primary_color?: string | null;
           secondary_color?: string | null;
           created_at?: string;
@@ -47,6 +118,8 @@ export type Database = {
           status?: string;
           logo_url?: string | null;
           banner_url?: string | null;
+          map_image_url?: string | null;
+          map_notes?: string | null;
           primary_color?: string | null;
           secondary_color?: string | null;
           created_at?: string;
@@ -60,6 +133,9 @@ export type Database = {
           venue_id: string;
           name: string;
           sport_type: string;
+          map_label: string | null;
+          map_x: number | null;
+          map_y: number | null;
           surface: string | null;
           status: string;
           resources: Json;
@@ -71,6 +147,9 @@ export type Database = {
           venue_id: string;
           name: string;
           sport_type: string;
+          map_label?: string | null;
+          map_x?: number | null;
+          map_y?: number | null;
           surface?: string | null;
           status?: string;
           resources?: Json;
@@ -82,6 +161,9 @@ export type Database = {
           venue_id?: string;
           name?: string;
           sport_type?: string;
+          map_label?: string | null;
+          map_x?: number | null;
+          map_y?: number | null;
           surface?: string | null;
           status?: string;
           resources?: Json;
@@ -98,11 +180,159 @@ export type Database = {
           },
         ];
       };
+      resources: {
+        Row: {
+          id: string;
+          venue_id: string;
+          field_id: string | null;
+          resource_name: string;
+          resource_type: string;
+          manufacturer: string | null;
+          model: string | null;
+          serial_number: string | null;
+          status: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          field_id?: string | null;
+          resource_name: string;
+          resource_type: string;
+          manufacturer?: string | null;
+          model?: string | null;
+          serial_number?: string | null;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          field_id?: string | null;
+          resource_name?: string;
+          resource_type?: string;
+          manufacturer?: string | null;
+          model?: string | null;
+          serial_number?: string | null;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "resources_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "resources_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      resource_activations: {
+        Row: {
+          id: string;
+          resource_id: string | null;
+          venue_id: string;
+          field_id: string;
+          session_id: string | null;
+          activation_type: string;
+          display_name: string;
+          contact_name: string | null;
+          contact_email: string | null;
+          resource_url: string | null;
+          status: string;
+          notes: string | null;
+          starts_at: string;
+          ends_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          resource_id?: string | null;
+          venue_id: string;
+          field_id: string;
+          session_id?: string | null;
+          activation_type: string;
+          display_name: string;
+          contact_name?: string | null;
+          contact_email?: string | null;
+          resource_url?: string | null;
+          status?: string;
+          notes?: string | null;
+          starts_at: string;
+          ends_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          resource_id?: string | null;
+          venue_id?: string;
+          field_id?: string;
+          session_id?: string | null;
+          activation_type?: string;
+          display_name?: string;
+          contact_name?: string | null;
+          contact_email?: string | null;
+          resource_url?: string | null;
+          status?: string;
+          notes?: string | null;
+          starts_at?: string;
+          ends_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "resource_activations_resource_id_fkey";
+            columns: ["resource_id"];
+            isOneToOne: false;
+            referencedRelation: "resources";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "resource_activations_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "resource_activations_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "resource_activations_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sessions: {
         Row: {
           id: string;
           field_id: string;
+          tournament_id: string | null;
           title: string;
+          sport_type: string;
           home_team: string;
           away_team: string;
           start_time: string;
@@ -127,7 +357,9 @@ export type Database = {
         Insert: {
           id?: string;
           field_id: string;
+          tournament_id?: string | null;
           title: string;
+          sport_type?: string;
           home_team: string;
           away_team: string;
           start_time: string;
@@ -152,7 +384,9 @@ export type Database = {
         Update: {
           id?: string;
           field_id?: string;
+          tournament_id?: string | null;
           title?: string;
+          sport_type?: string;
           home_team?: string;
           away_team?: string;
           start_time?: string;
@@ -182,7 +416,50 @@ export type Database = {
             referencedRelation: "fields";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "sessions_tournament_id_fkey";
+            columns: ["tournament_id"];
+            isOneToOne: false;
+            referencedRelation: "tournaments";
+            referencedColumns: ["id"];
+          },
         ];
+      };
+      tournaments: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          start_date: string;
+          end_date: string;
+          logo_url: string | null;
+          website_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string | null;
+          start_date: string;
+          end_date: string;
+          logo_url?: string | null;
+          website_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string | null;
+          start_date?: string;
+          end_date?: string;
+          logo_url?: string | null;
+          website_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       sponsors: {
         Row: {

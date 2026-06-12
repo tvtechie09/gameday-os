@@ -77,6 +77,9 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
             Live session dashboard
           </p>
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">{session.title}</h1>
+          <p className="mt-3 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+            {session.sportType}
+          </p>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
             {venue?.name ?? "Venue unavailable"} · {field?.name ?? "Field unavailable"} · {formatSessionTime(session.startTime)}
           </p>

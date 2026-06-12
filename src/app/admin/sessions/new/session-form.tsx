@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { Field, Venue } from "@/lib/types";
+import type { Field, Tournament, Venue } from "@/lib/types";
 import { createSessionAction } from "./actions";
 
 type Message = {
@@ -10,7 +10,9 @@ type Message = {
   text: string;
 };
 
-export function SessionForm({ fields, venues }: { fields: Field[]; venues: Venue[] }) {
+const sportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
+
+export function SessionForm({ fields, tournaments, venues }: { fields: Field[]; tournaments: Tournament[]; venues: Venue[] }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedVenueId, setSelectedVenueId] = useState("");
@@ -119,6 +121,22 @@ export function SessionForm({ fields, venues }: { fields: Field[]; venues: Venue
         />
       </label>
 
+      <label className="grid gap-2">
+        <span className="text-sm font-bold">Tournament</span>
+        <select
+          className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+          disabled={isSaving}
+          name="tournament_id"
+        >
+          <option value="">No tournament</option>
+          {tournaments.map((tournament) => (
+            <option key={tournament.id} value={tournament.id}>
+              {tournament.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-bold">Home team</span>
@@ -167,6 +185,22 @@ export function SessionForm({ fields, venues }: { fields: Field[]; venues: Venue
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Sport</span>
+          <select
+            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            defaultValue="baseball"
+            disabled={isSaving}
+            name="sport_type"
+            required
+          >
+            {sportTypes.map((sportType) => (
+              <option key={sportType} value={sportType}>
+                {sportType}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="grid gap-2">
           <span className="text-sm font-bold">Status</span>
           <select

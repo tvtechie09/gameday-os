@@ -1,11 +1,17 @@
 import type { CSSProperties } from "react";
+import Image from "next/image";
 import { getField } from "@/lib/services/fields";
 import { getPublicFieldUrl } from "@/lib/public-url";
+import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
+import { getActivationLabel, getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
+import { getResourcesForFieldPage } from "@/lib/services/resources";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
+import { getTournaments } from "@/lib/services/tournaments";
 import { getVenue } from "@/lib/services/venues";
-import type { Field, Session, SponsorPlacement, Venue } from "@/lib/types";
+import type { Alert, Field, Resource, ResourceActivation, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
+import { ResourceActivationForm } from "./resource-activation-form";
 
 type FieldPageProps = {
   params: Promise<{
@@ -135,6 +141,42 @@ function getGameLinks(session: Session) {
   return links;
 }
 
+function TournamentBadge({ tournament }: { tournament: Tournament }) {
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-lg bg-white p-3">
+      {tournament.logoUrl ? (
+        <Image alt="" className="h-12 w-12 rounded-lg border border-[var(--line)] object-contain p-1.5" height={48} src={tournament.logoUrl} unoptimized width={48} />
+      ) : null}
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Tournament</p>
+        <p className="truncate text-base font-black">{tournament.name}</p>
+      </div>
+    </div>
+  );
+}
+
+function AlertStack({ alerts }: { alerts: Alert[] }) {
+  if (alerts.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="grid gap-3">
+      {alerts.map((alert) => (
+        <article className={`rounded-lg border p-4 ${getAlertTone(alert.alertType)}`} key={alert.id}>
+          <p className="text-xs font-black uppercase tracking-[0.14em]">{getAlertLabel(alert.alertType)}</p>
+          <h2 className="mt-1 text-xl font-black">{alert.title}</h2>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{alert.message}</p>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function formatResourceType(value: string) {
+  return value.replace("_", " ");
+}
+
 function SessionCard({ session }: { session: Session }) {
   return (
     <article className="rounded-lg border border-[var(--line)] bg-white p-4">
@@ -143,6 +185,9 @@ function SessionCard({ session }: { session: Session }) {
           <h3 className="text-lg font-black">{session.title}</h3>
           <p className="mt-2 text-sm font-bold text-[var(--foreground)]">
             {session.homeTeam} vs. {session.awayTeam}
+          </p>
+          <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+            {session.sportType}
           </p>
           <p className="mt-2 text-base font-black">
             {session.homeTeam} {session.homeScore} · {session.awayTeam} {session.awayScore}
@@ -188,6 +233,9 @@ function CompactSessionRow({ session, badge }: { session: Session; badge?: Sessi
           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
             {session.homeTeam} vs. {session.awayTeam}
           </p>
+          <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+            {session.sportType}
+          </p>
         </div>
         <div className="text-left sm:text-right">
           <p className="text-sm font-black">{formatTimeOnly(session.startTime)}</p>
@@ -204,23 +252,42 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   let field: Field | null = null;
   let venue: Venue | null = null;
   let sessions: Session[] = [];
+  let tournaments: Tournament[] = [];
+  let activeAlerts: Alert[] = [];
+  let resources: Resource[] = [];
+  let activeActivations: ResourceActivation[] = [];
   let sponsorPlacements: SponsorPlacement[] = [];
   let errorMessage: string | null = null;
 
   try {
     field = await getField(fieldId);
     if (field) {
-      const [venueResult, sessionResults] = await Promise.all([
+      const [venueResult, sessionResults, tournamentResults, alertResults] = await Promise.all([
         getVenue(field.venueId),
         getSessionsByFieldId(fieldId),
+        getTournaments(),
+        getActiveAlerts(),
       ]);
       venue = venueResult;
       sessions = sessionResults;
-      sponsorPlacements = await getSponsorPlacementsForFieldPage({
-        venueId: field.venueId,
-        fieldId,
-        sessionId: getActiveOrNextSession(sessionResults)?.id,
-      });
+      tournaments = tournamentResults;
+      activeAlerts = alertResults;
+      const activeOrNextSession = getActiveOrNextSession(sessionResults);
+      [sponsorPlacements, resources, activeActivations] = await Promise.all([
+        getSponsorPlacementsForFieldPage({
+          venueId: field.venueId,
+          fieldId,
+          sessionId: activeOrNextSession?.id,
+        }),
+        getResourcesForFieldPage({
+          venueId: field.venueId,
+          fieldId,
+        }),
+        getActiveResourceActivationsForField({
+          fieldId,
+          sessionId: activeOrNextSession?.id,
+        }),
+      ]);
     }
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "Unable to load field page.";
@@ -235,6 +302,16 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   const todaysSchedule = getTodaysSchedule(sessions);
   const todayScheduleGroups = groupSessionsByTime(todaysSchedule);
   const gameLinks = currentSession ? getGameLinks(currentSession) : [];
+  const tournamentsById = new Map(tournaments.map((tournament) => [tournament.id, tournament]));
+  const currentTournament = currentSession?.tournamentId ? tournamentsById.get(currentSession.tournamentId) ?? null : null;
+  const publicAlerts = field
+    ? filterAlertsForFieldPage({
+      alerts: activeAlerts,
+      venueId: field.venueId,
+      fieldId,
+      tournamentId: currentSession?.tournamentId,
+    })
+    : [];
   const trackedSponsorIds = [...new Set(sponsorPlacements.map((placement) => placement.sponsorId))];
   const topSessionLabel =
     currentSessionBadge === "LIVE NOW"
@@ -261,6 +338,9 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   const accentButtonStyle: CSSProperties = {
     backgroundColor: primaryColor,
   };
+  const fieldMarker = field && field.mapX !== null && field.mapY !== null
+    ? { label: field.mapLabel ?? field.name, x: field.mapX, y: field.mapY }
+    : null;
 
   return (
     <section className="min-h-screen bg-white">
@@ -269,7 +349,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
           <header className="p-5 text-white sm:p-7" style={brandedHeaderStyle}>
             <div className="flex items-center gap-3">
               {venue?.logoUrl ? (
-                <img alt="" className="h-14 w-14 rounded-lg border border-white/25 bg-white object-contain p-1.5" src={venue.logoUrl} />
+                <Image alt="" className="h-14 w-14 rounded-lg border border-white/25 bg-white object-contain p-1.5" height={56} src={venue.logoUrl} unoptimized width={56} />
               ) : null}
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">Welcome to</p>
@@ -296,6 +376,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </section>
             ) : null}
 
+            <AlertStack alerts={publicAlerts} />
+
             <section
               className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-5 shadow-sm" : "rounded-lg border-2 bg-white p-5 shadow-sm"}
               style={currentSessionBadge === "LIVE NOW" ? undefined : accentStyle}
@@ -309,7 +391,13 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               {currentSession ? (
                 <div className="mt-4">
                   <h2 className="text-3xl font-black leading-tight sm:text-4xl">{currentSession.title}</h2>
-                  <p className="mt-2 text-sm font-semibold text-[var(--muted)]">{formatSessionTime(currentSession.startTime)}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                      {currentSession.sportType}
+                    </span>
+                    <p className="text-sm font-semibold text-[var(--muted)]">{formatSessionTime(currentSession.startTime)}</p>
+                  </div>
+                  {currentTournament ? <TournamentBadge tournament={currentTournament} /> : null}
                   <div className="mt-5 rounded-lg bg-white p-4">
                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
                       <div className="min-w-0">
@@ -399,10 +487,13 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                       </p>
                       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
                         {placement.sponsor.logoUrl ? (
-                          <img
+                          <Image
                             alt=""
                             className="h-24 w-full rounded-lg border border-[var(--line)] bg-white object-contain p-3 sm:h-24 sm:w-32"
+                            height={96}
                             src={placement.sponsor.logoUrl}
+                            unoptimized
+                            width={128}
                           />
                         ) : null}
                         <div className="min-w-0">
@@ -436,6 +527,52 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </div>
               </section>
             ) : null}
+
+            <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+              <h2 className="text-lg font-black">Find This Field</h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                {field?.mapLabel ?? field?.name ?? "Field location"}
+              </p>
+              {venue?.mapImageUrl ? (
+                <div className="mt-4 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)]">
+                  <div className="relative">
+                    <Image
+                      alt={`${venue.name} field map`}
+                      className="h-auto w-full object-contain"
+                      height={720}
+                      src={venue.mapImageUrl}
+                      unoptimized
+                      width={960}
+                    />
+                    {fieldMarker ? (
+                      <div
+                        className="absolute -translate-x-1/2 -translate-y-full"
+                        style={{
+                          left: `${fieldMarker.x}%`,
+                          top: `${fieldMarker.y}%`,
+                        }}
+                      >
+                        <div className="grid justify-items-center">
+                          <span className="mb-1 max-w-28 rounded-md bg-[var(--black-soft)] px-2 py-1 text-center text-xs font-black text-white shadow">
+                            {fieldMarker.label}
+                          </span>
+                          <span className="h-5 w-5 rounded-full border-4 border-white bg-red-600 shadow" />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+                  A venue map has not been added yet.
+                </p>
+              )}
+              {venue?.mapNotes ? (
+                <p className="mt-4 whitespace-pre-wrap rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+                  {venue.mapNotes}
+                </p>
+              ) : null}
+            </section>
 
             <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5">
               <h2 className="text-lg font-black">Today&apos;s Schedule</h2>
@@ -491,6 +628,51 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </div>
               </div>
             </section>
+
+            <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+              <h2 className="text-lg font-black">Available Resources</h2>
+              {resources.length > 0 ? (
+                <div className="mt-4 grid gap-3">
+                  {resources.map((resource) => (
+                    <article key={resource.id} className="flex items-start gap-3 rounded-lg bg-[var(--background)] p-4">
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-black text-white">✓</span>
+                      <div>
+                        <h3 className="text-base font-black">{formatResourceType(resource.resourceType)}</h3>
+                        <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{resource.resourceName}</p>
+                        {resource.notes ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{resource.notes}</p> : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+                  No active resources are listed for this field yet.
+                </p>
+              )}
+            </section>
+
+            {activeActivations.length > 0 ? (
+              <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+                <h2 className="text-lg font-black">Active Resources</h2>
+                <div className="mt-4 grid gap-3">
+                  {activeActivations.map((activation) => (
+                    <article key={activation.id} className="rounded-lg bg-[var(--background)] p-4">
+                      <p className="text-base font-black">{getActivationLabel(activation.activationType)}</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{activation.displayName}</p>
+                      {activation.resourceUrl ? (
+                        <a className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" href={activation.resourceUrl} rel="noreferrer" target="_blank">
+                          Open Link
+                        </a>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {field && venue ? (
+              <ResourceActivationForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
+            ) : null}
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5">
               <h2 className="text-lg font-black">Share Field Link</h2>

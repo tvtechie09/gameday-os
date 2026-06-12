@@ -11,6 +11,8 @@ create table if not exists public.venues (
   status text not null default 'Draft' check (status in ('Draft', 'Live')),
   logo_url text,
   banner_url text,
+  map_image_url text,
+  map_notes text,
   primary_color text,
   secondary_color text,
   created_at timestamptz not null default now(),
@@ -22,6 +24,9 @@ create table if not exists public.fields (
   venue_id uuid not null references public.venues(id) on delete cascade,
   name text not null,
   sport_type text not null,
+  map_label text,
+  map_x numeric check (map_x between 0 and 100),
+  map_y numeric check (map_y between 0 and 100),
   surface text,
   status text not null default 'Ready' check (status in ('Ready', 'Maintenance', 'Weather hold')),
   resources jsonb not null default '[]'::jsonb,
@@ -29,10 +34,58 @@ create table if not exists public.fields (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.resources (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  field_id uuid references public.fields(id) on delete set null,
+  resource_name text not null,
+  resource_type text not null check (resource_type in ('camera', 'audio', 'scoreboard', 'display', 'network', 'streaming', 'other')),
+  manufacturer text,
+  model text,
+  serial_number text,
+  status text not null default 'unknown' check (status in ('active', 'inactive', 'maintenance', 'unknown')),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.resource_activations (
+  id uuid primary key default gen_random_uuid(),
+  resource_id uuid references public.resources(id) on delete set null,
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  field_id uuid not null references public.fields(id) on delete cascade,
+  session_id uuid references public.sessions(id) on delete set null,
+  activation_type text not null check (activation_type in ('parent_camera', 'livestream_link', 'bluetooth_speaker', 'scoreboard_operator', 'announcer', 'other')),
+  display_name text not null,
+  contact_name text,
+  contact_email text,
+  resource_url text,
+  status text not null default 'requested' check (status in ('requested', 'active', 'ended', 'rejected')),
+  notes text,
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.tournaments (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  start_date date not null,
+  end_date date not null,
+  logo_url text,
+  website_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.sessions (
   id uuid primary key default gen_random_uuid(),
   field_id uuid not null references public.fields(id) on delete cascade,
+  tournament_id uuid references public.tournaments(id) on delete set null,
   title text not null,
+  sport_type text not null default 'baseball' check (sport_type in ('baseball', 'softball', 'soccer', 'football', 'lacrosse', 'basketball', 'volleyball', 'other')),
   home_team text not null,
   away_team text not null,
   start_time timestamptz not null,
@@ -100,8 +153,31 @@ create table if not exists public.sponsor_clicks (
   page_type text not null default 'field_page'
 );
 
+create table if not exists public.alerts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  message text not null,
+  alert_type text not null check (alert_type in ('info', 'weather', 'delay', 'emergency', 'parking', 'concession', 'field_closure')),
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  tournament_id uuid references public.tournaments(id) on delete cascade,
+  field_id uuid references public.fields(id) on delete cascade,
+  start_time timestamptz not null,
+  end_time timestamptz not null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists fields_venue_id_idx on public.fields(venue_id);
+create index if not exists resources_venue_id_idx on public.resources(venue_id);
+create index if not exists resources_field_id_idx on public.resources(field_id);
+create index if not exists resources_status_idx on public.resources(status);
+create index if not exists resource_activations_venue_id_idx on public.resource_activations(venue_id);
+create index if not exists resource_activations_field_id_idx on public.resource_activations(field_id);
+create index if not exists resource_activations_session_id_idx on public.resource_activations(session_id);
+create index if not exists resource_activations_status_idx on public.resource_activations(status);
 create index if not exists sessions_field_id_idx on public.sessions(field_id);
+create index if not exists sessions_tournament_id_idx on public.sessions(tournament_id);
 create index if not exists sponsor_assignments_sponsor_id_idx on public.sponsor_assignments(sponsor_id);
 create index if not exists sponsor_assignments_venue_id_idx on public.sponsor_assignments(venue_id);
 create index if not exists sponsor_assignments_field_id_idx on public.sponsor_assignments(field_id);
@@ -110,14 +186,22 @@ create index if not exists sponsor_impressions_sponsor_id_idx on public.sponsor_
 create index if not exists sponsor_impressions_viewed_at_idx on public.sponsor_impressions(viewed_at);
 create index if not exists sponsor_clicks_sponsor_id_idx on public.sponsor_clicks(sponsor_id);
 create index if not exists sponsor_clicks_clicked_at_idx on public.sponsor_clicks(clicked_at);
+create index if not exists alerts_venue_id_idx on public.alerts(venue_id);
+create index if not exists alerts_tournament_id_idx on public.alerts(tournament_id);
+create index if not exists alerts_field_id_idx on public.alerts(field_id);
+create index if not exists alerts_active_window_idx on public.alerts(is_active, start_time, end_time);
 
 alter table public.venues enable row level security;
 alter table public.fields enable row level security;
+alter table public.resources enable row level security;
+alter table public.resource_activations enable row level security;
+alter table public.tournaments enable row level security;
 alter table public.sessions enable row level security;
 alter table public.sponsors enable row level security;
 alter table public.sponsor_assignments enable row level security;
 alter table public.sponsor_impressions enable row level security;
 alter table public.sponsor_clicks enable row level security;
+alter table public.alerts enable row level security;
 
 create policy "Public can read venues"
   on public.venues for select
@@ -129,6 +213,18 @@ create policy "Public can create venues"
 
 create policy "Public can read fields"
   on public.fields for select
+  using (true);
+
+create policy "Public can read resources"
+  on public.resources for select
+  using (true);
+
+create policy "Public can read resource activations"
+  on public.resource_activations for select
+  using (true);
+
+create policy "Public can read tournaments"
+  on public.tournaments for select
   using (true);
 
 create policy "Public can create fields"
@@ -149,4 +245,8 @@ create policy "Public can read sponsors"
 
 create policy "Public can read sponsor assignments"
   on public.sponsor_assignments for select
+  using (true);
+
+create policy "Public can read alerts"
+  on public.alerts for select
   using (true);

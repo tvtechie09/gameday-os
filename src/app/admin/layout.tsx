@@ -6,7 +6,10 @@ const adminNavItems = [
   { href: "/admin/venues", label: "Venues" },
   { href: "/admin/fields", label: "Fields" },
   { href: "/admin/sessions", label: "Sessions" },
+  { href: "/admin/tournaments", label: "Tournaments" },
   { href: "/admin/import", label: "Import" },
+  { href: "/admin/alerts", label: "Alerts" },
+  { href: "/admin/resources", label: "Resources" },
   { href: "/admin/sponsors", label: "Sponsors" },
 ];
 
