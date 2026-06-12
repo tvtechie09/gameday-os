@@ -29,14 +29,18 @@ export const sponsors: Sponsor[] = [
   {
     id: "sponsor-concession",
     name: "Concession Stand",
-    placement: "Field page banner",
-    status: "Active",
+    logoUrl: null,
+    websiteUrl: null,
+    description: "Local concessions partner.",
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "sponsor-equipment",
     name: "Equipment Partner",
-    placement: "Session card",
-    status: "Draft",
+    logoUrl: null,
+    websiteUrl: null,
+    description: "Equipment and training partner.",
+    createdAt: "2026-01-01T00:00:00.000Z",
   },
 ];
 
@@ -45,5 +49,5 @@ export function getVenueById(venueId: string) {
 }
 
 export function getFieldSponsor() {
-  return sponsors.find((sponsor) => sponsor.status === "Active");
+  return sponsors[0];
 }

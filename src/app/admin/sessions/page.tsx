@@ -14,6 +14,10 @@ function formatSessionTime(value: string) {
   }).format(new Date(value));
 }
 
+function formatInning(session: Session) {
+  return `${session.inningHalf === "top" ? "Top" : "Bottom"} ${session.inning}`;
+}
+
 function groupSessions(venues: Venue[], fields: Field[], sessions: Session[]) {
   return venues
     .map((venue) => {
@@ -86,11 +90,25 @@ export default async function SessionsPage() {
                               <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
                                 {session.homeTeam} vs. {session.awayTeam}
                               </p>
+                              <p className="mt-2 text-lg font-black">
+                                {session.homeTeam} {session.homeScore} · {session.awayTeam} {session.awayScore}
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+                                {formatInning(session)} · Count {session.balls}-{session.strikes} · Outs {session.outs}
+                              </p>
                               <p className="mt-1 text-sm text-[var(--muted)]">{formatSessionTime(session.startTime)}</p>
                             </div>
-                            <span className="w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
-                              {session.status}
-                            </span>
+                            <div className="flex flex-col items-start gap-3 sm:items-end">
+                              <span className="w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                                {session.gameStatus}
+                              </span>
+                              <Link
+                                href={`/admin/sessions/${session.id}`}
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 py-2 text-sm font-bold text-white"
+                              >
+                                Open live dashboard
+                              </Link>
+                            </div>
                           </div>
                         </article>
                       ))}

@@ -10,6 +10,17 @@ export type CreateSessionResult = {
 };
 
 const validStatuses = ["scheduled", "active", "final"] as const;
+const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
+
+function readOptionalText(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "").trim();
+  return value ? value : null;
+}
+
+function readLinkLabel(formData: FormData, key: string) {
+  const value = readOptionalText(formData, key);
+  return validLinkLabels.find((label) => label === value) ?? null;
+}
 
 export async function createSessionAction(formData: FormData): Promise<CreateSessionResult> {
   const fieldId = String(formData.get("field_id") ?? "").trim();
@@ -35,6 +46,11 @@ export async function createSessionAction(formData: FormData): Promise<CreateSes
       away_team: awayTeam,
       start_time: new Date(startTime).toISOString(),
       status: status as Session["status"],
+      primary_link_label: readLinkLabel(formData, "primary_link_label"),
+      primary_link_url: readOptionalText(formData, "primary_link_url"),
+      secondary_link_label: readLinkLabel(formData, "secondary_link_label"),
+      secondary_link_url: readOptionalText(formData, "secondary_link_url"),
+      notes: readOptionalText(formData, "notes"),
     });
     revalidatePath("/admin/sessions");
     return { session };

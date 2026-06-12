@@ -171,6 +171,83 @@ export function SessionForm({ fields, venues }: { fields: Field[]; venues: Venue
         </label>
       </div>
 
+      <section className="grid gap-5 border-t border-[var(--line)] pt-5">
+        <div>
+          <h2 className="text-lg font-black">Session links</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+            Add one or two parent-facing links to the platforms this game already uses.
+          </p>
+        </div>
+        <div className="grid gap-5">
+          <div className="grid gap-3 rounded-lg border border-[var(--line)] bg-white p-4 sm:grid-cols-[180px_1fr]">
+            <label className="grid gap-2">
+              <span className="text-sm font-bold">Primary label</span>
+              <select
+                className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+                disabled={isSaving}
+                name="primary_link_label"
+              >
+                <option value="">Select label</option>
+                <option value="GameChanger">GameChanger</option>
+                <option value="SidelineHD">SidelineHD</option>
+                <option value="YouTube">YouTube</option>
+                <option value="SportsEngine">SportsEngine</option>
+                <option value="TeamSnap">TeamSnap</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-bold">Primary URL</span>
+              <input
+                className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+                disabled={isSaving}
+                name="primary_link_url"
+                placeholder="https://"
+                type="url"
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-3 rounded-lg border border-[var(--line)] bg-white p-4 sm:grid-cols-[180px_1fr]">
+            <label className="grid gap-2">
+              <span className="text-sm font-bold">Secondary label</span>
+              <select
+                className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+                disabled={isSaving}
+                name="secondary_link_label"
+              >
+                <option value="">Select label</option>
+                <option value="GameChanger">GameChanger</option>
+                <option value="SidelineHD">SidelineHD</option>
+                <option value="YouTube">YouTube</option>
+                <option value="SportsEngine">SportsEngine</option>
+                <option value="TeamSnap">TeamSnap</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-bold">Secondary URL</span>
+              <input
+                className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+                disabled={isSaving}
+                name="secondary_link_url"
+                placeholder="https://"
+                type="url"
+              />
+            </label>
+          </div>
+        </div>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Notes</span>
+          <textarea
+            className="min-h-28 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            disabled={isSaving}
+            name="notes"
+            placeholder="Parking changes, weather updates, bracket links, or venue notes."
+          />
+        </label>
+      </section>
+
       <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-5 sm:flex-row sm:justify-end">
         <button
           type="reset"

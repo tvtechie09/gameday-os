@@ -95,6 +95,19 @@ export type Database = {
           away_team: string;
           start_time: string;
           status: string;
+          home_score: number;
+          away_score: number;
+          inning: number;
+          inning_half: string;
+          balls: number;
+          strikes: number;
+          outs: number;
+          game_status: string;
+          primary_link_label: string | null;
+          primary_link_url: string | null;
+          secondary_link_label: string | null;
+          secondary_link_url: string | null;
+          notes: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -106,6 +119,19 @@ export type Database = {
           away_team: string;
           start_time: string;
           status?: string;
+          home_score?: number;
+          away_score?: number;
+          inning?: number;
+          inning_half?: string;
+          balls?: number;
+          strikes?: number;
+          outs?: number;
+          game_status?: string;
+          primary_link_label?: string | null;
+          primary_link_url?: string | null;
+          secondary_link_label?: string | null;
+          secondary_link_url?: string | null;
+          notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -117,6 +143,19 @@ export type Database = {
           away_team?: string;
           start_time?: string;
           status?: string;
+          home_score?: number;
+          away_score?: number;
+          inning?: number;
+          inning_half?: string;
+          balls?: number;
+          strikes?: number;
+          outs?: number;
+          game_status?: string;
+          primary_link_label?: string | null;
+          primary_link_url?: string | null;
+          secondary_link_label?: string | null;
+          secondary_link_url?: string | null;
+          notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -134,24 +173,27 @@ export type Database = {
         Row: {
           id: string;
           name: string;
-          placement: string;
-          status: string;
+          logo_url: string | null;
+          website_url: string | null;
+          description: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           name: string;
-          placement: string;
-          status?: string;
+          logo_url?: string | null;
+          website_url?: string | null;
+          description?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           name?: string;
-          placement?: string;
-          status?: string;
+          logo_url?: string | null;
+          website_url?: string | null;
+          description?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -161,37 +203,44 @@ export type Database = {
         Row: {
           id: string;
           sponsor_id: string;
+          assignment_type: string;
+          venue_id: string | null;
           field_id: string | null;
           session_id: string | null;
-          placement: string;
-          starts_at: string | null;
-          ends_at: string | null;
+          placement_label: string;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           sponsor_id: string;
+          assignment_type: string;
+          venue_id?: string | null;
           field_id?: string | null;
           session_id?: string | null;
-          placement: string;
-          starts_at?: string | null;
-          ends_at?: string | null;
+          placement_label: string;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           sponsor_id?: string;
+          assignment_type?: string;
+          venue_id?: string | null;
           field_id?: string | null;
           session_id?: string | null;
-          placement?: string;
-          starts_at?: string | null;
-          ends_at?: string | null;
+          placement_label?: string;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "sponsor_assignments_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "sponsor_assignments_field_id_fkey";
             columns: ["field_id"];
