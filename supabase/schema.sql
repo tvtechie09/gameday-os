@@ -170,6 +170,16 @@ create table if not exists public.sponsor_clicks (
   page_type text not null default 'field_page'
 );
 
+create table if not exists public.field_page_views (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  field_id uuid not null references public.fields(id) on delete cascade,
+  session_id uuid references public.sessions(id) on delete set null,
+  viewed_at timestamptz not null default now(),
+  page_type text not null default 'field_page',
+  user_agent text
+);
+
 create table if not exists public.alerts (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -207,6 +217,10 @@ create index if not exists sponsor_impressions_sponsor_id_idx on public.sponsor_
 create index if not exists sponsor_impressions_viewed_at_idx on public.sponsor_impressions(viewed_at);
 create index if not exists sponsor_clicks_sponsor_id_idx on public.sponsor_clicks(sponsor_id);
 create index if not exists sponsor_clicks_clicked_at_idx on public.sponsor_clicks(clicked_at);
+create index if not exists field_page_views_venue_id_idx on public.field_page_views(venue_id);
+create index if not exists field_page_views_field_id_idx on public.field_page_views(field_id);
+create index if not exists field_page_views_session_id_idx on public.field_page_views(session_id);
+create index if not exists field_page_views_viewed_at_idx on public.field_page_views(viewed_at);
 create index if not exists alerts_venue_id_idx on public.alerts(venue_id);
 create index if not exists alerts_tournament_id_idx on public.alerts(tournament_id);
 create index if not exists alerts_field_id_idx on public.alerts(field_id);
@@ -223,6 +237,7 @@ alter table public.sponsors enable row level security;
 alter table public.sponsor_assignments enable row level security;
 alter table public.sponsor_impressions enable row level security;
 alter table public.sponsor_clicks enable row level security;
+alter table public.field_page_views enable row level security;
 alter table public.alerts enable row level security;
 
 create policy "Public can read venues"
@@ -271,6 +286,14 @@ create policy "Public can read sponsors"
 
 create policy "Public can read sponsor assignments"
   on public.sponsor_assignments for select
+  using (true);
+
+create policy "Public can insert field page views"
+  on public.field_page_views for insert
+  with check (true);
+
+create policy "Public can read field page views"
+  on public.field_page_views for select
   using (true);
 
 create policy "Public can read alerts"

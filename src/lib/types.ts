@@ -185,3 +185,8 @@ export interface VolunteerRole {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface FieldPageViewSummary {
+  fieldId: string;
+  views: number;
+}

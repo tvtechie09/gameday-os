@@ -13,6 +13,7 @@ import type { Alert, Field, Resource, ResourceActivation, Session, SponsorPlacem
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
 import { ResourceActivationForm } from "./resource-activation-form";
 import { VolunteerRoleForm } from "./volunteer-role-form";
+import { FieldPageViewTracker } from "./field-page-view-tracker";
 
 type FieldPageProps = {
   params: Promise<{
@@ -407,6 +408,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
           </header>
 
           <main className="grid gap-4 p-4 sm:p-5">
+            {field && venue ? <FieldPageViewTracker fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} /> : null}
+
             {errorMessage ? (
               <section className="rounded-lg border border-red-200 bg-red-50 p-5">
                 <h2 className="text-lg font-black text-red-950">Unable to load field page</h2>

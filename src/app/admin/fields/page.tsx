@@ -4,6 +4,7 @@ import { CopyLinkButton } from "@/components/copy-link-button";
 import { EmptyState } from "@/components/empty-state";
 import { FieldQrCode } from "@/components/field-qr-code";
 import { getPublicFieldUrl } from "@/lib/public-url";
+import { getFieldPageViewCountsByField } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getVenues } from "@/lib/services/venues";
 import type { Field, Venue } from "@/lib/types";
@@ -49,10 +50,14 @@ export default async function FieldsPage() {
 
   let fields: Field[] = [];
   let venues: Venue[] = [];
+  let fieldViewCounts = new Map<string, number>();
   let errorMessage: string | null = null;
 
   try {
-    [fields, venues] = await Promise.all([getFields(), getVenues()]);
+    const [fieldResults, venueResults, viewCounts] = await Promise.all([getFields(), getVenues(), getFieldPageViewCountsByField()]);
+    fields = fieldResults;
+    venues = venueResults;
+    fieldViewCounts = new Map(viewCounts.map((summary) => [summary.fieldId, summary.views]));
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "Unable to load fields.";
   }
@@ -102,6 +107,9 @@ export default async function FieldsPage() {
                         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{group.venue.name}</p>
                         <p className={field.mapX !== null && field.mapY !== null ? "mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]" : "mt-2 w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"}>
                           {field.mapX !== null && field.mapY !== null ? "Map coordinates set" : "No map coordinates"}
+                        </p>
+                        <p className="mt-2 w-fit rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
+                          {fieldViewCounts.get(field.id) ?? 0} public views
                         </p>
                         <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -161,6 +169,9 @@ export default async function FieldsPage() {
                         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Unmatched venue</p>
                         <p className={field.mapX !== null && field.mapY !== null ? "mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]" : "mt-2 w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-600"}>
                           {field.mapX !== null && field.mapY !== null ? "Map coordinates set" : "No map coordinates"}
+                        </p>
+                        <p className="mt-2 w-fit rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
+                          {fieldViewCounts.get(field.id) ?? 0} public views
                         </p>
                         <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getPublicFieldUrl } from "@/lib/public-url";
 import { getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
+import { getFieldPageViewDashboardCounts } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
 import { getResources } from "@/lib/services/resources";
@@ -195,6 +196,10 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
     safeLoad<ResourceActivation>("resource activations", getResourceActivations),
     safeLoad<VolunteerRole>("volunteer roles", getVolunteerRoles),
   ]);
+  const fieldPageViews = await getFieldPageViewDashboardCounts().catch((error: unknown) => {
+    console.error("Failed to load dashboard field page view counts", error);
+    return { today: 0, last7Days: 0 };
+  });
 
   const todaySessions = sessions
     .filter((session) => isSameDay(session.startTime, now))
@@ -252,6 +257,11 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
             <SummaryCard label="Active resources" note="Visible on public field pages" value={activeResources.length} />
             <SummaryCard label="Venue-wide resources" note="Available across venue fields" value={venueWideResources.length} />
             <SummaryCard label="Field-assigned resources" note="Attached to specific fields" value={fieldAssignedResources.length} />
+          </section>
+
+          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard label="Field page views today" note="Anonymous public field visits" value={fieldPageViews.today} />
+            <SummaryCard label="Field page views last 7 days" note="Anonymous public field visits" value={fieldPageViews.last7Days} />
           </section>
 
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">

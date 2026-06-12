@@ -727,6 +727,58 @@ export type Database = {
           },
         ];
       };
+      field_page_views: {
+        Row: {
+          id: string;
+          venue_id: string;
+          field_id: string;
+          session_id: string | null;
+          viewed_at: string;
+          page_type: string;
+          user_agent: string | null;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          field_id: string;
+          session_id?: string | null;
+          viewed_at?: string;
+          page_type?: string;
+          user_agent?: string | null;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          field_id?: string;
+          session_id?: string | null;
+          viewed_at?: string;
+          page_type?: string;
+          user_agent?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "field_page_views_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "field_page_views_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "field_page_views_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
