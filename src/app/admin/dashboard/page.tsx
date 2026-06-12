@@ -208,9 +208,14 @@ export default async function VenueOperationsDashboard() {
             Monitor field activity, live games, upcoming sessions, and QR-ready parent links across every venue.
           </p>
         </div>
-        <Link href="/admin/sessions/bulk" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
-          Bulk session tools
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/status-board" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            Status Board
+          </Link>
+          <Link href="/admin/sessions/bulk" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Bulk session tools
+          </Link>
+        </div>
       </div>
 
           <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
