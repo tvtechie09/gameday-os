@@ -156,6 +156,18 @@ export function SessionForm({ fields, venues }: { fields: Field[]; venues: Venue
           />
         </label>
         <label className="grid gap-2">
+          <span className="text-sm font-bold">End date/time</span>
+          <input
+            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            disabled={isSaving}
+            name="end_time"
+            type="datetime-local"
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="grid gap-2">
           <span className="text-sm font-bold">Status</span>
           <select
             className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"

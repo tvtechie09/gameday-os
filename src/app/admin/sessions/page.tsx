@@ -14,6 +14,13 @@ function formatSessionTime(value: string) {
   }).format(new Date(value));
 }
 
+function formatUpdatedAt(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 function formatInning(session: Session) {
   return `${session.inningHalf === "top" ? "Top" : "Bottom"} ${session.inning}`;
 }
@@ -58,9 +65,14 @@ export default async function SessionsPage() {
             Real sessions from Supabase, grouped by venue and field.
           </p>
         </div>
-        <Link href="/admin/sessions/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
-          New session
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/sessions/bulk" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Bulk tools
+          </Link>
+          <Link href="/admin/sessions/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            New session
+          </Link>
+        </div>
       </div>
 
       {errorMessage ? (
@@ -97,11 +109,20 @@ export default async function SessionsPage() {
                                 {formatInning(session)} · Count {session.balls}-{session.strikes} · Outs {session.outs}
                               </p>
                               <p className="mt-1 text-sm text-[var(--muted)]">{formatSessionTime(session.startTime)}</p>
+                              <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
+                                Updated {formatUpdatedAt(session.updatedAt)}
+                              </p>
                             </div>
                             <div className="flex flex-col items-start gap-3 sm:items-end">
                               <span className="w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
                                 {session.gameStatus}
                               </span>
+                              <Link
+                                href={`/admin/sessions/${session.id}/edit`}
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 py-2 text-sm font-bold"
+                              >
+                                Edit
+                              </Link>
                               <Link
                                 href={`/admin/sessions/${session.id}`}
                                 className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 py-2 text-sm font-bold text-white"

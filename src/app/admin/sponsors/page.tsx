@@ -2,9 +2,11 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
+import { getSponsorAnalytics, readSponsorAnalyticsRange, sponsorAnalyticsRanges } from "@/lib/services/sponsor-analytics";
 import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
 import { getVenues } from "@/lib/services/venues";
-import type { Field, Session, Sponsor, SponsorAssignment, Venue } from "@/lib/types";
+import type { Field, Session, Sponsor, SponsorAnalyticsSummary, SponsorAssignment, Venue } from "@/lib/types";
+import { DeleteButton } from "./delete-button";
 import { SponsorAssignmentForm } from "./sponsor-assignment-form";
 
 export const dynamic = "force-dynamic";
@@ -21,12 +23,32 @@ function getTargetName(assignment: SponsorAssignment, venues: Venue[], fields: F
   return sessions.find((session) => session.id === assignment.sessionId)?.title ?? "Session unavailable";
 }
 
-export default async function SponsorsPage() {
+function formatUpdatedAt(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatCtr(value: number) {
+  return `${value.toFixed(value >= 10 ? 0 : 1)}%`;
+}
+
+type SponsorsPageProps = {
+  searchParams?: Promise<{
+    range?: string;
+  }>;
+};
+
+export default async function SponsorsPage({ searchParams }: SponsorsPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const analyticsRange = readSponsorAnalyticsRange(resolvedSearchParams?.range);
   let sponsors: Sponsor[] = [];
   let assignments: SponsorAssignment[] = [];
   let venues: Venue[] = [];
   let fields: Field[] = [];
   let sessions: Session[] = [];
+  let analytics: SponsorAnalyticsSummary[] = [];
   let errorMessage: string | null = null;
 
   try {
@@ -37,11 +59,21 @@ export default async function SponsorsPage() {
       getFields(),
       getSessions(),
     ]);
+    analytics = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), analyticsRange);
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "Unable to load sponsors.";
   }
 
   const sponsorsById = new Map(sponsors.map((sponsor) => [sponsor.id, sponsor]));
+  const analyticsBySponsorId = new Map(analytics.map((summary) => [summary.sponsorId, summary]));
+  const totals = analytics.reduce(
+    (summary, sponsorAnalytics) => ({
+      impressions: summary.impressions + sponsorAnalytics.impressions,
+      clicks: summary.clicks + sponsorAnalytics.clicks,
+    }),
+    { impressions: 0, clicks: 0 },
+  );
+  const totalCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -65,12 +97,77 @@ export default async function SponsorsPage() {
         </div>
       ) : (
         <>
+          <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black">Sponsor analytics</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                  Lightweight visibility and engagement totals. No cookies, no users, no personal information.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sponsorAnalyticsRanges.map((range) => (
+                  <Link
+                    aria-current={range.value === analyticsRange ? "page" : undefined}
+                    className={
+                      range.value === analyticsRange
+                        ? "inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-3 text-sm font-bold text-white"
+                        : "inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold"
+                    }
+                    href={`/admin/sponsors?range=${range.value}`}
+                    key={range.value}
+                  >
+                    {range.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg bg-[var(--background)] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Total impressions</p>
+                <p className="mt-2 text-3xl font-black">{totals.impressions}</p>
+              </div>
+              <div className="rounded-lg bg-[var(--background)] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Total clicks</p>
+                <p className="mt-2 text-3xl font-black">{totals.clicks}</p>
+              </div>
+              <div className="rounded-lg bg-[var(--background)] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">CTR</p>
+                <p className="mt-2 text-3xl font-black">{formatCtr(totalCtr)}</p>
+              </div>
+            </div>
+          </section>
+
           <section className="mt-8">
             <h2 className="text-xl font-black">Sponsors</h2>
             {sponsors.length > 0 ? (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {sponsors.map((sponsor) => (
                   <article key={sponsor.id} className="rounded-lg border border-[var(--line)] bg-white p-5">
+                    {(() => {
+                      const sponsorAnalytics = analyticsBySponsorId.get(sponsor.id) ?? {
+                        sponsorId: sponsor.id,
+                        impressions: 0,
+                        clicks: 0,
+                        ctr: 0,
+                      };
+                      return (
+                        <div className="mb-4 grid grid-cols-3 gap-2 rounded-lg bg-[var(--background)] p-3 text-center">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Views</p>
+                            <p className="mt-1 text-lg font-black">{sponsorAnalytics.impressions}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Clicks</p>
+                            <p className="mt-1 text-lg font-black">{sponsorAnalytics.clicks}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">CTR</p>
+                            <p className="mt-1 text-lg font-black">{formatCtr(sponsorAnalytics.ctr)}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="flex gap-4">
                       {sponsor.logoUrl ? (
                         <img alt="" className="h-14 w-14 rounded-lg border border-[var(--line)] object-contain p-1" src={sponsor.logoUrl} />
@@ -87,6 +184,18 @@ export default async function SponsorsPage() {
                           </a>
                         ) : null}
                         {sponsor.description ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{sponsor.description}</p> : null}
+                      </div>
+                    </div>
+                    <div className="mt-5 flex flex-col gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(sponsor.updatedAt)}</p>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Link href={`/admin/sponsors/${sponsor.id}?range=${analyticsRange}`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                          Analytics
+                        </Link>
+                        <Link href={`/admin/sponsors/${sponsor.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                          Edit
+                        </Link>
+                        <DeleteButton id={sponsor.id} label="Delete" message={`Delete sponsor "${sponsor.name}" and its assignments?`} type="sponsor" />
                       </div>
                     </div>
                   </article>
@@ -127,7 +236,11 @@ export default async function SponsorsPage() {
                           <p className="mt-1 text-sm font-semibold capitalize text-[var(--muted)]">
                             {assignment.assignmentType} · {getTargetName(assignment, venues, fields, sessions)}
                           </p>
+                          <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
+                            Updated {formatUpdatedAt(assignment.updatedAt)}
+                          </p>
                         </div>
+                        <DeleteButton id={assignment.id} label="Delete assignment" message="Delete this sponsor assignment?" type="assignment" />
                       </div>
                     </article>
                   );

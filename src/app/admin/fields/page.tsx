@@ -9,6 +9,13 @@ import type { Field, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+function formatUpdatedAt(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 function groupFieldsByVenue(fields: Field[], venues: Venue[]) {
   return venues
     .map((venue) => ({
@@ -73,10 +80,14 @@ export default async function FieldsPage() {
                           <Link href={field.qrPath} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                             View public page
                           </Link>
+                          <Link href={`/admin/fields/${field.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                            Edit
+                          </Link>
                           <Link href={`/admin/fields/${field.id}/qr`} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
                             Print QR
                           </Link>
                         </div>
+                        <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(field.updatedAt)}</p>
                       </div>
                       <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">
                         <FieldQrCode value={getPublicFieldUrl(field.id)} size={132} />
@@ -101,10 +112,14 @@ export default async function FieldsPage() {
                         <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                           <CopyLinkButton value={getPublicFieldUrl(field.id)} />
+                          <Link href={`/admin/fields/${field.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                            Edit
+                          </Link>
                           <Link href={`/admin/fields/${field.id}/qr`} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
                             Print QR
                           </Link>
                         </div>
+                        <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(field.updatedAt)}</p>
                       </div>
                       <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">
                         <FieldQrCode value={getPublicFieldUrl(field.id)} size={132} />

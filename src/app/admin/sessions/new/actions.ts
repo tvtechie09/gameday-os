@@ -28,6 +28,7 @@ export async function createSessionAction(formData: FormData): Promise<CreateSes
   const homeTeam = String(formData.get("home_team") ?? "").trim();
   const awayTeam = String(formData.get("away_team") ?? "").trim();
   const startTime = String(formData.get("start_time") ?? "").trim();
+  const endTime = String(formData.get("end_time") ?? "").trim();
   const status = String(formData.get("status") ?? "scheduled").trim();
 
   if (!fieldId || !title || !homeTeam || !awayTeam || !startTime) {
@@ -45,6 +46,7 @@ export async function createSessionAction(formData: FormData): Promise<CreateSes
       home_team: homeTeam,
       away_team: awayTeam,
       start_time: new Date(startTime).toISOString(),
+      end_time: endTime ? new Date(endTime).toISOString() : null,
       status: status as Session["status"],
       primary_link_label: readLinkLabel(formData, "primary_link_label"),
       primary_link_url: readOptionalText(formData, "primary_link_url"),

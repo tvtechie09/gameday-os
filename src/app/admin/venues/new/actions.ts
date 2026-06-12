@@ -13,13 +13,25 @@ export async function createVenueAction(formData: FormData): Promise<CreateVenue
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
+  const logoUrl = String(formData.get("logo_url") ?? "").trim();
+  const bannerUrl = String(formData.get("banner_url") ?? "").trim();
+  const primaryColor = String(formData.get("primary_color") ?? "").trim();
+  const secondaryColor = String(formData.get("secondary_color") ?? "").trim();
 
   if (!name || !description || !address) {
     return { error: "Name, description, and address are required." };
   }
 
   try {
-    const venue = await createVenue({ name, description, address });
+    const venue = await createVenue({
+      name,
+      description,
+      address,
+      logo_url: logoUrl || null,
+      banner_url: bannerUrl || null,
+      primary_color: primaryColor || null,
+      secondary_color: secondaryColor || null,
+    });
     revalidatePath("/admin/venues");
     return { venue };
   } catch (error) {

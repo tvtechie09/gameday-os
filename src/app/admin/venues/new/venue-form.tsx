@@ -94,6 +94,57 @@ export function VenueForm() {
         />
       </label>
 
+      <section className="grid gap-5 border-t border-[var(--line)] pt-5">
+        <div>
+          <h2 className="text-lg font-black">Venue branding</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+            Optional logo, banner, and colors for QR landing pages.
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Logo URL</span>
+            <input
+              className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+              disabled={isSaving}
+              name="logo_url"
+              placeholder="https://"
+              type="url"
+            />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Banner URL</span>
+            <input
+              className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+              disabled={isSaving}
+              name="banner_url"
+              placeholder="https://"
+              type="url"
+            />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Primary color</span>
+            <input
+              className="h-11 rounded-lg border border-[var(--line)] bg-white px-2"
+              defaultValue="#166534"
+              disabled={isSaving}
+              name="primary_color"
+              type="color"
+            />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Secondary color</span>
+            <input
+              className="h-11 rounded-lg border border-[var(--line)] bg-white px-2"
+              defaultValue="#111827"
+              disabled={isSaving}
+              name="secondary_color"
+              type="color"
+            />
+          </label>
+        </div>
+      </section>
+
       <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-5 sm:flex-row sm:justify-end">
         <button
           type="reset"

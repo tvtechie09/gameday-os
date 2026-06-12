@@ -5,6 +5,7 @@ export type InningHalf = "top" | "bottom";
 export type SessionLinkLabel = "GameChanger" | "SidelineHD" | "YouTube" | "SportsEngine" | "TeamSnap" | "Other";
 export type SponsorAssignmentType = "venue" | "field" | "session";
 export type SponsorPlacementLabel = "Presented By" | "Field Sponsor" | "Game Sponsor" | "Featured Sponsor";
+export type SponsorAnalyticsRange = "today" | "7d" | "30d" | "all";
 
 export interface Venue {
   id: string;
@@ -16,6 +17,11 @@ export interface Venue {
   parkingNote: string;
   fieldCount: number;
   status: VenueStatus;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  updatedAt: string;
 }
 
 export interface Field {
@@ -27,6 +33,7 @@ export interface Field {
   status: FieldStatus;
   qrPath: string;
   resources: string[];
+  updatedAt: string;
 }
 
 export interface Session {
@@ -36,6 +43,7 @@ export interface Session {
   homeTeam: string;
   awayTeam: string;
   startTime: string;
+  endTime: string | null;
   status: SessionStatus;
   homeScore: number;
   awayScore: number;
@@ -50,6 +58,7 @@ export interface Session {
   secondaryLinkLabel: SessionLinkLabel | null;
   secondaryLinkUrl: string | null;
   notes: string | null;
+  updatedAt: string;
 }
 
 export interface Sponsor {
@@ -59,6 +68,7 @@ export interface Sponsor {
   websiteUrl: string | null;
   description: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface SponsorAssignment {
@@ -70,8 +80,16 @@ export interface SponsorAssignment {
   sessionId: string | null;
   placementLabel: SponsorPlacementLabel;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface SponsorPlacement extends SponsorAssignment {
   sponsor: Sponsor;
+}
+
+export interface SponsorAnalyticsSummary {
+  sponsorId: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
 }

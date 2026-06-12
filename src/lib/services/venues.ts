@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Venue } from "@/lib/types";
 
@@ -8,7 +8,13 @@ export type CreateVenueInput = {
   name: string;
   description: string;
   address: string;
+  logo_url?: string | null;
+  banner_url?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
 };
+
+export type UpdateVenueInput = CreateVenueInput;
 
 function mapVenue(row: VenueRow): Venue {
   return {
@@ -21,6 +27,11 @@ function mapVenue(row: VenueRow): Venue {
     parkingNote: row.parking_note ?? "",
     fieldCount: 0,
     status: row.status === "Live" ? "Live" : "Draft",
+    logoUrl: row.logo_url ?? null,
+    bannerUrl: row.banner_url ?? null,
+    primaryColor: row.primary_color ?? null,
+    secondaryColor: row.secondary_color ?? null,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -35,7 +46,7 @@ export async function getVenues(): Promise<Venue[]> {
   const supabase = getSupabaseServerClient();
   const { data: venues, error: venuesError } = await supabase
     .from("venues")
-    .select("id,name,description,address,city,state,parking_note,status,created_at,updated_at")
+    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,primary_color,secondary_color,created_at,updated_at")
     .order("created_at", { ascending: false });
 
   if (venuesError) {
@@ -60,7 +71,7 @@ export async function getVenue(id: string): Promise<Venue | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("venues")
-    .select("id,name,description,address,city,state,parking_note,status,created_at,updated_at")
+    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,primary_color,secondary_color,created_at,updated_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -79,9 +90,38 @@ export async function createVenue(data: CreateVenueInput): Promise<Venue> {
       name: data.name,
       description: data.description,
       address: data.address,
+      logo_url: data.logo_url,
+      banner_url: data.banner_url,
+      primary_color: data.primary_color,
+      secondary_color: data.secondary_color,
       status: "Draft",
     })
-    .select("id,name,description,address,city,state,parking_note,status,created_at,updated_at")
+    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,primary_color,secondary_color,created_at,updated_at")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return mapVenue(venue);
+}
+
+export async function updateVenue(id: string, data: UpdateVenueInput): Promise<Venue> {
+  const supabase = getSupabaseAdminClient();
+  const { data: venue, error } = await supabase
+    .from("venues")
+    .update({
+      name: data.name,
+      description: data.description,
+      address: data.address,
+      logo_url: data.logo_url,
+      banner_url: data.banner_url,
+      primary_color: data.primary_color,
+      secondary_color: data.secondary_color,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,primary_color,secondary_color,created_at,updated_at")
     .single();
 
   if (error) {

@@ -2,9 +2,11 @@ import Link from "next/link";
 
 const adminNavItems = [
   { href: "/admin", label: "Overview" },
+  { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/venues", label: "Venues" },
   { href: "/admin/fields", label: "Fields" },
   { href: "/admin/sessions", label: "Sessions" },
+  { href: "/admin/import", label: "Import" },
   { href: "/admin/sponsors", label: "Sponsors" },
 ];
 

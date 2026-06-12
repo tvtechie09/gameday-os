@@ -13,6 +13,10 @@ export type Database = {
           state: string | null;
           parking_note: string | null;
           status: string;
+          logo_url: string | null;
+          banner_url: string | null;
+          primary_color: string | null;
+          secondary_color: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -25,6 +29,10 @@ export type Database = {
           state?: string | null;
           parking_note?: string | null;
           status?: string;
+          logo_url?: string | null;
+          banner_url?: string | null;
+          primary_color?: string | null;
+          secondary_color?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -37,6 +45,10 @@ export type Database = {
           state?: string | null;
           parking_note?: string | null;
           status?: string;
+          logo_url?: string | null;
+          banner_url?: string | null;
+          primary_color?: string | null;
+          secondary_color?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -94,6 +106,7 @@ export type Database = {
           home_team: string;
           away_team: string;
           start_time: string;
+          end_time: string | null;
           status: string;
           home_score: number;
           away_score: number;
@@ -118,6 +131,7 @@ export type Database = {
           home_team: string;
           away_team: string;
           start_time: string;
+          end_time?: string | null;
           status?: string;
           home_score?: number;
           away_score?: number;
@@ -142,6 +156,7 @@ export type Database = {
           home_team?: string;
           away_team?: string;
           start_time?: string;
+          end_time?: string | null;
           status?: string;
           home_score?: number;
           away_score?: number;
@@ -260,6 +275,104 @@ export type Database = {
             columns: ["sponsor_id"];
             isOneToOne: false;
             referencedRelation: "sponsors";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sponsor_impressions: {
+        Row: {
+          id: string;
+          sponsor_id: string;
+          field_id: string | null;
+          session_id: string | null;
+          viewed_at: string;
+          page_type: string;
+        };
+        Insert: {
+          id?: string;
+          sponsor_id: string;
+          field_id?: string | null;
+          session_id?: string | null;
+          viewed_at?: string;
+          page_type: string;
+        };
+        Update: {
+          id?: string;
+          sponsor_id?: string;
+          field_id?: string | null;
+          session_id?: string | null;
+          viewed_at?: string;
+          page_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sponsor_impressions_sponsor_id_fkey";
+            columns: ["sponsor_id"];
+            isOneToOne: false;
+            referencedRelation: "sponsors";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sponsor_impressions_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sponsor_impressions_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sponsor_clicks: {
+        Row: {
+          id: string;
+          sponsor_id: string;
+          field_id: string | null;
+          session_id: string | null;
+          clicked_at: string;
+          page_type: string;
+        };
+        Insert: {
+          id?: string;
+          sponsor_id: string;
+          field_id?: string | null;
+          session_id?: string | null;
+          clicked_at?: string;
+          page_type: string;
+        };
+        Update: {
+          id?: string;
+          sponsor_id?: string;
+          field_id?: string | null;
+          session_id?: string | null;
+          clicked_at?: string;
+          page_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sponsor_clicks_sponsor_id_fkey";
+            columns: ["sponsor_id"];
+            isOneToOne: false;
+            referencedRelation: "sponsors";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sponsor_clicks_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sponsor_clicks_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
             referencedColumns: ["id"];
           },
         ];

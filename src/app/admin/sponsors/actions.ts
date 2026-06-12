@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createSponsorAssignment } from "@/lib/services/sponsors";
+import { createSponsorAssignment, deleteSponsor, deleteSponsorAssignment } from "@/lib/services/sponsors";
 import type { SponsorAssignment, SponsorAssignmentType, SponsorPlacementLabel } from "@/lib/types";
 
 export type CreateSponsorAssignmentResult = {
@@ -47,6 +47,32 @@ export async function createSponsorAssignmentAction(formData: FormData): Promise
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unable to create sponsor assignment.",
+    };
+  }
+}
+
+export async function deleteSponsorAction(sponsorId: string): Promise<{ error?: string }> {
+  try {
+    await deleteSponsor(sponsorId);
+    revalidatePath("/admin/sponsors");
+    revalidatePath("/fields/[fieldId]", "page");
+    return {};
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to delete sponsor.",
+    };
+  }
+}
+
+export async function deleteSponsorAssignmentAction(assignmentId: string): Promise<{ error?: string }> {
+  try {
+    await deleteSponsorAssignment(assignmentId);
+    revalidatePath("/admin/sponsors");
+    revalidatePath("/fields/[fieldId]", "page");
+    return {};
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to delete sponsor assignment.",
     };
   }
 }

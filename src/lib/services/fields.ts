@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Field } from "@/lib/types";
 
@@ -9,6 +9,8 @@ export type CreateFieldInput = {
   name: string;
   sport_type: string;
 };
+
+export type UpdateFieldInput = CreateFieldInput;
 
 function readResources(resources: Json): string[] {
   return Array.isArray(resources) ? resources.filter((resource): resource is string => typeof resource === "string") : [];
@@ -24,6 +26,7 @@ function mapField(row: FieldRow): Field {
     status: row.status === "Maintenance" || row.status === "Weather hold" ? row.status : "Ready",
     qrPath: `/fields/${row.id}`,
     resources: readResources(row.resources),
+    updatedAt: row.updated_at,
   };
 }
 
@@ -66,6 +69,27 @@ export async function createField(data: CreateFieldInput): Promise<Field> {
       sport_type: data.sport_type,
       status: "Ready",
     })
+    .select("id,venue_id,name,sport_type,surface,status,resources,created_at,updated_at")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return mapField(field);
+}
+
+export async function updateField(id: string, data: UpdateFieldInput): Promise<Field> {
+  const supabase = getSupabaseAdminClient();
+  const { data: field, error } = await supabase
+    .from("fields")
+    .update({
+      venue_id: data.venue_id,
+      name: data.name,
+      sport_type: data.sport_type,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
     .select("id,venue_id,name,sport_type,surface,status,resources,created_at,updated_at")
     .single();
 

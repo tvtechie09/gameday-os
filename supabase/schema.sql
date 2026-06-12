@@ -9,6 +9,10 @@ create table if not exists public.venues (
   address text,
   parking_note text,
   status text not null default 'Draft' check (status in ('Draft', 'Live')),
+  logo_url text,
+  banner_url text,
+  primary_color text,
+  secondary_color text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -32,6 +36,7 @@ create table if not exists public.sessions (
   home_team text not null,
   away_team text not null,
   start_time timestamptz not null,
+  end_time timestamptz,
   status text not null default 'scheduled' check (status in ('scheduled', 'active', 'final')),
   home_score integer not null default 0 check (home_score >= 0),
   away_score integer not null default 0 check (away_score >= 0),
@@ -77,18 +82,42 @@ create table if not exists public.sponsor_assignments (
   )
 );
 
+create table if not exists public.sponsor_impressions (
+  id uuid primary key default gen_random_uuid(),
+  sponsor_id uuid not null references public.sponsors(id) on delete cascade,
+  field_id uuid references public.fields(id) on delete set null,
+  session_id uuid references public.sessions(id) on delete set null,
+  viewed_at timestamptz not null default now(),
+  page_type text not null default 'field_page'
+);
+
+create table if not exists public.sponsor_clicks (
+  id uuid primary key default gen_random_uuid(),
+  sponsor_id uuid not null references public.sponsors(id) on delete cascade,
+  field_id uuid references public.fields(id) on delete set null,
+  session_id uuid references public.sessions(id) on delete set null,
+  clicked_at timestamptz not null default now(),
+  page_type text not null default 'field_page'
+);
+
 create index if not exists fields_venue_id_idx on public.fields(venue_id);
 create index if not exists sessions_field_id_idx on public.sessions(field_id);
 create index if not exists sponsor_assignments_sponsor_id_idx on public.sponsor_assignments(sponsor_id);
 create index if not exists sponsor_assignments_venue_id_idx on public.sponsor_assignments(venue_id);
 create index if not exists sponsor_assignments_field_id_idx on public.sponsor_assignments(field_id);
 create index if not exists sponsor_assignments_session_id_idx on public.sponsor_assignments(session_id);
+create index if not exists sponsor_impressions_sponsor_id_idx on public.sponsor_impressions(sponsor_id);
+create index if not exists sponsor_impressions_viewed_at_idx on public.sponsor_impressions(viewed_at);
+create index if not exists sponsor_clicks_sponsor_id_idx on public.sponsor_clicks(sponsor_id);
+create index if not exists sponsor_clicks_clicked_at_idx on public.sponsor_clicks(clicked_at);
 
 alter table public.venues enable row level security;
 alter table public.fields enable row level security;
 alter table public.sessions enable row level security;
 alter table public.sponsors enable row level security;
 alter table public.sponsor_assignments enable row level security;
+alter table public.sponsor_impressions enable row level security;
+alter table public.sponsor_clicks enable row level security;
 
 create policy "Public can read venues"
   on public.venues for select

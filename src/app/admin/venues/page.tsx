@@ -5,6 +5,13 @@ import type { Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+function formatUpdatedAt(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 export default async function VenuesPage() {
   let venues: Venue[] = [];
   let errorMessage: string | null = null;
@@ -50,6 +57,12 @@ export default async function VenuesPage() {
               <div className="mt-5 rounded-lg bg-[var(--background)] p-4">
                 <p className="text-sm font-bold text-[var(--muted)]">Fields</p>
                 <p className="mt-1 text-3xl font-black">{venue.fieldCount}</p>
+              </div>
+              <div className="mt-5 flex flex-col gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(venue.updatedAt)}</p>
+                <Link href={`/admin/venues/${venue.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                  Edit
+                </Link>
               </div>
             </article>
           ))}

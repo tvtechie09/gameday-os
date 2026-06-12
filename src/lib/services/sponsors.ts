@@ -12,6 +12,8 @@ export type CreateSponsorInput = {
   description?: string | null;
 };
 
+export type UpdateSponsorInput = CreateSponsorInput;
+
 export type CreateSponsorAssignmentInput = {
   sponsor_id: string;
   assignment_type: SponsorAssignmentType;
@@ -47,6 +49,7 @@ function mapSponsor(row: SponsorRow): Sponsor {
     websiteUrl: readOptionalText(row.website_url),
     description: row.description ?? "",
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -60,6 +63,7 @@ function mapSponsorAssignment(row: SponsorAssignmentRow): SponsorAssignment {
     sessionId: row.session_id,
     placementLabel: readPlacementLabel(row.placement_label),
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -92,6 +96,48 @@ export async function createSponsor(data: CreateSponsorInput): Promise<Sponsor> 
   }
 
   return mapSponsor(sponsor);
+}
+
+export async function getSponsor(id: string): Promise<Sponsor | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("sponsors").select(sponsorSelect).eq("id", id).maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? mapSponsor(data) : null;
+}
+
+export async function updateSponsor(id: string, data: UpdateSponsorInput): Promise<Sponsor> {
+  const supabase = getSupabaseAdminClient();
+  const { data: sponsor, error } = await supabase
+    .from("sponsors")
+    .update({
+      name: data.name,
+      logo_url: readOptionalText(data.logo_url),
+      website_url: readOptionalText(data.website_url),
+      description: readOptionalText(data.description),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(sponsorSelect)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return mapSponsor(sponsor);
+}
+
+export async function deleteSponsor(id: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase.from("sponsors").delete().eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function getSponsorAssignments(): Promise<SponsorAssignment[]> {
@@ -127,6 +173,15 @@ export async function createSponsorAssignment(data: CreateSponsorAssignmentInput
   }
 
   return mapSponsorAssignment(createdAssignment);
+}
+
+export async function deleteSponsorAssignment(id: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase.from("sponsor_assignments").delete().eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function getSponsorPlacementsForFieldPage({

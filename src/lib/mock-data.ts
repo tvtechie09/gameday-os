@@ -11,6 +11,11 @@ export const venues: Venue[] = [
     parkingNote: "Use the north lot near the main entrance.",
     fieldCount: 4,
     status: "Live",
+    logoUrl: null,
+    bannerUrl: null,
+    primaryColor: null,
+    secondaryColor: null,
+    updatedAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "venue-river-park",
@@ -22,6 +27,11 @@ export const venues: Venue[] = [
     parkingNote: "Overflow parking is available by the indoor facility.",
     fieldCount: 3,
     status: "Draft",
+    logoUrl: null,
+    bannerUrl: null,
+    primaryColor: null,
+    secondaryColor: null,
+    updatedAt: "2026-01-01T00:00:00.000Z",
   },
 ];
 
@@ -33,6 +43,7 @@ export const sponsors: Sponsor[] = [
     websiteUrl: null,
     description: "Local concessions partner.",
     createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "sponsor-equipment",
@@ -41,6 +52,7 @@ export const sponsors: Sponsor[] = [
     websiteUrl: null,
     description: "Equipment and training partner.",
     createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
   },
 ];
 
