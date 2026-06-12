@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { getFields } from "@/lib/services/fields";
-import { getResources } from "@/lib/services/resources";
+import { getResources, getResourceStatusLabel, getResourceTypeLabel } from "@/lib/services/resources";
 import { getVenues } from "@/lib/services/venues";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,20 @@ function statusClass(status: string) {
     return "bg-slate-100 text-slate-700";
   }
   return "bg-white text-[var(--muted)] ring-1 ring-[var(--line)]";
+}
+
+function assignmentLabel({
+  fieldName,
+  venueName,
+}: {
+  fieldName?: string;
+  venueName?: string;
+}) {
+  if (fieldName) {
+    return `${venueName ?? "Venue unavailable"} · ${fieldName}`;
+  }
+
+  return `${venueName ?? "Venue unavailable"} · Venue-wide`;
 }
 
 export default async function ResourcesPage() {
@@ -58,13 +72,29 @@ export default async function ResourcesPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-strong)]">{resource.resourceType}</p>
-                    <span className={`rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${statusClass(resource.status)}`}>{resource.status}</span>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-strong)]">{getResourceTypeLabel(resource.resourceType)}</p>
+                    <span className={`rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${statusClass(resource.status)}`}>{getResourceStatusLabel(resource.status)}</span>
                   </div>
                   <h2 className="mt-2 text-xl font-black">{resource.resourceName}</h2>
-                  <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                    {venuesById.get(resource.venueId)?.name ?? "Venue unavailable"} · {resource.fieldId ? fieldsById.get(resource.fieldId)?.name ?? "Field unavailable" : "Venue-wide"}
-                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-lg bg-[var(--background)] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Assigned venue</p>
+                      <p className="mt-1 text-sm font-black">{venuesById.get(resource.venueId)?.name ?? "Venue unavailable"}</p>
+                    </div>
+                    <div className="rounded-lg bg-[var(--background)] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Assigned field</p>
+                      <p className="mt-1 text-sm font-black">{resource.fieldId ? fieldsById.get(resource.fieldId)?.name ?? "Field unavailable" : "Venue-wide"}</p>
+                    </div>
+                    <div className="rounded-lg bg-[var(--background)] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Assignment</p>
+                      <p className="mt-1 text-sm font-black">
+                        {assignmentLabel({
+                          fieldName: resource.fieldId ? fieldsById.get(resource.fieldId)?.name : undefined,
+                          venueName: venuesById.get(resource.venueId)?.name,
+                        })}
+                      </p>
+                    </div>
+                  </div>
                   {(resource.manufacturer || resource.model || resource.serialNumber) ? (
                     <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
                       {[resource.manufacturer, resource.model, resource.serialNumber].filter(Boolean).join(" · ")}

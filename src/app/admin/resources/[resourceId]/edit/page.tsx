@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getFields } from "@/lib/services/fields";
-import { getResource, resourceStatuses, resourceTypes, updateResource } from "@/lib/services/resources";
+import { getResource, getResourceStatusLabel, getResourceTypeLabel, resourceStatuses, resourceTypes, updateResource } from "@/lib/services/resources";
 import { getVenues } from "@/lib/services/venues";
 import { readResourceFormData } from "../../form-utils";
 
@@ -42,6 +42,9 @@ export default async function EditResourcePage({ params }: EditResourcePageProps
     );
   }
 
+  const assignedVenue = venues.find((venue) => venue.id === resource.venueId);
+  const assignedField = resource.fieldId ? fields.find((field) => field.id === resource.fieldId) : null;
+
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <Link href="/admin/resources" className="text-sm font-bold text-[var(--accent-strong)]">Back to resources</Link>
@@ -49,6 +52,28 @@ export default async function EditResourcePage({ params }: EditResourcePageProps
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Inventory</p>
         <h1 className="mt-2 text-3xl font-black sm:text-4xl">Edit resource</h1>
       </div>
+      <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
+        <h2 className="text-xl font-black">{resource.resourceName}</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg bg-[var(--background)] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Type</p>
+            <p className="mt-1 text-sm font-black">{getResourceTypeLabel(resource.resourceType)}</p>
+          </div>
+          <div className="rounded-lg bg-[var(--background)] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Status</p>
+            <p className="mt-1 text-sm font-black">{getResourceStatusLabel(resource.status)}</p>
+          </div>
+          <div className="rounded-lg bg-[var(--background)] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Assigned venue</p>
+            <p className="mt-1 text-sm font-black">{assignedVenue?.name ?? "Venue unavailable"}</p>
+          </div>
+          <div className="rounded-lg bg-[var(--background)] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Assigned field</p>
+            <p className="mt-1 text-sm font-black">{assignedField?.name ?? "Venue-wide"}</p>
+          </div>
+        </div>
+        {resource.notes ? <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{resource.notes}</p> : null}
+      </section>
       <form action={updateResourceAction} className="mt-8 grid gap-5 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 sm:p-6">
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2">

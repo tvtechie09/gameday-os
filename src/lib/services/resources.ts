@@ -36,6 +36,31 @@ function readResourceStatus(value: string): ResourceStatus {
   return resourceStatuses.find((status) => status === value) ?? "unknown";
 }
 
+export function getResourceTypeLabel(type: ResourceType) {
+  const labels: Record<ResourceType, string> = {
+    camera: "Camera",
+    audio: "Audio",
+    scoreboard: "Scoreboard",
+    display: "Display",
+    network: "Network",
+    streaming: "Livestream",
+    other: "Other",
+  };
+
+  return labels[type];
+}
+
+export function getResourceStatusLabel(status: ResourceStatus) {
+  const labels: Record<ResourceStatus, string> = {
+    active: "Active",
+    inactive: "Inactive",
+    maintenance: "Maintenance",
+    unknown: "Unknown",
+  };
+
+  return labels[status];
+}
+
 function mapResource(row: ResourceRow): Resource {
   return {
     id: row.id,

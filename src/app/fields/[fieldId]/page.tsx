@@ -5,7 +5,7 @@ import { getPublicFieldUrl } from "@/lib/public-url";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { getActivationLabel, getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
-import { getResourcesForFieldPage } from "@/lib/services/resources";
+import { getResourcesForFieldPage, getResourceTypeLabel } from "@/lib/services/resources";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getVenue } from "@/lib/services/venues";
@@ -200,10 +200,6 @@ function FieldStatusBanner({ field }: { field: Field }) {
       <p className="mt-2 text-sm font-semibold leading-6">{copy.message}</p>
     </section>
   );
-}
-
-function formatResourceType(value: string) {
-  return value.replace("_", " ");
 }
 
 function SessionCard({ session }: { session: Session }) {
@@ -674,7 +670,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     <article key={resource.id} className="flex items-start gap-3 rounded-lg bg-[var(--background)] p-4">
                       <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-black text-white">✓</span>
                       <div>
-                        <h3 className="text-base font-black">{formatResourceType(resource.resourceType)}</h3>
+                        <h3 className="text-base font-black">{getResourceTypeLabel(resource.resourceType)}</h3>
                         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{resource.resourceName}</p>
                         {resource.notes ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{resource.notes}</p> : null}
                       </div>
@@ -683,7 +679,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </div>
               ) : (
                 <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
-                  No active resources are listed for this field yet.
+                  No venue resources configured.
                 </p>
               )}
             </section>

@@ -194,6 +194,8 @@ export default async function VenueOperationsDashboard() {
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
   const activeResources = resources.filter((resource) => resource.status === "active");
+  const venueWideResources = resources.filter((resource) => !resource.fieldId);
+  const fieldAssignedResources = resources.filter((resource) => resource.fieldId);
   const pendingActivations = activations.filter((activation) => activation.status === "requested");
 
   return (
@@ -223,6 +225,13 @@ export default async function VenueOperationsDashboard() {
             <SummaryCard label="Active games" note="Live now" value={activeGames.length} />
             <SummaryCard label="Upcoming games" note="Future scheduled games" value={upcomingGames.length} />
             <SummaryCard label="Resources" note="Active inventory" value={activeResources.length} />
+          </section>
+
+          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard label="Total resources" note="Venue and field assignments" value={resources.length} />
+            <SummaryCard label="Active resources" note="Visible on public field pages" value={activeResources.length} />
+            <SummaryCard label="Venue-wide resources" note="Available across venue fields" value={venueWideResources.length} />
+            <SummaryCard label="Field-assigned resources" note="Attached to specific fields" value={fieldAssignedResources.length} />
           </section>
 
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">

@@ -138,6 +138,7 @@ export type Database = {
           map_y: number | null;
           surface: string | null;
           status: string;
+          field_status: string;
           resources: Json;
           created_at: string;
           updated_at: string;
@@ -152,6 +153,7 @@ export type Database = {
           map_y?: number | null;
           surface?: string | null;
           status?: string;
+          field_status?: string;
           resources?: Json;
           created_at?: string;
           updated_at?: string;
@@ -166,6 +168,7 @@ export type Database = {
           map_y?: number | null;
           surface?: string | null;
           status?: string;
+          field_status?: string;
           resources?: Json;
           created_at?: string;
           updated_at?: string;

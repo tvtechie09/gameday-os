@@ -29,6 +29,7 @@ create table if not exists public.fields (
   map_y numeric check (map_y between 0 and 100),
   surface text,
   status text not null default 'open' check (status in ('open', 'active', 'delayed', 'closed', 'maintenance')),
+  field_status text not null default 'open' check (field_status in ('open', 'active', 'delayed', 'closed', 'maintenance')),
   resources jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
