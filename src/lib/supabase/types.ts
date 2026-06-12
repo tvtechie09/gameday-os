@@ -259,6 +259,9 @@ export type Database = {
           notes: string | null;
           starts_at: string;
           ends_at: string;
+          assigned_to_session: boolean;
+          approved_by: string | null;
+          approved_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -277,6 +280,9 @@ export type Database = {
           notes?: string | null;
           starts_at: string;
           ends_at: string;
+          assigned_to_session?: boolean;
+          approved_by?: string | null;
+          approved_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -295,6 +301,9 @@ export type Database = {
           notes?: string | null;
           starts_at?: string;
           ends_at?: string;
+          assigned_to_session?: boolean;
+          approved_by?: string | null;
+          approved_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

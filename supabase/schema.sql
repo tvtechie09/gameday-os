@@ -65,6 +65,9 @@ create table if not exists public.resource_activations (
   notes text,
   starts_at timestamptz not null,
   ends_at timestamptz not null,
+  assigned_to_session boolean not null default false,
+  approved_by text,
+  approved_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

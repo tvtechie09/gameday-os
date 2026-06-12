@@ -3,7 +3,7 @@ import { getFields } from "@/lib/services/fields";
 import { getActivationLabel, getResourceActivations } from "@/lib/services/resource-activations";
 import { getSessions } from "@/lib/services/sessions";
 import { getVenues } from "@/lib/services/venues";
-import { ActivationStatusButton } from "./status-button";
+import { ActivationStatusButton, AssignActivationButton } from "./status-button";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,7 @@ export default async function ResourceActivationsPage() {
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
   const sessionsById = new Map(sessions.map((session) => [session.id, session]));
+  const activeSessionByFieldId = new Map(sessions.filter((session) => session.status === "active" || session.gameStatus === "active").map((session) => [session.fieldId, session]));
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -55,6 +56,16 @@ export default async function ResourceActivationsPage() {
                 </p>
                 {activation.resourceUrl ? <p className="mt-2 break-all text-sm font-bold text-[var(--accent-strong)]">{activation.resourceUrl}</p> : null}
                 {activation.notes ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{activation.notes}</p> : null}
+                {activation.approvedAt ? (
+                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
+                    Approved by {activation.approvedBy ?? "Admin"} · {formatDateTime(activation.approvedAt)}
+                  </p>
+                ) : null}
+                {activation.assignedToSession ? (
+                  <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                    Assigned to session
+                  </p>
+                ) : null}
                 <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
                   {formatDateTime(activation.startsAt)} - {formatDateTime(activation.endsAt)}
                 </p>
@@ -64,7 +75,13 @@ export default async function ResourceActivationsPage() {
                   <>
                     <ActivationStatusButton id={activation.id} label="Approve" status="active" />
                     <ActivationStatusButton id={activation.id} label="Reject" status="rejected" />
+                    {activeSessionByFieldId.get(activation.fieldId) ? (
+                      <AssignActivationButton id={activation.id} sessionId={activeSessionByFieldId.get(activation.fieldId)?.id ?? ""} />
+                    ) : null}
                   </>
+                ) : null}
+                {activation.status === "active" && !activation.assignedToSession && activeSessionByFieldId.get(activation.fieldId) ? (
+                  <AssignActivationButton id={activation.id} sessionId={activeSessionByFieldId.get(activation.fieldId)?.id ?? ""} />
                 ) : null}
                 {activation.status === "active" ? <ActivationStatusButton id={activation.id} label="End" status="ended" /> : null}
               </div>

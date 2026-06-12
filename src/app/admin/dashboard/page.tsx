@@ -214,7 +214,6 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
   const activeResources = resources.filter((resource) => resource.status === "active");
   const venueWideResources = resources.filter((resource) => !resource.fieldId);
-  const fieldAssignedResources = resources.filter((resource) => resource.fieldId);
   const pendingActivations = activations.filter((activation) => activation.status === "requested");
   const pendingVolunteerRoles = volunteerRoles.filter((role) => role.status === "requested");
 
@@ -231,6 +230,9 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link href="/admin/status-board" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
             Status Board
+          </Link>
+          <Link href="/admin/resources/dashboard" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Resource Dashboard
           </Link>
           <Link href="/admin/sessions/bulk" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Bulk session tools
@@ -255,8 +257,8 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Total resources" note="Venue and field assignments" value={resources.length} />
             <SummaryCard label="Active resources" note="Visible on public field pages" value={activeResources.length} />
+            <SummaryCard label="Pending requests" note="Parent resource attachment requests" value={pendingActivations.length} />
             <SummaryCard label="Venue-wide resources" note="Available across venue fields" value={venueWideResources.length} />
-            <SummaryCard label="Field-assigned resources" note="Attached to specific fields" value={fieldAssignedResources.length} />
           </section>
 
           <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

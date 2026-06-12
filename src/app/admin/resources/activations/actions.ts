@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateResourceActivationStatus } from "@/lib/services/resource-activations";
+import { assignResourceActivationToSession, updateResourceActivationStatus } from "@/lib/services/resource-activations";
 import type { ResourceActivationStatus } from "@/lib/types";
 
 function revalidateActivationSurfaces() {
   revalidatePath("/admin/resources/activations");
+  revalidatePath("/admin/resources/dashboard");
   revalidatePath("/admin/dashboard");
   revalidatePath("/fields/[fieldId]", "page");
 }
@@ -21,5 +22,19 @@ export async function updateActivationStatusAction(id: string, status: ResourceA
     return {};
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Unable to update activation." };
+  }
+}
+
+export async function assignActivationToSessionAction(id: string, sessionId: string) {
+  if (!sessionId) {
+    return { error: "Choose an active session before assigning." };
+  }
+
+  try {
+    await assignResourceActivationToSession(id, sessionId);
+    revalidateActivationSurfaces();
+    return {};
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Unable to assign activation to session." };
   }
 }

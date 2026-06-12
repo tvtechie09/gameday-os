@@ -56,6 +56,9 @@ export default async function ResourcesPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/resources/dashboard" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Dashboard
+          </Link>
           <Link href="/admin/resources/activations" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Activations
           </Link>

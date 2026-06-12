@@ -14,6 +14,7 @@ export type CreateResourceActivationInput = {
   contact_name?: string | null;
   contact_email?: string | null;
   resource_url?: string | null;
+  assigned_to_session?: boolean;
   notes?: string | null;
   starts_at?: string | null;
   ends_at?: string | null;
@@ -22,7 +23,7 @@ export type CreateResourceActivationInput = {
 export const resourceActivationTypes: ResourceActivationType[] = ["parent_camera", "livestream_link", "bluetooth_speaker", "scoreboard_operator", "announcer", "other"];
 export const resourceActivationStatuses: ResourceActivationStatus[] = ["requested", "active", "ended", "rejected"];
 
-const activationSelect = "id,resource_id,venue_id,field_id,session_id,activation_type,display_name,contact_name,contact_email,resource_url,status,notes,starts_at,ends_at,created_at,updated_at";
+const activationSelect = "id,resource_id,venue_id,field_id,session_id,activation_type,display_name,contact_name,contact_email,resource_url,status,notes,starts_at,ends_at,assigned_to_session,approved_by,approved_at,created_at,updated_at";
 
 function readOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -53,6 +54,9 @@ function mapActivation(row: ResourceActivationRow): ResourceActivation {
     notes: readOptionalText(row.notes),
     startsAt: row.starts_at,
     endsAt: row.ends_at,
+    assignedToSession: row.assigned_to_session,
+    approvedBy: readOptionalText(row.approved_by),
+    approvedAt: readOptionalText(row.approved_at),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -67,6 +71,19 @@ export function getActivationLabel(type: ResourceActivationType) {
     announcer: "Announcer active",
     other: "Resource active",
   };
+  return labels[type];
+}
+
+export function getAttachmentOptionLabel(type: ResourceActivationType) {
+  const labels: Record<ResourceActivationType, string> = {
+    parent_camera: "Camera",
+    livestream_link: "Livestream",
+    bluetooth_speaker: "Audio",
+    scoreboard_operator: "Scoreboard Operator",
+    announcer: "Announcer",
+    other: "Resource",
+  };
+
   return labels[type];
 }
 
@@ -126,6 +143,7 @@ export async function createResourceActivationRequest(data: CreateResourceActiva
       contact_name: readOptionalText(data.contact_name),
       contact_email: readOptionalText(data.contact_email),
       resource_url: readOptionalText(data.resource_url),
+      assigned_to_session: data.assigned_to_session ?? Boolean(readOptionalText(data.session_id)),
       status: "requested",
       notes: readOptionalText(data.notes),
       starts_at: data.starts_at ?? now.toISOString(),
@@ -147,8 +165,32 @@ export async function updateResourceActivationStatus(id: string, status: Resourc
     .from("resource_activations")
     .update({
       status,
+      ...(status === "active" ? { approved_by: "Admin", approved_at: new Date().toISOString() } : {}),
       updated_at: new Date().toISOString(),
       ...(status === "ended" ? { ends_at: new Date().toISOString() } : {}),
+    })
+    .eq("id", id)
+    .select(activationSelect)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return mapActivation(data);
+}
+
+export async function assignResourceActivationToSession(id: string, sessionId: string): Promise<ResourceActivation> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("resource_activations")
+    .update({
+      session_id: sessionId,
+      assigned_to_session: true,
+      status: "active",
+      approved_by: "Admin",
+      approved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
     .eq("id", id)
     .select(activationSelect)

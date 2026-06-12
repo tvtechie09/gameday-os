@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getField } from "@/lib/services/fields";
+import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSession } from "@/lib/services/sessions";
 import { getVenue } from "@/lib/services/venues";
 import { getVolunteerRolesBySessionId } from "@/lib/services/volunteer-roles";
-import type { VolunteerRole } from "@/lib/types";
+import type { ResourceActivation, VolunteerRole } from "@/lib/types";
 import { LiveSessionDashboard } from "./live-session-dashboard";
 
 type SessionDashboardPageProps = {
@@ -28,11 +29,13 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
   let field: Awaited<ReturnType<typeof getField>> = null;
   let venue: Awaited<ReturnType<typeof getVenue>> = null;
   let volunteerRoles: VolunteerRole[] = [];
+  let activeResources: ResourceActivation[] = [];
 
   try {
     session = await getSession(sessionId);
     if (session) {
       [field, volunteerRoles] = await Promise.all([getField(session.fieldId), getVolunteerRolesBySessionId(session.id)]);
+      activeResources = await getActiveResourceActivationsForField({ fieldId: session.fieldId, sessionId: session.id });
       venue = field ? await getVenue(field.venueId) : null;
     }
   } catch (error) {
@@ -97,7 +100,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
         ) : null}
       </div>
 
-      <LiveSessionDashboard session={session} volunteerRoles={volunteerRoles} />
+      <LiveSessionDashboard activeResources={activeResources} session={session} volunteerRoles={volunteerRoles} />
     </section>
   );
 }

@@ -166,6 +166,9 @@ export interface ResourceActivation {
   notes: string | null;
   startsAt: string;
   endsAt: string;
+  assignedToSession: boolean;
+  approvedBy: string | null;
+  approvedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

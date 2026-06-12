@@ -6,14 +6,14 @@ import type { ResourceActivationType } from "@/lib/types";
 type ContributionOption = {
   label: string;
   type: ResourceActivationType;
-  needsUrl?: boolean;
 };
 
 const options: ContributionOption[] = [
-  { label: "Add Livestream Link", type: "livestream_link", needsUrl: true },
-  { label: "I'm Running the Scoreboard", type: "scoreboard_operator" },
-  { label: "I'm Providing Audio", type: "bluetooth_speaker" },
-  { label: "I'm Providing Camera", type: "parent_camera" },
+  { label: "Camera", type: "parent_camera" },
+  { label: "Livestream", type: "livestream_link" },
+  { label: "Audio", type: "bluetooth_speaker" },
+  { label: "Scoreboard Operator", type: "scoreboard_operator" },
+  { label: "Announcer", type: "announcer" },
 ];
 
 export function ResourceActivationForm({
@@ -66,7 +66,7 @@ export function ResourceActivationForm({
 
   return (
     <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-      <h2 className="text-lg font-black">Contribute to this field</h2>
+      <h2 className="text-lg font-black">Attach Resource</h2>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {options.map((option) => (
           <button
@@ -96,15 +96,13 @@ export function ResourceActivationForm({
             <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="display_name" required />
           </label>
           <label className="grid gap-2">
-            <span className="text-sm font-bold">Contact Name</span>
-            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="contact_name" />
+            <span className="text-sm font-bold">Resource Type</span>
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled readOnly value={selected.label} />
           </label>
-          {selected.needsUrl ? (
-            <label className="grid gap-2">
-              <span className="text-sm font-bold">Resource URL</span>
-              <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="resource_url" placeholder="https://" type="url" />
-            </label>
-          ) : null}
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">URL optional</span>
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="resource_url" placeholder="https://" type="url" />
+          </label>
           <label className="grid gap-2">
             <span className="text-sm font-bold">Notes</span>
             <textarea className="min-h-24 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base" disabled={isSaving} name="notes" />

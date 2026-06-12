@@ -728,11 +728,11 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
 
             {activeActivations.length > 0 ? (
               <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-                <h2 className="text-lg font-black">Active Resources</h2>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">LIVE RESOURCES</p>
                 <div className="mt-4 grid gap-3">
                   {activeActivations.map((activation) => (
                     <article key={activation.id} className="rounded-lg bg-[var(--background)] p-4">
-                      <p className="text-base font-black">{getActivationLabel(activation.activationType)}</p>
+                      <p className="text-base font-black">✓ {getActivationLabel(activation.activationType)}</p>
                       <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{activation.displayName}</p>
                       {activation.resourceUrl ? (
                         <a className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" href={activation.resourceUrl} rel="noreferrer" target="_blank">

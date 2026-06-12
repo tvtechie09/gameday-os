@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { InningHalf, Session, SessionLinkLabel, SessionStatus, VolunteerRole, VolunteerRoleType } from "@/lib/types";
+import type { InningHalf, ResourceActivation, ResourceActivationType, Session, SessionLinkLabel, SessionStatus, VolunteerRole, VolunteerRoleType } from "@/lib/types";
 import { updateSessionStateAction, type UpdateSessionStateResult } from "./actions";
 
 type GameState = {
@@ -154,7 +154,28 @@ function LinkUrlInput({
   );
 }
 
-export function LiveSessionDashboard({ session, volunteerRoles }: { session: Session; volunteerRoles: VolunteerRole[] }) {
+function getActivationLabel(type: ResourceActivationType) {
+  const labels: Record<ResourceActivationType, string> = {
+    parent_camera: "Camera Available",
+    livestream_link: "Livestream Available",
+    bluetooth_speaker: "Audio Available",
+    scoreboard_operator: "Scoreboard Operator Active",
+    announcer: "Announcer Active",
+    other: "Resource Active",
+  };
+
+  return labels[type];
+}
+
+export function LiveSessionDashboard({
+  activeResources,
+  session,
+  volunteerRoles,
+}: {
+  activeResources: ResourceActivation[];
+  session: Session;
+  volunteerRoles: VolunteerRole[];
+}) {
   const [gameState, setGameState] = useState<GameState>(() => stateFromSession(session));
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
@@ -364,6 +385,23 @@ export function LiveSessionDashboard({ session, volunteerRoles }: { session: Ses
             </select>
           </label>
         </div>
+      </section>
+
+      <section className="rounded-lg border border-[var(--line)] bg-white p-5 sm:p-6">
+        <h2 className="text-xl font-black">Attached resources</h2>
+        {activeResources.length > 0 ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {activeResources.map((resource) => (
+              <article className="rounded-lg bg-[var(--background)] p-4" key={resource.id}>
+                <p className="text-sm font-black">✓ {getActivationLabel(resource.activationType)}</p>
+                <p className="mt-2 text-sm font-semibold text-[var(--muted)]">{resource.displayName}</p>
+                {resource.resourceUrl ? <p className="mt-1 break-all text-sm font-bold text-[var(--accent-strong)]">{resource.resourceUrl}</p> : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No active resources attached to this game.</p>
+        )}
       </section>
 
       <section className="rounded-lg border border-[var(--line)] bg-white p-5 sm:p-6">
