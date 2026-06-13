@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { getExternalSources, getExternalSourceStatusLabel, getExternalSourceTypeLabel } from "@/lib/services/external-sources";
+import { getFields } from "@/lib/services/fields";
+import { getSessions } from "@/lib/services/sessions";
 import { getVenues } from "@/lib/services/venues";
 import type { ExternalSourceStatus } from "@/lib/types";
+import { CalendarImportAdapter } from "./calendar-import-adapter";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +32,7 @@ function statusClass(status: ExternalSourceStatus) {
 }
 
 export default async function IntegrationsPage() {
-  const [sources, venues] = await Promise.all([getExternalSources(), getVenues()]);
+  const [sources, venues, fields, sessions] = await Promise.all([getExternalSources(), getVenues(), getFields(), getSessions()]);
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
 
   return (
@@ -61,6 +64,8 @@ export default async function IntegrationsPage() {
           </article>
         ))}
       </section>
+
+      <CalendarImportAdapter fields={fields} sessions={sessions} sources={sources} venues={venues} />
 
       {sources.length > 0 ? (
         <section className="mt-8 grid gap-4">

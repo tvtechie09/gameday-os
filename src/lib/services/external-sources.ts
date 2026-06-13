@@ -85,6 +85,21 @@ export async function getExternalSources(): Promise<ExternalSource[]> {
   return (data ?? []).map(mapExternalSource);
 }
 
+export async function getExternalSource(id: string): Promise<ExternalSource | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("external_sources")
+    .select(externalSourceSelect)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? mapExternalSource(data) : null;
+}
+
 export async function createExternalSource(data: CreateExternalSourceInput): Promise<ExternalSource> {
   const supabase = getSupabaseAdminClient();
   const { data: externalSource, error } = await supabase
@@ -105,4 +120,20 @@ export async function createExternalSource(data: CreateExternalSourceInput): Pro
   }
 
   return mapExternalSource(externalSource);
+}
+
+export async function updateExternalSourceLastSync(id: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("external_sources")
+    .update({
+      last_sync_at: new Date().toISOString(),
+      source_status: "active",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
