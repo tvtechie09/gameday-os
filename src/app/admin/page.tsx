@@ -1,10 +1,19 @@
 import Link from "next/link";
+import { CalendarDays, HandHeart, MapPin, QrCode, type LucideIcon } from "lucide-react";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
 import { getVenues } from "@/lib/services/venues";
 
 export const dynamic = "force-dynamic";
+
+type DashboardCard = {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  note: string;
+  value: number;
+};
 
 async function loadCount(label: string, load: () => Promise<unknown[]>) {
   try {
@@ -23,11 +32,11 @@ export default async function AdminDashboard() {
     loadCount("sponsors", getSponsors),
   ]);
 
-  const dashboardCards = [
-    { label: "Total Venues", value: venueCount, note: "Venue profiles from Supabase.", href: "/admin/venues" },
-    { label: "Total Fields", value: fieldCount, note: "Field pages from Supabase.", href: "/admin/fields" },
-    { label: "Total Sessions", value: sessionCount, note: "Game day blocks from Supabase.", href: "/admin/sessions" },
-    { label: "Total Sponsors", value: sponsorCount, note: "Sponsor profiles from Supabase.", href: "/admin/sponsors" },
+  const dashboardCards: DashboardCard[] = [
+    { href: "/admin/venues", icon: MapPin, label: "Total Venues", note: "Venue profiles from Supabase.", value: venueCount },
+    { href: "/admin/fields", icon: QrCode, label: "Total Fields", note: "Field pages from Supabase.", value: fieldCount },
+    { href: "/admin/sessions", icon: CalendarDays, label: "Total Sessions", note: "Game day blocks from Supabase.", value: sessionCount },
+    { href: "/admin/sponsors", icon: HandHeart, label: "Total Sponsors", note: "Sponsor profiles from Supabase.", value: sponsorCount },
   ];
 
   return (
@@ -41,32 +50,36 @@ export default async function AdminDashboard() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link
-            href="/admin/pilot-prep"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
-          >
+          <Link href="/admin/pilot-prep" className="ui-button ui-button-secondary">
             Pilot Prep
           </Link>
-          <Link
-            href="/admin/fields/new"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white transition hover:bg-[var(--accent-strong)]"
-          >
+          <Link href="/admin/fields/new" className="ui-button ui-button-primary">
             New field
           </Link>
         </div>
       </div>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {dashboardCards.map((item) => (
-          <Link key={item.label} href={item.href} className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 transition hover:border-[var(--accent)] hover:shadow-sm">
-            <p className="text-sm font-bold text-[var(--muted)]">{item.label}</p>
-            <p className="mt-4 text-4xl font-black">{item.value}</p>
-            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{item.note}</p>
-          </Link>
-        ))}
+        {dashboardCards.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <Link key={item.label} href={item.href} className="group ui-card p-5 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md">
+              <div className="flex items-start justify-between gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)] transition group-hover:bg-[var(--accent)] group-hover:text-white">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <span className="rounded-md bg-[var(--background)] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">Open</span>
+              </div>
+              <p className="mt-5 text-sm font-bold text-[var(--muted)]">{item.label}</p>
+              <p className="mt-2 text-4xl font-black">{item.value}</p>
+              <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{item.note}</p>
+            </Link>
+          );
+        })}
       </div>
 
-      <div className="mt-8 rounded-lg border border-[var(--line)] bg-[var(--panel)]">
+      <div className="ui-card mt-8 bg-[var(--panel)]">
         <div className="border-b border-[var(--line)] p-5">
           <h2 className="text-lg font-black">Setup checklist</h2>
         </div>

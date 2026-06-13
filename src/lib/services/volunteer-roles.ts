@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { VolunteerRole, VolunteerRoleStatus, VolunteerRoleType } from "@/lib/types";
+import { safelyCreateNotification } from "./notifications";
 
 type VolunteerRoleRow = Database["public"]["Tables"]["volunteer_roles"]["Row"];
 
@@ -138,5 +139,17 @@ export async function updateVolunteerRoleStatus(id: string, status: VolunteerRol
     throw new Error(error.message);
   }
 
-  return mapVolunteerRole(data);
+  const role = mapVolunteerRole(data);
+  if (status === "approved") {
+    await safelyCreateNotification({
+      field_id: role.fieldId,
+      message: `${role.displayName} was approved as ${getVolunteerRoleLabel(role.roleType).toLowerCase()}.`,
+      notification_type: "volunteer",
+      session_id: role.sessionId,
+      title: "Volunteer approved",
+      venue_id: role.venueId,
+    });
+  }
+
+  return role;
 }

@@ -88,3 +88,18 @@ export async function getSessionEvents(sessionId: string): Promise<SessionEvent[
 
   return (data ?? []).map(mapSessionEvent);
 }
+
+export async function getRecentSessionEvents(limit = 12): Promise<SessionEvent[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("session_events")
+    .select(sessionEventSelect)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map(mapSessionEvent);
+}

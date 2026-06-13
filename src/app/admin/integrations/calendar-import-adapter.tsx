@@ -419,7 +419,7 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
               <p className="mt-1 text-sm leading-6 text-[var(--muted)]">Exact field-name matches are marked valid. Invalid rows can be mapped manually before import.</p>
             </div>
             <button className="min-h-11 rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={validRows.length === 0 || isImporting} onClick={importRows} type="button">
-              {isImporting ? "Importing..." : "Import valid rows"}
+              {isImporting ? "Queueing..." : "Queue valid rows"}
             </button>
           </div>
 
@@ -482,12 +482,17 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
 
       {summary ? (
         <div className="mt-6 rounded-lg border border-[var(--line)] bg-white p-5">
-          <h3 className="text-lg font-black">Import summary</h3>
+          <h3 className="text-lg font-black">Sync summary</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg bg-green-50 p-4"><p className="text-sm font-bold text-green-700">Sessions created</p><p className="mt-1 text-3xl font-black text-green-950">{summary.created}</p></div>
+            <div className="rounded-lg bg-green-50 p-4"><p className="text-sm font-bold text-green-700">Queued for review</p><p className="mt-1 text-3xl font-black text-green-950">{summary.queued}</p></div>
             <div className="rounded-lg bg-amber-50 p-4"><p className="text-sm font-bold text-amber-900">Skipped</p><p className="mt-1 text-3xl font-black text-amber-950">{summary.skipped}</p></div>
             <div className="rounded-lg bg-red-50 p-4"><p className="text-sm font-bold text-red-700">Errors</p><p className="mt-1 text-3xl font-black text-red-950">{summary.errors.length}</p></div>
           </div>
+          {summary.jobId ? (
+            <Link className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/sync/review">
+              Open Sync Review
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </section>

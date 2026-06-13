@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { ResourceActivation, ResourceActivationStatus, ResourceActivationType } from "@/lib/types";
+import { safelyCreateNotification } from "./notifications";
 
 type ResourceActivationRow = Database["public"]["Tables"]["resource_activations"]["Row"];
 
@@ -177,7 +178,19 @@ export async function updateResourceActivationStatus(id: string, status: Resourc
     throw new Error(error.message);
   }
 
-  return mapActivation(data);
+  const activation = mapActivation(data);
+  if (status === "active") {
+    await safelyCreateNotification({
+      field_id: activation.fieldId,
+      message: `${activation.displayName} activated ${getAttachmentOptionLabel(activation.activationType).toLowerCase()}.`,
+      notification_type: "resource",
+      session_id: activation.sessionId,
+      title: "Resource activated",
+      venue_id: activation.venueId,
+    });
+  }
+
+  return activation;
 }
 
 export async function assignResourceActivationToSession(id: string, sessionId: string): Promise<ResourceActivation> {
@@ -200,5 +213,15 @@ export async function assignResourceActivationToSession(id: string, sessionId: s
     throw new Error(error.message);
   }
 
-  return mapActivation(data);
+  const activation = mapActivation(data);
+  await safelyCreateNotification({
+    field_id: activation.fieldId,
+    message: `${activation.displayName} activated ${getAttachmentOptionLabel(activation.activationType).toLowerCase()} for a session.`,
+    notification_type: "resource",
+    session_id: activation.sessionId,
+    title: "Resource activated",
+    venue_id: activation.venueId,
+  });
+
+  return activation;
 }

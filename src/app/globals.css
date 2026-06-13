@@ -13,6 +13,9 @@
   --field: #195b2c;
   --black-soft: #131a16;
   --warning: #b7791f;
+  --danger: #b42318;
+  --success: #147a3f;
+  --radius: 8px;
 }
 
 @theme inline {
@@ -50,4 +53,90 @@ textarea {
 
 ::selection {
   background: var(--accent-soft);
+}
+
+label:has(:required) > span:first-child::after {
+  color: var(--danger);
+  content: " *";
+}
+
+input:user-invalid,
+select:user-invalid,
+textarea:user-invalid {
+  border-color: #fca5a5;
+  box-shadow: 0 0 0 4px #fee2e2;
+}
+
+button,
+a,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+table {
+  border-color: var(--line);
+}
+
+th {
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+td,
+th {
+  vertical-align: top;
+}
+
+.ui-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: white;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.ui-card-strong {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: var(--radius);
+  background: white;
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.08);
+}
+
+.ui-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.ui-button:hover {
+  transform: translateY(-1px);
+}
+
+.ui-button-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.ui-button-secondary {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--foreground);
+}
+
+.ui-empty {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--background);
+  padding: 1rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5rem;
 }

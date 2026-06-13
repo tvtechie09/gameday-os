@@ -20,6 +20,9 @@ export type VolunteerRoleStatus = "requested" | "approved" | "active" | "ended" 
 export type ExternalSourceType = "sportsengine" | "hometeamsonline" | "teamsnap" | "gamechanger" | "csv" | "ical" | "other";
 export type ExternalSourceStatus = "connected" | "not_configured" | "error" | "paused" | "unknown";
 export type FollowType = "field" | "session";
+export type NotificationType = "alert" | "field_status" | "session_status" | "resource" | "volunteer" | "sponsor";
+export type SyncJobStatus = "pending" | "running" | "completed" | "failed";
+export type SyncQueueReviewStatus = "pending" | "approved" | "rejected" | "imported";
 export type SessionEventType =
   | "session_created"
   | "score_update"
@@ -220,6 +223,38 @@ export interface ExternalSource {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  notificationType: NotificationType;
+  title: string;
+  message: string;
+  venueId: string | null;
+  fieldId: string | null;
+  sessionId: string | null;
+  createdAt: string;
+}
+
+export interface SyncJob {
+  id: string;
+  sourceId: string | null;
+  sourceType: string;
+  status: SyncJobStatus;
+  recordsFound: number;
+  recordsImported: number;
+  recordsSkipped: number;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface SyncQueueItem {
+  id: string;
+  syncJobId: string;
+  sourceRecordId: string;
+  sourceData: unknown;
+  reviewStatus: SyncQueueReviewStatus;
+  createdAt: string;
 }
 
 export interface FollowSummary {

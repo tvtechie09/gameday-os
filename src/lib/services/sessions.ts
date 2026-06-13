@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
+import { safelyCreateNotification } from "./notifications";
 import { recordSessionEvent } from "./session-events";
 
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
@@ -95,6 +96,14 @@ async function recordAutomaticStatusEvents(previousStatus: Session["status"] | n
       eventType: "game_started",
       sessionId: nextSession.id,
     });
+    await safelyCreateNotification({
+      field_id: nextSession.fieldId,
+      message: `${nextSession.title} is now live.`,
+      notification_type: "session_status",
+      session_id: nextSession.id,
+      title: "Session started",
+      venue_id: await getVenueIdForField(nextSession.fieldId),
+    });
   }
 
   if (previousStatus !== "final" && nextSession.gameStatus === "final") {
@@ -103,7 +112,31 @@ async function recordAutomaticStatusEvents(previousStatus: Session["status"] | n
       eventType: "game_final",
       sessionId: nextSession.id,
     });
+    await safelyCreateNotification({
+      field_id: nextSession.fieldId,
+      message: `${nextSession.title} was marked final.`,
+      notification_type: "session_status",
+      session_id: nextSession.id,
+      title: "Session finalized",
+      venue_id: await getVenueIdForField(nextSession.fieldId),
+    });
   }
+}
+
+async function getVenueIdForField(fieldId: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("fields")
+    .select("venue_id")
+    .eq("id", fieldId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load field venue for session notification", error);
+    return null;
+  }
+
+  return data?.venue_id ?? null;
 }
 
 function mapSession(row: SessionRow): Session {

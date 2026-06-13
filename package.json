@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",
+    "lucide-react": "^1.18.0",
     "next": "latest",
     "qrcode.react": "^4.2.0",
     "react": "latest",

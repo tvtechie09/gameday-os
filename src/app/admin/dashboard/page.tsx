@@ -9,6 +9,7 @@ import { getResourceActivations, getActivationLabel } from "@/lib/services/resou
 import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
+import { getSyncDashboardStats } from "@/lib/services/sync-engine";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoleLabel, getVolunteerRoles } from "@/lib/services/volunteer-roles";
 import type { Alert, Field, Resource, ResourceActivation, Session, Sponsor, Venue, VolunteerRole } from "@/lib/types";
@@ -143,12 +144,12 @@ function buildFieldOperations(fields: Field[], venues: Venue[], sessions: Sessio
   });
 }
 
-function SummaryCard({ label, value, note }: { label: string; value: number; note: string }) {
+function SummaryCard({ label, value, note }: { label: string; value: number | string; note: string }) {
   return (
-    <article className="rounded-lg border border-[var(--line)] bg-white p-4">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{label}</p>
-      <p className="mt-2 text-3xl font-black">{value}</p>
-      <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{note}</p>
+    <article className="ui-card p-5 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{label}</p>
+      <p className="mt-3 text-3xl font-black leading-none tabular-nums sm:text-4xl">{value}</p>
+      <p className="mt-3 min-h-10 text-sm font-semibold leading-5 text-[var(--muted)]">{note}</p>
     </article>
   );
 }
@@ -205,6 +206,10 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
     console.error("Failed to load dashboard follow counts", error);
     return { today: 0, last7Days: 0 };
   });
+  const syncStats = await getSyncDashboardStats().catch((error: unknown) => {
+    console.error("Failed to load dashboard sync stats", error);
+    return { failedJobs: 0, lastSync: null, pendingReviewItems: 0 };
+  });
 
   const todaySessions = sessions
     .filter((session) => isSameDay(session.startTime, now))
@@ -233,59 +238,68 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
             Monitor field activity, live games, upcoming sessions, and QR-ready parent links across every venue.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Link href="/admin/game-day" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+          <Link href="/admin/game-day" className="ui-button ui-button-primary">
             Game Day
           </Link>
-          <Link href="/admin/status-board" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+          <Link href="/admin/status-board" className="ui-button ui-button-primary">
             Status Board
           </Link>
-          <Link href="/admin/resources/dashboard" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          <Link href="/admin/resources/dashboard" className="ui-button ui-button-secondary">
             Resource Dashboard
           </Link>
-          <Link href="/admin/integrations" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          <Link href="/admin/integrations" className="ui-button ui-button-secondary">
             Integrations
           </Link>
-          <Link href="/admin/integrations/health" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          <Link href="/admin/integrations/health" className="ui-button ui-button-secondary">
             Integration Health
           </Link>
-          <Link href="/admin/sessions/bulk" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          <Link href="/admin/sync" className="ui-button ui-button-secondary">
+            Sync Engine
+          </Link>
+          <Link href="/admin/sessions/bulk" className="ui-button ui-button-secondary">
             Bulk session tools
           </Link>
         </div>
       </div>
 
-          <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Total venues" note="Configured venues" value={venues.length} />
             <SummaryCard label="Total fields" note="QR-ready fields" value={fields.length} />
             <SummaryCard label="Total sessions" note="All sessions from Supabase" value={sessions.length} />
             <SummaryCard label="Total sponsors" note="Sponsor profiles from Supabase" value={sponsors.length} />
           </section>
 
-          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Games today" note="All sessions today" value={todaySessions.length} />
             <SummaryCard label="Active games" note="Live now" value={activeGames.length} />
             <SummaryCard label="Upcoming games" note="Future scheduled games" value={upcomingGames.length} />
             <SummaryCard label="Resources" note="Active inventory" value={activeResources.length} />
           </section>
 
-          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Total resources" note="Venue and field assignments" value={resources.length} />
             <SummaryCard label="Active resources" note="Visible on public field pages" value={activeResources.length} />
             <SummaryCard label="Pending requests" note="Parent resource attachment requests" value={pendingActivations.length} />
             <SummaryCard label="Venue-wide resources" note="Available across venue fields" value={venueWideResources.length} />
           </section>
 
-          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Field page views today" note="Anonymous public field visits" value={fieldPageViews.today} />
             <SummaryCard label="Field page views last 7 days" note="Anonymous public field visits" value={fieldPageViews.last7Days} />
             <SummaryCard label="Total follows today" note="Anonymous field and game follows" value={follows.today} />
             <SummaryCard label="Total follows last 7 days" note="Anonymous field and game follows" value={follows.last7Days} />
           </section>
 
-          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Active alerts" note="Currently in alert window" value={activeAlerts.length} />
             <SummaryCard label="Urgent alerts" note="Active urgent communications" value={urgentAlerts.length} />
+            <SummaryCard label="Last sync" note="Most recent sync job" value={syncStats.lastSync ? formatDateTime(syncStats.lastSync) : "Never"} />
+            <SummaryCard label="Pending review" note="Sync queue items waiting" value={syncStats.pendingReviewItems} />
+          </section>
+
+          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard label="Failed sync jobs" note="External imports needing attention" value={syncStats.failedJobs} />
           </section>
 
           {urgentAlerts.length > 0 ? (

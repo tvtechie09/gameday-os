@@ -361,10 +361,10 @@ export function ImportWizard({ fields, sessions, venues }: { fields: Field[]; se
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-black">3. Preview</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review validation before creating sessions.</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Review validation before sending valid rows to Sync Review.</p>
             </div>
             <button className="min-h-11 rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={validRows.length === 0 || isImporting} onClick={handleImport} type="button">
-              {isImporting ? "Importing..." : "Import valid rows"}
+              {isImporting ? "Queueing..." : "Queue valid rows"}
             </button>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -393,12 +393,17 @@ export function ImportWizard({ fields, sessions, venues }: { fields: Field[]; se
 
       {summary ? (
         <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-          <h2 className="text-xl font-black">Import summary</h2>
+          <h2 className="text-xl font-black">Sync summary</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg bg-green-50 p-4"><p className="text-sm font-bold text-green-700">Sessions created</p><p className="mt-1 text-3xl font-black text-green-950">{summary.created}</p></div>
+            <div className="rounded-lg bg-green-50 p-4"><p className="text-sm font-bold text-green-700">Queued for review</p><p className="mt-1 text-3xl font-black text-green-950">{summary.queued}</p></div>
             <div className="rounded-lg bg-[var(--background)] p-4"><p className="text-sm font-bold text-[var(--muted)]">Sessions skipped</p><p className="mt-1 text-3xl font-black">{summary.skipped}</p></div>
             <div className="rounded-lg bg-red-50 p-4"><p className="text-sm font-bold text-red-700">Errors</p><p className="mt-1 text-3xl font-black text-red-950">{summary.errors.length}</p></div>
           </div>
+          {summary.jobId ? (
+            <a className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/sync/review">
+              Open Sync Review
+            </a>
+          ) : null}
         </section>
       ) : null}
     </div>

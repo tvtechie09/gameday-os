@@ -139,6 +139,17 @@ create table if not exists public.session_events (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  notification_type text not null check (notification_type in ('alert', 'field_status', 'session_status', 'resource', 'volunteer', 'sponsor')),
+  title text not null,
+  message text not null,
+  venue_id uuid references public.venues(id) on delete set null,
+  field_id uuid references public.fields(id) on delete set null,
+  session_id uuid references public.sessions(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.external_sources (
   id uuid primary key default gen_random_uuid(),
   venue_id uuid not null references public.venues(id) on delete cascade,
@@ -150,6 +161,27 @@ create table if not exists public.external_sources (
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+create table if not exists public.sync_jobs (
+  id uuid primary key default gen_random_uuid(),
+  source_id uuid references public.external_sources(id) on delete set null,
+  source_type text not null,
+  status text not null default 'pending' check (status in ('pending', 'running', 'completed', 'failed')),
+  records_found integer not null default 0,
+  records_imported integer not null default 0,
+  records_skipped integer not null default 0,
+  created_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+
+create table if not exists public.sync_queue (
+  id uuid primary key default gen_random_uuid(),
+  sync_job_id uuid not null references public.sync_jobs(id) on delete cascade,
+  source_record_id text not null,
+  source_data jsonb not null,
+  review_status text not null default 'pending' check (review_status in ('pending', 'approved', 'rejected', 'imported')),
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.sponsors (
@@ -258,9 +290,19 @@ create unique index if not exists sessions_external_source_unique_idx
 create index if not exists session_events_session_id_idx on public.session_events(session_id);
 create index if not exists session_events_created_at_idx on public.session_events(created_at);
 create index if not exists session_events_event_type_idx on public.session_events(event_type);
+create index if not exists notifications_type_created_at_idx on public.notifications(notification_type, created_at desc);
+create index if not exists notifications_venue_id_idx on public.notifications(venue_id);
+create index if not exists notifications_field_id_idx on public.notifications(field_id);
+create index if not exists notifications_session_id_idx on public.notifications(session_id);
 create index if not exists external_sources_venue_id_idx on public.external_sources(venue_id);
 create index if not exists external_sources_source_type_idx on public.external_sources(source_type);
 create index if not exists external_sources_source_status_idx on public.external_sources(source_status);
+create index if not exists sync_jobs_source_id_idx on public.sync_jobs(source_id);
+create index if not exists sync_jobs_status_idx on public.sync_jobs(status);
+create index if not exists sync_jobs_created_at_idx on public.sync_jobs(created_at desc);
+create index if not exists sync_queue_sync_job_id_idx on public.sync_queue(sync_job_id);
+create index if not exists sync_queue_review_status_idx on public.sync_queue(review_status);
+create index if not exists sync_queue_created_at_idx on public.sync_queue(created_at desc);
 create index if not exists sponsor_assignments_sponsor_id_idx on public.sponsor_assignments(sponsor_id);
 create index if not exists sponsor_assignments_venue_id_idx on public.sponsor_assignments(venue_id);
 create index if not exists sponsor_assignments_field_id_idx on public.sponsor_assignments(field_id);
@@ -292,7 +334,10 @@ alter table public.volunteer_roles enable row level security;
 alter table public.tournaments enable row level security;
 alter table public.sessions enable row level security;
 alter table public.session_events enable row level security;
+alter table public.notifications enable row level security;
 alter table public.external_sources enable row level security;
+alter table public.sync_jobs enable row level security;
+alter table public.sync_queue enable row level security;
 alter table public.sponsors enable row level security;
 alter table public.sponsor_assignments enable row level security;
 alter table public.sponsor_impressions enable row level security;
@@ -349,12 +394,46 @@ create policy "Public can create session events"
   on public.session_events for insert
   with check (true);
 
+create policy "Public can read notifications"
+  on public.notifications for select
+  using (true);
+
+create policy "Public can create notifications"
+  on public.notifications for insert
+  with check (true);
+
 create policy "Public can read external sources"
   on public.external_sources for select
   using (true);
 
 create policy "Public can create external sources"
   on public.external_sources for insert
+  with check (true);
+
+create policy "Public can read sync jobs"
+  on public.sync_jobs for select
+  using (true);
+
+create policy "Public can create sync jobs"
+  on public.sync_jobs for insert
+  with check (true);
+
+create policy "Public can update sync jobs"
+  on public.sync_jobs for update
+  using (true)
+  with check (true);
+
+create policy "Public can read sync queue"
+  on public.sync_queue for select
+  using (true);
+
+create policy "Public can create sync queue"
+  on public.sync_queue for insert
+  with check (true);
+
+create policy "Public can update sync queue"
+  on public.sync_queue for update
+  using (true)
   with check (true);
 
 create policy "Public can read sponsors"

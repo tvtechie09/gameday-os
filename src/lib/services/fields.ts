@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Field, FieldStatus } from "@/lib/types";
+import { safelyCreateNotification } from "./notifications";
 
 type FieldRow = Database["public"]["Tables"]["fields"]["Row"];
 
@@ -162,7 +163,16 @@ export async function updateField(id: string, data: UpdateFieldInput): Promise<F
     throw new Error(error.message);
   }
 
-  return mapField(field);
+  const mappedField = mapField(field);
+  await safelyCreateNotification({
+    field_id: mappedField.id,
+    message: `${mappedField.name} is now ${getFieldStatusLabel(mappedField.status).toLowerCase()}.`,
+    notification_type: "field_status",
+    title: "Field status changed",
+    venue_id: mappedField.venueId,
+  });
+
+  return mappedField;
 }
 
 export async function updateFieldStatus(id: string, status: FieldStatus): Promise<Field> {

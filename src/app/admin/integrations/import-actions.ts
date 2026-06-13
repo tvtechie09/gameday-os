@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getExternalSource, updateExternalSourceLastSync } from "@/lib/services/external-sources";
-import { createSession, getSessions } from "@/lib/services/sessions";
+import { getSessions } from "@/lib/services/sessions";
+import { createSyncJobWithQueue, type CreateSyncQueueRecordInput } from "@/lib/services/sync-engine";
 import type { Session, SessionSportType } from "@/lib/types";
 
 export type CalendarImportEvent = {
@@ -37,6 +38,8 @@ export type FetchCalendarResult = {
 
 export type ImportCalendarResult = {
   created: number;
+  jobId?: string;
+  queued: number;
   skipped: number;
   errors: string[];
 };
@@ -199,7 +202,7 @@ export async function importCalendarSessionsAction({
 }): Promise<ImportCalendarResult> {
   const externalSource = await getExternalSource(sourceId);
   if (!externalSource) {
-    return { created: 0, errors: ["Choose a valid integration source."], skipped: 0 };
+    return { created: 0, errors: ["Choose a valid integration source."], queued: 0, skipped: 0 };
   }
 
   const existingSessions = await getSessions();
@@ -208,13 +211,12 @@ export async function importCalendarSessionsAction({
     return key ? [key] : [];
   }));
 
-  let created = 0;
   let skipped = 0;
-  const errors: string[] = [];
   const storedExternalSourceName = externalSourceName?.trim() || externalSource.sourceName;
   const storedExternalSourceUrl = externalSourceUrl?.trim() || feedUrl || externalSource.sourceUrl;
+  const syncRecords: CreateSyncQueueRecordInput[] = [];
 
-  for (const [index, row] of rows.entries()) {
+  for (const row of rows) {
     const externalSourceId = row.externalSourceId;
     const key = `${storedExternalSourceName}|${externalSourceId}`;
 
@@ -223,35 +225,44 @@ export async function importCalendarSessionsAction({
       continue;
     }
 
-    try {
-      await createSession({
-        away_team: row.awayTeam || "TBD",
-        end_time: row.endTime,
-        external_source: storedExternalSourceName,
-        external_source_id: externalSourceId,
-        external_source_url: storedExternalSourceUrl,
-        field_id: row.fieldId,
-        home_team: row.homeTeam || row.title,
-        notes: row.notes,
-        sport_type: row.sportType || "baseball",
-        start_time: row.startTime,
-        status: "scheduled",
-        title: row.title,
-      });
-      existingExternalKeys.add(key);
-      created += 1;
-    } catch (error) {
-      errors.push(`Event ${index + 1}: ${error instanceof Error ? error.message : "Unable to create session."}`);
-    }
+    syncRecords.push({
+      sourceData: {
+        kind: "session" as const,
+        session: {
+          away_team: row.awayTeam || "TBD",
+          end_time: row.endTime,
+          external_source: storedExternalSourceName,
+          external_source_id: externalSourceId,
+          external_source_url: storedExternalSourceUrl,
+          field_id: row.fieldId,
+          home_team: row.homeTeam || row.title,
+          notes: row.notes,
+          sport_type: row.sportType || "baseball",
+          start_time: row.startTime,
+          status: "scheduled",
+          title: row.title,
+        },
+      },
+      sourceRecordId: externalSourceId,
+    });
+    existingExternalKeys.add(key);
   }
 
-  if (created > 0) {
-    await updateExternalSourceLastSync(sourceId);
-  }
+  const job = await createSyncJobWithQueue({
+    records: syncRecords,
+    recordsFound: rows.length,
+    recordsSkipped: skipped,
+    sourceId,
+    sourceType: storedExternalSourceName,
+  });
+
+  await updateExternalSourceLastSync(sourceId);
 
   revalidatePath("/admin/integrations");
   revalidatePath("/admin/sessions");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/sync");
+  revalidatePath("/admin/sync/review");
 
-  return { created, errors, skipped };
+  return { created: 0, errors: [], jobId: job.id, queued: syncRecords.length, skipped };
 }

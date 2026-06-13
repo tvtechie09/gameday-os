@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Alert, AlertPriority, AlertScope, AlertType, AlertVisibility } from "@/lib/types";
+import { safelyCreateNotification } from "./notifications";
 
 type AlertRow = Database["public"]["Tables"]["alerts"]["Row"];
 
@@ -235,7 +236,16 @@ export async function createAlert(data: CreateAlertInput): Promise<Alert> {
     throw new Error(error.message);
   }
 
-  return mapAlert(alert);
+  const mappedAlert = mapAlert(alert);
+  await safelyCreateNotification({
+    field_id: mappedAlert.fieldId,
+    message: mappedAlert.message,
+    notification_type: "alert",
+    title: mappedAlert.title,
+    venue_id: mappedAlert.venueId,
+  });
+
+  return mappedAlert;
 }
 
 export async function updateAlert(id: string, data: UpdateAlertInput): Promise<Alert> {

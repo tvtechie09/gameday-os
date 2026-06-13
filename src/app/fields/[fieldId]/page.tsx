@@ -178,9 +178,9 @@ function AlertStack({ alerts }: { alerts: Alert[] }) {
   return (
     <section className="grid gap-3">
       {alerts.map((alert) => (
-        <article className={`rounded-lg border p-4 ${getAlertTone(alert.alertType)}`} key={alert.id}>
-          <p className="text-xs font-black uppercase tracking-[0.14em]">{getAlertLabel(alert.alertType)}</p>
-          <h2 className="mt-1 text-xl font-black">{alert.title}</h2>
+        <article className={`rounded-lg border-2 p-5 shadow-sm ${getAlertTone(alert.alertType)}`} key={alert.id}>
+          <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+          <h2 className="mt-1 text-2xl font-black leading-tight">{alert.title}</h2>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{alert.message}</p>
         </article>
       ))}
@@ -221,9 +221,9 @@ function SessionCard({ session }: { session: Session }) {
   const diamondSport = isDiamondSport(session);
 
   return (
-    <article className="rounded-lg border border-[var(--line)] bg-white p-4">
+    <article className="ui-card p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h3 className="text-lg font-black">{session.title}</h3>
           <p className="mt-2 text-sm font-bold text-[var(--foreground)]">
             {session.homeTeam} vs. {session.awayTeam}
@@ -231,7 +231,7 @@ function SessionCard({ session }: { session: Session }) {
           <p className="mt-2 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
             {session.sportType}
           </p>
-          <p className="mt-2 text-base font-black">
+          <p className="mt-3 w-fit rounded-lg border border-[var(--line)] bg-[var(--background)] px-3 py-2 text-base font-black">
             {session.homeTeam} {session.homeScore} · {session.awayTeam} {session.awayScore}
           </p>
           {diamondSport ? (
@@ -271,11 +271,11 @@ function SessionBadge({ label }: { label: SessionBadgeLabel }) {
 
 function CompactSessionRow({ session, badge }: { session: Session; badge?: SessionBadgeLabel | null }) {
   return (
-    <article className="rounded-lg border border-[var(--line)] bg-white p-4">
+    <article className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-black">{session.title}</p>
+            <p className="truncate text-sm font-black">{session.title}</p>
             {badge ? <SessionBadge label={badge} /> : null}
           </div>
           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
@@ -432,7 +432,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
             {field ? <FieldStatusBanner field={field} /> : null}
 
             <section
-              className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-5 shadow-sm" : "rounded-lg border-2 bg-white p-5 shadow-sm"}
+            className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-5 shadow-md sm:p-6" : "rounded-lg border-2 bg-white p-5 shadow-md sm:p-6"}
               style={currentSessionBadge === "LIVE NOW" ? undefined : accentStyle}
             >
               <div className="flex flex-wrap items-center gap-2">
@@ -451,13 +451,13 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     <p className="text-sm font-semibold text-[var(--muted)]">{formatSessionTime(currentSession.startTime)}</p>
                   </div>
                   {currentTournament ? <TournamentBadge tournament={currentTournament} /> : null}
-                  <div className="mt-5 rounded-lg bg-white p-4">
+                  <div className="mt-5 rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Home</p>
                         <p className="mt-1 truncate text-lg font-black sm:text-xl">{currentSession.homeTeam}</p>
                       </div>
-                      <p className="rounded-lg bg-[var(--black-soft)] px-4 py-3 text-center text-4xl font-black leading-none text-white sm:text-5xl" style={currentSessionBadge === "LIVE NOW" ? undefined : accentButtonStyle}>
+                      <p className="min-w-24 rounded-lg bg-[var(--black-soft)] px-3 py-3 text-center text-4xl font-black leading-none text-white shadow-sm sm:min-w-32 sm:px-5 sm:text-5xl" style={currentSessionBadge === "LIVE NOW" ? undefined : accentButtonStyle}>
                         {currentSession.homeScore}-{currentSession.awayScore}
                       </p>
                       <div className="min-w-0 text-right">
@@ -467,32 +467,32 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     </div>
                     {currentSessionIsDiamondSport ? (
                       <div className="mt-4 grid grid-cols-3 gap-2">
-                        <div className="rounded-lg bg-[var(--background)] p-3">
+                        <div className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Inning</p>
                           <p className="mt-1 text-sm font-black">{formatInning(currentSession)}</p>
                         </div>
-                        <div className="rounded-lg bg-[var(--background)] p-3">
+                        <div className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Count</p>
                           <p className="mt-1 text-sm font-black">
                             {currentSession.balls}-{currentSession.strikes}
                           </p>
                         </div>
-                        <div className="rounded-lg bg-[var(--background)] p-3">
+                        <div className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Outs</p>
                           <p className="mt-1 text-sm font-black">{currentSession.outs}</p>
                         </div>
                       </div>
                     ) : (
                       <div className="mt-4 grid grid-cols-3 gap-2">
-                        <div className="rounded-lg bg-[var(--background)] p-3">
+                        <div className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Home score</p>
                           <p className="mt-1 text-sm font-black">{currentSession.homeScore}</p>
                         </div>
-                        <div className="rounded-lg bg-[var(--background)] p-3">
+                        <div className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Away score</p>
                           <p className="mt-1 text-sm font-black">{currentSession.awayScore}</p>
                         </div>
-                        <div className="rounded-lg bg-[var(--background)] p-3">
+                        <div className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Period</p>
                           <p className="mt-1 text-sm font-black">{formatPeriod(currentSession)}</p>
                         </div>
@@ -503,7 +503,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     {currentSession.gameStatus}
                   </span>
                   {gameLinks.length > 0 || currentSession.notes ? (
-                    <div className="mt-5 rounded-lg bg-white p-4">
+                    <div className="mt-5 rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
                       {gameLinks.length > 0 ? (
                         <div>
                           <h3 className="text-base font-black">Game Links</h3>
@@ -511,7 +511,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                             {gameLinks.map((link) => (
                               <a
                                 key={link.label}
-                                className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 py-3 text-center text-sm font-black text-white"
+                                className="ui-button bg-[var(--black-soft)] text-center text-white hover:bg-black"
                                 href={link.url}
                                 rel="noreferrer"
                                 target="_blank"
@@ -545,14 +545,15 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
             {field ? <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} /> : null}
 
             {sponsorPlacements.length > 0 ? (
-              <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+              <section className="ui-card p-5 sm:p-6">
                 <SponsorImpressionTracker fieldId={fieldId} sessionId={currentSession?.id} sponsorIds={trackedSponsorIds} />
-                <h2 className="text-xl font-black">Field Sponsors</h2>
-                <div className="mt-4 grid gap-4">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Presented locally</p>
+                <h2 className="mt-1 text-2xl font-black">Field Sponsors</h2>
+                <div className="mt-5 grid gap-4">
                   {sponsorPlacements.map((placement) => (
-                    <article key={placement.id} className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
+                    <article key={placement.id} className="rounded-lg border-2 border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
                       <p
-                        className="inline-flex rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
+                        className="inline-flex rounded-md px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white"
                         style={accentButtonStyle}
                       >
                         {placement.placementLabel}
@@ -561,7 +562,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                         {placement.sponsor.logoUrl ? (
                           <Image
                             alt=""
-                            className="h-24 w-full rounded-lg border border-[var(--line)] bg-white object-contain p-3 sm:h-24 sm:w-32"
+                            className="h-28 w-full rounded-lg border border-[var(--line)] bg-white object-contain p-3 shadow-sm sm:h-28 sm:w-36"
                             height={96}
                             src={placement.sponsor.logoUrl}
                             unoptimized
@@ -569,13 +570,13 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                           />
                         ) : null}
                         <div className="min-w-0">
-                          <h3 className="text-2xl font-black">{placement.sponsor.name}</h3>
+                          <h3 className="text-2xl font-black leading-tight">{placement.sponsor.name}</h3>
                           {placement.sponsor.description ? (
                             <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{placement.sponsor.description}</p>
                           ) : null}
                           {placement.sponsor.websiteUrl ? (
                             <SponsorWebsiteLink
-                              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 text-sm font-bold text-white"
+                              className="ui-button mt-4 text-white"
                               fieldId={fieldId}
                               href={placement.sponsor.websiteUrl}
                               sessionId={currentSession?.id}

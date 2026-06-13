@@ -232,6 +232,11 @@ export default async function PilotPrepPage({ searchParams }: PilotPrepPageProps
         </div>
       </div>
 
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <QuickLink href="/admin/system-health" label="Open System Health" primary />
+        <QuickLink href="/admin/executive" label="Executive Dashboard" />
+      </div>
+
       <form className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5" method="get">
         <label className="grid gap-2">
           <span className="text-sm font-bold">Select venue</span>

@@ -168,6 +168,140 @@ export type Database = {
           },
         ];
       };
+      notifications: {
+        Row: {
+          id: string;
+          notification_type: string;
+          title: string;
+          message: string;
+          venue_id: string | null;
+          field_id: string | null;
+          session_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          notification_type: string;
+          title: string;
+          message: string;
+          venue_id?: string | null;
+          field_id?: string | null;
+          session_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          notification_type?: string;
+          title?: string;
+          message?: string;
+          venue_id?: string | null;
+          field_id?: string | null;
+          session_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sync_jobs: {
+        Row: {
+          id: string;
+          source_id: string | null;
+          source_type: string;
+          status: string;
+          records_found: number;
+          records_imported: number;
+          records_skipped: number;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          source_id?: string | null;
+          source_type: string;
+          status?: string;
+          records_found?: number;
+          records_imported?: number;
+          records_skipped?: number;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          source_id?: string | null;
+          source_type?: string;
+          status?: string;
+          records_found?: number;
+          records_imported?: number;
+          records_skipped?: number;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sync_jobs_source_id_fkey";
+            columns: ["source_id"];
+            isOneToOne: false;
+            referencedRelation: "external_sources";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sync_queue: {
+        Row: {
+          id: string;
+          sync_job_id: string;
+          source_record_id: string;
+          source_data: Json;
+          review_status: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          sync_job_id: string;
+          source_record_id: string;
+          source_data: Json;
+          review_status?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          sync_job_id?: string;
+          source_record_id?: string;
+          source_data?: Json;
+          review_status?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sync_queue_sync_job_id_fkey";
+            columns: ["sync_job_id"];
+            isOneToOne: false;
+            referencedRelation: "sync_jobs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       venues: {
         Row: {
           id: string;
