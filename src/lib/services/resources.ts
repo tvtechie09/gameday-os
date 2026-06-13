@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Resource, ResourceStatus, ResourceType } from "@/lib/types";
+import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 
 type ResourceRow = Database["public"]["Tables"]["resources"]["Row"];
 
@@ -21,7 +22,7 @@ export type UpdateResourceInput = CreateResourceInput;
 export const resourceTypes: ResourceType[] = ["camera", "audio", "scoreboard", "display", "network", "streaming", "other"];
 export const resourceStatuses: ResourceStatus[] = ["active", "inactive", "maintenance", "unknown"];
 
-const resourceSelect = "id,venue_id,field_id,resource_name,resource_type,manufacturer,model,serial_number,status,notes,created_at,updated_at";
+const resourceSelect = "id,organization_id,venue_id,field_id,resource_name,resource_type,manufacturer,model,serial_number,status,notes,created_at,updated_at";
 
 function readOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -64,6 +65,7 @@ export function getResourceStatusLabel(status: ResourceStatus) {
 function mapResource(row: ResourceRow): Resource {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     venueId: row.venue_id,
     fieldId: row.field_id,
     resourceName: row.resource_name,
@@ -80,10 +82,17 @@ function mapResource(row: ResourceRow): Resource {
 
 export async function getResources(): Promise<Resource[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const organizationId = await getCurrentOrganizationScope();
+  let query = supabase
     .from("resources")
     .select(resourceSelect)
     .order("created_at", { ascending: false });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -114,9 +123,11 @@ export async function getResourcesForFieldPage({ venueId, fieldId }: { venueId: 
 
 export async function createResource(data: CreateResourceInput): Promise<Resource> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: resource, error } = await supabase
     .from("resources")
     .insert({
+      organization_id: organizationId,
       venue_id: data.venue_id,
       field_id: readOptionalText(data.field_id),
       resource_name: data.resource_name,
@@ -139,9 +150,11 @@ export async function createResource(data: CreateResourceInput): Promise<Resourc
 
 export async function updateResource(id: string, data: UpdateResourceInput): Promise<Resource> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: resource, error } = await supabase
     .from("resources")
     .update({
+      organization_id: organizationId,
       venue_id: data.venue_id,
       field_id: readOptionalText(data.field_id),
       resource_name: data.resource_name,
@@ -162,4 +175,19 @@ export async function updateResource(id: string, data: UpdateResourceInput): Pro
   }
 
   return mapResource(resource);
+}
+
+async function getOrganizationIdForVenue(venueId: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("venues")
+    .select("organization_id")
+    .eq("id", venueId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load venue organization for resource", error);
+  }
+
+  return data?.organization_id ?? await getWritableOrganizationId();
 }

@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { ExternalSource, ExternalSourceStatus, ExternalSourceType } from "@/lib/types";
+import { getCurrentOrganizationScope } from "../organization-scope";
 
 type ExternalSourceRow = Database["public"]["Tables"]["external_sources"]["Row"];
 
@@ -16,7 +17,7 @@ export type CreateExternalSourceInput = {
 export const externalSourceTypes: ExternalSourceType[] = ["sportsengine", "hometeamsonline", "teamsnap", "gamechanger", "csv", "ical", "other"];
 export const externalSourceStatuses: ExternalSourceStatus[] = ["not_configured", "connected", "paused", "error", "unknown"];
 
-const externalSourceSelect = "id,venue_id,source_type,source_name,source_url,source_status,last_sync_at,notes,created_at,updated_at";
+const externalSourceSelect = "id,organization_id,venue_id,source_type,source_name,source_url,source_status,last_sync_at,notes,created_at,updated_at";
 
 function readOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -63,6 +64,7 @@ function mapExternalSource(row: ExternalSourceRow): ExternalSource {
   return {
     createdAt: row.created_at,
     id: row.id,
+    organizationId: row.organization_id ?? null,
     lastSyncAt: row.last_sync_at,
     notes: readOptionalText(row.notes),
     sourceName: row.source_name,
@@ -76,10 +78,17 @@ function mapExternalSource(row: ExternalSourceRow): ExternalSource {
 
 export async function getExternalSources(): Promise<ExternalSource[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const organizationId = await getCurrentOrganizationScope();
+  let query = supabase
     .from("external_sources")
     .select(externalSourceSelect)
     .order("created_at", { ascending: false });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -105,9 +114,11 @@ export async function getExternalSource(id: string): Promise<ExternalSource | nu
 
 export async function createExternalSource(data: CreateExternalSourceInput): Promise<ExternalSource> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: externalSource, error } = await supabase
     .from("external_sources")
     .insert({
+      organization_id: organizationId,
       notes: readOptionalText(data.notes),
       source_name: data.source_name,
       source_status: readSourceStatus(data.source_status),
@@ -123,6 +134,21 @@ export async function createExternalSource(data: CreateExternalSourceInput): Pro
   }
 
   return mapExternalSource(externalSource);
+}
+
+async function getOrganizationIdForVenue(venueId: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("venues")
+    .select("organization_id")
+    .eq("id", venueId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load venue organization for integration", error);
+  }
+
+  return data?.organization_id ?? null;
 }
 
 export async function updateExternalSourceLastSync(id: string): Promise<void> {

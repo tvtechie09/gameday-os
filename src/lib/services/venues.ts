@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Venue } from "@/lib/types";
+import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 
 type VenueRow = Database["public"]["Tables"]["venues"]["Row"];
 
@@ -21,6 +22,7 @@ export type UpdateVenueInput = CreateVenueInput;
 function mapVenue(row: VenueRow): Venue {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     name: row.name,
     description: row.description ?? "",
     address: row.address ?? "",
@@ -48,16 +50,27 @@ function countFieldsByVenueId(fields: Array<{ venue_id: string }>) {
 
 export async function getVenues(): Promise<Venue[]> {
   const supabase = getSupabaseServerClient();
-  const { data: venues, error: venuesError } = await supabase
+  const organizationId = await getCurrentOrganizationScope();
+  let venueQuery = supabase
     .from("venues")
-    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
+    .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .order("created_at", { ascending: false });
+
+  if (organizationId) {
+    venueQuery = venueQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: venues, error: venuesError } = await venueQuery;
 
   if (venuesError) {
     throw new Error(venuesError.message);
   }
 
-  const { data: fields, error: fieldsError } = await supabase.from("fields").select("venue_id");
+  let fieldQuery = supabase.from("fields").select("venue_id,organization_id");
+  if (organizationId) {
+    fieldQuery = fieldQuery.eq("organization_id", organizationId);
+  }
+  const { data: fields, error: fieldsError } = await fieldQuery;
 
   if (fieldsError) {
     throw new Error(fieldsError.message);
@@ -75,7 +88,7 @@ export async function getVenue(id: string): Promise<Venue | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("venues")
-    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
+    .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -88,9 +101,11 @@ export async function getVenue(id: string): Promise<Venue | null> {
 
 export async function createVenue(data: CreateVenueInput): Promise<Venue> {
   const supabase = getSupabaseServerClient();
+  const organizationId = await getWritableOrganizationId();
   const { data: venue, error } = await supabase
     .from("venues")
     .insert({
+      organization_id: organizationId,
       name: data.name,
       description: data.description,
       address: data.address,
@@ -102,7 +117,7 @@ export async function createVenue(data: CreateVenueInput): Promise<Venue> {
       secondary_color: data.secondary_color,
       status: "Draft",
     })
-    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
+    .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .single();
 
   if (error) {
@@ -129,7 +144,7 @@ export async function updateVenue(id: string, data: UpdateVenueInput): Promise<V
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select("id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
+    .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .single();
 
   if (error) {

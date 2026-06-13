@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
+import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 import { safelyCreateNotification } from "./notifications";
 import { recordSessionEvent } from "./session-events";
 
@@ -8,7 +9,7 @@ type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type SessionUpdateRow = Database["public"]["Tables"]["sessions"]["Update"];
 
 const sessionSelect =
-  "id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
+  "id,organization_id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
 
 const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
 const validSportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
@@ -139,9 +140,25 @@ async function getVenueIdForField(fieldId: string) {
   return data?.venue_id ?? null;
 }
 
+async function getOrganizationIdForField(fieldId: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("fields")
+    .select("organization_id")
+    .eq("id", fieldId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load field organization for session", error);
+  }
+
+  return data?.organization_id ?? await getWritableOrganizationId();
+}
+
 function mapSession(row: SessionRow): Session {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     fieldId: row.field_id,
     tournamentId: readOptionalText(row.tournament_id),
     title: row.title,
@@ -173,10 +190,17 @@ function mapSession(row: SessionRow): Session {
 
 export async function getSessions(): Promise<Session[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const organizationId = await getCurrentOrganizationScope();
+  let query = supabase
     .from("sessions")
     .select(sessionSelect)
     .order("start_time", { ascending: true });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -217,9 +241,11 @@ export async function getSessionsByFieldId(fieldId: string): Promise<Session[]> 
 
 export async function createSession(data: CreateSessionInput): Promise<Session> {
   const supabase = getSupabaseServerClient();
+  const organizationId = await getOrganizationIdForField(data.field_id);
   const { data: session, error } = await supabase
     .from("sessions")
     .insert({
+      organization_id: organizationId,
       field_id: data.field_id,
       tournament_id: readOptionalText(data.tournament_id),
       title: data.title,
@@ -260,9 +286,11 @@ export async function createSession(data: CreateSessionInput): Promise<Session> 
 export async function updateSession(id: string, data: UpdateSessionInput): Promise<Session> {
   const supabase = getSupabaseAdminClient();
   const previousSession = await getSession(id);
+  const organizationId = await getOrganizationIdForField(data.field_id);
   const { data: session, error } = await supabase
     .from("sessions")
     .update({
+      organization_id: organizationId,
       field_id: data.field_id,
       tournament_id: readOptionalText(data.tournament_id),
       title: data.title,

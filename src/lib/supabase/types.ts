@@ -3,9 +3,34 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      organizations: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          logo_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          logo_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          logo_url?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       alerts: {
         Row: {
           id: string;
+          organization_id: string | null;
           title: string;
           message: string;
           alert_type: string;
@@ -23,6 +48,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           title: string;
           message: string;
           alert_type: string;
@@ -40,6 +66,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           title?: string;
           message?: string;
           alert_type?: string;
@@ -82,6 +109,7 @@ export type Database = {
       external_sources: {
         Row: {
           id: string;
+          organization_id: string | null;
           venue_id: string;
           source_type: string;
           source_name: string;
@@ -94,6 +122,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           venue_id: string;
           source_type: string;
           source_name: string;
@@ -106,6 +135,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           venue_id?: string;
           source_type?: string;
           source_name?: string;
@@ -305,6 +335,7 @@ export type Database = {
       venues: {
         Row: {
           id: string;
+          organization_id: string | null;
           name: string;
           description: string | null;
           address: string | null;
@@ -323,6 +354,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           name: string;
           description?: string | null;
           address?: string | null;
@@ -341,6 +373,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           name?: string;
           description?: string | null;
           address?: string | null;
@@ -362,6 +395,7 @@ export type Database = {
       fields: {
         Row: {
           id: string;
+          organization_id: string | null;
           venue_id: string;
           name: string;
           sport_type: string;
@@ -377,6 +411,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           venue_id: string;
           name: string;
           sport_type: string;
@@ -392,6 +427,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           venue_id?: string;
           name?: string;
           sport_type?: string;
@@ -418,6 +454,7 @@ export type Database = {
       resources: {
         Row: {
           id: string;
+          organization_id: string | null;
           venue_id: string;
           field_id: string | null;
           resource_name: string;
@@ -432,6 +469,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           venue_id: string;
           field_id?: string | null;
           resource_name: string;
@@ -446,6 +484,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           venue_id?: string;
           field_id?: string | null;
           resource_name?: string;
@@ -643,6 +682,7 @@ export type Database = {
       sessions: {
         Row: {
           id: string;
+          organization_id: string | null;
           field_id: string;
           tournament_id: string | null;
           title: string;
@@ -673,6 +713,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           field_id: string;
           tournament_id?: string | null;
           title: string;
@@ -703,6 +744,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           field_id?: string;
           tournament_id?: string | null;
           title?: string;
@@ -783,6 +825,7 @@ export type Database = {
       tournaments: {
         Row: {
           id: string;
+          organization_id: string | null;
           name: string;
           description: string | null;
           start_date: string;
@@ -794,6 +837,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           name: string;
           description?: string | null;
           start_date: string;
@@ -805,6 +849,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           name?: string;
           description?: string | null;
           start_date?: string;
@@ -819,6 +864,7 @@ export type Database = {
       sponsors: {
         Row: {
           id: string;
+          organization_id: string | null;
           name: string;
           logo_url: string | null;
           website_url: string | null;
@@ -828,6 +874,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          organization_id?: string | null;
           name: string;
           logo_url?: string | null;
           website_url?: string | null;
@@ -837,6 +884,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          organization_id?: string | null;
           name?: string;
           logo_url?: string | null;
           website_url?: string | null;

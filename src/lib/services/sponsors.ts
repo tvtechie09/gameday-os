@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Sponsor, SponsorAssignment, SponsorAssignmentType, SponsorPlacement, SponsorPlacementLabel } from "@/lib/types";
+import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 
 type SponsorRow = Database["public"]["Tables"]["sponsors"]["Row"];
 type SponsorAssignmentRow = Database["public"]["Tables"]["sponsor_assignments"]["Row"];
@@ -23,7 +24,7 @@ export type CreateSponsorAssignmentInput = {
   placement_label: SponsorPlacementLabel;
 };
 
-const sponsorSelect = "id,name,logo_url,website_url,description,created_at,updated_at";
+const sponsorSelect = "id,organization_id,name,logo_url,website_url,description,created_at,updated_at";
 const assignmentSelect = "id,sponsor_id,assignment_type,venue_id,field_id,session_id,placement_label,created_at,updated_at";
 const validAssignmentTypes = ["venue", "field", "session"] as const;
 const validPlacementLabels = ["Presented By", "Field Sponsor", "Game Sponsor", "Featured Sponsor"] as const;
@@ -44,6 +45,7 @@ function readPlacementLabel(value: string): SponsorPlacementLabel {
 function mapSponsor(row: SponsorRow): Sponsor {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     name: row.name,
     logoUrl: readOptionalText(row.logo_url),
     websiteUrl: readOptionalText(row.website_url),
@@ -69,7 +71,14 @@ function mapSponsorAssignment(row: SponsorAssignmentRow): SponsorAssignment {
 
 export async function getSponsors(): Promise<Sponsor[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase.from("sponsors").select(sponsorSelect).order("created_at", { ascending: false });
+  const organizationId = await getCurrentOrganizationScope();
+  let query = supabase.from("sponsors").select(sponsorSelect).order("created_at", { ascending: false });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -80,9 +89,11 @@ export async function getSponsors(): Promise<Sponsor[]> {
 
 export async function createSponsor(data: CreateSponsorInput): Promise<Sponsor> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getWritableOrganizationId();
   const { data: sponsor, error } = await supabase
     .from("sponsors")
     .insert({
+      organization_id: organizationId,
       name: data.name,
       logo_url: readOptionalText(data.logo_url),
       website_url: readOptionalText(data.website_url),

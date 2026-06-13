@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Tournament } from "@/lib/types";
+import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 
 type TournamentRow = Database["public"]["Tables"]["tournaments"]["Row"];
 
@@ -15,7 +16,7 @@ export type CreateTournamentInput = {
 
 export type UpdateTournamentInput = CreateTournamentInput;
 
-const tournamentSelect = "id,name,description,start_date,end_date,logo_url,website_url,created_at,updated_at";
+const tournamentSelect = "id,organization_id,name,description,start_date,end_date,logo_url,website_url,created_at,updated_at";
 
 function readOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -25,6 +26,7 @@ function readOptionalText(value: string | null | undefined) {
 function mapTournament(row: TournamentRow): Tournament {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     name: row.name,
     description: row.description ?? "",
     startDate: row.start_date,
@@ -38,10 +40,17 @@ function mapTournament(row: TournamentRow): Tournament {
 
 export async function getTournaments(): Promise<Tournament[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const organizationId = await getCurrentOrganizationScope();
+  let query = supabase
     .from("tournaments")
     .select(tournamentSelect)
     .order("start_date", { ascending: false });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -67,9 +76,11 @@ export async function getTournament(id: string): Promise<Tournament | null> {
 
 export async function createTournament(data: CreateTournamentInput): Promise<Tournament> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getWritableOrganizationId();
   const { data: tournament, error } = await supabase
     .from("tournaments")
     .insert({
+      organization_id: organizationId,
       name: data.name,
       description: readOptionalText(data.description),
       start_date: data.start_date,

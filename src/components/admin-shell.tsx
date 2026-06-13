@@ -29,6 +29,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import type { Organization } from "@/lib/types";
 
 type AdminNavItem = {
   href: string;
@@ -51,6 +52,7 @@ const adminNavGroups: AdminNavGroup[] = [
       { href: "/admin/game-day", icon: Activity, label: "Game Day" },
       { href: "/admin/status-board", icon: Gauge, label: "Status Board" },
       { href: "/admin/system-health", icon: ShieldCheck, label: "System Health Center" },
+      { href: "/admin/organizations", icon: Users, label: "Organization Dashboard" },
       { href: "/admin/pilot-prep", icon: ClipboardCheck, label: "Pilot Prep" },
     ],
   },
@@ -131,6 +133,7 @@ const breadcrumbLabels: Record<string, string> = {
   integrations: "Integrations",
   new: "New",
   notifications: "Notifications",
+  organizations: "Organizations",
   "pilot-prep": "Pilot Prep",
   qr: "QR",
   resources: "Resources",
@@ -174,7 +177,15 @@ function formatGroupLabel(label: string) {
   return label.charAt(0) + label.slice(1).toLowerCase();
 }
 
-export function AdminShell({ children }: Readonly<{ children: React.ReactNode }>) {
+export function AdminShell({
+  children,
+  organizations = [],
+  selectedOrganizationId = "all",
+}: Readonly<{
+  children: React.ReactNode;
+  organizations?: Organization[];
+  selectedOrganizationId?: string;
+}>) {
   const pathname = usePathname();
   const breadcrumbs = buildBreadcrumbs(pathname);
 
@@ -196,6 +207,10 @@ export function AdminShell({ children }: Readonly<{ children: React.ReactNode }>
                 <AdminNav pathname={pathname} compact />
               </div>
             </details>
+          </div>
+
+          <div className="mt-5">
+            <OrganizationSwitcher organizations={organizations} selectedOrganizationId={selectedOrganizationId} />
           </div>
 
           <div className="mt-5 lg:hidden">
@@ -260,6 +275,40 @@ export function AdminShell({ children }: Readonly<{ children: React.ReactNode }>
         {children}
       </div>
     </div>
+  );
+}
+
+function OrganizationSwitcher({
+  organizations,
+  selectedOrganizationId,
+}: {
+  organizations: Organization[];
+  selectedOrganizationId: string;
+}) {
+  const selectedOrganization = organizations.find((organization) => organization.id === selectedOrganizationId);
+
+  return (
+    <form action="/admin/organization" className="rounded-lg border border-white/10 bg-white/[0.04] p-3" method="post">
+      <label className="grid gap-2">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Organization</span>
+        <select
+          className="min-h-10 w-full rounded-lg border border-white/10 bg-[var(--black-soft)] px-3 text-sm font-bold text-white outline-none"
+          defaultValue={selectedOrganizationId}
+          name="organization_id"
+          onChange={(event) => event.currentTarget.form?.requestSubmit()}
+        >
+          <option value="all">All Organizations</option>
+          {organizations.map((organization) => (
+            <option key={organization.id} value={organization.id}>
+              {organization.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="mt-2 text-xs font-semibold leading-5 text-white/55">
+        {selectedOrganization ? `Viewing ${selectedOrganization.name}` : "Super Admin view across every organization"}
+      </p>
+    </form>
   );
 }
 

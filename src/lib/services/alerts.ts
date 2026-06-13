@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Alert, AlertPriority, AlertScope, AlertType, AlertVisibility } from "@/lib/types";
+import { getCurrentOrganizationScope } from "../organization-scope";
 import { safelyCreateNotification } from "./notifications";
 
 type AlertRow = Database["public"]["Tables"]["alerts"]["Row"];
@@ -27,7 +28,7 @@ export const alertScopes: AlertScope[] = ["venue", "field", "tournament", "globa
 export const alertPriorities: AlertPriority[] = ["low", "normal", "high", "urgent"];
 export const alertVisibilities: AlertVisibility[] = ["public", "admin_only"];
 
-const alertSelect = "id,title,message,alert_type,alert_scope,alert_priority,alert_visibility,venue_id,tournament_id,field_id,start_time,end_time,is_active,created_at,updated_at";
+const alertSelect = "id,organization_id,title,message,alert_type,alert_scope,alert_priority,alert_visibility,venue_id,tournament_id,field_id,start_time,end_time,is_active,created_at,updated_at";
 
 function readAlertType(value: string): AlertType {
   return alertTypes.find((type) => type === value) ?? "info";
@@ -53,6 +54,7 @@ function readOptionalText(value: string | null | undefined) {
 function mapAlert(row: AlertRow): Alert {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     title: row.title,
     message: row.message,
     alertType: readAlertType(row.alert_type),
@@ -68,6 +70,21 @@ function mapAlert(row: AlertRow): Alert {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+async function getOrganizationIdForVenue(venueId: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("venues")
+    .select("organization_id")
+    .eq("id", venueId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load venue organization for alert", error);
+  }
+
+  return data?.organization_id ?? null;
 }
 
 export function isAlertActive(alert: Alert, now = new Date()) {
@@ -165,10 +182,17 @@ export function filterAlertsForFieldPage({
 
 export async function getAlerts(): Promise<Alert[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const organizationId = await getCurrentOrganizationScope();
+  let query = supabase
     .from("alerts")
     .select(alertSelect)
     .order("start_time", { ascending: false });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -179,8 +203,9 @@ export async function getAlerts(): Promise<Alert[]> {
 
 export async function getActiveAlerts(): Promise<Alert[]> {
   const supabase = getSupabaseServerClient();
+  const organizationId = await getCurrentOrganizationScope();
   const now = new Date().toISOString();
-  const { data, error } = await supabase
+  let query = supabase
     .from("alerts")
     .select(alertSelect)
     .eq("is_active", true)
@@ -188,6 +213,12 @@ export async function getActiveAlerts(): Promise<Alert[]> {
     .gte("end_time", now)
     .order("alert_type", { ascending: true })
     .order("start_time", { ascending: false });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -213,9 +244,11 @@ export async function getAlert(id: string): Promise<Alert | null> {
 
 export async function createAlert(data: CreateAlertInput): Promise<Alert> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: alert, error } = await supabase
     .from("alerts")
     .insert({
+      organization_id: organizationId,
       title: data.title,
       message: data.message,
       alert_type: data.alert_type,
@@ -250,9 +283,11 @@ export async function createAlert(data: CreateAlertInput): Promise<Alert> {
 
 export async function updateAlert(id: string, data: UpdateAlertInput): Promise<Alert> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: alert, error } = await supabase
     .from("alerts")
     .update({
+      organization_id: organizationId,
       title: data.title,
       message: data.message,
       alert_type: data.alert_type,

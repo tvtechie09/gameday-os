@@ -34,6 +34,7 @@ export type SessionEventType =
 
 export interface Venue {
   id: string;
+  organizationId?: string | null;
   name: string;
   description: string;
   address: string;
@@ -53,6 +54,7 @@ export interface Venue {
 
 export interface Field {
   id: string;
+  organizationId?: string | null;
   venueId: string;
   name: string;
   sportType: string;
@@ -68,6 +70,7 @@ export interface Field {
 
 export interface Session {
   id: string;
+  organizationId?: string | null;
   fieldId: string;
   tournamentId: string | null;
   title: string;
@@ -98,6 +101,7 @@ export interface Session {
 
 export interface Tournament {
   id: string;
+  organizationId?: string | null;
   name: string;
   description: string;
   startDate: string;
@@ -110,6 +114,7 @@ export interface Tournament {
 
 export interface Sponsor {
   id: string;
+  organizationId?: string | null;
   name: string;
   logoUrl: string | null;
   websiteUrl: string | null;
@@ -143,6 +148,7 @@ export interface SponsorAnalyticsSummary {
 
 export interface Alert {
   id: string;
+  organizationId?: string | null;
   title: string;
   message: string;
   alertType: AlertType;
@@ -161,6 +167,7 @@ export interface Alert {
 
 export interface Resource {
   id: string;
+  organizationId?: string | null;
   venueId: string;
   fieldId: string | null;
   resourceName: string;
@@ -214,6 +221,7 @@ export interface VolunteerRole {
 
 export interface ExternalSource {
   id: string;
+  organizationId?: string | null;
   venueId: string;
   sourceType: ExternalSourceType;
   sourceName: string;
@@ -246,6 +254,14 @@ export interface SyncJob {
   recordsSkipped: number;
   createdAt: string;
   completedAt: string | null;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  createdAt: string;
 }
 
 export interface SyncQueueItem {

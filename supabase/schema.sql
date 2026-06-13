@@ -1,7 +1,16 @@
 create extension if not exists pgcrypto;
 
+create table if not exists public.organizations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  logo_url text,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.venues (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
   name text not null,
   description text,
   city text,
@@ -21,6 +30,7 @@ create table if not exists public.venues (
 
 create table if not exists public.fields (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
   venue_id uuid not null references public.venues(id) on delete cascade,
   name text not null,
   sport_type text not null,
@@ -37,6 +47,7 @@ create table if not exists public.fields (
 
 create table if not exists public.resources (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
   venue_id uuid not null references public.venues(id) on delete cascade,
   field_id uuid references public.fields(id) on delete set null,
   resource_name text not null,
@@ -90,6 +101,7 @@ create table if not exists public.volunteer_roles (
 
 create table if not exists public.tournaments (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
   name text not null,
   description text,
   start_date date not null,
@@ -102,6 +114,7 @@ create table if not exists public.tournaments (
 
 create table if not exists public.sessions (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
   field_id uuid not null references public.fields(id) on delete cascade,
   tournament_id uuid references public.tournaments(id) on delete set null,
   title text not null,
@@ -152,6 +165,7 @@ create table if not exists public.notifications (
 
 create table if not exists public.external_sources (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
   venue_id uuid not null references public.venues(id) on delete cascade,
   source_type text not null check (source_type in ('sportsengine', 'hometeamsonline', 'teamsnap', 'gamechanger', 'csv', 'ical', 'other')),
   source_name text not null,
@@ -186,6 +200,7 @@ create table if not exists public.sync_queue (
 
 create table if not exists public.sponsors (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
   name text not null,
   logo_url text,
   website_url text,
@@ -254,6 +269,7 @@ create table if not exists public.follows (
 
 create table if not exists public.alerts (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
   title text not null,
   message text not null,
   alert_type text not null check (alert_type in ('info', 'weather', 'delay', 'emergency', 'parking', 'concession', 'field_closure')),
@@ -271,7 +287,10 @@ create table if not exists public.alerts (
 );
 
 create index if not exists fields_venue_id_idx on public.fields(venue_id);
+create index if not exists venues_organization_id_idx on public.venues(organization_id);
+create index if not exists fields_organization_id_idx on public.fields(organization_id);
 create index if not exists resources_venue_id_idx on public.resources(venue_id);
+create index if not exists resources_organization_id_idx on public.resources(organization_id);
 create index if not exists resources_field_id_idx on public.resources(field_id);
 create index if not exists resources_status_idx on public.resources(status);
 create index if not exists resource_activations_venue_id_idx on public.resource_activations(venue_id);
@@ -283,7 +302,9 @@ create index if not exists volunteer_roles_field_id_idx on public.volunteer_role
 create index if not exists volunteer_roles_session_id_idx on public.volunteer_roles(session_id);
 create index if not exists volunteer_roles_status_idx on public.volunteer_roles(status);
 create index if not exists sessions_field_id_idx on public.sessions(field_id);
+create index if not exists sessions_organization_id_idx on public.sessions(organization_id);
 create index if not exists sessions_tournament_id_idx on public.sessions(tournament_id);
+create index if not exists tournaments_organization_id_idx on public.tournaments(organization_id);
 create unique index if not exists sessions_external_source_unique_idx
   on public.sessions(external_source, external_source_id)
   where external_source is not null and external_source_id is not null;
@@ -295,6 +316,7 @@ create index if not exists notifications_venue_id_idx on public.notifications(ve
 create index if not exists notifications_field_id_idx on public.notifications(field_id);
 create index if not exists notifications_session_id_idx on public.notifications(session_id);
 create index if not exists external_sources_venue_id_idx on public.external_sources(venue_id);
+create index if not exists external_sources_organization_id_idx on public.external_sources(organization_id);
 create index if not exists external_sources_source_type_idx on public.external_sources(source_type);
 create index if not exists external_sources_source_status_idx on public.external_sources(source_status);
 create index if not exists sync_jobs_source_id_idx on public.sync_jobs(source_id);
@@ -304,6 +326,7 @@ create index if not exists sync_queue_sync_job_id_idx on public.sync_queue(sync_
 create index if not exists sync_queue_review_status_idx on public.sync_queue(review_status);
 create index if not exists sync_queue_created_at_idx on public.sync_queue(created_at desc);
 create index if not exists sponsor_assignments_sponsor_id_idx on public.sponsor_assignments(sponsor_id);
+create index if not exists sponsors_organization_id_idx on public.sponsors(organization_id);
 create index if not exists sponsor_assignments_venue_id_idx on public.sponsor_assignments(venue_id);
 create index if not exists sponsor_assignments_field_id_idx on public.sponsor_assignments(field_id);
 create index if not exists sponsor_assignments_session_id_idx on public.sponsor_assignments(session_id);
@@ -319,6 +342,7 @@ create index if not exists follows_field_id_idx on public.follows(field_id);
 create index if not exists follows_session_id_idx on public.follows(session_id);
 create index if not exists follows_created_at_idx on public.follows(created_at);
 create index if not exists alerts_venue_id_idx on public.alerts(venue_id);
+create index if not exists alerts_organization_id_idx on public.alerts(organization_id);
 create index if not exists alerts_tournament_id_idx on public.alerts(tournament_id);
 create index if not exists alerts_field_id_idx on public.alerts(field_id);
 create index if not exists alerts_scope_idx on public.alerts(alert_scope);
@@ -326,6 +350,7 @@ create index if not exists alerts_priority_idx on public.alerts(alert_priority);
 create index if not exists alerts_visibility_idx on public.alerts(alert_visibility);
 create index if not exists alerts_active_window_idx on public.alerts(is_active, start_time, end_time);
 
+alter table public.organizations enable row level security;
 alter table public.venues enable row level security;
 alter table public.fields enable row level security;
 alter table public.resources enable row level security;
@@ -345,6 +370,10 @@ alter table public.sponsor_clicks enable row level security;
 alter table public.field_page_views enable row level security;
 alter table public.follows enable row level security;
 alter table public.alerts enable row level security;
+
+create policy "Public can read organizations"
+  on public.organizations for select
+  using (true);
 
 create policy "Public can read venues"
   on public.venues for select

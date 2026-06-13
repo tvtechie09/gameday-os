@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Field, FieldStatus } from "@/lib/types";
+import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 import { safelyCreateNotification } from "./notifications";
 
 type FieldRow = Database["public"]["Tables"]["fields"]["Row"];
@@ -75,6 +76,7 @@ export function getFieldStatusClass(status: FieldStatus) {
 function mapField(row: FieldRow): Field {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     venueId: row.venue_id,
     name: row.name,
     sportType: row.sport_type,
@@ -91,10 +93,17 @@ function mapField(row: FieldRow): Field {
 
 export async function getFields(): Promise<Field[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const organizationId = await getCurrentOrganizationScope();
+  let query = supabase
     .from("fields")
-    .select("id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
+    .select("id,organization_id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
     .order("created_at", { ascending: false });
+
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -107,7 +116,7 @@ export async function getField(id: string): Promise<Field | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("fields")
-    .select("id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
+    .select("id,organization_id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -120,9 +129,11 @@ export async function getField(id: string): Promise<Field | null> {
 
 export async function createField(data: CreateFieldInput): Promise<Field> {
   const supabase = getSupabaseServerClient();
+  const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: field, error } = await supabase
     .from("fields")
     .insert({
+      organization_id: organizationId,
       venue_id: data.venue_id,
       name: data.name,
       sport_type: data.sport_type,
@@ -131,7 +142,7 @@ export async function createField(data: CreateFieldInput): Promise<Field> {
       map_y: data.map_y ?? null,
       field_status: data.status ?? "open",
     })
-    .select("id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
+    .select("id,organization_id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
     .single();
 
   if (error) {
@@ -143,9 +154,11 @@ export async function createField(data: CreateFieldInput): Promise<Field> {
 
 export async function updateField(id: string, data: UpdateFieldInput): Promise<Field> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: field, error } = await supabase
     .from("fields")
     .update({
+      organization_id: organizationId,
       venue_id: data.venue_id,
       name: data.name,
       sport_type: data.sport_type,
@@ -156,7 +169,7 @@ export async function updateField(id: string, data: UpdateFieldInput): Promise<F
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select("id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
+    .select("id,organization_id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
     .single();
 
   if (error) {
@@ -184,7 +197,7 @@ export async function updateFieldStatus(id: string, status: FieldStatus): Promis
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select("id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
+    .select("id,organization_id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at")
     .single();
 
   if (error) {
@@ -192,4 +205,19 @@ export async function updateFieldStatus(id: string, status: FieldStatus): Promis
   }
 
   return mapField(field);
+}
+
+async function getOrganizationIdForVenue(venueId: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("venues")
+    .select("organization_id")
+    .eq("id", venueId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load venue organization for field", error);
+  }
+
+  return data?.organization_id ?? await getWritableOrganizationId();
 }
