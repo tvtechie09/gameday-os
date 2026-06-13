@@ -72,6 +72,9 @@ export interface Session {
   primaryLinkUrl: string | null;
   secondaryLinkLabel: SessionLinkLabel | null;
   secondaryLinkUrl: string | null;
+  externalSource: string | null;
+  externalSourceId: string | null;
+  externalSourceUrl: string | null;
   notes: string | null;
   updatedAt: string;
 }

@@ -432,6 +432,9 @@ export type Database = {
           primary_link_url: string | null;
           secondary_link_label: string | null;
           secondary_link_url: string | null;
+          external_source: string | null;
+          external_source_id: string | null;
+          external_source_url: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -459,6 +462,9 @@ export type Database = {
           primary_link_url?: string | null;
           secondary_link_label?: string | null;
           secondary_link_url?: string | null;
+          external_source?: string | null;
+          external_source_id?: string | null;
+          external_source_url?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -486,6 +492,9 @@ export type Database = {
           primary_link_url?: string | null;
           secondary_link_label?: string | null;
           secondary_link_url?: string | null;
+          external_source?: string | null;
+          external_source_id?: string | null;
+          external_source_url?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;

@@ -123,6 +123,9 @@ create table if not exists public.sessions (
   primary_link_url text,
   secondary_link_label text check (secondary_link_label in ('GameChanger', 'SidelineHD', 'YouTube', 'SportsEngine', 'TeamSnap', 'Other')),
   secondary_link_url text,
+  external_source text,
+  external_source_id text,
+  external_source_url text,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -212,6 +215,9 @@ create index if not exists volunteer_roles_session_id_idx on public.volunteer_ro
 create index if not exists volunteer_roles_status_idx on public.volunteer_roles(status);
 create index if not exists sessions_field_id_idx on public.sessions(field_id);
 create index if not exists sessions_tournament_id_idx on public.sessions(tournament_id);
+create unique index if not exists sessions_external_source_unique_idx
+  on public.sessions(external_source, external_source_id)
+  where external_source is not null and external_source_id is not null;
 create index if not exists sponsor_assignments_sponsor_id_idx on public.sponsor_assignments(sponsor_id);
 create index if not exists sponsor_assignments_venue_id_idx on public.sponsor_assignments(venue_id);
 create index if not exists sponsor_assignments_field_id_idx on public.sponsor_assignments(field_id);

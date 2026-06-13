@@ -6,7 +6,7 @@ type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type SessionUpdateRow = Database["public"]["Tables"]["sessions"]["Update"];
 
 const sessionSelect =
-  "id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,notes,created_at,updated_at";
+  "id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
 
 const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
 const validSportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
@@ -25,6 +25,9 @@ export type CreateSessionInput = {
   primary_link_url?: string | null;
   secondary_link_label?: SessionLinkLabel | "" | null;
   secondary_link_url?: string | null;
+  external_source?: string | null;
+  external_source_id?: string | null;
+  external_source_url?: string | null;
   notes?: string | null;
 };
 
@@ -108,6 +111,9 @@ function mapSession(row: SessionRow): Session {
     primaryLinkUrl: readOptionalText(row.primary_link_url),
     secondaryLinkLabel: readLinkLabel(row.secondary_link_label),
     secondaryLinkUrl: readOptionalText(row.secondary_link_url),
+    externalSource: readOptionalText(row.external_source),
+    externalSourceId: readOptionalText(row.external_source_id),
+    externalSourceUrl: readOptionalText(row.external_source_url),
     notes: readOptionalText(row.notes),
     updatedAt: row.updated_at,
   };
@@ -176,6 +182,9 @@ export async function createSession(data: CreateSessionInput): Promise<Session> 
       primary_link_url: readOptionalText(data.primary_link_url),
       secondary_link_label: readLinkLabel(data.secondary_link_label),
       secondary_link_url: readOptionalText(data.secondary_link_url),
+      external_source: readOptionalText(data.external_source),
+      external_source_id: readOptionalText(data.external_source_id),
+      external_source_url: readOptionalText(data.external_source_url),
       notes: readOptionalText(data.notes),
     })
     .select(sessionSelect)
@@ -207,6 +216,9 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
       primary_link_url: readOptionalText(data.primary_link_url),
       secondary_link_label: readLinkLabel(data.secondary_link_label),
       secondary_link_url: readOptionalText(data.secondary_link_url),
+      external_source: readOptionalText(data.external_source),
+      external_source_id: readOptionalText(data.external_source_id),
+      external_source_url: readOptionalText(data.external_source_url),
       notes: readOptionalText(data.notes),
       updated_at: new Date().toISOString(),
     })
@@ -381,6 +393,9 @@ export async function duplicateSessionsToDate(data: DuplicateSessionsInput): Pro
       primary_link_url: session.primary_link_url,
       secondary_link_label: session.secondary_link_label,
       secondary_link_url: session.secondary_link_url,
+      external_source: session.external_source,
+      external_source_id: session.external_source_id ? `${session.external_source_id}:copy:${data.target_date}` : null,
+      external_source_url: session.external_source_url,
       notes: session.notes,
     };
   });

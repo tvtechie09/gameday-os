@@ -9,6 +9,7 @@ const adminNavItems = [
   { href: "/admin/sessions", label: "Sessions" },
   { href: "/admin/tournaments", label: "Tournaments" },
   { href: "/admin/import", label: "Import" },
+  { href: "/admin/integrations", label: "Integrations" },
   { href: "/admin/alerts", label: "Alerts" },
   { href: "/admin/resources", label: "Resources" },
   { href: "/admin/resources/dashboard", label: "Resource Dashboard" },
