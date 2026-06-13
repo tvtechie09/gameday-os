@@ -409,6 +409,9 @@ export default async function SystemHealthPage() {
           <Link className="ui-button ui-button-secondary" href="/admin/executive">
             Executive Dashboard
           </Link>
+          <Link className="ui-button ui-button-secondary" href="/admin/schema-audit">
+            Schema Audit
+          </Link>
           <Link className="ui-button ui-button-secondary" href="/admin/demo">
             Demo Review
           </Link>

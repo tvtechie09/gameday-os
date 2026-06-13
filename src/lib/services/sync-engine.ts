@@ -30,6 +30,14 @@ export type CreateSyncQueueRecordInput = {
   sourceData: {
     kind: "session";
     session: SyncSessionPayload;
+    source?: {
+      field_name?: string | null;
+      location?: string | null;
+      provider?: string | null;
+      raw?: Record<string, unknown> | null;
+      source_url?: string | null;
+      venue_name?: string | null;
+    };
   };
 };
 
@@ -275,9 +283,12 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
     start_time: existingSession.startTime,
     title: existingSession.title,
   })));
-  const externalDuplicate = Boolean(session.external_source && session.external_source_id && existingSessions.some((existingSession) =>
-    existingSession.externalSource === session.external_source && existingSession.externalSourceId === session.external_source_id,
-  ));
+  const externalDuplicate = Boolean(session.external_source && existingSessions.some((existingSession) => {
+    const sourceMatches = existingSession.externalSource === session.external_source;
+    const idMatches = Boolean(session.external_source_id && existingSession.externalSourceId === session.external_source_id);
+    const urlMatches = Boolean(session.external_source_url && existingSession.externalSourceUrl === session.external_source_url);
+    return sourceMatches && (idMatches || urlMatches);
+  }));
 
   if (existingSessionKeys.has(duplicateKey(session)) || externalDuplicate) {
     await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);

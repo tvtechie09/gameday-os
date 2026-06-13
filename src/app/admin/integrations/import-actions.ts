@@ -17,18 +17,23 @@ export type CalendarImportEvent = {
   sourceUrl: string | null;
   homeTeam: string;
   awayTeam: string;
+  rawData?: Record<string, unknown> | null;
 };
 
 export type CalendarImportRow = {
   externalSourceId: string;
+  externalSourceUrl?: string | null;
   fieldId: string;
+  fieldName?: string | null;
   title: string;
   startTime: string;
   endTime?: string | null;
   homeTeam: string;
   awayTeam: string;
   notes?: string | null;
+  rawData?: Record<string, unknown> | null;
   sportType?: SessionSportType | "" | null;
+  venueName?: string | null;
 };
 
 export type FetchCalendarResult = {
@@ -141,6 +146,7 @@ function parseIcalEvents(text: string): CalendarImportEvent[] {
       homeTeam: teams.homeTeam,
       location: event.LOCATION ?? "",
       notes: event.DESCRIPTION || null,
+      rawData: event,
       sourceId,
       sourceUrl: event.URL || null,
       startTime,
@@ -151,6 +157,10 @@ function parseIcalEvents(text: string): CalendarImportEvent[] {
 
 function externalKey(session: Pick<Session, "externalSource" | "externalSourceId">) {
   return session.externalSource && session.externalSourceId ? `${session.externalSource}|${session.externalSourceId}` : null;
+}
+
+function externalUrlKey(session: Pick<Session, "externalSource" | "externalSourceUrl">) {
+  return session.externalSource && session.externalSourceUrl ? `${session.externalSource}|url|${session.externalSourceUrl}` : null;
 }
 
 export async function fetchCalendarEventsAction(feedUrl: string): Promise<FetchCalendarResult> {
@@ -207,8 +217,9 @@ export async function importCalendarSessionsAction({
 
   const existingSessions = await getSessions();
   const existingExternalKeys = new Set(existingSessions.flatMap((session) => {
-    const key = externalKey(session);
-    return key ? [key] : [];
+    const idKey = externalKey(session);
+    const urlKey = externalUrlKey(session);
+    return [idKey, urlKey].filter((key): key is string => Boolean(key));
   }));
 
   let skipped = 0;
@@ -218,9 +229,12 @@ export async function importCalendarSessionsAction({
 
   for (const row of rows) {
     const externalSourceId = row.externalSourceId;
-    const key = `${storedExternalSourceName}|${externalSourceId}`;
+    const idKey = `${storedExternalSourceName}|${externalSourceId}`;
+    const rowExternalSourceUrl = row.externalSourceUrl?.trim()
+      || (storedExternalSourceUrl ? `${storedExternalSourceUrl}#${encodeURIComponent(externalSourceId)}` : null);
+    const urlKey = rowExternalSourceUrl ? `${storedExternalSourceName}|url|${rowExternalSourceUrl}` : null;
 
-    if (existingExternalKeys.has(key)) {
+    if (existingExternalKeys.has(idKey) || Boolean(urlKey && existingExternalKeys.has(urlKey))) {
       skipped += 1;
       continue;
     }
@@ -233,7 +247,7 @@ export async function importCalendarSessionsAction({
           end_time: row.endTime,
           external_source: storedExternalSourceName,
           external_source_id: externalSourceId,
-          external_source_url: storedExternalSourceUrl,
+          external_source_url: rowExternalSourceUrl,
           field_id: row.fieldId,
           home_team: row.homeTeam || row.title,
           notes: row.notes,
@@ -242,10 +256,20 @@ export async function importCalendarSessionsAction({
           status: "scheduled",
           title: row.title,
         },
+        source: {
+          field_name: row.fieldName ?? null,
+          provider: storedExternalSourceName,
+          raw: row.rawData ?? null,
+          source_url: rowExternalSourceUrl,
+          venue_name: row.venueName ?? null,
+        },
       },
       sourceRecordId: externalSourceId,
     });
-    existingExternalKeys.add(key);
+    existingExternalKeys.add(idKey);
+    if (urlKey) {
+      existingExternalKeys.add(urlKey);
+    }
   }
 
   const job = await createSyncJobWithQueue({

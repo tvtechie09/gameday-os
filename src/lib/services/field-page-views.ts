@@ -26,6 +26,12 @@ function daysAgo(days: number) {
   return now.toISOString();
 }
 
+function isMissingFieldPageViewsTableError(error: { code?: string; message?: string }) {
+  return error.code === "PGRST205"
+    || error.message?.toLowerCase().includes("field_page_views") === true
+    || error.message?.toLowerCase().includes("schema cache") === true;
+}
+
 export async function recordFieldPageView(input: RecordFieldPageViewInput) {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("field_page_views").insert({
@@ -37,6 +43,11 @@ export async function recordFieldPageView(input: RecordFieldPageViewInput) {
   });
 
   if (error) {
+    if (isMissingFieldPageViewsTableError(error)) {
+      console.error("field_page_views table is unavailable in Supabase schema cache; skipping field page view insert.", error);
+      return;
+    }
+
     throw new Error(error.message);
   }
 }
@@ -49,6 +60,11 @@ export async function getFieldPageViewCountSince(since: string): Promise<number>
     .gte("viewed_at", since);
 
   if (error) {
+    if (isMissingFieldPageViewsTableError(error)) {
+      console.error("field_page_views table is unavailable in Supabase schema cache; returning 0 field page views.", error);
+      return 0;
+    }
+
     throw new Error(error.message);
   }
 
@@ -71,6 +87,11 @@ export async function getFieldPageViewCountsByField(): Promise<FieldPageViewSumm
     .select("field_id");
 
   if (error) {
+    if (isMissingFieldPageViewsTableError(error)) {
+      console.error("field_page_views table is unavailable in Supabase schema cache; returning no field page view counts.", error);
+      return [];
+    }
+
     throw new Error(error.message);
   }
 

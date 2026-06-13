@@ -24,6 +24,11 @@ function SummaryCard({ label, note, value }: { label: string; note: string; valu
 export default async function SyncOverviewPage() {
   const [stats, jobs, queueItems] = await Promise.all([getSyncDashboardStats(), getSyncJobs(), getSyncQueueItems("all")]);
   const recentJobs = jobs.slice(0, 5);
+  const sportsEngineJobs = jobs.filter((job) => job.sourceType === "sportsengine");
+  const sportsEnginePendingItems = queueItems.filter((item) => {
+    const job = jobs.find((syncJob) => syncJob.id === item.syncJobId);
+    return job?.sourceType === "sportsengine" && item.reviewStatus === "pending";
+  }).length;
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -45,9 +50,11 @@ export default async function SyncOverviewPage() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-3">
+      <div className="mt-8 grid gap-3 sm:grid-cols-5">
         <SummaryCard label="Last Sync" note="Most recent completed sync job." value={formatDateTime(stats.lastSync)} />
         <SummaryCard label="Pending Review Items" note="Records waiting for approval." value={stats.pendingReviewItems} />
+        <SummaryCard label="SportsEngine Sync Jobs" note="SportsEngine CSV, feed, and URL imports." value={sportsEngineJobs.length} />
+        <SummaryCard label="SportsEngine Pending" note="SportsEngine records waiting for review." value={sportsEnginePendingItems} />
         <SummaryCard label="Failed Sync Jobs" note="Jobs that need attention." value={stats.failedJobs} />
       </div>
 

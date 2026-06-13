@@ -7,7 +7,9 @@ import type { ExternalSource, Field, Session, SessionSportType, Venue } from "@/
 import { fetchCalendarEventsAction, importCalendarSessionsAction, type CalendarImportEvent, type CalendarImportRow, type ImportCalendarResult } from "./import-actions";
 
 type EditableCalendarRow = CalendarImportEvent & {
+  fieldName?: string | null;
   fieldId: string;
+  venueName?: string | null;
   venueId: string;
   sportType: SessionSportType;
 };
@@ -61,6 +63,7 @@ function buildRows(events: CalendarImportEvent[], fields: Field[], venueId?: str
       ...event,
       fieldId: field?.id ?? "",
       sportType: "baseball" as SessionSportType,
+      venueName: null,
       venueId: field?.venueId ?? "",
     };
   });
@@ -166,14 +169,17 @@ function buildProviderCsvRows(csvRows: CsvRow[], fields: Field[], venues: Venue[
       description: readCsvCell(row, ["Description", "Notes"]),
       endTime,
       fieldId: field?.id ?? "",
+      fieldName,
       homeTeam,
       location: fieldName,
       notes: readCsvCell(row, ["Notes", "Description"]) || null,
+      rawData: row,
       sourceId,
       sourceUrl: readCsvCell(row, ["URL", "Source URL", "Link"]) || null,
       sportType: "baseball",
       startTime,
       title: title || `${homeTeam} vs ${awayTeam}`,
+      venueName,
       venueId: venue?.id ?? "",
     };
   });
@@ -198,12 +204,16 @@ function buildImportRow(row: EditableCalendarRow): CalendarImportRow | null {
     awayTeam: row.awayTeam || "TBD",
     endTime: row.endTime,
     externalSourceId: row.sourceId,
+    externalSourceUrl: row.sourceUrl,
     fieldId: row.fieldId,
+    fieldName: row.fieldName ?? row.location,
     homeTeam: row.homeTeam || row.title,
     notes: row.notes,
+    rawData: row.rawData ?? null,
     sportType: row.sportType,
     startTime: row.startTime,
     title: row.title,
+    venueName: row.venueName ?? null,
   };
 }
 
@@ -224,21 +234,31 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
   const venuesById = useMemo(() => new Map(venues.map((venue) => [venue.id, venue])), [venues]);
   const fieldsByVenueId = useMemo(() => new Map(venues.map((venue) => [venue.id, fields.filter((field) => field.venueId === venue.id)])), [fields, venues]);
   const externalKeys = useMemo(() => new Set(sessions.flatMap((session) => {
-    if (!session.externalSource || !session.externalSourceId) return [];
-    return [`${session.externalSource}|${session.externalSourceId}`];
+    if (!session.externalSource) return [];
+    return [
+      session.externalSourceId ? `${session.externalSource}|${session.externalSourceId}` : null,
+      session.externalSourceUrl ? `${session.externalSource}|url|${session.externalSourceUrl}` : null,
+    ].filter((key): key is string => Boolean(key));
   })), [sessions]);
 
   const validatedRows = useMemo(() => rows.map((row) => {
     const errors = getRowErrors(row);
     const externalSourceName = getStoredExternalSourceName(selectedSource);
-    const duplicate = Boolean(externalSourceName && externalKeys.has(`${externalSourceName}|${row.sourceId}`));
+    const rowSourceUrl = row.sourceUrl || (feedUrl ? `${feedUrl}#${encodeURIComponent(row.sourceId)}` : null);
+    const duplicate = Boolean(
+      externalSourceName
+      && (
+        externalKeys.has(`${externalSourceName}|${row.sourceId}`)
+        || Boolean(rowSourceUrl && externalKeys.has(`${externalSourceName}|url|${rowSourceUrl}`))
+      ),
+    );
     return {
       duplicate,
       errors: duplicate ? [...errors, "Duplicate external event"] : errors,
       importRow: duplicate ? null : buildImportRow(row),
       row,
     };
-  }), [externalKeys, rows, selectedSource]);
+  }), [externalKeys, feedUrl, rows, selectedSource]);
 
   const validRows = validatedRows.filter((row) => row.importRow);
   const duplicateRows = validatedRows.filter((row) => row.duplicate);

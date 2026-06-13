@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   Activity,
   Bell,
@@ -45,11 +46,11 @@ const adminNavGroups: AdminNavGroup[] = [
     label: "OPERATIONS",
     items: [
       { href: "/admin", icon: Home, label: "Overview" },
-      { href: "/admin/executive", icon: ShieldCheck, label: "Executive" },
-      { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+      { href: "/admin/executive", icon: ShieldCheck, label: "Executive Dashboard" },
+      { href: "/admin/dashboard", icon: LayoutDashboard, label: "Operations Dashboard" },
       { href: "/admin/game-day", icon: Activity, label: "Game Day" },
       { href: "/admin/status-board", icon: Gauge, label: "Status Board" },
-      { href: "/admin/system-health", icon: ShieldCheck, label: "System Health" },
+      { href: "/admin/system-health", icon: ShieldCheck, label: "System Health Center" },
       { href: "/admin/pilot-prep", icon: ClipboardCheck, label: "Pilot Prep" },
     ],
   },
@@ -87,13 +88,14 @@ const adminNavGroups: AdminNavGroup[] = [
     label: "INTEGRATIONS",
     items: [
       { href: "/admin/integrations", icon: Database, label: "Integrations" },
-      { href: "/admin/integrations/health", icon: ShieldCheck, label: "Health" },
+      { href: "/admin/integrations/health", icon: ShieldCheck, label: "Integration Health Dashboard" },
     ],
   },
   {
     label: "TOOLS",
     items: [
       { href: "/admin/sync", icon: Shuffle, label: "Sync Engine" },
+      { href: "/admin/schema-audit", icon: Database, label: "Schema Audit" },
       { href: "/admin/import", icon: Sparkles, label: "CSV Import" },
       { href: "/admin/sessions/bulk", icon: Menu, label: "Bulk Sessions" },
     ],
@@ -105,6 +107,13 @@ const quickActions = [
   { href: "/admin/fields/new", label: "Field" },
   { href: "/admin/sessions/new", label: "Session" },
   { href: "/admin/alerts/new", label: "Alert" },
+];
+
+const pinnedNavItems: AdminNavItem[] = [
+  { href: "/admin/dashboard", icon: LayoutDashboard, label: "Operations Dashboard" },
+  { href: "/admin/status-board", icon: Gauge, label: "Status Board" },
+  { href: "/admin/fields", icon: QrCode, label: "Fields" },
+  { href: "/admin/sync", icon: Shuffle, label: "Sync Engine" },
 ];
 
 const breadcrumbLabels: Record<string, string> = {
@@ -125,6 +134,7 @@ const breadcrumbLabels: Record<string, string> = {
   "pilot-prep": "Pilot Prep",
   qr: "QR",
   resources: "Resources",
+  "schema-audit": "Schema Audit",
   sessions: "Sessions",
   sponsors: "Sponsors",
   "status-board": "Status Board",
@@ -160,14 +170,18 @@ function buildBreadcrumbs(pathname: string) {
   }));
 }
 
+function formatGroupLabel(label: string) {
+  return label.charAt(0) + label.slice(1).toLowerCase();
+}
+
 export function AdminShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const breadcrumbs = buildBreadcrumbs(pathname);
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-0 overflow-hidden lg:grid-cols-[280px_1fr]">
+    <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-0 overflow-hidden lg:grid-cols-[360px_1fr]">
       <aside className="min-w-0 overflow-hidden border-b border-[var(--line)] bg-[var(--black-soft)] text-white lg:min-h-[calc(100vh-73px)] lg:border-b-0 lg:border-r">
-        <div className="min-w-0 px-4 py-5 sm:px-6 lg:sticky lg:top-[73px] lg:px-5">
+        <div className="min-w-0 px-4 py-5 sm:px-6 lg:sticky lg:top-[73px] lg:px-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">Admin</p>
@@ -178,7 +192,7 @@ export function AdminShell({ children }: Readonly<{ children: React.ReactNode }>
                   <Menu className="h-5 w-5" aria-hidden="true" />
                   <span className="sr-only">Open navigation</span>
                 </summary>
-              <div className="absolute right-0 top-12 z-30 max-h-[70vh] w-72 overflow-y-auto rounded-lg border border-white/10 bg-[var(--black-soft)] p-3 shadow-xl">
+              <div className="absolute right-0 top-12 z-30 max-h-[70vh] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-white/10 bg-[var(--black-soft)] p-3 shadow-xl">
                 <AdminNav pathname={pathname} compact />
               </div>
             </details>
@@ -186,6 +200,10 @@ export function AdminShell({ children }: Readonly<{ children: React.ReactNode }>
 
           <div className="mt-5 lg:hidden">
             <MobileNav pathname={pathname} />
+          </div>
+
+          <div className="mt-6 hidden lg:block">
+            <PinnedNav pathname={pathname} />
           </div>
 
           <div className="mt-6 hidden lg:block">
@@ -246,10 +264,20 @@ export function AdminShell({ children }: Readonly<{ children: React.ReactNode }>
 }
 
 function AdminNav({ compact = false, pathname }: { compact?: boolean; pathname: string }) {
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(adminNavGroups.map((group) => [group.label, true])));
+
+  function toggleGroup(label: string) {
+    setOpenGroups((current) => ({
+      ...current,
+      [label]: !(current[label] ?? true),
+    }));
+  }
+
   return (
-    <nav className={`grid gap-5 ${compact ? "" : "lg:gap-6"}`} aria-label="Admin navigation">
+    <nav className={`grid gap-3 ${compact ? "" : "lg:gap-4"}`} aria-label="Admin navigation">
       {adminNavGroups.map((group) => {
         const hasActiveItem = group.items.some((item) => isActivePath(pathname, item.href));
+        const isOpen = openGroups[group.label] ?? true;
         const navItems = (
           <div className="mt-2 grid gap-1">
             {group.items.map((item) => {
@@ -259,15 +287,15 @@ function AdminNav({ compact = false, pathname }: { compact?: boolean; pathname: 
               return (
                 <Link
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-10 items-center gap-3 rounded-lg px-2 py-2 text-sm font-bold transition ${
-                    active ? "bg-white text-[var(--black-soft)] shadow-sm" : "text-white/70 hover:bg-white/10 hover:text-white"
+                  className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition ${
+                    active ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-400/25" : "text-white/70 hover:bg-white/10 hover:text-white"
                   }`}
                   href={item.href}
                   key={item.href}
                 >
-                  <span className={`h-6 w-1 rounded-full ${active ? "bg-[var(--accent)]" : "bg-transparent"}`} />
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{item.label}</span>
+                  <span className={`h-6 w-1 rounded-full ${active ? "bg-emerald-300" : "bg-transparent"}`} />
+                  <Icon className={`h-4 w-4 shrink-0 ${active ? "text-emerald-200" : ""}`} aria-hidden="true" />
+                  <span className="min-w-0 leading-5">{item.label}</span>
                 </Link>
               );
             })}
@@ -276,33 +304,74 @@ function AdminNav({ compact = false, pathname }: { compact?: boolean; pathname: 
 
         if (compact) {
           return (
-            <details className="rounded-lg border border-white/10 bg-white/[0.03] p-2" key={group.label} open={hasActiveItem}>
-              <summary className="flex cursor-pointer items-center justify-between px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/60 marker:hidden">
-                {group.label}
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </summary>
-              {navItems}
-            </details>
+            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-2" key={group.label}>
+              <button
+                aria-expanded={isOpen}
+                className="flex w-full cursor-pointer items-center justify-between gap-3 px-2 py-1 text-left text-[10px] font-black uppercase tracking-[0.18em] text-white/60 transition hover:text-white/80"
+                onClick={() => toggleGroup(group.label)}
+                type="button"
+              >
+                <span>{group.label}</span>
+                <ChevronRight className={`h-4 w-4 shrink-0 transition ${isOpen ? "rotate-90" : ""}`} aria-hidden="true" />
+              </button>
+              {isOpen ? navItems : hasActiveItem ? <p className="px-2 py-2 text-xs font-bold text-emerald-100">Active page in this section</p> : null}
+            </section>
           );
         }
 
         return (
-          <div key={group.label}>
-            <p className="px-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">{group.label}</p>
-            {navItems}
-          </div>
+          <section className="rounded-lg border border-transparent" key={group.label}>
+            <button
+              aria-expanded={isOpen}
+              className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.18em] transition ${
+                hasActiveItem ? "text-emerald-100" : "text-white/45 hover:bg-white/5 hover:text-white/70"
+              }`}
+              onClick={() => toggleGroup(group.label)}
+              type="button"
+            >
+              <span>{formatGroupLabel(group.label)}</span>
+              <ChevronRight className={`h-4 w-4 shrink-0 transition ${isOpen ? "rotate-90" : ""}`} aria-hidden="true" />
+            </button>
+            {isOpen ? navItems : null}
+          </section>
         );
       })}
     </nav>
   );
 }
 
-function MobileNav({ pathname }: { pathname: string }) {
-  const items = adminNavGroups.flatMap((group) => group.items);
+function PinnedNav({ pathname }: { pathname: string }) {
+  return (
+    <section className="rounded-lg border border-white/10 bg-white/[0.03] p-3" aria-label="Pinned admin links">
+      <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Pinned</p>
+      <div className="mt-2 grid gap-1">
+        {pinnedNavItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActivePath(pathname, item.href);
 
+          return (
+            <Link
+              aria-current={active ? "page" : undefined}
+              className={`flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition ${
+                active ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-400/25" : "text-white/75 hover:bg-white/10 hover:text-white"
+              }`}
+              href={item.href}
+              key={item.href}
+            >
+              <Icon className={`h-4 w-4 shrink-0 ${active ? "text-emerald-200" : ""}`} aria-hidden="true" />
+              <span className="min-w-0 leading-5">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function MobileNav({ pathname }: { pathname: string }) {
   return (
     <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Mobile admin navigation">
-      {items.map((item) => {
+      {pinnedNavItems.map((item) => {
         const Icon = item.icon;
         const active = isActivePath(pathname, item.href);
 
@@ -310,7 +379,7 @@ function MobileNav({ pathname }: { pathname: string }) {
           <Link
             aria-current={active ? "page" : undefined}
             className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-bold ${
-              active ? "bg-white text-[var(--black-soft)]" : "bg-white/10 text-white/80"
+              active ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-400/25" : "bg-white/10 text-white/80 hover:bg-white/15 hover:text-white"
             }`}
             href={item.href}
             key={item.href}

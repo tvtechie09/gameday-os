@@ -9,7 +9,7 @@ import { getResourceActivations, getActivationLabel } from "@/lib/services/resou
 import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
-import { getSyncDashboardStats } from "@/lib/services/sync-engine";
+import { getSyncDashboardStats, getSyncJobs } from "@/lib/services/sync-engine";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoleLabel, getVolunteerRoles } from "@/lib/services/volunteer-roles";
 import type { Alert, Field, Resource, ResourceActivation, Session, Sponsor, Venue, VolunteerRole } from "@/lib/types";
@@ -210,6 +210,10 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
     console.error("Failed to load dashboard sync stats", error);
     return { failedJobs: 0, lastSync: null, pendingReviewItems: 0 };
   });
+  const syncJobs = await getSyncJobs().catch((error: unknown) => {
+    console.error("Failed to load dashboard sync jobs", error);
+    return [];
+  });
 
   const todaySessions = sessions
     .filter((session) => isSameDay(session.startTime, now))
@@ -227,6 +231,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
   const pendingActivations = activations.filter((activation) => activation.status === "requested");
   const pendingVolunteerRoles = volunteerRoles.filter((role) => role.status === "requested");
   const urgentAlerts = sortAlertsForDisplay(activeAlerts.filter((alert) => alert.alertPriority === "urgent"));
+  const sportsEngineSyncJobs = syncJobs.filter((job) => job.sourceType === "sportsengine");
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -300,6 +305,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
 
           <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Failed sync jobs" note="External imports needing attention" value={syncStats.failedJobs} />
+            <SummaryCard label="SportsEngine sync jobs" note="CSV, feed, and public URL imports" value={sportsEngineSyncJobs.length} />
           </section>
 
           {urgentAlerts.length > 0 ? (
