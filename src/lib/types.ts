@@ -14,6 +14,8 @@ export type ResourceActivationType = "parent_camera" | "livestream_link" | "blue
 export type ResourceActivationStatus = "requested" | "active" | "ended" | "rejected";
 export type VolunteerRoleType = "scorekeeper" | "stream_operator" | "audio_operator" | "announcer" | "scoreboard_operator" | "field_admin" | "other";
 export type VolunteerRoleStatus = "requested" | "approved" | "active" | "ended" | "rejected";
+export type ExternalSourceType = "sportsengine" | "hometeamsonline" | "teamsnap" | "gamechanger" | "csv" | "ical" | "other";
+export type ExternalSourceStatus = "draft" | "active" | "paused" | "error";
 
 export interface Venue {
   id: string;
@@ -187,6 +189,19 @@ export interface VolunteerRole {
   contactEmail: string | null;
   contactPhone: string | null;
   status: VolunteerRoleStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExternalSource {
+  id: string;
+  venueId: string;
+  sourceType: ExternalSourceType;
+  sourceName: string;
+  sourceUrl: string | null;
+  sourceStatus: ExternalSourceStatus;
+  lastSyncAt: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;

@@ -131,6 +131,19 @@ create table if not exists public.sessions (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.external_sources (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  source_type text not null check (source_type in ('sportsengine', 'hometeamsonline', 'teamsnap', 'gamechanger', 'csv', 'ical', 'other')),
+  source_name text not null,
+  source_url text,
+  source_status text not null default 'draft' check (source_status in ('draft', 'active', 'paused', 'error')),
+  last_sync_at timestamptz,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.sponsors (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -218,6 +231,9 @@ create index if not exists sessions_tournament_id_idx on public.sessions(tournam
 create unique index if not exists sessions_external_source_unique_idx
   on public.sessions(external_source, external_source_id)
   where external_source is not null and external_source_id is not null;
+create index if not exists external_sources_venue_id_idx on public.external_sources(venue_id);
+create index if not exists external_sources_source_type_idx on public.external_sources(source_type);
+create index if not exists external_sources_source_status_idx on public.external_sources(source_status);
 create index if not exists sponsor_assignments_sponsor_id_idx on public.sponsor_assignments(sponsor_id);
 create index if not exists sponsor_assignments_venue_id_idx on public.sponsor_assignments(venue_id);
 create index if not exists sponsor_assignments_field_id_idx on public.sponsor_assignments(field_id);
@@ -242,6 +258,7 @@ alter table public.resource_activations enable row level security;
 alter table public.volunteer_roles enable row level security;
 alter table public.tournaments enable row level security;
 alter table public.sessions enable row level security;
+alter table public.external_sources enable row level security;
 alter table public.sponsors enable row level security;
 alter table public.sponsor_assignments enable row level security;
 alter table public.sponsor_impressions enable row level security;
@@ -287,6 +304,14 @@ create policy "Public can read sessions"
 
 create policy "Public can create sessions"
   on public.sessions for insert
+  with check (true);
+
+create policy "Public can read external sources"
+  on public.external_sources for select
+  using (true);
+
+create policy "Public can create external sources"
+  on public.external_sources for insert
   with check (true);
 
 create policy "Public can read sponsors"

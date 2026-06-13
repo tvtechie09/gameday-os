@@ -70,6 +70,53 @@ export type Database = {
           },
         ];
       };
+      external_sources: {
+        Row: {
+          id: string;
+          venue_id: string;
+          source_type: string;
+          source_name: string;
+          source_url: string | null;
+          source_status: string;
+          last_sync_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          source_type: string;
+          source_name: string;
+          source_url?: string | null;
+          source_status?: string;
+          last_sync_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          source_type?: string;
+          source_name?: string;
+          source_url?: string | null;
+          source_status?: string;
+          last_sync_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "external_sources_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       venues: {
         Row: {
           id: string;
