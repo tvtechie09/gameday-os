@@ -225,6 +225,9 @@ create table if not exists public.alerts (
   title text not null,
   message text not null,
   alert_type text not null check (alert_type in ('info', 'weather', 'delay', 'emergency', 'parking', 'concession', 'field_closure')),
+  alert_scope text not null default 'venue' check (alert_scope in ('venue', 'field', 'tournament', 'global')),
+  alert_priority text not null default 'normal' check (alert_priority in ('low', 'normal', 'high', 'urgent')),
+  alert_visibility text not null default 'public' check (alert_visibility in ('public', 'admin_only')),
   venue_id uuid not null references public.venues(id) on delete cascade,
   tournament_id uuid references public.tournaments(id) on delete cascade,
   field_id uuid references public.fields(id) on delete cascade,
@@ -276,6 +279,9 @@ create index if not exists follows_created_at_idx on public.follows(created_at);
 create index if not exists alerts_venue_id_idx on public.alerts(venue_id);
 create index if not exists alerts_tournament_id_idx on public.alerts(tournament_id);
 create index if not exists alerts_field_id_idx on public.alerts(field_id);
+create index if not exists alerts_scope_idx on public.alerts(alert_scope);
+create index if not exists alerts_priority_idx on public.alerts(alert_priority);
+create index if not exists alerts_visibility_idx on public.alerts(alert_visibility);
 create index if not exists alerts_active_window_idx on public.alerts(is_active, start_time, end_time);
 
 alter table public.venues enable row level security;

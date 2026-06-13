@@ -9,6 +9,9 @@ export type Database = {
           title: string;
           message: string;
           alert_type: string;
+          alert_scope: string;
+          alert_priority: string;
+          alert_visibility: string;
           venue_id: string;
           tournament_id: string | null;
           field_id: string | null;
@@ -23,6 +26,9 @@ export type Database = {
           title: string;
           message: string;
           alert_type: string;
+          alert_scope?: string;
+          alert_priority?: string;
+          alert_visibility?: string;
           venue_id: string;
           tournament_id?: string | null;
           field_id?: string | null;
@@ -37,6 +43,9 @@ export type Database = {
           title?: string;
           message?: string;
           alert_type?: string;
+          alert_scope?: string;
+          alert_priority?: string;
+          alert_visibility?: string;
           venue_id?: string;
           tournament_id?: string | null;
           field_id?: string | null;

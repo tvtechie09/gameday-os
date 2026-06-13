@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getPublicFieldUrl } from "@/lib/public-url";
-import { getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
+import { getActiveAlerts, getAlertLabel, getAlertTone, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getFieldPageViewDashboardCounts } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getFollowDashboardCounts } from "@/lib/services/follows";
@@ -221,6 +221,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
   const venueWideResources = resources.filter((resource) => !resource.fieldId);
   const pendingActivations = activations.filter((activation) => activation.status === "requested");
   const pendingVolunteerRoles = volunteerRoles.filter((role) => role.status === "requested");
+  const urgentAlerts = sortAlertsForDisplay(activeAlerts.filter((alert) => alert.alertPriority === "urgent"));
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -278,6 +279,26 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
             <SummaryCard label="Total follows today" note="Anonymous field and game follows" value={follows.today} />
             <SummaryCard label="Total follows last 7 days" note="Anonymous field and game follows" value={follows.last7Days} />
           </section>
+
+          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard label="Active alerts" note="Currently in alert window" value={activeAlerts.length} />
+            <SummaryCard label="Urgent alerts" note="Active urgent communications" value={urgentAlerts.length} />
+          </section>
+
+          {urgentAlerts.length > 0 ? (
+            <section className="mt-8 rounded-lg border border-red-300 bg-red-50 p-5">
+              <h2 className="text-xl font-black text-red-950">Active urgent alerts</h2>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {urgentAlerts.map((alert) => (
+                  <article className="rounded-lg bg-white p-4" key={alert.id}>
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-red-700">{getAlertLabel(alert.alertType)}</p>
+                    <h3 className="mt-1 text-lg font-black text-red-950">{alert.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-red-900">{alert.message}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

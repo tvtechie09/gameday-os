@@ -1,6 +1,6 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
-import type { Alert, AlertType } from "@/lib/types";
+import type { Alert, AlertPriority, AlertScope, AlertType, AlertVisibility } from "@/lib/types";
 
 type AlertRow = Database["public"]["Tables"]["alerts"]["Row"];
 
@@ -8,6 +8,9 @@ export type CreateAlertInput = {
   title: string;
   message: string;
   alert_type: AlertType;
+  alert_scope?: AlertScope;
+  alert_priority?: AlertPriority;
+  alert_visibility?: AlertVisibility;
   venue_id: string;
   tournament_id?: string | null;
   field_id?: string | null;
@@ -19,11 +22,26 @@ export type CreateAlertInput = {
 export type UpdateAlertInput = CreateAlertInput;
 
 export const alertTypes: AlertType[] = ["info", "weather", "delay", "emergency", "parking", "concession", "field_closure"];
+export const alertScopes: AlertScope[] = ["venue", "field", "tournament", "global"];
+export const alertPriorities: AlertPriority[] = ["low", "normal", "high", "urgent"];
+export const alertVisibilities: AlertVisibility[] = ["public", "admin_only"];
 
-const alertSelect = "id,title,message,alert_type,venue_id,tournament_id,field_id,start_time,end_time,is_active,created_at,updated_at";
+const alertSelect = "id,title,message,alert_type,alert_scope,alert_priority,alert_visibility,venue_id,tournament_id,field_id,start_time,end_time,is_active,created_at,updated_at";
 
 function readAlertType(value: string): AlertType {
   return alertTypes.find((type) => type === value) ?? "info";
+}
+
+function readAlertScope(value: string | null | undefined): AlertScope {
+  return alertScopes.find((scope) => scope === value) ?? "venue";
+}
+
+function readAlertPriority(value: string | null | undefined): AlertPriority {
+  return alertPriorities.find((priority) => priority === value) ?? "normal";
+}
+
+function readAlertVisibility(value: string | null | undefined): AlertVisibility {
+  return alertVisibilities.find((visibility) => visibility === value) ?? "public";
 }
 
 function readOptionalText(value: string | null | undefined) {
@@ -37,6 +55,9 @@ function mapAlert(row: AlertRow): Alert {
     title: row.title,
     message: row.message,
     alertType: readAlertType(row.alert_type),
+    alertScope: readAlertScope(row.alert_scope),
+    alertPriority: readAlertPriority(row.alert_priority),
+    alertVisibility: readAlertVisibility(row.alert_visibility),
     venueId: row.venue_id,
     tournamentId: row.tournament_id,
     fieldId: row.field_id,
@@ -51,6 +72,25 @@ function mapAlert(row: AlertRow): Alert {
 export function isAlertActive(alert: Alert, now = new Date()) {
   const timestamp = now.getTime();
   return alert.isActive && new Date(alert.startTime).getTime() <= timestamp && new Date(alert.endTime).getTime() >= timestamp;
+}
+
+export function isAlertExpired(alert: Alert, now = new Date()) {
+  return new Date(alert.endTime).getTime() < now.getTime();
+}
+
+export function getAlertPriorityLabel(priority: AlertPriority) {
+  return priority.toUpperCase();
+}
+
+export function getAlertScopeLabel(scope: AlertScope) {
+  const labels: Record<AlertScope, string> = {
+    field: "Field-specific",
+    global: "Global/all fields",
+    tournament: "Tournament-specific",
+    venue: "Venue-wide",
+  };
+
+  return labels[scope];
 }
 
 export function getAlertLabel(alertType: AlertType) {
@@ -69,32 +109,57 @@ export function getAlertTone(alertType: AlertType) {
   return "border-[var(--line)] bg-white text-[var(--foreground)]";
 }
 
+export function sortAlertsForDisplay(alerts: Alert[]) {
+  const priorityWeight: Record<AlertPriority, number> = {
+    urgent: 0,
+    high: 1,
+    normal: 2,
+    low: 3,
+  };
+
+  return [...alerts].sort((a, b) => {
+    const priorityDifference = priorityWeight[a.alertPriority] - priorityWeight[b.alertPriority];
+    if (priorityDifference !== 0) return priorityDifference;
+    return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+  });
+}
+
 export function filterAlertsForFieldPage({
   alerts,
   venueId,
   fieldId,
+  publicOnly = true,
   tournamentId,
 }: {
   alerts: Alert[];
   venueId: string;
   fieldId: string;
+  publicOnly?: boolean;
   tournamentId?: string | null;
 }) {
-  return alerts.filter((alert) => {
+  return sortAlertsForDisplay(alerts.filter((alert) => {
+    if (publicOnly && alert.alertVisibility !== "public") {
+      return false;
+    }
+
     if (alert.venueId !== venueId) {
       return false;
     }
 
-    if (alert.fieldId && alert.fieldId !== fieldId) {
-      return false;
+    if (alert.alertScope === "global" || alert.alertScope === "venue") {
+      return true;
     }
 
-    if (alert.tournamentId && alert.tournamentId !== tournamentId) {
-      return false;
+    if (alert.alertScope === "field") {
+      return alert.fieldId === fieldId;
     }
 
-    return true;
-  });
+    if (alert.alertScope === "tournament") {
+      return Boolean(alert.tournamentId && alert.tournamentId === tournamentId);
+    }
+
+    return false;
+  }));
 }
 
 export async function getAlerts(): Promise<Alert[]> {
@@ -153,6 +218,9 @@ export async function createAlert(data: CreateAlertInput): Promise<Alert> {
       title: data.title,
       message: data.message,
       alert_type: data.alert_type,
+      alert_scope: readAlertScope(data.alert_scope),
+      alert_priority: readAlertPriority(data.alert_priority),
+      alert_visibility: readAlertVisibility(data.alert_visibility),
       venue_id: data.venue_id,
       tournament_id: readOptionalText(data.tournament_id),
       field_id: readOptionalText(data.field_id),
@@ -178,6 +246,9 @@ export async function updateAlert(id: string, data: UpdateAlertInput): Promise<A
       title: data.title,
       message: data.message,
       alert_type: data.alert_type,
+      alert_scope: readAlertScope(data.alert_scope),
+      alert_priority: readAlertPriority(data.alert_priority),
+      alert_visibility: readAlertVisibility(data.alert_visibility),
       venue_id: data.venue_id,
       tournament_id: readOptionalText(data.tournament_id),
       field_id: readOptionalText(data.field_id),

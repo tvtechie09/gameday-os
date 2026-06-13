@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { alertTypes } from "@/lib/services/alerts";
+import { alertPriorities, alertScopes, alertTypes, alertVisibilities, getAlertPriorityLabel, getAlertScopeLabel } from "@/lib/services/alerts";
 import type { Field, Tournament, Venue } from "@/lib/types";
 import { createAlertAction } from "../actions";
 
@@ -70,6 +70,34 @@ export function AlertForm({ fields, tournaments, venues }: { fields: Field[]; to
             ))}
           </select>
         </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Scope</span>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="alert_scope" required>
+            {alertScopes.map((scope) => (
+              <option key={scope} value={scope}>{getAlertScopeLabel(scope)}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Priority</span>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue="normal" disabled={isSaving} name="alert_priority" required>
+            {alertPriorities.map((priority) => (
+              <option key={priority} value={priority}>{getAlertPriorityLabel(priority)}</option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Visibility</span>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue="public" disabled={isSaving} name="alert_visibility" required>
+            {alertVisibilities.map((visibility) => (
+              <option key={visibility} value={visibility}>{visibility.replace("_", " ")}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-bold">Venue</span>
           <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="venue_id" onChange={(event) => setSelectedVenueId(event.target.value)} required value={selectedVenueId}>

@@ -86,6 +86,7 @@ function buildVenueBoard({
         alerts: activeAlerts,
         venueId: venue.id,
         fieldId: field.id,
+        publicOnly: false,
         tournamentId: activeSession?.tournamentId ?? nextSession?.tournamentId,
       }).length;
       const activeResourcesCount = resources.filter(

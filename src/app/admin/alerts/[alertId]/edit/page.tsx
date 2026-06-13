@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { alertTypes, getAlert, updateAlert } from "@/lib/services/alerts";
+import { alertPriorities, alertScopes, alertTypes, alertVisibilities, getAlert, getAlertPriorityLabel, getAlertScopeLabel, updateAlert } from "@/lib/services/alerts";
 import { getFields } from "@/lib/services/fields";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getVenues } from "@/lib/services/venues";
@@ -71,6 +71,28 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
               {alertTypes.map((type) => <option key={type} value={type}>{type.replace("_", " ")}</option>)}
             </select>
           </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Scope</span>
+            <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={alert.alertScope} name="alert_scope" required>
+              {alertScopes.map((scope) => <option key={scope} value={scope}>{getAlertScopeLabel(scope)}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Priority</span>
+            <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={alert.alertPriority} name="alert_priority" required>
+              {alertPriorities.map((priority) => <option key={priority} value={priority}>{getAlertPriorityLabel(priority)}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Visibility</span>
+            <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={alert.alertVisibility} name="alert_visibility" required>
+              {alertVisibilities.map((visibility) => <option key={visibility} value={visibility}>{visibility.replace("_", " ")}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2">
             <span className="text-sm font-bold">Venue</span>
             <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={alert.venueId} name="venue_id" required>
