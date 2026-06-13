@@ -234,6 +234,9 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/game-day" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            Game Day
+          </Link>
           <Link href="/admin/status-board" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
             Status Board
           </Link>
