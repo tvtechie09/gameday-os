@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPublicFieldUrl } from "@/lib/public-url";
+import { getPublicFieldUrl, getPublicVenueUrl } from "@/lib/public-url";
 import { getAlerts } from "@/lib/services/alerts";
 import { getFields, getFieldStatusLabel } from "@/lib/services/fields";
 import { getResourceActivations } from "@/lib/services/resource-activations";
@@ -291,6 +291,7 @@ export default async function PilotPrepPage({ searchParams }: PilotPrepPageProps
                 <QuickLink href="/admin/sessions/new" label="Add session" />
                 <QuickLink href={firstField ? `/admin/fields/${firstField.id}/qr` : "/admin/fields"} label="Generate QR" />
                 <QuickLink href={firstField ? `/fields/${firstField.id}` : "/admin/fields"} label="View public field page" />
+                <QuickLink href={`/venues/${selectedVenue.id}`} label="View public venue page" />
                 <QuickLink href="/admin/sponsors/new" label="Add sponsor" />
                 <QuickLink href="/admin/alerts/new" label="Add alert" />
               </div>
@@ -300,6 +301,15 @@ export default async function PilotPrepPage({ searchParams }: PilotPrepPageProps
           <div className="mt-8 grid gap-5 xl:grid-cols-2">
             {sections.map((section) => <CheckSectionCard key={section.title} section={section} />)}
           </div>
+
+          <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
+            <h2 className="text-lg font-black">Venue public link</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Use this page for venue-wide sharing before or during a pilot.</p>
+            <p className="mt-4 break-all rounded-lg bg-[var(--background)] p-4 text-sm font-bold text-[var(--accent-strong)]">{getPublicVenueUrl(selectedVenue.id)}</p>
+            <div className="mt-4">
+              <QuickLink href={`/venues/${selectedVenue.id}`} label="Open public venue page" />
+            </div>
+          </section>
 
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
             <h2 className="text-lg font-black">Field QR links</h2>

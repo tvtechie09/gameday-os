@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
+import { getPublicVenueUrl } from "@/lib/public-url";
 import { getVenues } from "@/lib/services/venues";
 import type { Venue } from "@/lib/types";
 
@@ -58,11 +59,20 @@ export default async function VenuesPage() {
                 <p className="text-sm font-bold text-[var(--muted)]">Fields</p>
                 <p className="mt-1 text-3xl font-black">{venue.fieldCount}</p>
               </div>
+              <div className="mt-4 overflow-x-auto rounded-lg bg-[var(--background)] p-4">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">Public venue URL</p>
+                <code className="mt-2 block whitespace-nowrap text-sm font-bold text-[var(--foreground)]">{getPublicVenueUrl(venue.id)}</code>
+              </div>
               <div className="mt-5 flex flex-col gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(venue.updatedAt)}</p>
-                <Link href={`/admin/venues/${venue.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
-                  Edit
-                </Link>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Link href={`/venues/${venue.id}`} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
+                    Public Page
+                  </Link>
+                  <Link href={`/admin/venues/${venue.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                    Edit
+                  </Link>
+                </div>
               </div>
             </article>
           ))}

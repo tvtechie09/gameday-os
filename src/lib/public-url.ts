@@ -9,3 +9,7 @@ export function hasConfiguredPublicAppUrl() {
 export function getPublicFieldUrl(fieldId: string) {
   return `${getPublicAppUrl()}/fields/${fieldId}`;
 }
+
+export function getPublicVenueUrl(venueId: string) {
+  return `${getPublicAppUrl()}/venues/${venueId}`;
+}

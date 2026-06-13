@@ -1,0 +1,418 @@
+import type { CSSProperties } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { getPublicFieldUrl, getPublicVenueUrl } from "@/lib/public-url";
+import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
+import { getFieldStatusClass, getFieldStatusLabel, getFields } from "@/lib/services/fields";
+import { getResourceTypeLabel, getResources } from "@/lib/services/resources";
+import { getSessions } from "@/lib/services/sessions";
+import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
+import { getVenue } from "@/lib/services/venues";
+import type { Alert, Field, Resource, Session, Sponsor, SponsorAssignment, Venue } from "@/lib/types";
+
+type PublicVenuePageProps = {
+  params: Promise<{
+    venueId: string;
+  }>;
+};
+
+type FieldSummary = {
+  currentOrNextSession: Session | null;
+  field: Field;
+};
+
+export const dynamic = "force-dynamic";
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function isToday(value: string, now: Date) {
+  const date = new Date(value);
+  return date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+}
+
+function isActiveSession(session: Session, now: Date) {
+  if (session.status === "active" || session.gameStatus === "active") {
+    return true;
+  }
+
+  if (!session.endTime) {
+    return false;
+  }
+
+  const startsAt = new Date(session.startTime).getTime();
+  const endsAt = new Date(session.endTime).getTime();
+  return startsAt <= now.getTime() && now.getTime() <= endsAt;
+}
+
+function isUpcomingSession(session: Session, now: Date) {
+  return session.status === "scheduled" && new Date(session.startTime).getTime() > now.getTime();
+}
+
+function getCurrentOrNextSession(sessions: Session[], now: Date) {
+  return sessions.find((session) => isActiveSession(session, now))
+    ?? sessions.find((session) => isUpcomingSession(session, now))
+    ?? null;
+}
+
+function groupTodaySchedule(fields: Field[], sessions: Session[], now: Date) {
+  const todaySessions = sessions
+    .filter((session) => isToday(session.startTime, now))
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  return fields.map((field) => ({
+    field,
+    timeGroups: todaySessions
+      .filter((session) => session.fieldId === field.id)
+      .reduce<Array<{ sessions: Session[]; time: string }>>((groups, session) => {
+        const time = formatTime(session.startTime);
+        const existing = groups.find((group) => group.time === time);
+        if (existing) {
+          existing.sessions.push(session);
+          return groups;
+        }
+        return [...groups, { sessions: [session], time }];
+      }, []),
+  }));
+}
+
+function getVenueSponsorCards({
+  assignments,
+  fields,
+  sessions,
+  sponsors,
+  venueId,
+}: {
+  assignments: SponsorAssignment[];
+  fields: Field[];
+  sessions: Session[];
+  sponsors: Sponsor[];
+  venueId: string;
+}) {
+  const fieldIds = new Set(fields.map((field) => field.id));
+  const sessionIds = new Set(sessions.map((session) => session.id));
+  const relevantAssignments = assignments.filter((assignment) => (
+    assignment.venueId === venueId
+    || Boolean(assignment.fieldId && fieldIds.has(assignment.fieldId))
+    || Boolean(assignment.sessionId && sessionIds.has(assignment.sessionId))
+  ));
+  const sponsorsById = new Map(sponsors.map((sponsor) => [sponsor.id, sponsor]));
+
+  return relevantAssignments.flatMap((assignment) => {
+    const sponsor = sponsorsById.get(assignment.sponsorId);
+    return sponsor ? [{ assignment, sponsor }] : [];
+  });
+}
+
+function AlertStack({ alerts }: { alerts: Alert[] }) {
+  if (alerts.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="grid gap-3">
+      {alerts.map((alert) => (
+        <article className={`rounded-lg border-2 p-5 shadow-sm ${getAlertTone(alert.alertType)}`} key={alert.id}>
+          <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+          <h2 className="mt-1 text-2xl font-black leading-tight">{alert.title}</h2>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{alert.message}</p>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function FieldCard({ summary }: { summary: FieldSummary }) {
+  const session = summary.currentOrNextSession;
+
+  return (
+    <article className="ui-card p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-xl font-black">{summary.field.name}</h3>
+          <span className={`mt-2 inline-flex w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(summary.field.status)}`}>
+            {getFieldStatusLabel(summary.field.status)}
+          </span>
+        </div>
+        <Link className="ui-button ui-button-primary min-h-10 px-3 py-2" href={`/fields/${summary.field.id}`}>
+          Open Field
+        </Link>
+      </div>
+      {session ? (
+        <div className="mt-5 rounded-lg border border-[var(--line)] bg-[var(--background)] p-4">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">
+            {isActiveSession(session, new Date()) ? "Current session" : "Next session"}
+          </p>
+          <h4 className="mt-2 text-base font-black">{session.title}</h4>
+          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+            {session.homeTeam} vs. {session.awayTeam}
+          </p>
+          <p className="mt-2 text-sm font-bold text-[var(--foreground)]">{formatDateTime(session.startTime)}</p>
+        </div>
+      ) : (
+        <p className="ui-empty mt-5">No current or upcoming session for this field.</p>
+      )}
+    </article>
+  );
+}
+
+export default async function PublicVenuePage({ params }: PublicVenuePageProps) {
+  const { venueId } = await params;
+  const publicVenueUrl = getPublicVenueUrl(venueId);
+  let venue: Venue | null = null;
+  let fields: Field[] = [];
+  let sessions: Session[] = [];
+  let alerts: Alert[] = [];
+  let sponsors: Sponsor[] = [];
+  let sponsorAssignments: SponsorAssignment[] = [];
+  let resources: Resource[] = [];
+  let errorMessage: string | null = null;
+
+  try {
+    venue = await getVenue(venueId);
+    if (venue) {
+      const [allFields, allSessions, activeAlerts, allSponsors, allSponsorAssignments, allResources] = await Promise.all([
+        getFields(),
+        getSessions(),
+        getActiveAlerts(),
+        getSponsors(),
+        getSponsorAssignments(),
+        getResources(),
+      ]);
+      fields = allFields.filter((field) => field.venueId === venueId);
+      const fieldIds = new Set(fields.map((field) => field.id));
+      sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
+      alerts = fields.length > 0
+        ? activeAlerts.filter((alert) => fields.some((field) => filterAlertsForFieldPage({
+          alerts: [alert],
+          fieldId: field.id,
+          publicOnly: true,
+          venueId,
+        }).length > 0))
+        : activeAlerts.filter((alert) => alert.venueId === venueId && alert.alertVisibility === "public");
+      sponsors = allSponsors;
+      sponsorAssignments = allSponsorAssignments;
+      resources = allResources.filter((resource) => resource.venueId === venueId && resource.status === "active");
+    }
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : "Unable to load venue page.";
+  }
+
+  const now = new Date();
+  const primaryColor = venue?.primaryColor ?? "#166534";
+  const secondaryColor = venue?.secondaryColor ?? "#111827";
+  const brandedHeaderStyle: CSSProperties = venue?.bannerUrl
+    ? {
+      backgroundImage: `linear-gradient(120deg, ${secondaryColor}e6, ${primaryColor}cc), url(${venue.bannerUrl})`,
+      backgroundPosition: "center",
+      backgroundSize: "cover",
+    }
+    : {
+      background: `linear-gradient(135deg, ${secondaryColor}, ${primaryColor})`,
+    };
+  const fieldSummaries = fields.map((field) => ({
+    currentOrNextSession: getCurrentOrNextSession(
+      sessions.filter((session) => session.fieldId === field.id),
+      now,
+    ),
+    field,
+  }));
+  const scheduleGroups = groupTodaySchedule(fields, sessions, now);
+  const todaySessionCount = scheduleGroups.reduce((total, group) => total + group.timeGroups.reduce((count, timeGroup) => count + timeGroup.sessions.length, 0), 0);
+  const sponsorCards = getVenueSponsorCards({
+    assignments: sponsorAssignments,
+    fields,
+    sessions,
+    sponsors,
+    venueId,
+  });
+  const resourceTypes = [...new Map(resources.map((resource) => [resource.resourceType, resource])).values()];
+
+  return (
+    <section className="min-h-screen bg-white">
+      <div className="mx-auto max-w-5xl px-0 sm:px-6 sm:py-8">
+        <div className="overflow-hidden bg-[var(--panel)] shadow-sm sm:rounded-lg sm:border sm:border-[var(--line)]">
+          <header className="p-5 text-white sm:p-8" style={brandedHeaderStyle}>
+            <div className="flex items-center gap-3">
+              {venue?.logoUrl ? (
+                <Image alt="" className="h-16 w-16 rounded-lg border border-white/25 bg-white object-contain p-1.5" height={64} src={venue.logoUrl} unoptimized width={64} />
+              ) : null}
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/70">Venue</p>
+                <h1 className="truncate text-3xl font-black sm:text-5xl">{venue?.name ?? "Venue unavailable"}</h1>
+              </div>
+            </div>
+            {venue?.address ? <p className="mt-5 max-w-2xl text-base font-bold leading-7 text-white/85">{venue.address}</p> : null}
+          </header>
+
+          <main className="grid gap-5 p-4 sm:p-6">
+            {errorMessage ? (
+              <section className="rounded-lg border border-red-200 bg-red-50 p-5">
+                <h2 className="text-lg font-black text-red-950">Unable to load venue page</h2>
+                <p className="mt-2 text-sm leading-6 text-red-800">{errorMessage}</p>
+              </section>
+            ) : null}
+
+            {!errorMessage && !venue ? (
+              <section className="ui-card p-6">
+                <h2 className="text-2xl font-black">Venue not found</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                  This public venue page is not available. Check the link or ask the venue for an updated URL.
+                </p>
+              </section>
+            ) : null}
+
+            <AlertStack alerts={alerts} />
+
+            <section className="ui-card p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Today</p>
+                  <h2 className="mt-1 text-2xl font-black">Venue Schedule</h2>
+                </div>
+                <p className="text-sm font-bold text-[var(--muted)]">{todaySessionCount} sessions today</p>
+              </div>
+              <div className="mt-5 grid gap-4">
+                {todaySessionCount > 0 ? scheduleGroups.filter((group) => group.timeGroups.length > 0).map((group) => (
+                  <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={group.field.id}>
+                    <h3 className="text-lg font-black">{group.field.name}</h3>
+                    <div className="mt-3 grid gap-3">
+                      {group.timeGroups.map((timeGroup) => (
+                        <div className="rounded-lg bg-white p-3" key={`${group.field.id}-${timeGroup.time}`}>
+                          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{timeGroup.time}</p>
+                          <div className="mt-3 grid gap-2">
+                            {timeGroup.sessions.map((session) => (
+                              <div className="rounded-lg border border-[var(--line)] p-3" key={session.id}>
+                                <p className="text-sm font-black">{session.title}</p>
+                                <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{session.homeTeam} vs. {session.awayTeam}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                )) : (
+                  <p className="ui-empty">No sessions scheduled at this venue today.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="ui-card p-5">
+              <h2 className="text-2xl font-black">Fields</h2>
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                {fieldSummaries.length > 0 ? fieldSummaries.map((summary) => (
+                  <FieldCard key={summary.field.id} summary={summary} />
+                )) : (
+                  <p className="ui-empty lg:col-span-2">No public fields are configured for this venue yet.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="ui-card p-5">
+              <h2 className="text-2xl font-black">Venue Map</h2>
+              {venue?.mapImageUrl ? (
+                <div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)]">
+                  <div className="relative">
+                    <Image alt={`${venue.name} venue map`} className="h-auto w-full object-contain" height={720} src={venue.mapImageUrl} unoptimized width={960} />
+                    {fields.filter((field) => field.mapX !== null && field.mapY !== null).map((field) => (
+                      <div
+                        className="absolute -translate-x-1/2 -translate-y-full"
+                        key={field.id}
+                        style={{
+                          left: `${field.mapX}%`,
+                          top: `${field.mapY}%`,
+                        }}
+                      >
+                        <div className="grid justify-items-center">
+                          <span className="mb-1 max-w-28 rounded-md bg-[var(--black-soft)] px-2 py-1 text-center text-xs font-black text-white shadow">
+                            {field.mapLabel ?? field.name}
+                          </span>
+                          <span className="h-5 w-5 rounded-full border-4 border-white bg-red-600 shadow" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="ui-empty mt-5">A venue map has not been added yet.</p>
+              )}
+              {venue?.mapNotes ? <p className="mt-4 whitespace-pre-wrap rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">{venue.mapNotes}</p> : null}
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-2">
+              <div className="ui-card p-5">
+                <h2 className="text-2xl font-black">Sponsors</h2>
+                <div className="mt-5 grid gap-3">
+                  {sponsorCards.length > 0 ? sponsorCards.map(({ assignment, sponsor }) => (
+                    <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={assignment.id}>
+                      <p className="w-fit rounded-md bg-[var(--accent)] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-white">{assignment.placementLabel}</p>
+                      <div className="mt-4 flex items-center gap-3">
+                        {sponsor.logoUrl ? <Image alt="" className="h-14 w-14 rounded-lg border border-[var(--line)] bg-white object-contain p-2" height={56} src={sponsor.logoUrl} unoptimized width={56} /> : null}
+                        <div>
+                          <h3 className="text-base font-black">{sponsor.name}</h3>
+                          {sponsor.websiteUrl ? <a className="mt-1 inline-block text-sm font-bold text-[var(--accent-strong)]" href={sponsor.websiteUrl} rel="noreferrer" target="_blank">Visit Website</a> : null}
+                        </div>
+                      </div>
+                    </article>
+                  )) : (
+                    <p className="ui-empty">No venue sponsors are assigned yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="ui-card p-5">
+                <h2 className="text-2xl font-black">Available Resources</h2>
+                <div className="mt-5 grid gap-3">
+                  {resourceTypes.length > 0 ? resourceTypes.map((resource) => (
+                    <article className="flex items-start gap-3 rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={resource.id}>
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-black text-white">✓</span>
+                      <div>
+                        <h3 className="text-base font-black">{getResourceTypeLabel(resource.resourceType)}</h3>
+                        <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+                          {resources.filter((item) => item.resourceType === resource.resourceType).length} active
+                        </p>
+                      </div>
+                    </article>
+                  )) : (
+                    <p className="ui-empty">No active venue resources configured.</p>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="ui-card p-5">
+              <h2 className="text-lg font-black">Share Venue Link</h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Use this public URL for venue-wide sharing.</p>
+              <div className="mt-4 overflow-x-auto rounded-lg bg-[var(--background)] p-4">
+                <code className="whitespace-nowrap text-sm font-bold text-[var(--foreground)]">{publicVenueUrl}</code>
+              </div>
+              {fields.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {fields.slice(0, 4).map((field) => (
+                    <Link className="ui-button ui-button-secondary min-h-10 px-3 py-2" href={getPublicFieldUrl(field.id)} key={field.id}>
+                      {field.name}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          </main>
+        </div>
+      </div>
+    </section>
+  );
+}

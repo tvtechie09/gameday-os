@@ -1,6 +1,6 @@
 import { FieldQrCode } from "@/components/field-qr-code";
 import { PrintDownloadButton } from "@/components/print-download-button";
-import { getPublicFieldUrl, hasConfiguredPublicAppUrl } from "@/lib/public-url";
+import { getPublicFieldUrl, getPublicVenueUrl, hasConfiguredPublicAppUrl } from "@/lib/public-url";
 import { getField } from "@/lib/services/fields";
 import { getVenue } from "@/lib/services/venues";
 import type { Field, Venue } from "@/lib/types";
@@ -68,6 +68,11 @@ export default async function FieldQrPage({ params }: FieldQrPageProps) {
               <p className="mx-auto mt-6 max-w-xl break-all rounded-lg bg-[var(--background)] p-4 text-sm font-bold text-[var(--muted)] print:text-base">
                 {publicFieldUrl}
               </p>
+              {venue ? (
+                <p className="mx-auto mt-3 max-w-xl break-all text-xs font-bold text-[var(--muted)] print:text-sm">
+                  Venue page: {getPublicVenueUrl(venue.id)}
+                </p>
+              ) : null}
             </>
           )}
         </div>
