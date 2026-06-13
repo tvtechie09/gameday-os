@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
+import { recordSessionEvent } from "./session-events";
 
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type SessionUpdateRow = Database["public"]["Tables"]["sessions"]["Update"];
@@ -85,6 +86,24 @@ function readLinkLabel(value: string | null | undefined): SessionLinkLabel | nul
 
 function readSportType(value: string | null | undefined): SessionSportType {
   return validSportTypes.find((sportType) => sportType === value) ?? "baseball";
+}
+
+async function recordAutomaticStatusEvents(previousStatus: Session["status"] | null, nextSession: Session) {
+  if (previousStatus !== "active" && nextSession.gameStatus === "active") {
+    await recordSessionEvent({
+      eventMessage: `${nextSession.title} started.`,
+      eventType: "game_started",
+      sessionId: nextSession.id,
+    });
+  }
+
+  if (previousStatus !== "final" && nextSession.gameStatus === "final") {
+    await recordSessionEvent({
+      eventMessage: `${nextSession.title} marked final.`,
+      eventType: "game_final",
+      sessionId: nextSession.id,
+    });
+  }
 }
 
 function mapSession(row: SessionRow): Session {
@@ -194,11 +213,20 @@ export async function createSession(data: CreateSessionInput): Promise<Session> 
     throw new Error(error.message);
   }
 
-  return mapSession(session);
+  const mappedSession = mapSession(session);
+  await recordSessionEvent({
+    eventMessage: `${mappedSession.title} was created.`,
+    eventType: "session_created",
+    sessionId: mappedSession.id,
+  });
+  await recordAutomaticStatusEvents(null, mappedSession);
+
+  return mappedSession;
 }
 
 export async function updateSession(id: string, data: UpdateSessionInput): Promise<Session> {
   const supabase = getSupabaseAdminClient();
+  const previousSession = await getSession(id);
   const { data: session, error } = await supabase
     .from("sessions")
     .update({
@@ -230,11 +258,22 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
     throw new Error(error.message);
   }
 
-  return mapSession(session);
+  const mappedSession = mapSession(session);
+  if (previousSession && (previousSession.homeScore !== mappedSession.homeScore || previousSession.awayScore !== mappedSession.awayScore)) {
+    await recordSessionEvent({
+      eventMessage: `Score updated: ${mappedSession.homeTeam} ${mappedSession.homeScore}, ${mappedSession.awayTeam} ${mappedSession.awayScore}.`,
+      eventType: "score_update",
+      sessionId: mappedSession.id,
+    });
+  }
+  await recordAutomaticStatusEvents(previousSession?.gameStatus ?? null, mappedSession);
+
+  return mappedSession;
 }
 
 export async function updateSessionGameState(id: string, data: UpdateSessionGameStateInput): Promise<Session> {
   const supabase = getSupabaseAdminClient();
+  const previousSession = await getSession(id);
   const { data: session, error } = await supabase
     .from("sessions")
     .update({
@@ -261,7 +300,17 @@ export async function updateSessionGameState(id: string, data: UpdateSessionGame
     throw new Error(error.message);
   }
 
-  return mapSession(session);
+  const mappedSession = mapSession(session);
+  if (previousSession && (previousSession.homeScore !== mappedSession.homeScore || previousSession.awayScore !== mappedSession.awayScore)) {
+    await recordSessionEvent({
+      eventMessage: `Score updated: ${mappedSession.homeTeam} ${mappedSession.homeScore}, ${mappedSession.awayTeam} ${mappedSession.awayScore}.`,
+      eventType: "score_update",
+      sessionId: mappedSession.id,
+    });
+  }
+  await recordAutomaticStatusEvents(previousSession?.gameStatus ?? null, mappedSession);
+
+  return mappedSession;
 }
 
 export async function bulkUpdateSessions(data: BulkUpdateSessionsInput): Promise<number> {

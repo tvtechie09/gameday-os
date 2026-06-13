@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { getField } from "@/lib/services/fields";
+import { getFollowCountForSession } from "@/lib/services/follows";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
+import { getSessionEvents, getSessionEventTypeLabel } from "@/lib/services/session-events";
 import { getSession } from "@/lib/services/sessions";
 import { getVenue } from "@/lib/services/venues";
 import { getVolunteerRolesBySessionId } from "@/lib/services/volunteer-roles";
-import type { ResourceActivation, VolunteerRole } from "@/lib/types";
+import type { ResourceActivation, SessionEvent, VolunteerRole } from "@/lib/types";
 import { LiveSessionDashboard } from "./live-session-dashboard";
 
 type SessionDashboardPageProps = {
@@ -14,6 +16,13 @@ type SessionDashboardPageProps = {
 };
 
 function formatSessionTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatTimelineTime(value: string) {
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -30,11 +39,18 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
   let venue: Awaited<ReturnType<typeof getVenue>> = null;
   let volunteerRoles: VolunteerRole[] = [];
   let activeResources: ResourceActivation[] = [];
+  let sessionEvents: SessionEvent[] = [];
+  let followCount = 0;
 
   try {
     session = await getSession(sessionId);
     if (session) {
-      [field, volunteerRoles] = await Promise.all([getField(session.fieldId), getVolunteerRolesBySessionId(session.id)]);
+      [field, volunteerRoles, followCount, sessionEvents] = await Promise.all([
+        getField(session.fieldId),
+        getVolunteerRolesBySessionId(session.id),
+        getFollowCountForSession(session.id),
+        getSessionEvents(session.id),
+      ]);
       activeResources = await getActiveResourceActivationsForField({ fieldId: session.fieldId, sessionId: session.id });
       venue = field ? await getVenue(field.venueId) : null;
     }
@@ -99,6 +115,41 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
           </Link>
         ) : null}
       </div>
+
+      <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Parent Follow Mode</p>
+        <p className="mt-2 text-3xl font-black">{followCount}</p>
+        <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Anonymous follows for this session.</p>
+      </section>
+
+      <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-5">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Session Timeline</p>
+          <h2 className="text-xl font-black">Recent events</h2>
+          <p className="text-sm font-semibold text-[var(--muted)]">Newest events appear first.</p>
+        </div>
+        {sessionEvents.length > 0 ? (
+          <div className="mt-4 grid gap-3">
+            {sessionEvents.map((event) => (
+              <article className="rounded-lg bg-[var(--background)] p-4" key={event.id}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <span className="inline-flex rounded-md bg-white px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                      {getSessionEventTypeLabel(event.eventType)}
+                    </span>
+                    <p className="mt-2 text-sm font-black">{event.eventMessage}</p>
+                  </div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">{formatTimelineTime(event.createdAt)}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+            No timeline events have been recorded for this session yet.
+          </p>
+        )}
+      </section>
 
       <LiveSessionDashboard activeResources={activeResources} session={session} volunteerRoles={volunteerRoles} />
     </section>

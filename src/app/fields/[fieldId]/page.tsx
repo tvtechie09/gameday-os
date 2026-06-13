@@ -14,6 +14,7 @@ import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytic
 import { ResourceActivationForm } from "./resource-activation-form";
 import { VolunteerRoleForm } from "./volunteer-role-form";
 import { FieldPageViewTracker } from "./field-page-view-tracker";
+import { FollowButtons } from "./follow-buttons";
 
 type FieldPageProps = {
   params: Promise<{
@@ -540,6 +541,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </div>
               )}
             </section>
+
+            {field ? <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} /> : null}
 
             {sponsorPlacements.length > 0 ? (
               <section className="rounded-lg border border-[var(--line)] bg-white p-5">

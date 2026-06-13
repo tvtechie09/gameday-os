@@ -117,6 +117,48 @@ export type Database = {
           },
         ];
       };
+      follows: {
+        Row: {
+          id: string;
+          field_id: string;
+          session_id: string | null;
+          follow_type: string;
+          display_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          field_id: string;
+          session_id?: string | null;
+          follow_type: string;
+          display_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          field_id?: string;
+          session_id?: string | null;
+          follow_type?: string;
+          display_name?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "follows_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "follows_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       venues: {
         Row: {
           id: string;
@@ -559,6 +601,38 @@ export type Database = {
             columns: ["tournament_id"];
             isOneToOne: false;
             referencedRelation: "tournaments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      session_events: {
+        Row: {
+          id: string;
+          session_id: string;
+          event_type: string;
+          event_message: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          event_type: string;
+          event_message: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          event_type?: string;
+          event_message?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "session_events_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
             referencedColumns: ["id"];
           },
         ];

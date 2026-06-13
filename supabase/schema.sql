@@ -131,6 +131,14 @@ create table if not exists public.sessions (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.session_events (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.sessions(id) on delete cascade,
+  event_type text not null check (event_type in ('session_created', 'score_update', 'resource_activated', 'alert_created', 'sponsor_clicked', 'game_started', 'game_final')),
+  event_message text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.external_sources (
   id uuid primary key default gen_random_uuid(),
   venue_id uuid not null references public.venues(id) on delete cascade,
@@ -199,6 +207,19 @@ create table if not exists public.field_page_views (
   user_agent text
 );
 
+create table if not exists public.follows (
+  id uuid primary key default gen_random_uuid(),
+  field_id uuid not null references public.fields(id) on delete cascade,
+  session_id uuid references public.sessions(id) on delete set null,
+  follow_type text not null check (follow_type in ('field', 'session')),
+  display_name text,
+  created_at timestamptz not null default now(),
+  constraint follows_session_type_check check (
+    (follow_type = 'field' and session_id is null)
+    or (follow_type = 'session' and session_id is not null)
+  )
+);
+
 create table if not exists public.alerts (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -231,6 +252,9 @@ create index if not exists sessions_tournament_id_idx on public.sessions(tournam
 create unique index if not exists sessions_external_source_unique_idx
   on public.sessions(external_source, external_source_id)
   where external_source is not null and external_source_id is not null;
+create index if not exists session_events_session_id_idx on public.session_events(session_id);
+create index if not exists session_events_created_at_idx on public.session_events(created_at);
+create index if not exists session_events_event_type_idx on public.session_events(event_type);
 create index if not exists external_sources_venue_id_idx on public.external_sources(venue_id);
 create index if not exists external_sources_source_type_idx on public.external_sources(source_type);
 create index if not exists external_sources_source_status_idx on public.external_sources(source_status);
@@ -246,6 +270,9 @@ create index if not exists field_page_views_venue_id_idx on public.field_page_vi
 create index if not exists field_page_views_field_id_idx on public.field_page_views(field_id);
 create index if not exists field_page_views_session_id_idx on public.field_page_views(session_id);
 create index if not exists field_page_views_viewed_at_idx on public.field_page_views(viewed_at);
+create index if not exists follows_field_id_idx on public.follows(field_id);
+create index if not exists follows_session_id_idx on public.follows(session_id);
+create index if not exists follows_created_at_idx on public.follows(created_at);
 create index if not exists alerts_venue_id_idx on public.alerts(venue_id);
 create index if not exists alerts_tournament_id_idx on public.alerts(tournament_id);
 create index if not exists alerts_field_id_idx on public.alerts(field_id);
@@ -258,12 +285,14 @@ alter table public.resource_activations enable row level security;
 alter table public.volunteer_roles enable row level security;
 alter table public.tournaments enable row level security;
 alter table public.sessions enable row level security;
+alter table public.session_events enable row level security;
 alter table public.external_sources enable row level security;
 alter table public.sponsors enable row level security;
 alter table public.sponsor_assignments enable row level security;
 alter table public.sponsor_impressions enable row level security;
 alter table public.sponsor_clicks enable row level security;
 alter table public.field_page_views enable row level security;
+alter table public.follows enable row level security;
 alter table public.alerts enable row level security;
 
 create policy "Public can read venues"
@@ -306,6 +335,14 @@ create policy "Public can create sessions"
   on public.sessions for insert
   with check (true);
 
+create policy "Public can read session events"
+  on public.session_events for select
+  using (true);
+
+create policy "Public can create session events"
+  on public.session_events for insert
+  with check (true);
+
 create policy "Public can read external sources"
   on public.external_sources for select
   using (true);
@@ -328,6 +365,14 @@ create policy "Public can insert field page views"
 
 create policy "Public can read field page views"
   on public.field_page_views for select
+  using (true);
+
+create policy "Public can insert follows"
+  on public.follows for insert
+  with check (true);
+
+create policy "Public can read follows"
+  on public.follows for select
   using (true);
 
 create policy "Public can read alerts"

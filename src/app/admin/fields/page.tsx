@@ -6,6 +6,7 @@ import { FieldQrCode } from "@/components/field-qr-code";
 import { getPublicFieldUrl } from "@/lib/public-url";
 import { getFieldPageViewCountsByField } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { getFollowCountsByField } from "@/lib/services/follows";
 import { getVenues } from "@/lib/services/venues";
 import type { Field, Venue } from "@/lib/types";
 
@@ -51,13 +52,15 @@ export default async function FieldsPage() {
   let fields: Field[] = [];
   let venues: Venue[] = [];
   let fieldViewCounts = new Map<string, number>();
+  let fieldFollowCounts = new Map<string, number>();
   let errorMessage: string | null = null;
 
   try {
-    const [fieldResults, venueResults, viewCounts] = await Promise.all([getFields(), getVenues(), getFieldPageViewCountsByField()]);
+    const [fieldResults, venueResults, viewCounts, followCounts] = await Promise.all([getFields(), getVenues(), getFieldPageViewCountsByField(), getFollowCountsByField()]);
     fields = fieldResults;
     venues = venueResults;
     fieldViewCounts = new Map(viewCounts.map((summary) => [summary.fieldId, summary.views]));
+    fieldFollowCounts = new Map(followCounts.map((summary) => [summary.fieldId, summary.follows]));
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "Unable to load fields.";
   }
@@ -110,6 +113,9 @@ export default async function FieldsPage() {
                         </p>
                         <p className="mt-2 w-fit rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
                           {fieldViewCounts.get(field.id) ?? 0} public views
+                        </p>
+                        <p className="mt-2 w-fit rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
+                          {fieldFollowCounts.get(field.id) ?? 0} follows
                         </p>
                         <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -172,6 +178,9 @@ export default async function FieldsPage() {
                         </p>
                         <p className="mt-2 w-fit rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
                           {fieldViewCounts.get(field.id) ?? 0} public views
+                        </p>
+                        <p className="mt-2 w-fit rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
+                          {fieldFollowCounts.get(field.id) ?? 0} follows
                         </p>
                         <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">

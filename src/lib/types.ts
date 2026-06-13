@@ -16,6 +16,15 @@ export type VolunteerRoleType = "scorekeeper" | "stream_operator" | "audio_opera
 export type VolunteerRoleStatus = "requested" | "approved" | "active" | "ended" | "rejected";
 export type ExternalSourceType = "sportsengine" | "hometeamsonline" | "teamsnap" | "gamechanger" | "csv" | "ical" | "other";
 export type ExternalSourceStatus = "draft" | "active" | "paused" | "error";
+export type FollowType = "field" | "session";
+export type SessionEventType =
+  | "session_created"
+  | "score_update"
+  | "resource_activated"
+  | "alert_created"
+  | "sponsor_clicked"
+  | "game_started"
+  | "game_final";
 
 export interface Venue {
   id: string;
@@ -205,6 +214,28 @@ export interface ExternalSource {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FollowSummary {
+  id: string;
+  fieldId: string;
+  sessionId: string | null;
+  followType: FollowType;
+  displayName: string | null;
+  createdAt: string;
+}
+
+export interface SessionEvent {
+  id: string;
+  sessionId: string;
+  eventType: SessionEventType;
+  eventMessage: string;
+  createdAt: string;
+}
+
+export interface FieldFollowSummary {
+  fieldId: string;
+  follows: number;
 }
 
 export interface FieldPageViewSummary {

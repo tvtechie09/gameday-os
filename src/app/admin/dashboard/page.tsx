@@ -4,6 +4,7 @@ import { getPublicFieldUrl } from "@/lib/public-url";
 import { getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { getFieldPageViewDashboardCounts } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { getFollowDashboardCounts } from "@/lib/services/follows";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
 import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
@@ -200,6 +201,10 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
     console.error("Failed to load dashboard field page view counts", error);
     return { today: 0, last7Days: 0 };
   });
+  const follows = await getFollowDashboardCounts().catch((error: unknown) => {
+    console.error("Failed to load dashboard follow counts", error);
+    return { today: 0, last7Days: 0 };
+  });
 
   const todaySessions = sessions
     .filter((session) => isSameDay(session.startTime, now))
@@ -267,6 +272,8 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Field page views today" note="Anonymous public field visits" value={fieldPageViews.today} />
             <SummaryCard label="Field page views last 7 days" note="Anonymous public field visits" value={fieldPageViews.last7Days} />
+            <SummaryCard label="Total follows today" note="Anonymous field and game follows" value={follows.today} />
+            <SummaryCard label="Total follows last 7 days" note="Anonymous field and game follows" value={follows.last7Days} />
           </section>
 
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
