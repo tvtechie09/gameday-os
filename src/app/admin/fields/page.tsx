@@ -123,6 +123,9 @@ export default async function FieldsPage() {
                           <Link href={field.qrPath} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                             View public page
                           </Link>
+                          <Link href={`/admin/fields/${field.id}/control`} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white">
+                            Control
+                          </Link>
                           <Link href={`/admin/fields/${field.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                             Edit
                           </Link>
@@ -187,6 +190,9 @@ export default async function FieldsPage() {
                           <CopyLinkButton value={getPublicFieldUrl(field.id)} />
                           <Link href={`/admin/fields/${field.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                             Edit
+                          </Link>
+                          <Link href={`/admin/fields/${field.id}/control`} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white">
+                            Control
                           </Link>
                           <Link href={`/admin/fields/${field.id}/qr`} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
                             Print QR

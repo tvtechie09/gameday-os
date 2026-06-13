@@ -17,8 +17,9 @@ export async function updateVolunteerRoleStatusAction(id: string, status: Volunt
   }
 
   try {
-    await updateVolunteerRoleStatus(id, status);
+    const role = await updateVolunteerRoleStatus(id, status);
     revalidateVolunteerSurfaces();
+    revalidatePath(`/admin/fields/${role.fieldId}/control`);
     return {};
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Unable to update volunteer role." };

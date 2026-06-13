@@ -60,8 +60,8 @@ export default async function IntegrationsPage() {
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["SportsEngine", "CSV export or public calendar feed URL for now."],
-          ["HomeTeamsOnline", "Store schedule links and import references."],
+          ["SportsEngine", "Export your schedule from SportsEngine or paste a public calendar feed URL."],
+          ["HomeTeamsOnline", "Export your schedule from HomeTeamsOnline or paste a public calendar feed URL if available."],
           ["TeamSnap", "Prepare source records before API access."],
           ["CSV / iCal", "Track files and feed URLs used for imports."],
         ].map(([title, note]) => (

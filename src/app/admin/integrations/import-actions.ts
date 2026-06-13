@@ -185,10 +185,14 @@ export async function fetchCalendarEventsAction(feedUrl: string): Promise<FetchC
 }
 
 export async function importCalendarSessionsAction({
+  externalSourceName,
+  externalSourceUrl,
   feedUrl,
   rows,
   sourceId,
 }: {
+  externalSourceName?: string;
+  externalSourceUrl?: string | null;
   feedUrl: string;
   rows: CalendarImportRow[];
   sourceId: string;
@@ -207,11 +211,12 @@ export async function importCalendarSessionsAction({
   let created = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const storedExternalSourceName = externalSourceName?.trim() || externalSource.sourceName;
+  const storedExternalSourceUrl = externalSourceUrl?.trim() || feedUrl || externalSource.sourceUrl;
 
   for (const [index, row] of rows.entries()) {
-    const externalSourceName = externalSource.sourceName;
     const externalSourceId = row.externalSourceId;
-    const key = `${externalSourceName}|${externalSourceId}`;
+    const key = `${storedExternalSourceName}|${externalSourceId}`;
 
     if (existingExternalKeys.has(key)) {
       skipped += 1;
@@ -222,9 +227,9 @@ export async function importCalendarSessionsAction({
       await createSession({
         away_team: row.awayTeam || "TBD",
         end_time: row.endTime,
-        external_source: externalSourceName,
+        external_source: storedExternalSourceName,
         external_source_id: externalSourceId,
-        external_source_url: feedUrl || externalSource.sourceUrl,
+        external_source_url: storedExternalSourceUrl,
         field_id: row.fieldId,
         home_team: row.homeTeam || row.title,
         notes: row.notes,

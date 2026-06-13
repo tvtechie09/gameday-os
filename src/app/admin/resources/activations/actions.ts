@@ -17,8 +17,9 @@ export async function updateActivationStatusAction(id: string, status: ResourceA
   }
 
   try {
-    await updateResourceActivationStatus(id, status);
+    const activation = await updateResourceActivationStatus(id, status);
     revalidateActivationSurfaces();
+    revalidatePath(`/admin/fields/${activation.fieldId}/control`);
     return {};
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Unable to update activation." };
@@ -31,8 +32,9 @@ export async function assignActivationToSessionAction(id: string, sessionId: str
   }
 
   try {
-    await assignResourceActivationToSession(id, sessionId);
+    const activation = await assignResourceActivationToSession(id, sessionId);
     revalidateActivationSurfaces();
+    revalidatePath(`/admin/fields/${activation.fieldId}/control`);
     return {};
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Unable to assign activation to session." };

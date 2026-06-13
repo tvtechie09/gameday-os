@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { getExternalSourceTypeLabel } from "@/lib/services/external-sources";
 import type { ExternalSource, Field, Session, SessionSportType, Venue } from "@/lib/types";
 import { fetchCalendarEventsAction, importCalendarSessionsAction, type CalendarImportEvent, type CalendarImportRow, type ImportCalendarResult } from "./import-actions";
@@ -11,6 +11,9 @@ type EditableCalendarRow = CalendarImportEvent & {
   venueId: string;
   sportType: SessionSportType;
 };
+
+type CsvRow = Record<string, string>;
+type ImportMode = "csv" | "calendar" | "manual";
 
 type CalendarImportAdapterProps = {
   fields: Field[];
@@ -26,21 +29,34 @@ function normalize(value: string) {
 }
 
 function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Invalid date/time";
+
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(value));
+  }).format(date);
 }
 
-function findExactField(event: CalendarImportEvent, fields: Field[]) {
+function findExactFieldByName(fieldName: string, fields: Field[], venueId?: string | null) {
+  const normalizedFieldName = normalize(fieldName);
+  if (!normalizedFieldName) return null;
+
+  return fields.find((field) => {
+    const venueMatches = venueId ? field.venueId === venueId : true;
+    return venueMatches && normalize(field.name) === normalizedFieldName;
+  }) ?? null;
+}
+
+function findExactField(event: CalendarImportEvent, fields: Field[], venueId?: string | null) {
   const location = normalize(event.location);
   if (!location) return null;
-  return fields.find((field) => normalize(field.name) === location) ?? null;
+  return findExactFieldByName(event.location, fields, venueId);
 }
 
-function buildRows(events: CalendarImportEvent[], fields: Field[]) {
+function buildRows(events: CalendarImportEvent[], fields: Field[], venueId?: string | null) {
   return events.map((event) => {
-    const field = findExactField(event, fields);
+    const field = findExactField(event, fields, venueId);
     return {
       ...event,
       fieldId: field?.id ?? "",
@@ -50,11 +66,124 @@ function buildRows(events: CalendarImportEvent[], fields: Field[]) {
   });
 }
 
+function parseCsvLine(line: string) {
+  const values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === "\"" && next === "\"") {
+      current += "\"";
+      index += 1;
+    } else if (char === "\"") {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function parseCsv(text: string) {
+  const lines = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .filter((line) => line.trim().length > 0 && !line.trim().startsWith("#"));
+
+  if (lines.length === 0) return { headers: [], rows: [] };
+
+  const headers = parseCsvLine(lines[0]);
+  const rows = lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    return headers.reduce<CsvRow>((row, header, index) => {
+      row[header] = values[index] ?? "";
+      return row;
+    }, {});
+  });
+
+  return { headers, rows };
+}
+
+function readCsvCell(row: CsvRow, candidates: string[]) {
+  const entries = Object.entries(row);
+  const normalizedCandidates = candidates.map(normalize);
+  return entries.find(([header]) => normalizedCandidates.includes(normalize(header)))?.[1]?.trim() ?? "";
+}
+
+function parseCsvDateTime(dateValue: string, timeValue: string) {
+  const combinedValue = dateValue && timeValue ? `${dateValue} ${timeValue}` : dateValue || timeValue;
+  const parsed = new Date(combinedValue);
+  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
+}
+
+function getStoredExternalSourceName(source: ExternalSource | null) {
+  if (!source) return "";
+  if (source.sourceType === "sportsengine") return "sportsengine";
+  if (source.sourceType === "hometeamsonline") return "hometeamsonline";
+  return source.sourceName;
+}
+
+function getAdapterName(source: ExternalSource | null) {
+  if (source?.sourceType === "hometeamsonline") return "HomeTeamsOnline";
+  if (source?.sourceType === "sportsengine") return "SportsEngine";
+  return "External schedule";
+}
+
+function getCsvSourcePrefix(source: ExternalSource | null) {
+  const storedSourceName = getStoredExternalSourceName(source);
+  return storedSourceName || "external";
+}
+
+function buildProviderCsvRows(csvRows: CsvRow[], fields: Field[], venues: Venue[], source: ExternalSource | null) {
+  const venuesByName = new Map(venues.map((venue) => [normalize(venue.name), venue]));
+  const sourcePrefix = getCsvSourcePrefix(source);
+
+  return csvRows.map<EditableCalendarRow>((row, index) => {
+    const venueName = readCsvCell(row, ["Venue", "Venue Name", "Facility"]);
+    const fieldName = readCsvCell(row, ["Field", "Field Name", "Location", "Location Name"]);
+    const title = readCsvCell(row, ["Session Title", "Title", "Event", "Game"]);
+    const date = readCsvCell(row, ["Date", "Game Date", "Start Date"]);
+    const time = readCsvCell(row, ["Time", "Start Time"]);
+    const startTime = parseCsvDateTime(date, time || readCsvCell(row, ["Start"]));
+    const endTimeValue = readCsvCell(row, ["End Time"]);
+    const endTime = endTimeValue ? parseCsvDateTime(readCsvCell(row, ["End Date"]) || date, endTimeValue) || null : null;
+    const venue = venuesByName.get(normalize(venueName));
+    const field = venue ? findExactFieldByName(fieldName, fields, venue.id) : null;
+    const homeTeam = readCsvCell(row, ["Home Team", "Home", "HomeTeam"]) || title || "TBD";
+    const awayTeam = readCsvCell(row, ["Away Team", "Away", "AwayTeam"]) || "TBD";
+    const sourceId = readCsvCell(row, ["External Source ID", "UID", "Event ID", "Game ID", "ID"]) || `${sourcePrefix}:${venueName}:${fieldName}:${title}:${startTime || index + 2}`;
+
+    return {
+      awayTeam,
+      description: readCsvCell(row, ["Description", "Notes"]),
+      endTime,
+      fieldId: field?.id ?? "",
+      homeTeam,
+      location: fieldName,
+      notes: readCsvCell(row, ["Notes", "Description"]) || null,
+      sourceId,
+      sourceUrl: readCsvCell(row, ["URL", "Source URL", "Link"]) || null,
+      sportType: "baseball",
+      startTime,
+      title: title || `${homeTeam} vs ${awayTeam}`,
+      venueId: venue?.id ?? "",
+    };
+  });
+}
+
 function getRowErrors(row: EditableCalendarRow) {
   const errors: string[] = [];
 
-  if (!row.fieldId) errors.push("Field location did not exactly match an existing field");
-  if (!row.venueId) errors.push("Choose venue");
+  if (!row.venueId) errors.push("Missing venue. Match an existing venue name exactly.");
+  if (!row.fieldId) errors.push(`Missing field${row.location ? `: ${row.location}` : ""}. Match an existing field name exactly.`);
   if (!row.title.trim()) errors.push("Missing title");
   if (Number.isNaN(new Date(row.startTime).getTime())) errors.push("Invalid start time");
 
@@ -79,11 +208,13 @@ function buildImportRow(row: EditableCalendarRow): CalendarImportRow | null {
 }
 
 export function CalendarImportAdapter({ fields, sessions, sources, venues }: CalendarImportAdapterProps) {
-  const importableSources = sources.filter((source) => source.sourceType === "ical" || source.sourceType === "hometeamsonline" || source.sourceType === "other");
+  const importableSources = sources.filter((source) => source.sourceType === "sportsengine" || source.sourceType === "ical" || source.sourceType === "hometeamsonline" || source.sourceType === "other");
   const defaultSourceId = importableSources[0]?.id ?? "";
+  const [importMode, setImportMode] = useState<ImportMode>("csv");
   const [sourceId, setSourceId] = useState(defaultSourceId);
   const selectedSource = sources.find((source) => source.id === sourceId) ?? null;
   const [feedUrl, setFeedUrl] = useState(selectedSource?.sourceUrl ?? "");
+  const [csvFileName, setCsvFileName] = useState("");
   const [rows, setRows] = useState<EditableCalendarRow[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
@@ -99,7 +230,7 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
 
   const validatedRows = useMemo(() => rows.map((row) => {
     const errors = getRowErrors(row);
-    const externalSourceName = selectedSource?.sourceName ?? "";
+    const externalSourceName = getStoredExternalSourceName(selectedSource);
     const duplicate = Boolean(externalSourceName && externalKeys.has(`${externalSourceName}|${row.sourceId}`));
     return {
       duplicate,
@@ -107,11 +238,17 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
       importRow: duplicate ? null : buildImportRow(row),
       row,
     };
-  }), [externalKeys, rows, selectedSource?.sourceName]);
+  }), [externalKeys, rows, selectedSource]);
 
   const validRows = validatedRows.filter((row) => row.importRow);
   const duplicateRows = validatedRows.filter((row) => row.duplicate);
   const invalidRows = validatedRows.filter((row) => row.errors.length > 0 && !row.duplicate);
+  const adapterName = getAdapterName(selectedSource);
+  const setupHelp = selectedSource?.sourceType === "hometeamsonline"
+    ? "Export your schedule from HomeTeamsOnline or paste a public calendar feed URL if available."
+    : selectedSource?.sourceType === "sportsengine"
+      ? "Export your schedule from SportsEngine or paste a public calendar feed URL."
+      : "Upload a CSV export or paste a public calendar feed URL if available.";
 
   function handleSourceChange(nextSourceId: string) {
     const nextSource = sources.find((source) => source.id === nextSourceId) ?? null;
@@ -120,6 +257,24 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
     setRows([]);
     setSummary(null);
     setErrorMessage(null);
+  }
+
+  async function handleCsvFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setErrorMessage(null);
+    setSummary(null);
+    setCsvFileName(file.name);
+
+    const parsed = parseCsv(await file.text());
+    if (parsed.rows.length === 0) {
+      setRows([]);
+      setErrorMessage("No schedule rows were found in this CSV export.");
+      return;
+    }
+
+    setRows(buildProviderCsvRows(parsed.rows, fields, venues, selectedSource));
   }
 
   async function fetchEvents() {
@@ -136,7 +291,7 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
       return;
     }
 
-    setRows(buildRows(result.events, fields));
+    setRows(buildRows(result.events, fields, selectedSource?.venueId));
   }
 
   async function importRows() {
@@ -144,6 +299,8 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
     setIsImporting(true);
     setSummary(await importCalendarSessionsAction({
       feedUrl,
+      externalSourceName: getStoredExternalSourceName(selectedSource),
+      externalSourceUrl: feedUrl || selectedSource.sourceUrl,
       rows: validRows.flatMap((row) => (row.importRow ? [row.importRow] : [])),
       sourceId: selectedSource.id,
     }));
@@ -171,9 +328,9 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-strong)]">Import adapter</p>
-          <h2 className="mt-2 text-xl font-black">HomeTeamsOnline / iCal import</h2>
+          <h2 className="mt-2 text-xl font-black">SportsEngine / HomeTeamsOnline schedule import</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-            Fetch a public calendar feed, preview events, map them to existing venue fields, and import scheduled sessions without credentials.
+            {setupHelp} Preview every row, match existing venue and field names, and import scheduled sessions without API credentials.
           </p>
         </div>
         <Link href="/admin/import" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
@@ -183,11 +340,33 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
 
       {importableSources.length === 0 ? (
         <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-bold text-amber-950">Create an iCal, HomeTeamsOnline, or Other integration source before importing a feed.</p>
+          <p className="text-sm font-bold text-amber-950">Create a SportsEngine, iCal, HomeTeamsOnline, or Other integration source before importing a schedule.</p>
         </div>
       ) : (
         <div className="mt-5 grid gap-4">
-          <div className="grid gap-4 lg:grid-cols-[1fr_2fr_auto] lg:items-end">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { key: "csv" as const, label: "CSV export" },
+              { key: "calendar" as const, label: "iCal/calendar URL" },
+              { key: "manual" as const, label: "Manual public schedule URL" },
+            ].map((mode) => (
+              <button
+                className={`min-h-11 rounded-lg border px-4 text-sm font-black ${importMode === mode.key ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--line)] bg-white text-[var(--foreground)]"}`}
+                key={mode.key}
+                onClick={() => {
+                  setImportMode(mode.key);
+                  setRows([]);
+                  setSummary(null);
+                  setErrorMessage(null);
+                }}
+                type="button"
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_2fr] lg:items-end">
             <label className="grid gap-2">
               <span className="text-sm font-bold">Integration source</span>
               <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" onChange={(event) => handleSourceChange(event.target.value)} value={sourceId}>
@@ -198,14 +377,32 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
                 ))}
               </select>
             </label>
-            <label className="grid gap-2">
-              <span className="text-sm font-bold">Calendar/feed URL</span>
-              <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://example.com/schedule.ics" value={feedUrl} />
-            </label>
-            <button className="min-h-11 rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={!feedUrl.trim() || isFetching} onClick={fetchEvents} type="button">
-              {isFetching ? "Fetching..." : "Fetch events"}
-            </button>
+            <div className="rounded-lg bg-[var(--background)] p-4">
+              <p className="text-sm font-bold">Import rules</p>
+              <p className="mt-1 text-sm leading-6 text-[var(--muted)]">Venue and field names must already exist in GameDay OS. Missing names are flagged for review and will not be created automatically.</p>
+            </div>
           </div>
+
+          {importMode === "csv" ? (
+            <div className="grid gap-3 rounded-lg border border-[var(--line)] bg-[var(--background)] p-4">
+              <label className="grid gap-2">
+                <span className="text-sm font-bold">{adapterName} CSV export</span>
+                <input accept=".csv,text/csv" className="min-h-11 rounded-lg border border-[var(--line)] bg-white p-3 text-sm font-semibold" onChange={handleCsvFileChange} type="file" />
+              </label>
+              {csvFileName ? <p className="text-sm font-semibold text-[var(--muted)]">Loaded {csvFileName}</p> : null}
+            </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-[2fr_auto] lg:items-end">
+              <label className="grid gap-2">
+                <span className="text-sm font-bold">{importMode === "manual" ? "Public schedule URL" : "Calendar/feed URL"}</span>
+                <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://example.com/schedule.ics" value={feedUrl} />
+              </label>
+              <button className="min-h-11 rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={!feedUrl.trim() || isFetching} onClick={fetchEvents} type="button">
+                {isFetching ? "Fetching..." : "Fetch events"}
+              </button>
+            </div>
+          )}
+
           {errorMessage ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="text-sm font-bold text-red-900">{errorMessage}</p>
