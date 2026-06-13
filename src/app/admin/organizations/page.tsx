@@ -61,9 +61,14 @@ export default async function OrganizationsDashboardPage() {
             Super Admin overview for multi-tenant GameDay OS data. Authentication and role-based access will plug into this organization layer later.
           </p>
         </div>
-        <Link href="/admin/dashboard" className="ui-button ui-button-secondary">
-          Operations Dashboard
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/organizations/new" className="ui-button ui-button-primary">
+            New Organization
+          </Link>
+          <Link href="/admin/dashboard" className="ui-button ui-button-secondary">
+            Operations Dashboard
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
