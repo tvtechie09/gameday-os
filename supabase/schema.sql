@@ -145,7 +145,7 @@ create table if not exists public.external_sources (
   source_type text not null check (source_type in ('sportsengine', 'hometeamsonline', 'teamsnap', 'gamechanger', 'csv', 'ical', 'other')),
   source_name text not null,
   source_url text,
-  source_status text not null default 'draft' check (source_status in ('draft', 'active', 'paused', 'error')),
+  source_status text not null default 'not_configured' check (source_status in ('connected', 'not_configured', 'error', 'paused', 'unknown')),
   last_sync_at timestamptz,
   notes text,
   created_at timestamptz not null default now(),

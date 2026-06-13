@@ -14,7 +14,7 @@ export type CreateExternalSourceInput = {
 };
 
 export const externalSourceTypes: ExternalSourceType[] = ["sportsengine", "hometeamsonline", "teamsnap", "gamechanger", "csv", "ical", "other"];
-export const externalSourceStatuses: ExternalSourceStatus[] = ["draft", "active", "paused", "error"];
+export const externalSourceStatuses: ExternalSourceStatus[] = ["not_configured", "connected", "paused", "error", "unknown"];
 
 const externalSourceSelect = "id,venue_id,source_type,source_name,source_url,source_status,last_sync_at,notes,created_at,updated_at";
 
@@ -28,7 +28,9 @@ function readSourceType(value: string): ExternalSourceType {
 }
 
 function readSourceStatus(value: string): ExternalSourceStatus {
-  return externalSourceStatuses.find((status) => status === value) ?? "draft";
+  if (value === "active") return "connected";
+  if (value === "draft") return "not_configured";
+  return externalSourceStatuses.find((status) => status === value) ?? "unknown";
 }
 
 export function getExternalSourceTypeLabel(type: ExternalSourceType) {
@@ -47,10 +49,11 @@ export function getExternalSourceTypeLabel(type: ExternalSourceType) {
 
 export function getExternalSourceStatusLabel(status: ExternalSourceStatus) {
   const labels: Record<ExternalSourceStatus, string> = {
-    active: "Active",
-    draft: "Draft",
+    connected: "Connected",
     error: "Needs Attention",
+    not_configured: "Not Configured",
     paused: "Paused",
+    unknown: "Unknown",
   };
 
   return labels[status];
@@ -128,7 +131,7 @@ export async function updateExternalSourceLastSync(id: string): Promise<void> {
     .from("external_sources")
     .update({
       last_sync_at: new Date().toISOString(),
-      source_status: "active",
+      source_status: "connected",
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -136,4 +139,23 @@ export async function updateExternalSourceLastSync(id: string): Promise<void> {
   if (error) {
     throw new Error(error.message);
   }
+}
+
+export async function updateExternalSourceStatus(id: string, status: ExternalSourceStatus): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("external_sources")
+    .update({
+      source_status: readSourceStatus(status),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function runExternalSourceTestSync(id: string): Promise<void> {
+  await updateExternalSourceLastSync(id);
 }

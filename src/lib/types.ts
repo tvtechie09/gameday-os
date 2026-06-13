@@ -15,7 +15,7 @@ export type ResourceActivationStatus = "requested" | "active" | "ended" | "rejec
 export type VolunteerRoleType = "scorekeeper" | "stream_operator" | "audio_operator" | "announcer" | "scoreboard_operator" | "field_admin" | "other";
 export type VolunteerRoleStatus = "requested" | "approved" | "active" | "ended" | "rejected";
 export type ExternalSourceType = "sportsengine" | "hometeamsonline" | "teamsnap" | "gamechanger" | "csv" | "ical" | "other";
-export type ExternalSourceStatus = "draft" | "active" | "paused" | "error";
+export type ExternalSourceStatus = "connected" | "not_configured" | "error" | "paused" | "unknown";
 export type FollowType = "field" | "session";
 export type SessionEventType =
   | "session_created"

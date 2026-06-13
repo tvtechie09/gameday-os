@@ -14,7 +14,7 @@ function readSourceType(value: FormDataEntryValue | null): ExternalSourceType {
 
 function readSourceStatus(value: FormDataEntryValue | null): ExternalSourceStatus {
   const rawValue = String(value ?? "");
-  return externalSourceStatuses.find((status) => status === rawValue) ?? "draft";
+  return externalSourceStatuses.find((status) => status === rawValue) ?? "not_configured";
 }
 
 export default async function NewIntegrationSourcePage() {

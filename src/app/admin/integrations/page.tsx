@@ -19,7 +19,7 @@ function formatLastSync(value: string | null) {
 }
 
 function statusClass(status: ExternalSourceStatus) {
-  if (status === "active") {
+  if (status === "connected") {
     return "bg-[var(--accent-soft)] text-[var(--accent-strong)]";
   }
   if (status === "error") {
@@ -27,6 +27,9 @@ function statusClass(status: ExternalSourceStatus) {
   }
   if (status === "paused") {
     return "bg-amber-50 text-amber-900";
+  }
+  if (status === "not_configured") {
+    return "bg-slate-100 text-slate-700";
   }
   return "bg-slate-100 text-slate-700";
 }
@@ -45,9 +48,14 @@ export default async function IntegrationsPage() {
             Store public URLs, feed URLs, and notes for SportsEngine, HomeTeamsOnline, TeamSnap, GameChanger, CSV, iCal, and other sources.
           </p>
         </div>
-        <Link href="/admin/integrations/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
-          New source
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/integrations/health" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Health dashboard
+          </Link>
+          <Link href="/admin/integrations/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            New source
+          </Link>
+        </div>
       </div>
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

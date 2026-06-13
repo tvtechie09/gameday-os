@@ -242,6 +242,9 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           <Link href="/admin/integrations" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Integrations
           </Link>
+          <Link href="/admin/integrations/health" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Integration Health
+          </Link>
           <Link href="/admin/sessions/bulk" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Bulk session tools
           </Link>
