@@ -4,6 +4,7 @@ const adminNavItems = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/game-day", label: "Game Day" },
+  { href: "/admin/pilot-prep", label: "Pilot Prep" },
   { href: "/admin/status-board", label: "Status Board" },
   { href: "/admin/venues", label: "Venues" },
   { href: "/admin/fields", label: "Fields" },
