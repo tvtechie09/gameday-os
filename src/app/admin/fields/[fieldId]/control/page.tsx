@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { getPublicFieldUrl } from "@/lib/public-url";
+import { getPublicFieldScoreboardUrl, getPublicFieldUrl } from "@/lib/public-url";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { fieldStatuses, getField, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
@@ -190,6 +190,9 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link href={getPublicFieldUrl(field.id)} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Open Field Page
+          </Link>
+          <Link href={getPublicFieldScoreboardUrl(field.id)} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Open Scoreboard
           </Link>
           {currentSession ? (
             <Link href={`/admin/sessions/${currentSession.id}`} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">

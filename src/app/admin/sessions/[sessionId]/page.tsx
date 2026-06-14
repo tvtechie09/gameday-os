@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getPublicScoreboardUrl } from "@/lib/public-url";
 import { getField } from "@/lib/services/fields";
 import { getFollowCountForSession } from "@/lib/services/follows";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
@@ -107,12 +108,20 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
           </p>
         </div>
         {field ? (
-          <Link
-            href={`/fields/${field.id}`}
-            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
-          >
-            View public field
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              href={`/fields/${field.id}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
+            >
+              View public field
+            </Link>
+            <Link
+              href={getPublicScoreboardUrl(session.id)}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white"
+            >
+              Open scoreboard display
+            </Link>
+          </div>
         ) : null}
       </div>
 

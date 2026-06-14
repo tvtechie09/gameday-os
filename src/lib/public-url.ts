@@ -10,6 +10,14 @@ export function getPublicFieldUrl(fieldId: string) {
   return `${getPublicAppUrl()}/fields/${fieldId}`;
 }
 
+export function getPublicScoreboardUrl(sessionId: string) {
+  return `${getPublicAppUrl()}/scoreboard/${sessionId}`;
+}
+
+export function getPublicFieldScoreboardUrl(fieldId: string) {
+  return `${getPublicAppUrl()}/scoreboard/field/${fieldId}`;
+}
+
 export function getPublicVenueUrl(venueId: string) {
   return `${getPublicAppUrl()}/venues/${venueId}`;
 }

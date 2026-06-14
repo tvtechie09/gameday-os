@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
+import { getPublicFieldScoreboardUrl } from "@/lib/public-url";
 import { getFields } from "@/lib/services/fields";
 import { getResources } from "@/lib/services/resources";
 import {
@@ -95,9 +96,17 @@ export default async function ScoreboardsPage() {
                     {profile.notes ? <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{profile.notes}</p> : null}
                     <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(profile.updatedAt)}</p>
                   </div>
-                  <Link href={`/admin/scoreboards/${profile.id}/edit`} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
-                    Edit
-                  </Link>
+                  <div className="grid gap-2">
+                    <Link href={getPublicFieldScoreboardUrl(profile.fieldId)} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
+                      Open display
+                    </Link>
+                    <Link href={`${getPublicFieldScoreboardUrl(profile.fieldId)}?theme=dark&compact=true&sponsor=true`} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                      OBS compact
+                    </Link>
+                    <Link href={`/admin/scoreboards/${profile.id}/edit`} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                      Edit
+                    </Link>
+                  </div>
                 </div>
               </article>
             );
