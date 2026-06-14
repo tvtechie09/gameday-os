@@ -5,6 +5,20 @@ create table if not exists public.organizations (
   name text not null,
   slug text not null unique,
   logo_url text,
+  banner_url text,
+  primary_color text,
+  secondary_color text,
+  website_url text,
+  description text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.role_assignments (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete cascade,
+  role_type text not null check (role_type in ('super_admin', 'organization_admin', 'field_operator', 'volunteer', 'read_only')),
+  display_name text not null,
+  email text not null,
   created_at timestamptz not null default now()
 );
 
@@ -56,6 +70,24 @@ create table if not exists public.resources (
   model text,
   serial_number text,
   status text not null default 'unknown' check (status in ('active', 'inactive', 'maintenance', 'unknown')),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.scoreboard_profiles (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  field_id uuid not null references public.fields(id) on delete cascade,
+  resource_id uuid references public.resources(id) on delete set null,
+  manufacturer text not null default 'Manual',
+  model text not null default 'GameDay OS',
+  connection_type text not null default 'manual' check (connection_type in ('manual', 'network', 'serial', 'controller_bridge', 'cloud_api', 'obs_overlay', 'unknown')),
+  integration_mode text not null default 'manual_only' check (integration_mode in ('manual_only', 'read_only', 'write_to_scoreboard', 'write_to_overlay', 'future_hardware')),
+  scoreboard_status text not null default 'not_configured' check (scoreboard_status in ('not_configured', 'configured', 'testing', 'active', 'offline')),
+  ip_address text,
+  controller_location text,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -287,12 +319,20 @@ create table if not exists public.alerts (
 );
 
 create index if not exists fields_venue_id_idx on public.fields(venue_id);
+create index if not exists role_assignments_organization_id_idx on public.role_assignments(organization_id);
+create index if not exists role_assignments_role_type_idx on public.role_assignments(role_type);
+create index if not exists role_assignments_email_idx on public.role_assignments(email);
 create index if not exists venues_organization_id_idx on public.venues(organization_id);
 create index if not exists fields_organization_id_idx on public.fields(organization_id);
 create index if not exists resources_venue_id_idx on public.resources(venue_id);
 create index if not exists resources_organization_id_idx on public.resources(organization_id);
 create index if not exists resources_field_id_idx on public.resources(field_id);
 create index if not exists resources_status_idx on public.resources(status);
+create index if not exists scoreboard_profiles_organization_id_idx on public.scoreboard_profiles(organization_id);
+create index if not exists scoreboard_profiles_venue_id_idx on public.scoreboard_profiles(venue_id);
+create index if not exists scoreboard_profiles_field_id_idx on public.scoreboard_profiles(field_id);
+create index if not exists scoreboard_profiles_resource_id_idx on public.scoreboard_profiles(resource_id);
+create index if not exists scoreboard_profiles_status_idx on public.scoreboard_profiles(scoreboard_status);
 create index if not exists resource_activations_venue_id_idx on public.resource_activations(venue_id);
 create index if not exists resource_activations_field_id_idx on public.resource_activations(field_id);
 create index if not exists resource_activations_session_id_idx on public.resource_activations(session_id);
@@ -351,9 +391,11 @@ create index if not exists alerts_visibility_idx on public.alerts(alert_visibili
 create index if not exists alerts_active_window_idx on public.alerts(is_active, start_time, end_time);
 
 alter table public.organizations enable row level security;
+alter table public.role_assignments enable row level security;
 alter table public.venues enable row level security;
 alter table public.fields enable row level security;
 alter table public.resources enable row level security;
+alter table public.scoreboard_profiles enable row level security;
 alter table public.resource_activations enable row level security;
 alter table public.volunteer_roles enable row level security;
 alter table public.tournaments enable row level security;
@@ -375,6 +417,10 @@ create policy "Public can read organizations"
   on public.organizations for select
   using (true);
 
+create policy "Public can read role assignments"
+  on public.role_assignments for select
+  using (true);
+
 create policy "Public can read venues"
   on public.venues for select
   using (true);
@@ -390,6 +436,19 @@ create policy "Public can read fields"
 create policy "Public can read resources"
   on public.resources for select
   using (true);
+
+create policy "Public can read scoreboard profiles"
+  on public.scoreboard_profiles for select
+  using (true);
+
+create policy "Public can create scoreboard profiles"
+  on public.scoreboard_profiles for insert
+  with check (true);
+
+create policy "Public can update scoreboard profiles"
+  on public.scoreboard_profiles for update
+  using (true)
+  with check (true);
 
 create policy "Public can read resource activations"
   on public.resource_activations for select

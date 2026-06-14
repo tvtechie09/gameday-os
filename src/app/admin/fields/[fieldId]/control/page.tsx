@@ -5,6 +5,7 @@ import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone 
 import { fieldStatuses, getField, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
 import { getResourcesForFieldPage, getResourceTypeLabel } from "@/lib/services/resources";
+import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusClass, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
 import { getSessionEvents, getSessionEventTypeLabel } from "@/lib/services/session-events";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
@@ -73,20 +74,20 @@ function Scoreboard({ session }: { session: Session | null }) {
   }
 
   return (
-    <section className="rounded-lg border border-[var(--line)] bg-[var(--black-soft)] p-5 text-white">
+    <section className="rounded-lg border border-[var(--line)] bg-[var(--black-soft)] p-5 text-white shadow-sm sm:p-6">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">Live scoreboard</p>
       <h2 className="mt-2 text-xl font-black">{session.title}</h2>
-      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <div className="min-w-0">
+      <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+        <div className="min-w-0 rounded-lg bg-white/10 p-3 sm:bg-transparent sm:p-0">
           <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-white/55">Home</p>
-          <p className="mt-1 truncate text-lg font-black">{session.homeTeam}</p>
+          <p className="mt-1 text-xl font-black leading-tight sm:truncate">{session.homeTeam}</p>
         </div>
-        <p className="rounded-lg bg-white px-4 py-3 text-center text-4xl font-black leading-none text-[var(--foreground)]">
+        <p className="rounded-xl bg-white px-4 py-5 text-center text-6xl font-black leading-none text-[var(--foreground)] sm:min-w-36">
           {session.homeScore}-{session.awayScore}
         </p>
-        <div className="min-w-0 text-right">
+        <div className="min-w-0 rounded-lg bg-white/10 p-3 sm:bg-transparent sm:p-0 sm:text-right">
           <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-white/55">Away</p>
-          <p className="mt-1 truncate text-lg font-black">{session.awayTeam}</p>
+          <p className="mt-1 text-xl font-black leading-tight sm:truncate">{session.awayTeam}</p>
         </div>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-2">
@@ -140,13 +141,14 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
     );
   }
 
-  const [venue, sessions, activeAlerts, resources, activations, volunteerRoles] = await Promise.all([
+  const [venue, sessions, activeAlerts, resources, activations, volunteerRoles, scoreboardProfile] = await Promise.all([
     getVenue(field.venueId),
     getSessionsByFieldId(fieldId),
     getActiveAlerts(),
     getResourcesForFieldPage({ fieldId, venueId: field.venueId }),
     getResourceActivations(),
     getVolunteerRoles(),
+    getScoreboardProfileForField(fieldId),
   ]);
   const currentSession = getCurrentSession(sessions);
   const [sponsorPlacements, timelineEvents] = await Promise.all([
@@ -186,15 +188,15 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link href={getPublicFieldUrl(field.id)} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          <Link href={getPublicFieldUrl(field.id)} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Open Field Page
           </Link>
           {currentSession ? (
-            <Link href={`/admin/sessions/${currentSession.id}`} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            <Link href={`/admin/sessions/${currentSession.id}`} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
               Update Score
             </Link>
           ) : null}
-          <Link href="/admin/alerts/new" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          <Link href="/admin/alerts/new" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Create Alert
           </Link>
         </div>
@@ -214,16 +216,56 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
               <p className="mt-1 text-sm font-black">{field.mapLabel ?? field.name}</p>
             </div>
           </div>
-          <form action={updateControlFieldStatusAction} className="mt-4 grid gap-2 rounded-lg border border-[var(--line)] bg-[var(--background)] p-3 sm:grid-cols-[1fr_auto]">
+          <form action={updateControlFieldStatusAction} className="mt-4 grid gap-3 rounded-lg border border-[var(--line)] bg-[var(--background)] p-4 sm:grid-cols-[1fr_auto]">
             <label className="grid gap-1">
               <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Change field status</span>
-              <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={field.status} name="status">
+              <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={field.status} name="status">
                 {fieldStatuses.map((status) => <option key={status} value={status}>{getFieldStatusLabel(status)}</option>)}
               </select>
             </label>
-            <button className="min-h-10 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white sm:self-end" type="submit">Update</button>
+            <button className="min-h-12 rounded-lg bg-[var(--accent)] px-5 text-sm font-bold text-white sm:self-end" type="submit">Update</button>
           </form>
         </section>
+      </section>
+
+      <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Scoreboard integration</p>
+            <h2 className="mt-1 text-xl font-black">Field scoreboard profile</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+              GameDay OS is the manual source of truth until a future physical scoreboard bridge is configured.
+            </p>
+          </div>
+          <Link href={scoreboardProfile ? `/admin/scoreboards/${scoreboardProfile.id}/edit` : "/admin/scoreboards/new"} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            {scoreboardProfile ? "Edit Scoreboard Profile" : "Create Scoreboard Profile"}
+          </Link>
+        </div>
+        {scoreboardProfile ? (
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg bg-[var(--background)] p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Integration mode</p>
+              <p className="mt-1 text-sm font-black">{getScoreboardIntegrationModeLabel(scoreboardProfile.integrationMode)}</p>
+            </div>
+            <div className="rounded-lg bg-[var(--background)] p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Sync status</p>
+              <p className={`mt-2 w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getScoreboardStatusClass(scoreboardProfile.scoreboardStatus)}`}>
+                {getScoreboardStatusLabel(scoreboardProfile.scoreboardStatus)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-[var(--background)] p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Controller</p>
+              <p className="mt-1 text-sm font-black">{scoreboardProfile.controllerLocation ?? "Not documented"}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-5 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+            No physical scoreboard profile is configured for this field.
+          </p>
+        )}
+        <button className="mt-5 min-h-12 rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold text-[var(--foreground)]" type="button">
+          Use GameDay OS Manual Scoreboard
+        </button>
       </section>
 
       <section className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -280,7 +322,7 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
               <article className="rounded-lg bg-[var(--background)] p-4" key={activation.id}>
                 <p className="text-sm font-black">{getActivationLabel(activation.activationType)}</p>
                 <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{activation.displayName}</p>
-                <div className="mt-3">
+                <div className="mt-3 [&_button]:min-h-12 [&_button]:w-full">
                   <ActivationStatusButton id={activation.id} label="Approve resource" status="active" />
                 </div>
               </article>
@@ -289,7 +331,7 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
               <article className="rounded-lg bg-[var(--background)] p-4" key={role.id}>
                 <p className="text-sm font-black">{getVolunteerRoleLabel(role.roleType)}</p>
                 <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{role.displayName}</p>
-                <div className="mt-3">
+                <div className="mt-3 [&_button]:min-h-12 [&_button]:w-full">
                   <VolunteerStatusButton id={role.id} label="Approve volunteer" status="approved" />
                 </div>
               </article>

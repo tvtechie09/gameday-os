@@ -24,9 +24,14 @@ async function createOrganizationAction(formData: FormData) {
   }
 
   await createOrganization({
+    banner_url: String(formData.get("banner_url") ?? "").trim() || null,
+    description: String(formData.get("description") ?? "").trim() || null,
     logo_url: logoUrl || null,
     name,
+    primary_color: String(formData.get("primary_color") ?? "").trim() || null,
+    secondary_color: String(formData.get("secondary_color") ?? "").trim() || null,
     slug,
+    website_url: String(formData.get("website_url") ?? "").trim() || null,
   });
 
   redirect("/admin/organizations");
@@ -77,6 +82,54 @@ export default function NewOrganizationPage() {
             className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)]"
             name="logo_url"
             placeholder="https://example.com/logo.png"
+            type="url"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Description</span>
+          <textarea
+            className="min-h-28 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-base outline-none transition focus:border-[var(--accent)]"
+            name="description"
+            placeholder="Brief organization description"
+          />
+        </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Banner URL</span>
+          <input
+            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)]"
+            name="banner_url"
+            placeholder="https://example.com/banner.jpg"
+            type="url"
+          />
+        </label>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Primary Color</span>
+            <input
+              className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)]"
+              name="primary_color"
+              placeholder="#166534"
+            />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Secondary Color</span>
+            <input
+              className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)]"
+              name="secondary_color"
+              placeholder="#111827"
+            />
+          </label>
+        </div>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Website URL</span>
+          <input
+            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)]"
+            name="website_url"
+            placeholder="https://example.com"
             type="url"
           />
         </label>

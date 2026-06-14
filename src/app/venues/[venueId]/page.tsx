@@ -7,8 +7,9 @@ import { getFieldStatusClass, getFieldStatusLabel, getFields } from "@/lib/servi
 import { getResourceTypeLabel, getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
+import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
-import type { Alert, Field, Resource, Session, Sponsor, SponsorAssignment, Venue } from "@/lib/types";
+import type { Alert, Field, Organization, Resource, Session, Sponsor, SponsorAssignment, Venue } from "@/lib/types";
 
 type PublicVenuePageProps = {
   params: Promise<{
@@ -125,10 +126,10 @@ function AlertStack({ alerts }: { alerts: Alert[] }) {
   return (
     <section className="grid gap-3">
       {alerts.map((alert) => (
-        <article className={`rounded-lg border-2 p-5 shadow-sm ${getAlertTone(alert.alertType)}`} key={alert.id}>
+        <article className={`rounded-lg border-2 p-5 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
           <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
-          <h2 className="mt-1 text-2xl font-black leading-tight">{alert.title}</h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{alert.message}</p>
+          <h2 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{alert.title}</h2>
+          <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-7">{alert.message}</p>
         </article>
       ))}
     </section>
@@ -139,7 +140,7 @@ function FieldCard({ summary }: { summary: FieldSummary }) {
   const session = summary.currentOrNextSession;
 
   return (
-    <article className="ui-card p-5">
+    <article className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-xl font-black">{summary.field.name}</h3>
@@ -147,7 +148,7 @@ function FieldCard({ summary }: { summary: FieldSummary }) {
             {getFieldStatusLabel(summary.field.status)}
           </span>
         </div>
-        <Link className="ui-button ui-button-primary min-h-10 px-3 py-2" href={`/fields/${summary.field.id}`}>
+        <Link className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-black text-white" href={`/fields/${summary.field.id}`}>
           Open Field
         </Link>
       </div>
@@ -173,6 +174,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
   const { venueId } = await params;
   const publicVenueUrl = getPublicVenueUrl(venueId);
   let venue: Venue | null = null;
+  let organization: Organization | null = null;
   let fields: Field[] = [];
   let sessions: Session[] = [];
   let alerts: Alert[] = [];
@@ -184,7 +186,8 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
   try {
     venue = await getVenue(venueId);
     if (venue) {
-      const [allFields, allSessions, activeAlerts, allSponsors, allSponsorAssignments, allResources] = await Promise.all([
+      const [organizationResult, allFields, allSessions, activeAlerts, allSponsors, allSponsorAssignments, allResources] = await Promise.all([
+        venue.organizationId ? getOrganization(venue.organizationId) : Promise.resolve(null),
         getFields(),
         getSessions(),
         getActiveAlerts(),
@@ -192,6 +195,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
         getSponsorAssignments(),
         getResources(),
       ]);
+      organization = organizationResult;
       fields = allFields.filter((field) => field.venueId === venueId);
       const fieldIds = new Set(fields.map((field) => field.id));
       sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
@@ -212,11 +216,13 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
   }
 
   const now = new Date();
-  const primaryColor = venue?.primaryColor ?? "#166534";
-  const secondaryColor = venue?.secondaryColor ?? "#111827";
-  const brandedHeaderStyle: CSSProperties = venue?.bannerUrl
+  const primaryColor = venue?.primaryColor ?? organization?.primaryColor ?? "#166534";
+  const secondaryColor = venue?.secondaryColor ?? organization?.secondaryColor ?? "#111827";
+  const logoUrl = venue?.logoUrl ?? organization?.logoUrl;
+  const bannerUrl = venue?.bannerUrl ?? organization?.bannerUrl;
+  const brandedHeaderStyle: CSSProperties = bannerUrl
     ? {
-      backgroundImage: `linear-gradient(120deg, ${secondaryColor}e6, ${primaryColor}cc), url(${venue.bannerUrl})`,
+      backgroundImage: `linear-gradient(120deg, ${secondaryColor}e6, ${primaryColor}cc), url(${bannerUrl})`,
       backgroundPosition: "center",
       backgroundSize: "cover",
     }
@@ -247,14 +253,15 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
         <div className="overflow-hidden bg-[var(--panel)] shadow-sm sm:rounded-lg sm:border sm:border-[var(--line)]">
           <header className="p-5 text-white sm:p-8" style={brandedHeaderStyle}>
             <div className="flex items-center gap-3">
-              {venue?.logoUrl ? (
-                <Image alt="" className="h-16 w-16 rounded-lg border border-white/25 bg-white object-contain p-1.5" height={64} src={venue.logoUrl} unoptimized width={64} />
+              {logoUrl ? (
+                <Image alt="" className="h-16 w-16 rounded-lg border border-white/25 bg-white object-contain p-1.5" height={64} src={logoUrl} unoptimized width={64} />
               ) : null}
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/70">Venue</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/70">{organization?.name ?? "GameDay OS"}</p>
                 <h1 className="truncate text-3xl font-black sm:text-5xl">{venue?.name ?? "Venue unavailable"}</h1>
               </div>
             </div>
+            {organization?.description ? <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-white/80">{organization.description}</p> : null}
             {venue?.address ? <p className="mt-5 max-w-2xl text-base font-bold leading-7 text-white/85">{venue.address}</p> : null}
           </header>
 
@@ -277,7 +284,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
 
             <AlertStack alerts={alerts} />
 
-            <section className="ui-card p-5">
+            <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Today</p>
@@ -288,15 +295,15 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               <div className="mt-5 grid gap-4">
                 {todaySessionCount > 0 ? scheduleGroups.filter((group) => group.timeGroups.length > 0).map((group) => (
                   <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={group.field.id}>
-                    <h3 className="text-lg font-black">{group.field.name}</h3>
+                    <h3 className="text-xl font-black">{group.field.name}</h3>
                     <div className="mt-3 grid gap-3">
                       {group.timeGroups.map((timeGroup) => (
                         <div className="rounded-lg bg-white p-3" key={`${group.field.id}-${timeGroup.time}`}>
                           <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{timeGroup.time}</p>
                           <div className="mt-3 grid gap-2">
                             {timeGroup.sessions.map((session) => (
-                              <div className="rounded-lg border border-[var(--line)] p-3" key={session.id}>
-                                <p className="text-sm font-black">{session.title}</p>
+                              <div className="rounded-lg border border-[var(--line)] bg-white p-4" key={session.id}>
+                                <p className="text-base font-black">{session.title}</p>
                                 <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{session.homeTeam} vs. {session.awayTeam}</p>
                               </div>
                             ))}
@@ -311,7 +318,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               </div>
             </section>
 
-            <section className="ui-card p-5">
+            <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <h2 className="text-2xl font-black">Fields</h2>
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
                 {fieldSummaries.length > 0 ? fieldSummaries.map((summary) => (
@@ -322,11 +329,11 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               </div>
             </section>
 
-            <section className="ui-card p-5">
+            <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <h2 className="text-2xl font-black">Venue Map</h2>
               {venue?.mapImageUrl ? (
-                <div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)]">
-                  <div className="relative">
+                <div className="mt-5 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--background)]">
+                  <div className="relative min-w-[520px] sm:min-w-0">
                     <Image alt={`${venue.name} venue map`} className="h-auto w-full object-contain" height={720} src={venue.mapImageUrl} unoptimized width={960} />
                     {fields.filter((field) => field.mapX !== null && field.mapY !== null).map((field) => (
                       <div
@@ -354,7 +361,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
             </section>
 
             <section className="grid gap-5 lg:grid-cols-2">
-              <div className="ui-card p-5">
+              <div className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
                 <h2 className="text-2xl font-black">Sponsors</h2>
                 <div className="mt-5 grid gap-3">
                   {sponsorCards.length > 0 ? sponsorCards.map(({ assignment, sponsor }) => (
@@ -364,7 +371,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
                         {sponsor.logoUrl ? <Image alt="" className="h-14 w-14 rounded-lg border border-[var(--line)] bg-white object-contain p-2" height={56} src={sponsor.logoUrl} unoptimized width={56} /> : null}
                         <div>
                           <h3 className="text-base font-black">{sponsor.name}</h3>
-                          {sponsor.websiteUrl ? <a className="mt-1 inline-block text-sm font-bold text-[var(--accent-strong)]" href={sponsor.websiteUrl} rel="noreferrer" target="_blank">Visit Website</a> : null}
+                          {sponsor.websiteUrl ? <a className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-white px-3 text-sm font-bold text-[var(--accent-strong)]" href={sponsor.websiteUrl} rel="noreferrer" target="_blank">Visit Website</a> : null}
                         </div>
                       </div>
                     </article>
@@ -374,7 +381,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
                 </div>
               </div>
 
-              <div className="ui-card p-5">
+              <div className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
                 <h2 className="text-2xl font-black">Available Resources</h2>
                 <div className="mt-5 grid gap-3">
                   {resourceTypes.length > 0 ? resourceTypes.map((resource) => (
@@ -394,7 +401,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               </div>
             </section>
 
-            <section className="ui-card p-5">
+            <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <h2 className="text-lg font-black">Share Venue Link</h2>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Use this public URL for venue-wide sharing.</p>
               <div className="mt-4 overflow-x-auto rounded-lg bg-[var(--background)] p-4">
@@ -403,7 +410,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               {fields.length > 0 ? (
                 <div className="mt-4 flex flex-wrap gap-2">
                   {fields.slice(0, 4).map((field) => (
-                    <Link className="ui-button ui-button-secondary min-h-10 px-3 py-2" href={getPublicFieldUrl(field.id)} key={field.id}>
+                    <Link className="ui-button ui-button-secondary min-h-11 px-3 py-2" href={getPublicFieldUrl(field.id)} key={field.id}>
                       {field.name}
                     </Link>
                   ))}

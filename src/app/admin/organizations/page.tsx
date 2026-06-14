@@ -65,6 +65,9 @@ export default async function OrganizationsDashboardPage() {
           <Link href="/admin/organizations/new" className="ui-button ui-button-primary">
             New Organization
           </Link>
+          <Link href="/admin/organizations/branding" className="ui-button ui-button-secondary">
+            Branding
+          </Link>
           <Link href="/admin/dashboard" className="ui-button ui-button-secondary">
             Operations Dashboard
           </Link>
@@ -86,9 +89,14 @@ export default async function OrganizationsDashboardPage() {
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{organization.slug}</p>
                 <h2 className="mt-2 text-2xl font-black">{organization.name}</h2>
               </div>
-              <span className="rounded-md bg-[var(--accent-soft)] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
-                Tenant Active
-              </span>
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/admin/organizations/${organization.id}/edit`} className="ui-button ui-button-secondary min-h-10 px-3 py-2">
+                  Edit Organization
+                </Link>
+                <span className="rounded-md bg-[var(--accent-soft)] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                  Tenant Active
+                </span>
+              </div>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
               <MiniStat label="Venues" value={venueCounts[organization.id] ?? 0} />

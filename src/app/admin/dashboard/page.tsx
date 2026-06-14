@@ -1,6 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { revalidatePath } from "next/cache";
+import type { CSSProperties } from "react";
 import { getPublicFieldUrl } from "@/lib/public-url";
+import { getCurrentOrganizationScope } from "@/lib/organization-scope";
 import { getActiveAlerts, getAlertLabel, getAlertTone, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getFieldPageViewDashboardCounts } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
@@ -10,6 +13,7 @@ import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
 import { getSyncDashboardStats, getSyncJobs } from "@/lib/services/sync-engine";
+import { getOrganization } from "@/lib/services/organizations";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoleLabel, getVolunteerRoles } from "@/lib/services/volunteer-roles";
 import type { Alert, Field, Resource, ResourceActivation, Session, Sponsor, Venue, VolunteerRole } from "@/lib/types";
@@ -166,6 +170,11 @@ async function safeLoad<T>(label: string, load: () => Promise<T[]>): Promise<T[]
 export default async function VenueOperationsDashboard({ searchParams }: DashboardPageProps) {
   const resolvedSearchParams = await searchParams;
   const selectedSport = sportFilters.find((sport) => sport === resolvedSearchParams?.sport) ?? "all";
+  const selectedOrganizationId = await getCurrentOrganizationScope();
+  const selectedOrganization = selectedOrganizationId ? await getOrganization(selectedOrganizationId).catch((error: unknown) => {
+    console.error("Failed to load dashboard organization branding", error);
+    return null;
+  }) : null;
 
   async function updateDashboardFieldStatusAction(formData: FormData) {
     "use server";
@@ -232,6 +241,11 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
   const pendingVolunteerRoles = volunteerRoles.filter((role) => role.status === "requested");
   const urgentAlerts = sortAlertsForDisplay(activeAlerts.filter((alert) => alert.alertPriority === "urgent"));
   const sportsEngineSyncJobs = syncJobs.filter((job) => job.sourceType === "sportsengine");
+  const organizationBrandStyle: CSSProperties = {
+    background: selectedOrganization
+      ? `linear-gradient(135deg, ${selectedOrganization.secondaryColor ?? "#111827"}, ${selectedOrganization.primaryColor ?? "#166534"})`
+      : "linear-gradient(135deg, #111827, #166534)",
+  };
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -267,6 +281,26 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           </Link>
         </div>
       </div>
+
+      {selectedOrganization ? (
+        <section className="mt-8 rounded-lg p-5 text-white shadow-sm" style={organizationBrandStyle}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              {selectedOrganization.logoUrl ? (
+                <Image alt="" className="h-14 w-14 rounded-lg border border-white/25 bg-white object-contain p-1.5" height={56} src={selectedOrganization.logoUrl} unoptimized width={56} />
+              ) : null}
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-white/70">Organization</p>
+                <h2 className="text-2xl font-black">{selectedOrganization.name}</h2>
+                {selectedOrganization.description ? <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-white/75">{selectedOrganization.description}</p> : null}
+              </div>
+            </div>
+            <Link href={`/admin/organizations/${selectedOrganization.id}/edit`} className="ui-button bg-white text-[var(--black-soft)] hover:bg-white/90">
+              Edit Branding
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
           <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Total venues" note="Configured venues" value={venues.length} />

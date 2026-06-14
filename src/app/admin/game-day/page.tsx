@@ -3,11 +3,12 @@ import { getPublicFieldUrl } from "@/lib/public-url";
 import { filterAlertsForFieldPage, getActiveAlerts } from "@/lib/services/alerts";
 import { getFields, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { getResourceActivations } from "@/lib/services/resource-activations";
+import { getScoreboardProfiles, getScoreboardStatusClass, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
 import { getSessions } from "@/lib/services/sessions";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoles } from "@/lib/services/volunteer-roles";
-import type { Alert, Field, ResourceActivation, Session, Tournament, Venue, VolunteerRole } from "@/lib/types";
+import type { Alert, Field, ResourceActivation, ScoreboardProfile, Session, Tournament, Venue, VolunteerRole } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ type FieldCard = {
   resourcesCount: number;
   alertsCount: number;
   activeVolunteersCount: number;
+  scoreboardProfile: ScoreboardProfile | null;
 };
 
 const sportFilters = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
@@ -87,9 +89,9 @@ function formatScore(session: Session | null) {
 
 function SummaryCard({ label, note, value }: { label: string; note: string; value: number }) {
   return (
-    <article className="rounded-lg border border-[var(--line)] bg-white p-4">
+    <article className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{label}</p>
-      <p className="mt-2 text-3xl font-black">{value}</p>
+      <p className="mt-2 text-4xl font-black leading-none tabular-nums">{value}</p>
       <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{note}</p>
     </article>
   );
@@ -115,6 +117,7 @@ function buildFieldCards({
   activeAlerts,
   fields,
   resourceActivations,
+  scoreboardProfiles,
   sessions,
   venues,
   volunteerRoles,
@@ -122,12 +125,14 @@ function buildFieldCards({
   activeAlerts: Alert[];
   fields: Field[];
   resourceActivations: ResourceActivation[];
+  scoreboardProfiles: ScoreboardProfile[];
   sessions: Session[];
   venues: Venue[];
   volunteerRoles: VolunteerRole[];
 }) {
   const now = new Date();
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
+  const scoreboardProfilesByFieldId = new Map(scoreboardProfiles.map((profile) => [profile.fieldId, profile]));
 
   return fields.map((field): FieldCard => {
     const fieldSessions = sessions
@@ -160,6 +165,7 @@ function buildFieldCards({
       field,
       nextSession,
       resourcesCount: activeResources.length,
+      scoreboardProfile: scoreboardProfilesByFieldId.get(field.id) ?? null,
       venue: venuesById.get(field.venueId) ?? null,
     };
   });
@@ -171,7 +177,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
   const selectedTournamentId = filters?.tournament ?? "";
   const selectedSport = sportFilters.find((sport) => sport === filters?.sport) ?? "";
   const now = new Date();
-  const [venues, fields, sessions, tournaments, activeAlerts, resourceActivations, volunteerRoles] = await Promise.all([
+  const [venues, fields, sessions, tournaments, activeAlerts, resourceActivations, volunteerRoles, scoreboardProfiles] = await Promise.all([
     safeLoad<Venue>("venues", getVenues),
     safeLoad<Field>("fields", getFields),
     safeLoad<Session>("sessions", getSessions),
@@ -179,6 +185,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
     safeLoad<Alert>("active alerts", getActiveAlerts),
     safeLoad<ResourceActivation>("resource activations", getResourceActivations),
     safeLoad<VolunteerRole>("volunteer roles", getVolunteerRoles),
+    safeLoad<ScoreboardProfile>("scoreboard profiles", getScoreboardProfiles),
   ]);
 
   const filteredFields = fields.filter((field) => !selectedVenueId || field.venueId === selectedVenueId);
@@ -200,12 +207,14 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
       return true;
     }),
     resourceActivations,
+    scoreboardProfiles,
     sessions: filteredSessions,
     venues,
     volunteerRoles,
   });
   const activeResources = resourceActivations.filter((activation) => activation.status === "active");
   const activeVolunteers = volunteerRoles.filter((role) => role.status === "active" || role.status === "approved");
+  const configuredScoreboards = fieldCards.filter((card) => card.scoreboardProfile).length;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -227,41 +236,42 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
         </div>
       </div>
 
-      <form className="mt-8 grid gap-3 rounded-lg border border-[var(--line)] bg-white p-4 md:grid-cols-4">
+      <form className="mt-8 grid gap-4 rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm md:grid-cols-4">
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Venue</span>
-          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={selectedVenueId} name="venue">
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={selectedVenueId} name="venue">
             <option value="">All venues</option>
             {venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}
           </select>
         </label>
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Tournament</span>
-          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={selectedTournamentId} name="tournament">
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={selectedTournamentId} name="tournament">
             <option value="">All tournaments</option>
             {tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}
           </select>
         </label>
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Sport Type</span>
-          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={selectedSport} name="sport">
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={selectedSport} name="sport">
             <option value="">All sports</option>
             {sportFilters.map((sport) => <option key={sport} value={sport}>{sport}</option>)}
           </select>
         </label>
-        <div className="flex gap-2 md:self-end">
-          <button className="min-h-10 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white" type="submit">Apply</button>
-          <Link href="/admin/game-day" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">Clear</Link>
+        <div className="grid grid-cols-2 gap-2 md:self-end">
+          <button className="min-h-12 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white" type="submit">Apply</button>
+          <Link href="/admin/game-day" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">Clear</Link>
         </div>
       </form>
 
-      <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
         <SummaryCard label="Active Games" note="Live now" value={activeGames.length} />
         <SummaryCard label="Upcoming Games" note="Scheduled future games" value={upcomingGames.length} />
         <SummaryCard label="Delayed Games" note="Today's sessions with delay notes" value={delayedGames.length} />
         <SummaryCard label="Active Alerts" note="In active window" value={activeAlerts.length} />
         <SummaryCard label="Active Resources" note="Approved active resources" value={activeResources.length} />
         <SummaryCard label="Active Volunteers" note="Approved or active roles" value={activeVolunteers.length} />
+        <SummaryCard label="Scoreboards" note="Configured field profiles" value={configuredScoreboards} />
       </section>
 
       <section className="mt-8">
@@ -272,7 +282,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
           </div>
           <p className="text-sm font-black text-[var(--muted)]">{fieldCards.length} fields shown</p>
         </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <div className="mt-4 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {fieldCards.map((card) => {
             const needsResources = card.resourcesCount === 0;
             const needsVolunteers = card.activeVolunteersCount === 0;
@@ -283,33 +293,33 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{card.venue?.name ?? "Venue unavailable"}</p>
-                    <h3 className="mt-1 truncate text-xl font-black">{card.field.name}</h3>
+                    <h3 className="mt-1 text-2xl font-black leading-tight sm:truncate">{card.field.name}</h3>
                     <span className={`mt-2 inline-flex rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(card.field.status)}`}>
                       {getFieldStatusLabel(card.field.status)}
                     </span>
                   </div>
-                  <div className="flex gap-2">
-                    <Link href={getPublicFieldUrl(card.field.id)} className="inline-flex min-h-9 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-3 text-xs font-black">
+                  <div className="grid gap-2 sm:flex">
+                    <Link href={getPublicFieldUrl(card.field.id)} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-3 text-xs font-black">
                       Open Field Page
                     </Link>
                     {visibleSession ? (
-                      <Link href={`/admin/sessions/${visibleSession.id}`} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-[var(--black-soft)] px-3 text-xs font-black text-white">
+                      <Link href={`/admin/sessions/${visibleSession.id}`} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-3 text-xs font-black text-white">
                         Open Session Dashboard
                       </Link>
                     ) : null}
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-lg bg-white p-3">
+                <div className="mt-4 rounded-lg bg-white p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Current Session</p>
                   {card.currentSession ? (
                     <>
-                      <p className="mt-1 text-base font-black">{card.currentSession.title}</p>
+                      <p className="mt-1 text-lg font-black leading-tight">{card.currentSession.title}</p>
                       <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{formatScore(card.currentSession)}</p>
                     </>
                   ) : card.nextSession ? (
                     <>
-                      <p className="mt-1 text-base font-black">{card.nextSession.title}</p>
+                      <p className="mt-1 text-lg font-black leading-tight">{card.nextSession.title}</p>
                       <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Next at {formatTime(card.nextSession.startTime)}</p>
                     </>
                   ) : (
@@ -330,6 +340,17 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Volunteers</p>
                     <p className="mt-1 text-xl font-black">{card.activeVolunteersCount}</p>
                   </div>
+                </div>
+
+                <div className="mt-3 rounded-lg bg-white p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Scoreboard</p>
+                  {card.scoreboardProfile ? (
+                    <p className={`mt-2 w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getScoreboardStatusClass(card.scoreboardProfile.scoreboardStatus)}`}>
+                      {getScoreboardStatusLabel(card.scoreboardProfile.scoreboardStatus)}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm font-black text-slate-700">Not configured</p>
+                  )}
                 </div>
 
                 {(card.field.status === "delayed" || card.field.status === "closed" || needsResources || needsVolunteers) ? (

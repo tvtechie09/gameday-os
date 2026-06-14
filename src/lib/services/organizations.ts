@@ -8,9 +8,16 @@ export type CreateOrganizationInput = {
   name: string;
   slug: string;
   logo_url?: string | null;
+  banner_url?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
+  website_url?: string | null;
+  description?: string | null;
 };
 
-const organizationSelect = "id,name,slug,logo_url,created_at";
+export type UpdateOrganizationInput = CreateOrganizationInput;
+
+const organizationSelect = "id,name,slug,logo_url,banner_url,primary_color,secondary_color,website_url,description,created_at";
 
 function readOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -22,6 +29,11 @@ function mapOrganization(row: OrganizationRow): Organization {
     createdAt: row.created_at,
     id: row.id,
     logoUrl: readOptionalText(row.logo_url),
+    bannerUrl: readOptionalText(row.banner_url),
+    primaryColor: readOptionalText(row.primary_color),
+    secondaryColor: readOptionalText(row.secondary_color),
+    websiteUrl: readOptionalText(row.website_url),
+    description: row.description ?? "",
     name: row.name,
     slug: row.slug,
   };
@@ -61,10 +73,40 @@ export async function createOrganization(data: CreateOrganizationInput): Promise
   const { data: organization, error } = await supabase
     .from("organizations")
     .insert({
+      banner_url: readOptionalText(data.banner_url),
+      description: readOptionalText(data.description),
       logo_url: readOptionalText(data.logo_url),
       name: data.name,
+      primary_color: readOptionalText(data.primary_color),
+      secondary_color: readOptionalText(data.secondary_color),
       slug: data.slug,
+      website_url: readOptionalText(data.website_url),
     })
+    .select(organizationSelect)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return mapOrganization(organization);
+}
+
+export async function updateOrganization(id: string, data: UpdateOrganizationInput): Promise<Organization> {
+  const supabase = getSupabaseAdminClient();
+  const { data: organization, error } = await supabase
+    .from("organizations")
+    .update({
+      banner_url: readOptionalText(data.banner_url),
+      description: readOptionalText(data.description),
+      logo_url: readOptionalText(data.logo_url),
+      name: data.name,
+      primary_color: readOptionalText(data.primary_color),
+      secondary_color: readOptionalText(data.secondary_color),
+      slug: data.slug,
+      website_url: readOptionalText(data.website_url),
+    })
+    .eq("id", id)
     .select(organizationSelect)
     .single();
 

@@ -13,6 +13,9 @@ export type AlertPriority = "low" | "normal" | "high" | "urgent";
 export type AlertVisibility = "public" | "admin_only";
 export type ResourceType = "camera" | "audio" | "scoreboard" | "display" | "network" | "streaming" | "other";
 export type ResourceStatus = "active" | "inactive" | "maintenance" | "unknown";
+export type ScoreboardConnectionType = "manual" | "network" | "serial" | "controller_bridge" | "cloud_api" | "obs_overlay" | "unknown";
+export type ScoreboardIntegrationMode = "manual_only" | "read_only" | "write_to_scoreboard" | "write_to_overlay" | "future_hardware";
+export type ScoreboardStatus = "not_configured" | "configured" | "testing" | "active" | "offline";
 export type ResourceActivationType = "parent_camera" | "livestream_link" | "bluetooth_speaker" | "scoreboard_operator" | "announcer" | "other";
 export type ResourceActivationStatus = "requested" | "active" | "ended" | "rejected";
 export type VolunteerRoleType = "scorekeeper" | "stream_operator" | "audio_operator" | "announcer" | "scoreboard_operator" | "field_admin" | "other";
@@ -23,6 +26,7 @@ export type FollowType = "field" | "session";
 export type NotificationType = "alert" | "field_status" | "session_status" | "resource" | "volunteer" | "sponsor";
 export type SyncJobStatus = "pending" | "running" | "completed" | "failed";
 export type SyncQueueReviewStatus = "pending" | "approved" | "rejected" | "imported";
+export type RoleType = "super_admin" | "organization_admin" | "field_operator" | "volunteer" | "read_only";
 export type SessionEventType =
   | "session_created"
   | "score_update"
@@ -181,6 +185,24 @@ export interface Resource {
   updatedAt: string;
 }
 
+export interface ScoreboardProfile {
+  id: string;
+  organizationId?: string | null;
+  venueId: string;
+  fieldId: string;
+  resourceId: string | null;
+  manufacturer: string;
+  model: string;
+  connectionType: ScoreboardConnectionType;
+  integrationMode: ScoreboardIntegrationMode;
+  scoreboardStatus: ScoreboardStatus;
+  ipAddress: string | null;
+  controllerLocation: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ResourceActivation {
   id: string;
   resourceId: string | null;
@@ -261,6 +283,20 @@ export interface Organization {
   name: string;
   slug: string;
   logoUrl: string | null;
+  bannerUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  websiteUrl: string | null;
+  description: string;
+  createdAt: string;
+}
+
+export interface RoleAssignment {
+  id: string;
+  organizationId: string | null;
+  roleType: RoleType;
+  displayName: string;
+  email: string;
   createdAt: string;
 }
 

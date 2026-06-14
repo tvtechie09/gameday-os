@@ -67,10 +67,10 @@ export function ResourceActivationForm({
   return (
     <section className="rounded-lg border border-[var(--line)] bg-white p-5">
       <h2 className="text-lg font-black">Attach Resource</h2>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {options.map((option) => (
           <button
-            className={selected?.type === option.type ? "min-h-11 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-black text-white" : "min-h-11 rounded-lg border border-[var(--line)] bg-white px-4 py-2 text-sm font-black"}
+            className={selected?.type === option.type ? "min-h-12 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-black text-white" : "min-h-12 rounded-lg border border-[var(--line)] bg-white px-4 py-3 text-sm font-black"}
             key={option.type}
             onClick={() => {
               setSelected(option);
@@ -107,7 +107,7 @@ export function ResourceActivationForm({
             <span className="text-sm font-bold">Notes</span>
             <textarea className="min-h-24 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base" disabled={isSaving} name="notes" />
           </label>
-          <button className="min-h-11 rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white disabled:opacity-60" disabled={isSaving} type="submit">
+          <button className="min-h-12 rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white disabled:opacity-60" disabled={isSaving} type="submit">
             {isSaving ? "Submitting..." : "Submit request"}
           </button>
         </form>

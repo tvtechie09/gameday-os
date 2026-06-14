@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
@@ -53,6 +54,7 @@ const adminNavGroups: AdminNavGroup[] = [
       { href: "/admin/status-board", icon: Gauge, label: "Status Board" },
       { href: "/admin/system-health", icon: ShieldCheck, label: "System Health Center" },
       { href: "/admin/organizations", icon: Users, label: "Organization Dashboard" },
+      { href: "/admin/roles", icon: ShieldCheck, label: "Roles & Permissions" },
       { href: "/admin/pilot-prep", icon: ClipboardCheck, label: "Pilot Prep" },
     ],
   },
@@ -84,6 +86,7 @@ const adminNavGroups: AdminNavGroup[] = [
     items: [
       { href: "/admin/resources", icon: Wrench, label: "Resources" },
       { href: "/admin/resources/dashboard", icon: Radio, label: "Resource Dashboard" },
+      { href: "/admin/scoreboards", icon: Gauge, label: "Scoreboards" },
     ],
   },
   {
@@ -137,6 +140,8 @@ const breadcrumbLabels: Record<string, string> = {
   "pilot-prep": "Pilot Prep",
   qr: "QR",
   resources: "Resources",
+  roles: "Roles",
+  scoreboards: "Scoreboards",
   "schema-audit": "Schema Audit",
   sessions: "Sessions",
   sponsors: "Sponsors",
@@ -199,7 +204,7 @@ export function AdminShell({
               <h2 className="mt-2 text-xl font-black">Operations</h2>
             </div>
               <details className="relative lg:hidden">
-                <summary className="grid h-10 w-10 cursor-pointer place-items-center rounded-lg bg-white/10 text-white marker:hidden">
+                <summary className="grid h-12 w-12 cursor-pointer place-items-center rounded-lg bg-white/10 text-white marker:hidden">
                   <Menu className="h-5 w-5" aria-hidden="true" />
                   <span className="sr-only">Open navigation</span>
                 </summary>
@@ -250,13 +255,13 @@ export function AdminShell({
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
                 <span className="sr-only">Search</span>
                 <input
-                  className="min-h-10 w-full rounded-lg border border-[var(--line)] bg-[var(--background)] pl-9 pr-3 text-sm font-semibold outline-none transition focus:border-[var(--accent)] focus:bg-white"
+                  className="min-h-11 w-full rounded-lg border border-[var(--line)] bg-[var(--background)] pl-9 pr-3 text-sm font-semibold outline-none transition focus:border-[var(--accent)] focus:bg-white"
                   placeholder="Search GameDay OS"
                   type="search"
                 />
               </label>
               <details className="relative">
-                <summary className="ui-button ui-button-primary min-h-10 cursor-pointer px-4 py-0 marker:hidden">
+                <summary className="ui-button ui-button-primary min-h-11 cursor-pointer px-4 py-0 marker:hidden">
                   <Plus className="h-4 w-4" aria-hidden="true" />
                   Quick Actions
                 </summary>
@@ -292,7 +297,7 @@ function OrganizationSwitcher({
       <label className="grid gap-2">
         <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Organization</span>
         <select
-          className="min-h-10 w-full rounded-lg border border-white/10 bg-[var(--black-soft)] px-3 text-sm font-bold text-white outline-none"
+          className="min-h-12 w-full rounded-lg border border-white/10 bg-[var(--black-soft)] px-3 text-sm font-bold text-white outline-none"
           defaultValue={selectedOrganizationId}
           name="organization_id"
           onChange={(event) => event.currentTarget.form?.requestSubmit()}
@@ -306,7 +311,14 @@ function OrganizationSwitcher({
         </select>
       </label>
       <p className="mt-2 text-xs font-semibold leading-5 text-white/55">
-        {selectedOrganization ? `Viewing ${selectedOrganization.name}` : "Super Admin view across every organization"}
+        {selectedOrganization ? (
+          <span className="flex items-center gap-2">
+            {selectedOrganization.logoUrl ? (
+              <Image alt="" className="h-6 w-6 rounded bg-white object-contain p-0.5" height={24} src={selectedOrganization.logoUrl} unoptimized width={24} />
+            ) : null}
+            <span>Viewing {selectedOrganization.name}</span>
+          </span>
+        ) : "Super Admin view across every organization"}
       </p>
     </form>
   );
@@ -336,7 +348,7 @@ function AdminNav({ compact = false, pathname }: { compact?: boolean; pathname: 
               return (
                 <Link
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition ${
+                  className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition ${
                     active ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-400/25" : "text-white/70 hover:bg-white/10 hover:text-white"
                   }`}
                   href={item.href}
@@ -356,7 +368,7 @@ function AdminNav({ compact = false, pathname }: { compact?: boolean; pathname: 
             <section className="rounded-lg border border-white/10 bg-white/[0.03] p-2" key={group.label}>
               <button
                 aria-expanded={isOpen}
-                className="flex w-full cursor-pointer items-center justify-between gap-3 px-2 py-1 text-left text-[10px] font-black uppercase tracking-[0.18em] text-white/60 transition hover:text-white/80"
+                className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-2 py-2 text-left text-[10px] font-black uppercase tracking-[0.18em] text-white/60 transition hover:text-white/80"
                 onClick={() => toggleGroup(group.label)}
                 type="button"
               >
@@ -372,7 +384,7 @@ function AdminNav({ compact = false, pathname }: { compact?: boolean; pathname: 
           <section className="rounded-lg border border-transparent" key={group.label}>
             <button
               aria-expanded={isOpen}
-              className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.18em] transition ${
+              className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.18em] transition ${
                 hasActiveItem ? "text-emerald-100" : "text-white/45 hover:bg-white/5 hover:text-white/70"
               }`}
               onClick={() => toggleGroup(group.label)}
@@ -401,7 +413,7 @@ function PinnedNav({ pathname }: { pathname: string }) {
           return (
             <Link
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition ${
+              className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-bold transition ${
                 active ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-400/25" : "text-white/75 hover:bg-white/10 hover:text-white"
               }`}
               href={item.href}
@@ -427,7 +439,7 @@ function MobileNav({ pathname }: { pathname: string }) {
         return (
           <Link
             aria-current={active ? "page" : undefined}
-            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-bold ${
+            className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-bold ${
               active ? "bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-400/25" : "bg-white/10 text-white/80 hover:bg-white/15 hover:text-white"
             }`}
             href={item.href}

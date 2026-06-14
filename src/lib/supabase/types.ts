@@ -9,6 +9,11 @@ export type Database = {
           name: string;
           slug: string;
           logo_url: string | null;
+          banner_url: string | null;
+          primary_color: string | null;
+          secondary_color: string | null;
+          website_url: string | null;
+          description: string | null;
           created_at: string;
         };
         Insert: {
@@ -16,6 +21,11 @@ export type Database = {
           name: string;
           slug: string;
           logo_url?: string | null;
+          banner_url?: string | null;
+          primary_color?: string | null;
+          secondary_color?: string | null;
+          website_url?: string | null;
+          description?: string | null;
           created_at?: string;
         };
         Update: {
@@ -23,9 +33,49 @@ export type Database = {
           name?: string;
           slug?: string;
           logo_url?: string | null;
+          banner_url?: string | null;
+          primary_color?: string | null;
+          secondary_color?: string | null;
+          website_url?: string | null;
+          description?: string | null;
           created_at?: string;
         };
         Relationships: [];
+      };
+      role_assignments: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          role_type: string;
+          display_name: string;
+          email: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          role_type: string;
+          display_name: string;
+          email: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          role_type?: string;
+          display_name?: string;
+          email?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "role_assignments_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       alerts: {
         Row: {
@@ -510,6 +560,82 @@ export type Database = {
             columns: ["field_id"];
             isOneToOne: false;
             referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      scoreboard_profiles: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          venue_id: string;
+          field_id: string;
+          resource_id: string | null;
+          manufacturer: string;
+          model: string;
+          connection_type: string;
+          integration_mode: string;
+          scoreboard_status: string;
+          ip_address: string | null;
+          controller_location: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id: string;
+          field_id: string;
+          resource_id?: string | null;
+          manufacturer?: string;
+          model?: string;
+          connection_type?: string;
+          integration_mode?: string;
+          scoreboard_status?: string;
+          ip_address?: string | null;
+          controller_location?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id?: string;
+          field_id?: string;
+          resource_id?: string | null;
+          manufacturer?: string;
+          model?: string;
+          connection_type?: string;
+          integration_mode?: string;
+          scoreboard_status?: string;
+          ip_address?: string | null;
+          controller_location?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "scoreboard_profiles_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "scoreboard_profiles_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "scoreboard_profiles_resource_id_fkey";
+            columns: ["resource_id"];
+            isOneToOne: false;
+            referencedRelation: "resources";
             referencedColumns: ["id"];
           },
         ];
