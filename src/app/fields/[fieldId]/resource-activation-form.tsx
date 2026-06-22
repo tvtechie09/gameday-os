@@ -59,15 +59,15 @@ export function ResourceActivationForm({
       return;
     }
 
-    setMessage({ kind: "success", text: "Thanks. The field crew can review it shortly." });
+    setMessage({ kind: "success", text: "Thanks. Your contribution is now live on the field page." });
     event.currentTarget.reset();
     setIsSaving(false);
   }
 
   return (
     <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4 sm:p-5">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Optional</p>
-      <h2 className="mt-1 text-lg font-black">Share a Field Resource</h2>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Community</p>
+      <h2 className="mt-1 text-lg font-black">Community Contributions</h2>
       <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
         Use this if you are helping with a stream, camera, audio, or scoreboard.
       </p>
@@ -112,7 +112,7 @@ export function ResourceActivationForm({
             <textarea className="min-h-24 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base" disabled={isSaving} name="notes" />
           </label>
           <button className="min-h-12 rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white disabled:opacity-60" disabled={isSaving} type="submit">
-            {isSaving ? "Submitting..." : "Submit request"}
+            {isSaving ? "Sharing..." : "Share contribution"}
           </button>
         </form>
       ) : null}

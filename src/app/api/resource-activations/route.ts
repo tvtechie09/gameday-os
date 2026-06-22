@@ -49,6 +49,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ activation });
   } catch (error) {
     console.error("Failed to create resource activation", error);
-    return NextResponse.json({ error: "Unable to create activation request." }, { status: 500 });
+    return NextResponse.json({ error: "Unable to create community contribution." }, { status: 500 });
   }
 }

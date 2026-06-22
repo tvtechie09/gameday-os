@@ -98,7 +98,7 @@ export default async function ResourceUtilizationDashboard({ searchParams }: Res
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link href="/admin/resources/activations" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
-            Activation queue
+            Community Contributions
           </Link>
           <Link href="/admin/resources" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
             Inventory
@@ -109,7 +109,7 @@ export default async function ResourceUtilizationDashboard({ searchParams }: Res
       <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Total Resources" note="Inventory records" value={resources.length} />
         <SummaryCard label="Active Resources" note="Live attachments" value={activeActivations.length} />
-        <SummaryCard label="Pending Resource Requests" note="Awaiting approval" value={pendingActivations.length} />
+        <SummaryCard label="Legacy Requests" note="Older items not yet active" value={pendingActivations.length} />
         <SummaryCard label="Fields With Active Resources" note="Fields currently supported" value={fieldsWithActiveResources.size} />
       </section>
 
@@ -117,7 +117,7 @@ export default async function ResourceUtilizationDashboard({ searchParams }: Res
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-xl font-black">Resource filters</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Filter active and pending resource attachments by type.</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Filter active community contributions by type.</p>
           </div>
           <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
             <Link className={selectedType === "all" ? "whitespace-nowrap rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white" : "whitespace-nowrap rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]"} href="/admin/resources/dashboard">
@@ -148,7 +148,7 @@ export default async function ResourceUtilizationDashboard({ searchParams }: Res
                   <p className="mt-1 text-2xl font-black text-green-800">{group.activeCount}</p>
                 </div>
                 <div className="rounded-lg bg-amber-50 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-900">Total Pending Requests</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-900">Legacy Requests</p>
                   <p className="mt-1 text-2xl font-black text-amber-900">{group.pendingCount}</p>
                 </div>
               </div>
@@ -196,22 +196,22 @@ export default async function ResourceUtilizationDashboard({ searchParams }: Res
                 </div>
 
                 <div className="mt-3 rounded-lg bg-amber-50 p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">Pending Requests</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">Legacy Requests</p>
                   {fieldPending.length > 0 ? (
                     <div className="mt-3 grid gap-2">
                       {fieldPending.map((activation) => (
                         <div className="rounded-lg bg-white p-3" key={activation.id}>
-                          <p className="text-sm font-black">Pending {getAttachmentOptionLabel(activation.activationType)} Request</p>
+                          <p className="text-sm font-black">Legacy {getAttachmentOptionLabel(activation.activationType)} request</p>
                           <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{activation.displayName}</p>
                           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                            <ActivationStatusButton id={activation.id} label="Approve Request" status="active" />
-                            <ActivationStatusButton id={activation.id} label="Reject Request" status="rejected" />
+                            <ActivationStatusButton id={activation.id} label="Mark Active" status="active" />
+                            <ActivationStatusButton id={activation.id} label="Remove" status="rejected" />
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-3 rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">No pending requests</p>
+                    <p className="mt-3 rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">No legacy requests</p>
                   )}
                 </div>
               </article>

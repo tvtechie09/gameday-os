@@ -130,8 +130,8 @@ export default async function FieldsPage() {
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                           <CopyLinkButton label="Copy public link" value={getPublicFieldUrl(field.id)} />
                           <CopyLinkButton label="Copy QR link" value={`${appUrl}/admin/fields/${field.id}/qr`} />
-                          <Link href={field.qrPath} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
-                            View public page
+                          <Link href={`/admin/fields/${field.id}/qr`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                            QR Detail
                           </Link>
                           <Link href={`/admin/fields/${field.id}/control`} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white">
                             Control

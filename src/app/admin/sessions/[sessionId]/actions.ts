@@ -49,6 +49,10 @@ export async function updateSessionStateAction(
     revalidatePath("/admin/sessions");
     revalidatePath(`/admin/sessions/${sessionId}`);
     revalidatePath(`/fields/${fieldId}`);
+    revalidatePath(`/scoreboard/${sessionId}`);
+    revalidatePath(`/scoreboard/field/${fieldId}`);
+    revalidatePath(`/api/scoreboard/session/${sessionId}`);
+    revalidatePath(`/api/scoreboard/field/${fieldId}`);
 
     return { session };
   } catch (error) {

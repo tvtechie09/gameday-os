@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Database, FileCode2 } from "lucide-react";
@@ -106,7 +106,7 @@ function splitTopLevel(value: string) {
 
 function parseExpectedSchema(sql: string): ExpectedSchema {
   const statements = splitStatements(sql);
-  const tables = statements.flatMap((statement): ExpectedTable[] => {
+  const parsedTables = statements.flatMap((statement): ExpectedTable[] => {
     const match = statement.match(/^create table if not exists public\.([a-z_]+)\s*\(([\s\S]*)\);$/i);
     if (!match) return [];
 
@@ -123,6 +123,44 @@ function parseExpectedSchema(sql: string): ExpectedSchema {
 
     return [{ columns, createSql: statement, name }];
   });
+  const tableMap = new Map<string, ExpectedTable>();
+
+  for (const table of parsedTables) {
+    const existing = tableMap.get(table.name);
+
+    if (!existing) {
+      tableMap.set(table.name, table);
+      continue;
+    }
+
+    const existingColumns = new Set(existing.columns.map((column) => column.name));
+    table.columns.forEach((column) => {
+      if (!existingColumns.has(column.name)) {
+        existing.columns.push(column);
+      }
+    });
+  }
+
+  statements.forEach((statement) => {
+    const match = statement.match(/^alter table public\.([a-z_]+)\s+add column if not exists\s+([\s\S]+);$/i);
+    if (!match) return;
+
+    const [, tableName, body] = match;
+    const table = tableMap.get(tableName);
+    if (!table) return;
+
+    const existingColumns = new Set(table.columns.map((column) => column.name));
+    splitTopLevel(body).forEach((line) => {
+      const trimmed = line.trim().replace(/^add column if not exists\s+/i, "");
+      const columnMatch = trimmed.match(/^([a-z_][a-z0-9_]*)\s+(.+)$/i);
+
+      if (!columnMatch || existingColumns.has(columnMatch[1])) return;
+
+      table.columns.push({ definition: trimmed, name: columnMatch[1] });
+      existingColumns.add(columnMatch[1]);
+    });
+  });
+  const tables = [...tableMap.values()].sort((a, b) => a.name.localeCompare(b.name));
 
   const indexes = statements.flatMap((statement): ExpectedIndex[] => {
     const match = statement.match(/^create\s+(?:unique\s+)?index if not exists\s+([a-z0-9_]+)[\s\S]*?\son public\.([a-z_]+)/i);
@@ -139,8 +177,19 @@ function parseExpectedSchema(sql: string): ExpectedSchema {
 
 async function readExpectedSchema() {
   const schemaPath = path.join(process.cwd(), "supabase", "schema.sql");
-  const sql = await readFile(schemaPath, "utf8");
-  return parseExpectedSchema(sql);
+  const migrationsPath = path.join(process.cwd(), "supabase", "migrations");
+  const schemaSql = await readFile(schemaPath, "utf8");
+  let migrationSql = "";
+
+  try {
+    const migrationFiles = await readdir(migrationsPath);
+    const sqlFiles = migrationFiles.filter((file) => file.endsWith(".sql")).sort();
+    migrationSql = (await Promise.all(sqlFiles.map((file) => readFile(path.join(migrationsPath, file), "utf8")))).join("\n\n");
+  } catch (error) {
+    console.error("Unable to read migrations for schema audit expected counts", error);
+  }
+
+  return parseExpectedSchema(`${schemaSql}\n\n${migrationSql}`);
 }
 
 async function fetchActualRestSchema(): Promise<{ definitions: Record<string, OpenApiDefinition>; error: string | null }> {

@@ -422,11 +422,11 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-xl font-black">Pending resource activations</h2>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Volunteer and parent requests waiting for approval.</p>
+                <h2 className="text-xl font-black">Community Contributions</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Parent and volunteer field contributions that can be ended when no longer useful.</p>
               </div>
               <Link href="/admin/resources/activations" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
-                Review requests
+                Review contributions
               </Link>
             </div>
             {pendingActivations.length > 0 ? (
@@ -441,7 +441,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
                 ))}
               </div>
             ) : (
-              <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No pending activation requests.</p>
+              <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No community contributions need attention.</p>
             )}
           </section>
 

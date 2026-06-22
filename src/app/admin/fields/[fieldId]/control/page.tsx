@@ -271,9 +271,20 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
             No physical scoreboard profile is configured for this field.
           </p>
         )}
-        <button className="mt-5 min-h-12 rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold text-[var(--foreground)]" type="button">
-          Use GameDay OS Manual Scoreboard
-        </button>
+        {currentSession ? (
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <Link href={`/admin/sessions/${currentSession.id}#score-entry`} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+              Launch Score Entry
+            </Link>
+            <Link href={getPublicFieldScoreboardUrl(field.id)} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold text-[var(--foreground)]">
+              Update Display
+            </Link>
+          </div>
+        ) : (
+          <p className="mt-5 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+            Create or select a session to use the GameDay OS manual scoreboard.
+          </p>
+        )}
       </section>
 
       <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
@@ -361,14 +372,14 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
 
       <section className="mt-5 grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-          <h2 className="text-xl font-black">Approval queue</h2>
+          <h2 className="text-xl font-black">Community contributions</h2>
           <div className="mt-4 grid gap-3">
             {pendingActivations.map((activation) => (
               <article className="rounded-lg bg-[var(--background)] p-4" key={activation.id}>
                 <p className="text-sm font-black">{getActivationLabel(activation.activationType)}</p>
                 <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{activation.displayName}</p>
                 <div className="mt-3 [&_button]:min-h-12 [&_button]:w-full">
-                  <ActivationStatusButton id={activation.id} label="Approve resource" status="active" />
+                  <ActivationStatusButton id={activation.id} label="Mark active" status="active" />
                 </div>
               </article>
             ))}

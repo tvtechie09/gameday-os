@@ -429,7 +429,7 @@ export default async function PilotLaunchPage({ searchParams }: PilotLaunchPageP
                 <SectionHeader note="Resources parents and operators can rely on today." title="Resource Summary" />
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <SummaryMini icon={<Radio className="h-4 w-4" aria-hidden="true" />} label="Active Resources" value={activeResources.length + activeActivations.length} />
-                  <SummaryMini icon={<Activity className="h-4 w-4" aria-hidden="true" />} label="Pending Activations" value={pendingActivations.length} />
+                  <SummaryMini icon={<Activity className="h-4 w-4" aria-hidden="true" />} label="Legacy Requests" value={pendingActivations.length} />
                 </div>
                 <div className="mt-5 grid gap-2">
                   {activeResourceLabels.length === 0 ? (

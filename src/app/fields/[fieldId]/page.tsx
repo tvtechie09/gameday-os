@@ -2,20 +2,15 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { getPublicFieldUrl } from "@/lib/public-url";
-import { getAudioModeLabel, getAudioProfileForField } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
-import { getActivationLabel, getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
-import { getResourcesForFieldPage, getResourceTypeLabel } from "@/lib/services/resources";
 import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
-import type { Alert, AudioProfile, Field, Organization, Resource, ResourceActivation, ScoreboardProfile, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
+import type { Alert, Field, Organization, ScoreboardProfile, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
-import { ResourceActivationForm } from "./resource-activation-form";
-import { VolunteerRoleForm } from "./volunteer-role-form";
 import { FieldPageViewTracker } from "./field-page-view-tracker";
 import { FollowButtons } from "./follow-buttons";
 
@@ -307,11 +302,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   let sessions: Session[] = [];
   let tournaments: Tournament[] = [];
   let activeAlerts: Alert[] = [];
-  let resources: Resource[] = [];
-  let activeActivations: ResourceActivation[] = [];
   let sponsorPlacements: SponsorPlacement[] = [];
   let scoreboardProfile: ScoreboardProfile | null = null;
-  let audioProfile: AudioProfile | null = null;
   let errorMessage: string | null = null;
 
   try {
@@ -329,25 +321,13 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
       tournaments = tournamentResults;
       activeAlerts = alertResults;
       const activeOrNextSession = getActiveOrNextSession(sessionResults);
-      [sponsorPlacements, resources, activeActivations, scoreboardProfile, audioProfile] = await Promise.all([
+      [sponsorPlacements, scoreboardProfile] = await Promise.all([
         getSponsorPlacementsForFieldPage({
           venueId: field.venueId,
           fieldId,
           sessionId: activeOrNextSession?.id,
         }),
-        getResourcesForFieldPage({
-          venueId: field.venueId,
-          fieldId,
-        }),
-        getActiveResourceActivationsForField({
-          fieldId,
-          sessionId: activeOrNextSession?.id,
-        }),
         getScoreboardProfileForField(fieldId),
-        getAudioProfileForField({
-          fieldId,
-          sessionId: activeOrNextSession?.id,
-        }),
       ]);
     }
   } catch (error) {
@@ -446,10 +426,6 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </p>
               </section>
             ) : null}
-
-            <AlertStack alerts={weatherAlerts} title="Venue status and weather" />
-
-            <AlertStack alerts={otherAlerts} title="Venue announcements" />
 
             <section
               className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-4 shadow-lg sm:p-6" : "rounded-lg border-2 bg-white p-4 shadow-md sm:p-6"}
@@ -577,27 +553,31 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               )}
             </section>
 
+            <AlertStack alerts={weatherAlerts} title="Operations Alerts" />
+
+            <AlertStack alerts={otherAlerts} title="Venue Announcements" />
+
             {field ? <FieldStatusBanner field={field} /> : null}
 
-            {!currentSession ? (
-              <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Score updates</p>
-                {scoreboardProfile ? (
-                  <>
-                    <p className="mt-1 text-base font-black">
-                      {scoreboardProfile.scoreboardStatus === "active" ? "Connected scoreboard" : "Manual score updates"}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                      {getScoreboardIntegrationModeLabel(scoreboardProfile.integrationMode)} · {getScoreboardStatusLabel(scoreboardProfile.scoreboardStatus)}
-                    </p>
-                  </>
+            <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5">
+              <h2 className="text-xl font-black">Today&apos;s Schedule</h2>
+              <div className="mt-4 grid gap-3">
+                {todayScheduleGroups.length > 0 ? (
+                  todayScheduleGroups.map((group) => (
+                    <div key={group.time} className="rounded-lg bg-[var(--background)] p-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{group.time}</p>
+                      <div className="mt-3 grid gap-3">
+                        {group.sessions.map((session) => <CompactSessionRow badge={getSessionBadge(session)} key={session.id} session={session} />)}
+                      </div>
+                    </div>
+                  ))
                 ) : (
-                  <p className="mt-1 text-base font-black">Live score updates from the field.</p>
+                  <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+                    No sessions today. Import or create a session.
+                  </p>
                 )}
-              </section>
-            ) : null}
-
-            {field ? <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} /> : null}
+              </div>
+            </section>
 
             {sponsorPlacements.length > 0 ? (
               <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm sm:p-6">
@@ -646,6 +626,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </div>
               </section>
             ) : null}
+
+            {field ? <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} /> : null}
 
             {shouldShowNextUpcoming && nextUpcomingSession ? (
               <section className="rounded-lg border border-[var(--line)] bg-white p-5">
@@ -702,26 +684,6 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               ) : null}
             </section>
 
-            <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5">
-              <h2 className="text-lg font-black">Today&apos;s Schedule</h2>
-              <div className="mt-4 grid gap-3">
-                {todayScheduleGroups.length > 0 ? (
-                  todayScheduleGroups.map((group) => (
-                    <div key={group.time} className="rounded-lg bg-[var(--background)] p-3">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{group.time}</p>
-                      <div className="mt-3 grid gap-3">
-                        {group.sessions.map((session) => <CompactSessionRow badge={getSessionBadge(session)} key={session.id} session={session} />)}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
-                    No sessions today. Import or create a session.
-                  </p>
-                )}
-              </div>
-            </section>
-
             <section className="rounded-lg border border-[var(--line)] bg-white p-5">
               <h2 className="text-lg font-black">Upcoming sessions</h2>
               <div className="mt-4 grid gap-3">
@@ -762,64 +724,6 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </div>
               </div>
             </section>
-
-            <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-              <h2 className="text-lg font-black">Available Resources</h2>
-              {audioProfile?.status === "active" ? (
-                <article className="mt-4 flex items-start gap-3 rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] p-4">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-black text-white">✓</span>
-                  <div>
-                    <h3 className="text-base font-black text-[var(--accent-strong)]">Audio available</h3>
-                    <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{getAudioModeLabel(audioProfile.audioMode)}</p>
-                  </div>
-                </article>
-              ) : null}
-              {resources.length > 0 ? (
-                <div className="mt-4 grid gap-3">
-                  {resources.map((resource) => (
-                    <article key={resource.id} className="flex items-start gap-3 rounded-lg bg-[var(--background)] p-4">
-                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-black text-white">✓</span>
-                      <div>
-                        <h3 className="text-base font-black">{getResourceTypeLabel(resource.resourceType)}</h3>
-                        <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{resource.resourceName}</p>
-                        {resource.notes ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{resource.notes}</p> : null}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : audioProfile?.status !== "active" ? (
-                <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
-                  No venue resources configured.
-                </p>
-              ) : null}
-            </section>
-
-            {activeActivations.length > 0 ? (
-              <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">LIVE RESOURCES</p>
-                <div className="mt-4 grid gap-3">
-                  {activeActivations.map((activation) => (
-                    <article key={activation.id} className="rounded-lg bg-[var(--background)] p-4">
-                      <p className="text-base font-black">✓ {getActivationLabel(activation.activationType)}</p>
-                      <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{activation.displayName}</p>
-                      {activation.resourceUrl ? (
-                        <a className="mt-3 inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" href={activation.resourceUrl} rel="noreferrer" target="_blank">
-                          Open Link
-                        </a>
-                      ) : null}
-                    </article>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {field && venue ? (
-              <VolunteerRoleForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
-            ) : null}
-
-            {field && venue ? (
-              <ResourceActivationForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
-            ) : null}
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5">
               <h2 className="text-lg font-black">Share Field Link</h2>

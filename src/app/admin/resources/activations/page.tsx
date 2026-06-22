@@ -25,10 +25,10 @@ export default async function ResourceActivationsPage() {
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Inventory</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Resource activations</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Community</p>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Community Contributions</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Review volunteer and parent resource activation requests.
+            Parent and volunteer contributions go live immediately. Use this screen to end contributions that are no longer useful.
           </p>
         </div>
         <Link href="/admin/resources" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
@@ -73,8 +73,8 @@ export default async function ResourceActivationsPage() {
               <div className="grid gap-2 sm:min-w-40">
                 {activation.status === "requested" ? (
                   <>
-                    <ActivationStatusButton id={activation.id} label="Approve" status="active" />
-                    <ActivationStatusButton id={activation.id} label="Reject" status="rejected" />
+                    <ActivationStatusButton id={activation.id} label="Mark Active" status="active" />
+                    <ActivationStatusButton id={activation.id} label="Remove" status="rejected" />
                     {activeSessionByFieldId.get(activation.fieldId) ? (
                       <AssignActivationButton id={activation.id} sessionId={activeSessionByFieldId.get(activation.fieldId)?.id ?? ""} />
                     ) : null}

@@ -289,7 +289,7 @@ export function LiveSessionDashboard({
       </section>
 
       <section className="rounded-lg border border-[var(--line)] bg-white p-5 sm:p-6">
-        <h2 className="text-xl font-black">Quick actions</h2>
+        <h2 className="text-xl font-black">Update Score</h2>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <button
             className="min-h-12 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -463,7 +463,7 @@ export function LiveSessionDashboard({
           onClick={() => void saveState(gameState, "Session changes saved.")}
           type="button"
         >
-          {isSaving ? "Saving..." : "Save changes"}
+          {isSaving ? "Updating..." : "Update Score"}
         </button>
       </div>
     </div>

@@ -116,16 +116,22 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
         {field ? (
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
-              href={`/fields/${field.id}`}
+              href="#score-entry"
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
             >
-              View public field
+              Launch Score Entry
             </Link>
             <Link
               href={getPublicScoreboardUrl(session.id)}
               className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white"
             >
-              Open scoreboard display
+              Update Display
+            </Link>
+            <Link
+              href={`/fields/${field.id}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
+            >
+              View Field Page
             </Link>
             <Link
               href={`/admin/scoreboards/display?session=${session.id}`}
@@ -176,7 +182,9 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
         <DemoScoreboardControls session={session} />
       </div>
 
-      <LiveSessionDashboard activeResources={activeResources} session={session} volunteerRoles={volunteerRoles} />
+      <div id="score-entry">
+        <LiveSessionDashboard activeResources={activeResources} session={session} volunteerRoles={volunteerRoles} />
+      </div>
     </section>
   );
 }
