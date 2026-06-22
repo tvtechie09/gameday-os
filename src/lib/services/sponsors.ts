@@ -178,12 +178,30 @@ export async function getSponsorAssignments(): Promise<SponsorAssignment[]> {
 
 export async function createSponsorAssignment(data: CreateSponsorAssignmentInput): Promise<SponsorAssignment> {
   const supabase = getSupabaseAdminClient();
+  const target = {
+    field_id: data.assignment_type === "field" ? readOptionalText(data.field_id) : null,
+    session_id: data.assignment_type === "session" ? readOptionalText(data.session_id) : null,
+    venue_id: data.assignment_type === "venue" ? readOptionalText(data.venue_id) : null,
+  };
+
+  if (data.assignment_type === "venue" && !target.venue_id) {
+    throw new Error("Venue assignments require a venue.");
+  }
+
+  if (data.assignment_type === "field" && !target.field_id) {
+    throw new Error("Field assignments require a field.");
+  }
+
+  if (data.assignment_type === "session" && !target.session_id) {
+    throw new Error("Session assignments require a session.");
+  }
+
   const assignment = {
     sponsor_id: data.sponsor_id,
     assignment_type: data.assignment_type,
-    venue_id: data.assignment_type === "venue" ? data.venue_id : null,
-    field_id: data.assignment_type === "field" ? data.field_id : null,
-    session_id: data.assignment_type === "session" ? data.session_id : null,
+    venue_id: target.venue_id,
+    field_id: target.field_id,
+    session_id: target.session_id,
     placement_label: data.placement_label,
   };
 

@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getPublicFieldUrl, getPublicVenueDisplayUrl, getPublicVenueUrl } from "@/lib/public-url";
-import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
+import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
 import { getFieldStatusClass, getFieldStatusLabel, getFields } from "@/lib/services/fields";
 import { getResourceTypeLabel, getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
@@ -36,6 +36,27 @@ function formatTime(value: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatAlertTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatRelativeUpdate(value: string) {
+  const diffMs = Date.now() - new Date(value).getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return "Updated just now";
+  if (diffMinutes < 60) return `Updated ${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `Updated ${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `Updated ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
 function isToday(value: string, now: Date) {
@@ -118,7 +139,25 @@ function getVenueSponsorCards({
   });
 }
 
-function AlertStack({ alerts, title }: { alerts: Alert[]; title: string }) {
+function getPublicRecentUpdates(alerts: Alert[]) {
+  const seenAllClear = new Set<string>();
+
+  return alerts.filter((alert) => !alert.isActive || isAlertExpired(alert)).filter((alert) => {
+    if (alert.title !== "All Clear") {
+      return true;
+    }
+
+    const key = `${alert.venueId}-${alert.title}`;
+    if (seenAllClear.has(key)) {
+      return false;
+    }
+
+    seenAllClear.add(key);
+    return true;
+  }).slice(0, 5);
+}
+
+function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; showState?: boolean; title: string }) {
   if (alerts.length === 0) {
     return null;
   }
@@ -128,9 +167,19 @@ function AlertStack({ alerts, title }: { alerts: Alert[]; title: string }) {
       <h2 className="px-1 text-xl font-black">{title}</h2>
       {alerts.map((alert) => (
         <article className={`rounded-lg border-2 p-5 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
-          <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+            {showState ? (
+              <span className="rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase">
+                {isAlertActive(alert) ? "Active" : isAlertExpired(alert) ? "Expired" : "Cleared"}
+              </span>
+            ) : null}
+          </div>
           <h2 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{alert.title}</h2>
           <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-7">{alert.message}</p>
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.12em] opacity-75">
+            Posted {formatAlertTime(alert.createdAt)} · {formatRelativeUpdate(alert.updatedAt)}
+          </p>
         </article>
       ))}
     </section>
@@ -180,6 +229,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
   let fields: Field[] = [];
   let sessions: Session[] = [];
   let alerts: Alert[] = [];
+  let allAlerts: Alert[] = [];
   let sponsors: Sponsor[] = [];
   let sponsorAssignments: SponsorAssignment[] = [];
   let resources: Resource[] = [];
@@ -188,11 +238,12 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
   try {
     venue = await getVenue(venueId);
     if (venue) {
-      const [organizationResult, allFields, allSessions, activeAlerts, allSponsors, allSponsorAssignments, allResources] = await Promise.all([
+      const [organizationResult, allFields, allSessions, activeAlerts, allAlertResults, allSponsors, allSponsorAssignments, allResources] = await Promise.all([
         venue.organizationId ? getOrganization(venue.organizationId) : Promise.resolve(null),
         getFields(),
         getSessions(),
         getActiveAlerts(),
+        getAlerts(),
         getSponsors(),
         getSponsorAssignments(),
         getResources(),
@@ -209,6 +260,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
           venueId,
         }).length > 0))
         : activeAlerts.filter((alert) => alert.venueId === venueId && alert.alertVisibility === "public");
+      allAlerts = allAlertResults.filter((alert) => alert.venueId === venueId && alert.alertVisibility === "public");
       sponsors = allSponsors;
       sponsorAssignments = allSponsorAssignments;
       resources = allResources.filter((resource) => resource.venueId === venueId && resource.status === "active");
@@ -250,6 +302,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
   const resourceTypes = [...new Map(resources.map((resource) => [resource.resourceType, resource])).values()];
   const weatherAlerts = alerts.filter((alert) => alert.alertType === "weather" || alert.alertType === "delay");
   const otherAlerts = alerts.filter((alert) => alert.alertType !== "weather" && alert.alertType !== "delay");
+  const recentUpdates = getPublicRecentUpdates(allAlerts);
 
   return (
     <section className="min-h-screen bg-white">
@@ -291,9 +344,9 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               </section>
             ) : null}
 
-            <AlertStack alerts={weatherAlerts} title="Venue status and weather" />
+            <AlertStack alerts={weatherAlerts} showState title="Venue status and weather" />
 
-            <AlertStack alerts={otherAlerts} title="Venue announcements" />
+            <AlertStack alerts={otherAlerts} showState title="Venue announcements" />
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -328,6 +381,8 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
                 )}
               </div>
             </section>
+
+            <AlertStack alerts={recentUpdates} showState title="Recent updates" />
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <h2 className="text-2xl font-black">Fields</h2>

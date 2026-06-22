@@ -4,6 +4,7 @@ import { alertTypes, getAlertLabel, getAlertPriorityLabel, getAlertScopeLabel, g
 import { getFields } from "@/lib/services/fields";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getVenues } from "@/lib/services/venues";
+import { clearAlertAction, clearAllActiveOperationsAlertsAction, expireAlertAction, hideAlertFromPublicAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,24 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
         </div>
       </form>
 
+      <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-black">Operations alert cleanup</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--muted)]">Close active delay, weather, emergency, and field closure alerts for one venue.</p>
+          </div>
+          <form action={clearAllActiveOperationsAlertsAction} className="flex flex-col gap-2 sm:flex-row">
+            <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" name="venue_id" required>
+              <option value="">Choose venue</option>
+              {venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}
+            </select>
+            <button className="min-h-11 rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white" type="submit">
+              Clear all active operations alerts
+            </button>
+          </form>
+        </div>
+      </section>
+
       {visibleAlerts.length > 0 ? (
         <div className="mt-8 grid gap-4">
           {visibleAlerts.map((alert) => (
@@ -126,9 +145,31 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
                     {formatDateTime(alert.startTime)} - {formatDateTime(alert.endTime)}
                   </p>
                 </div>
-                <Link href={`/admin/alerts/${alert.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-current bg-white/80 px-4 text-sm font-bold">
-                  Edit
-                </Link>
+                <div className="grid gap-2 sm:min-w-40">
+                  <Link href={`/admin/alerts/${alert.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-current bg-white/80 px-4 text-sm font-bold">
+                    Edit
+                  </Link>
+                  <form action={clearAlertAction}>
+                    <input name="alert_id" type="hidden" value={alert.id} />
+                    <button className="min-h-10 w-full rounded-lg border border-current bg-white/80 px-4 text-sm font-bold" type="submit">
+                      Clear alert
+                    </button>
+                  </form>
+                  <form action={expireAlertAction}>
+                    <input name="alert_id" type="hidden" value={alert.id} />
+                    <button className="min-h-10 w-full rounded-lg border border-current bg-white/80 px-4 text-sm font-bold" type="submit">
+                      Expire alert
+                    </button>
+                  </form>
+                  {alert.alertVisibility === "public" ? (
+                    <form action={hideAlertFromPublicAction}>
+                      <input name="alert_id" type="hidden" value={alert.id} />
+                      <button className="min-h-10 w-full rounded-lg border border-current bg-white/80 px-4 text-sm font-bold" type="submit">
+                        Hide from public
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
               </div>
             </article>
           ))}

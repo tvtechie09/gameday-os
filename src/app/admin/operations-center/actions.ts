@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAlert } from "@/lib/services/alerts";
+import { clearActiveOperationsAlerts, createAlert, hasRecentAllClearAlert } from "@/lib/services/alerts";
 import { updateFieldStatus } from "@/lib/services/fields";
 import type { AlertPriority, AlertType, FieldStatus } from "@/lib/types";
 
@@ -207,6 +207,30 @@ export async function createVenueStatusAction(formData: FormData): Promise<void>
   const config = operationConfigs[operationType];
   const endTime = addHours(new Date(), operationType === "normal_operations" || operationType === "all_clear" || operationType === "field_reopened" ? 2 : 8).toISOString();
 
+  if (operationType === "all_clear") {
+    await clearActiveOperationsAlerts(venueId);
+
+    if (affectedFieldIds.length > 0) {
+      await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, "open")));
+    }
+
+    if (!(await hasRecentAllClearAlert(venueId))) {
+      await createScopedAlert({
+        affectedFieldIds: [],
+        alertType: "info",
+        endTime,
+        message: message || config.message,
+        priority: "normal",
+        scopeMode: "all",
+        title: "All Clear",
+        venueId,
+      });
+    }
+
+    revalidateOperationSurfaces(affectedFieldIds);
+    return;
+  }
+
   await createScopedAlert({
     affectedFieldIds,
     alertType: config.alertType,
@@ -282,4 +306,37 @@ export async function createDelayUpdateAction(formData: FormData): Promise<void>
 
   await updateFieldStatus(fieldId, isOnTime ? "open" : "delayed");
   revalidateOperationSurfaces([fieldId]);
+}
+
+export async function resetAllFieldDelaysAction(formData: FormData): Promise<void> {
+  const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
+
+  await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open")));
+  revalidateOperationSurfaces(fieldIds);
+}
+
+export async function resetSelectedFieldDelayAction(formData: FormData): Promise<void> {
+  const fieldId = String(formData.get("field_id") ?? "").trim();
+
+  if (!fieldId) return;
+
+  await updateFieldStatus(fieldId, "open");
+  revalidateOperationSurfaces([fieldId]);
+}
+
+export async function reopenAllClosedFieldsAction(formData: FormData): Promise<void> {
+  const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
+
+  await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open")));
+  revalidateOperationSurfaces(fieldIds);
+}
+
+export async function clearActiveOperationsAlertsAction(formData: FormData): Promise<void> {
+  const venueId = String(formData.get("venue_id") ?? "").trim();
+  const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
+
+  if (!venueId) return;
+
+  await clearActiveOperationsAlerts(venueId);
+  revalidateOperationSurfaces(fieldIds);
 }

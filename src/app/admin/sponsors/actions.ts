@@ -32,12 +32,16 @@ export async function createSponsorAssignmentAction(formData: FormData): Promise
 
   try {
     const typedAssignmentType = assignmentType as SponsorAssignmentType;
+    const venueId = typedAssignmentType === "venue" ? targetId : null;
+    const fieldId = typedAssignmentType === "field" ? targetId : null;
+    const sessionId = typedAssignmentType === "session" ? targetId : null;
+
     const assignment = await createSponsorAssignment({
       sponsor_id: sponsorId,
       assignment_type: typedAssignmentType,
-      venue_id: typedAssignmentType === "venue" ? targetId : null,
-      field_id: typedAssignmentType === "field" ? targetId : null,
-      session_id: typedAssignmentType === "session" ? targetId : null,
+      venue_id: venueId,
+      field_id: fieldId,
+      session_id: sessionId,
       placement_label: placementLabel as SponsorPlacementLabel,
     });
 

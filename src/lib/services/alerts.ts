@@ -312,3 +312,62 @@ export async function updateAlert(id: string, data: UpdateAlertInput): Promise<A
 
   return mapAlert(alert);
 }
+
+export async function updateAlertLifecycle(id: string, data: { alert_visibility?: AlertVisibility; end_time?: string; is_active?: boolean }): Promise<Alert> {
+  const supabase = getSupabaseAdminClient();
+  const { data: alert, error } = await supabase
+    .from("alerts")
+    .update({
+      ...(data.alert_visibility ? { alert_visibility: readAlertVisibility(data.alert_visibility) } : {}),
+      ...(data.end_time ? { end_time: data.end_time } : {}),
+      ...(typeof data.is_active === "boolean" ? { is_active: data.is_active } : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(alertSelect)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return mapAlert(alert);
+}
+
+export async function clearActiveOperationsAlerts(venueId: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("alerts")
+    .update({
+      end_time: now,
+      is_active: false,
+      updated_at: now,
+    })
+    .eq("venue_id", venueId)
+    .eq("is_active", true)
+    .in("alert_type", ["weather", "delay", "emergency", "field_closure"]);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function hasRecentAllClearAlert(venueId: string, minutes = 10): Promise<boolean> {
+  const supabase = getSupabaseAdminClient();
+  const since = new Date();
+  since.setMinutes(since.getMinutes() - minutes);
+  const { data, error } = await supabase
+    .from("alerts")
+    .select("id")
+    .eq("venue_id", venueId)
+    .eq("title", "All Clear")
+    .gte("created_at", since.toISOString())
+    .limit(1);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).length > 0;
+}

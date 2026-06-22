@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { getPublicScoreboardUrl } from "@/lib/public-url";
 import { getField } from "@/lib/services/fields";
 import { getFollowCountForSession } from "@/lib/services/follows";
@@ -119,14 +120,15 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
               href="#score-entry"
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
             >
-              Launch Score Entry
+              Open Score Control
             </Link>
             <Link
               href={getPublicScoreboardUrl(session.id)}
               className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white"
             >
-              Update Display
+              Open Public Scoreboard
             </Link>
+            <CopyLinkButton label="Copy Scoreboard Link" value={getPublicScoreboardUrl(session.id)} />
             <Link
               href={`/fields/${field.id}`}
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"

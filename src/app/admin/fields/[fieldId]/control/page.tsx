@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { getPublicFieldScoreboardUrl, getPublicFieldUrl } from "@/lib/public-url";
+import { redirect } from "next/navigation";
+import { CopyLinkButton } from "@/components/copy-link-button";
+import { getPublicFieldScoreboardUrl, getPublicFieldUrl, getPublicScoreboardUrl } from "@/lib/public-url";
 import { getAudioModeLabel, getAudioProfileForField, getAudioStatusClass, getAudioStatusLabel } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { fieldStatuses, getField, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
@@ -8,7 +10,7 @@ import { getResourceActivations, getActivationLabel } from "@/lib/services/resou
 import { getResourcesForFieldPage, getResourceTypeLabel } from "@/lib/services/resources";
 import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusClass, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
 import { getSessionEvents, getSessionEventTypeLabel } from "@/lib/services/session-events";
-import { getSessionsByFieldId } from "@/lib/services/sessions";
+import { getSession, getSessionsByFieldId, updateSessionGameState } from "@/lib/services/sessions";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
 import { getVenue } from "@/lib/services/venues";
 import { getVolunteerRoleLabel, getVolunteerRoles } from "@/lib/services/volunteer-roles";
@@ -19,6 +21,9 @@ import { VolunteerStatusButton } from "../../../volunteers/status-button";
 type FieldControlPageProps = {
   params: Promise<{
     fieldId: string;
+  }>;
+  searchParams?: Promise<{
+    scoreStatus?: string;
   }>;
 };
 
@@ -39,14 +44,6 @@ function isActiveSession(session: Session) {
 
 function isUpcomingSession(session: Session) {
   return session.status === "scheduled" && new Date(session.startTime).getTime() > Date.now();
-}
-
-function getCurrentSession(sessions: Session[]) {
-  return (
-    sessions.find(isActiveSession)
-    ?? sessions.filter(isUpcomingSession).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0]
-    ?? null
-  );
 }
 
 function formatDateTime(value: string) {
@@ -109,8 +106,9 @@ function Scoreboard({ session }: { session: Session | null }) {
   );
 }
 
-export default async function FieldControlCenterPage({ params }: FieldControlPageProps) {
+export default async function FieldControlCenterPage({ params, searchParams }: FieldControlPageProps) {
   const { fieldId } = await params;
+  const resolvedSearchParams = await searchParams;
 
   async function updateControlFieldStatusAction(formData: FormData) {
     "use server";
@@ -126,6 +124,47 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
       revalidatePath(`/fields/${fieldId}`);
     } catch (error) {
       console.error("Failed to update field control status", error);
+    }
+  }
+
+  async function startControlledSessionAction(formData: FormData) {
+    "use server";
+
+    const sessionId = String(formData.get("session_id") ?? "").trim();
+    const session = sessionId ? await getSession(sessionId) : null;
+
+    if (!session) return;
+
+    let didStart = false;
+
+    try {
+      await updateSessionGameState(session.id, {
+        away_score: session.awayScore,
+        balls: session.balls,
+        game_status: "active",
+        home_score: session.homeScore,
+        inning: session.inning,
+        inning_half: session.inningHalf,
+        notes: session.notes,
+        outs: session.outs,
+        primary_link_label: session.primaryLinkLabel,
+        primary_link_url: session.primaryLinkUrl,
+        secondary_link_label: session.secondaryLinkLabel,
+        secondary_link_url: session.secondaryLinkUrl,
+        strikes: session.strikes,
+      });
+      revalidatePath(`/admin/fields/${fieldId}/control`);
+      revalidatePath(`/admin/sessions/${session.id}`);
+      revalidatePath(`/scoreboard/${session.id}`);
+      revalidatePath(`/scoreboard/field/${fieldId}`);
+      revalidatePath(`/fields/${fieldId}`);
+      didStart = true;
+    } catch (error) {
+      console.error("Failed to start controlled session", error);
+    }
+
+    if (didStart) {
+      redirect(`/admin/fields/${fieldId}/control?scoreStatus=started`);
     }
   }
 
@@ -152,7 +191,10 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
     getScoreboardProfileForField(fieldId),
     getAudioProfileForField({ fieldId }),
   ]);
-  const currentSession = getCurrentSession(sessions);
+  const activeSession = sessions.find(isActiveSession) ?? null;
+  const nextSession = sessions.filter(isUpcomingSession).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0] ?? null;
+  const currentSession = activeSession ?? nextSession;
+  const isControllingNextSession = Boolean(!activeSession && nextSession && currentSession?.id === nextSession.id);
   const [sponsorPlacements, timelineEvents] = await Promise.all([
     getSponsorPlacementsForFieldPage({
       fieldId,
@@ -201,7 +243,7 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
           </Link>
           {currentSession ? (
             <Link href={`/admin/sessions/${currentSession.id}`} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
-              Update Score
+              Open Score Control
             </Link>
           ) : null}
           <Link href="/admin/alerts/new" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
@@ -211,6 +253,11 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
       </div>
 
       <section className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        {resolvedSearchParams?.scoreStatus === "started" ? (
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm font-black text-green-900 lg:col-span-2">
+            Session is active. Score control and the public scoreboard are ready.
+          </div>
+        ) : null}
         <Scoreboard session={currentSession} />
         <section className="rounded-lg border border-[var(--line)] bg-white p-5">
           <h2 className="text-xl font-black">Field details</h2>
@@ -234,6 +281,42 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
             <button className="min-h-12 rounded-lg bg-[var(--accent)] px-5 text-sm font-bold text-white sm:self-end" type="submit">Update</button>
           </form>
         </section>
+      </section>
+
+      <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Current Control Target</p>
+        {currentSession ? (
+          <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-black">{currentSession.title}</h2>
+              <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
+                {isControllingNextSession ? "Next session ready to start" : "Live session being controlled"} · {formatDateTime(currentSession.startTime)}
+              </p>
+              <p className="mt-2 text-sm font-black">{currentSession.homeTeam} vs. {currentSession.awayTeam}</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[420px]">
+              {isControllingNextSession ? (
+                <form action={startControlledSessionAction}>
+                  <input name="session_id" type="hidden" value={currentSession.id} />
+                  <button className="min-h-12 w-full rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" type="submit">
+                    Set as active / start game
+                  </button>
+                </form>
+              ) : null}
+              <Link href={`/admin/sessions/${currentSession.id}#score-entry`} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white">
+                Open Score Control
+              </Link>
+              <Link href={getPublicScoreboardUrl(currentSession.id)} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-black">
+                Open Public Scoreboard
+              </Link>
+              <CopyLinkButton label="Copy Scoreboard Link" value={getPublicScoreboardUrl(currentSession.id)} />
+            </div>
+          </div>
+        ) : (
+          <p className="mt-3 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+            No active or upcoming session exists for this field.
+          </p>
+        )}
       </section>
 
       <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
@@ -274,11 +357,12 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
         {currentSession ? (
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <Link href={`/admin/sessions/${currentSession.id}#score-entry`} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
-              Launch Score Entry
+              Open Score Control
             </Link>
             <Link href={getPublicFieldScoreboardUrl(field.id)} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold text-[var(--foreground)]">
-              Update Display
+              Open Public Scoreboard
             </Link>
+            <CopyLinkButton label="Copy Scoreboard Link" value={getPublicScoreboardUrl(currentSession.id)} />
           </div>
         ) : (
           <p className="mt-5 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">

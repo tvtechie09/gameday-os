@@ -4,7 +4,7 @@ import { getFields, getFieldStatusClass, getFieldStatusLabel } from "@/lib/servi
 import { getVenues } from "@/lib/services/venues";
 import { getWeatherProfiles, getWeatherSourceLabel, getWeatherStatusClass, getWeatherStatusLabel } from "@/lib/services/weather-profiles";
 import type { Alert, Field, Venue, WeatherProfile } from "@/lib/types";
-import { createDelayUpdateAction, createVenueAnnouncementAction, createVenueStatusAction, type VenueOperationType } from "./actions";
+import { clearActiveOperationsAlertsAction, createDelayUpdateAction, createVenueAnnouncementAction, createVenueStatusAction, reopenAllClosedFieldsAction, resetAllFieldDelaysAction, resetSelectedFieldDelayAction, type VenueOperationType } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -271,6 +271,61 @@ function DelayTracking({ fields, venueId }: { fields: Field[]; venueId: string }
   );
 }
 
+function ResetControls({ fields, venueId }: { fields: Field[]; venueId: string }) {
+  return (
+    <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Field Conditions Reset</p>
+        <h2 className="mt-1 text-2xl font-black">Quick resets</h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Use these when the venue returns to normal or field conditions are corrected.</p>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <form action={resetAllFieldDelaysAction}>
+          {fields.map((field) => <input key={field.id} name="all_field_ids" type="hidden" value={field.id} />)}
+          <button className="min-h-14 w-full rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" type="submit">
+            Reset all field delays to On Time
+          </button>
+        </form>
+        <form action={reopenAllClosedFieldsAction}>
+          {fields.filter((field) => field.status === "closed").map((field) => <input key={field.id} name="all_field_ids" type="hidden" value={field.id} />)}
+          <button className="min-h-14 w-full rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white" type="submit">
+            Reopen all closed fields
+          </button>
+        </form>
+        <form action={clearActiveOperationsAlertsAction}>
+          <input name="venue_id" type="hidden" value={venueId} />
+          {fields.map((field) => <input key={field.id} name="all_field_ids" type="hidden" value={field.id} />)}
+          <button className="min-h-14 w-full rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-black" type="submit">
+            Clear active operations alerts
+          </button>
+        </form>
+        <form action={createVenueStatusAction}>
+          <input name="venue_id" type="hidden" value={venueId} />
+          <input name="operation_type" type="hidden" value="all_clear" />
+          <input name="title" type="hidden" value="All Clear" />
+          <input name="message" type="hidden" value="All clear. Games may resume." />
+          <input name="scope_mode" type="hidden" value="all" />
+          {fields.map((field) => <input key={field.id} name="all_field_ids" type="hidden" value={field.id} />)}
+          <button className="min-h-14 w-full rounded-lg border border-green-200 bg-green-50 px-4 text-sm font-black text-green-900" type="submit">
+            All Clear
+          </button>
+        </form>
+      </div>
+      <div className="mt-5 grid gap-3">
+        {fields.map((field) => (
+          <form action={resetSelectedFieldDelayAction} className="grid gap-2 rounded-lg bg-[var(--background)] p-3 sm:grid-cols-[1fr_auto] sm:items-center" key={field.id}>
+            <input name="field_id" type="hidden" value={field.id} />
+            <p className="font-black">{field.name}</p>
+            <button className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-black" type="submit">
+              Reset selected field delay
+            </button>
+          </form>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function inferVenueStatus(activeAlerts: Alert[], closedFields: number, delayedFields: number) {
   if (activeAlerts.some((alert) => alert.alertType === "emergency")) return "Emergency";
   if (closedFields > 0 || activeAlerts.some((alert) => alert.alertType === "field_closure")) return "Closed";
@@ -283,6 +338,18 @@ function formatDateTime(value: string) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function getHistoryStatusChange(alert: Alert) {
+  if (alert.title === "All Clear" || alert.title === "Normal Operations") return "Normal Operations";
+  if (alert.alertType === "emergency") return "Emergency";
+  if (alert.alertType === "field_closure") return "Closed";
+  if (alert.alertType === "delay" || alert.alertType === "weather") return "Delay";
+  return "Announcement";
+}
+
+function getHistoryUser(alert: Alert) {
+  return alert.title === "All Clear" ? "Operations Center" : "Venue Operator";
 }
 
 export default async function OperationsCenterPage({ searchParams }: OperationsCenterPageProps) {
@@ -385,6 +452,10 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
             <DelayTracking fields={venueFields} venueId={selectedVenue.id} />
           </div>
 
+          <div className="mt-8">
+            <ResetControls fields={venueFields} venueId={selectedVenue.id} />
+          </div>
+
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -409,15 +480,25 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
           </section>
 
           <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-black">Operations history</h2>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Current Status</p>
+                <h2 className="mt-1 text-xl font-black">{venueStatus}</h2>
+              </div>
+              <p className="text-sm font-bold text-[var(--muted)]">Recent Updates</p>
+            </div>
             <div className="mt-4 grid gap-3">
               {history.length > 0 ? history.map((alert) => (
                 <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={alert.id}>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{getAlertLabel(alert.alertType)}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-md bg-white px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">{getAlertLabel(alert.alertType)}</span>
+                        <span className="rounded-md bg-white px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">{getHistoryStatusChange(alert)}</span>
+                      </div>
                       <h3 className="mt-1 text-base font-black">{alert.title}</h3>
                       <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{alert.message}</p>
+                      <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">User: {getHistoryUser(alert)}</p>
                     </div>
                     <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">{formatDateTime(alert.createdAt)}</p>
                   </div>

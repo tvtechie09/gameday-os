@@ -58,7 +58,7 @@ export default async function ResourceActivationsPage() {
                 {activation.notes ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{activation.notes}</p> : null}
                 {activation.approvedAt ? (
                   <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
-                    Approved by {activation.approvedBy ?? "Admin"} · {formatDateTime(activation.approvedAt)}
+                    Shared by {activation.approvedBy ?? "Community"} · {formatDateTime(activation.approvedAt)}
                   </p>
                 ) : null}
                 {activation.assignedToSession ? (
@@ -88,7 +88,7 @@ export default async function ResourceActivationsPage() {
             </div>
           </article>
         )) : (
-          <p className="rounded-lg border border-[var(--line)] bg-white p-5 text-sm leading-6 text-[var(--muted)]">No activation requests yet.</p>
+          <p className="rounded-lg border border-[var(--line)] bg-white p-5 text-sm leading-6 text-[var(--muted)]">No community contributions yet.</p>
         )}
       </div>
     </section>

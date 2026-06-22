@@ -93,7 +93,7 @@ export default async function ResourceUtilizationDashboard({ searchParams }: Res
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Resources</p>
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">Resource utilization dashboard</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)]">
-            Track active parent-attached resources and pending requests across every venue and field.
+            Track active community contributions across every venue and field.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -109,7 +109,7 @@ export default async function ResourceUtilizationDashboard({ searchParams }: Res
       <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Total Resources" note="Inventory records" value={resources.length} />
         <SummaryCard label="Active Resources" note="Live attachments" value={activeActivations.length} />
-        <SummaryCard label="Legacy Requests" note="Older items not yet active" value={pendingActivations.length} />
+        <SummaryCard label="Legacy Items" note="Older items not yet active" value={pendingActivations.length} />
         <SummaryCard label="Fields With Active Resources" note="Fields currently supported" value={fieldsWithActiveResources.size} />
       </section>
 

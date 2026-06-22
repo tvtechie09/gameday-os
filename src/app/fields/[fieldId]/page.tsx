@@ -2,17 +2,19 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { getPublicFieldUrl } from "@/lib/public-url";
-import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
+import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
+import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
 import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
-import type { Alert, Field, Organization, ScoreboardProfile, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
+import type { Alert, Field, Organization, ResourceActivation, ScoreboardProfile, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
 import { FieldPageViewTracker } from "./field-page-view-tracker";
 import { FollowButtons } from "./follow-buttons";
+import { ResourceActivationForm } from "./resource-activation-form";
 
 type FieldPageProps = {
   params: Promise<{
@@ -33,6 +35,27 @@ function formatTimeOnly(value: string) {
   return new Intl.DateTimeFormat("en", {
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatAlertTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatRelativeUpdate(value: string) {
+  const diffMs = Date.now() - new Date(value).getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return "Updated just now";
+  if (diffMinutes < 60) return `Updated ${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `Updated ${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `Updated ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
 function getActiveOrNextSession(sessions: Session[]) {
@@ -108,6 +131,24 @@ function getTodaysSchedule(sessions: Session[]) {
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 }
 
+function getPublicRecentUpdates(alerts: Alert[]) {
+  const seenAllClear = new Set<string>();
+
+  return alerts.filter((alert) => !alert.isActive || isAlertExpired(alert)).filter((alert) => {
+    if (alert.title !== "All Clear") {
+      return true;
+    }
+
+    const key = `${alert.venueId}-${alert.fieldId ?? "venue"}-${alert.title}`;
+    if (seenAllClear.has(key)) {
+      return false;
+    }
+
+    seenAllClear.add(key);
+    return true;
+  }).slice(0, 5);
+}
+
 function groupSessionsByTime(sessions: Session[]) {
   return sessions.reduce<Array<{ time: string; sessions: Session[] }>>((groups, session) => {
     const time = formatTimeOnly(session.startTime);
@@ -168,7 +209,7 @@ function TournamentBadge({ tournament }: { tournament: Tournament }) {
   );
 }
 
-function AlertStack({ alerts, title }: { alerts: Alert[]; title: string }) {
+function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; showState?: boolean; title: string }) {
   if (alerts.length === 0) {
     return null;
   }
@@ -178,11 +219,44 @@ function AlertStack({ alerts, title }: { alerts: Alert[]; title: string }) {
       <h2 className="px-1 text-xl font-black">{title}</h2>
       {alerts.map((alert) => (
         <article className={`rounded-lg border-2 p-4 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
-          <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+            {showState ? (
+              <span className="rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase">
+                {isAlertActive(alert) ? "Active" : isAlertExpired(alert) ? "Expired" : "Cleared"}
+              </span>
+            ) : null}
+          </div>
           <h2 className="mt-1 text-2xl font-black leading-tight">{alert.title}</h2>
           <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-7">{alert.message}</p>
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.12em] opacity-75">
+            Posted {formatAlertTime(alert.createdAt)} · {formatRelativeUpdate(alert.updatedAt)}
+          </p>
         </article>
       ))}
+    </section>
+  );
+}
+
+function CommunityLinks({ links }: { links: ResourceActivation[] }) {
+  const visibleLinks = links.filter((link) => link.resourceUrl);
+
+  if (visibleLinks.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Community</p>
+      <h2 className="mt-1 text-xl font-black">Community Links</h2>
+      <div className="mt-4 grid gap-3">
+        {visibleLinks.map((link) => (
+          <a className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4 text-sm font-black text-[var(--foreground)]" href={link.resourceUrl ?? "#"} key={link.id} rel="noreferrer" target="_blank">
+            {link.displayName}
+            {link.notes ? <span className="mt-1 block text-sm font-semibold leading-6 text-[var(--muted)]">{link.notes}</span> : null}
+          </a>
+        ))}
+      </div>
     </section>
   );
 }
@@ -302,6 +376,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   let sessions: Session[] = [];
   let tournaments: Tournament[] = [];
   let activeAlerts: Alert[] = [];
+  let allAlerts: Alert[] = [];
+  let communityLinks: ResourceActivation[] = [];
   let sponsorPlacements: SponsorPlacement[] = [];
   let scoreboardProfile: ScoreboardProfile | null = null;
   let errorMessage: string | null = null;
@@ -309,25 +385,28 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   try {
     field = await getField(fieldId);
     if (field) {
-      const [venueResult, sessionResults, tournamentResults, alertResults] = await Promise.all([
+      const [venueResult, sessionResults, tournamentResults, alertResults, allAlertResults] = await Promise.all([
         getVenue(field.venueId),
         getSessionsByFieldId(fieldId),
         getTournaments(),
         getActiveAlerts(),
+        getAlerts(),
       ]);
       venue = venueResult;
       organization = venueResult?.organizationId ? await getOrganization(venueResult.organizationId) : null;
       sessions = sessionResults;
       tournaments = tournamentResults;
       activeAlerts = alertResults;
+      allAlerts = allAlertResults;
       const activeOrNextSession = getActiveOrNextSession(sessionResults);
-      [sponsorPlacements, scoreboardProfile] = await Promise.all([
+      [sponsorPlacements, scoreboardProfile, communityLinks] = await Promise.all([
         getSponsorPlacementsForFieldPage({
           venueId: field.venueId,
           fieldId,
           sessionId: activeOrNextSession?.id,
         }),
         getScoreboardProfileForField(fieldId),
+        getActiveResourceActivationsForField({ fieldId, sessionId: activeOrNextSession?.id }),
       ]);
     }
   } catch (error) {
@@ -355,6 +434,14 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
     : [];
   const weatherAlerts = publicAlerts.filter((alert) => alert.alertType === "weather" || alert.alertType === "delay");
   const otherAlerts = publicAlerts.filter((alert) => alert.alertType !== "weather" && alert.alertType !== "delay");
+  const recentUpdates = field
+    ? getPublicRecentUpdates(filterAlertsForFieldPage({
+      alerts: allAlerts,
+      venueId: field.venueId,
+      fieldId,
+      tournamentId: currentSession?.tournamentId,
+    }))
+    : [];
   const trackedSponsorIds = [...new Set(sponsorPlacements.map((placement) => placement.sponsorId))];
   const topSessionLabel = currentSessionBadge === "FINAL" ? "Final score" : "Current / Next Game";
   const primaryColor = venue?.primaryColor ?? organization?.primaryColor ?? "#166534";
@@ -426,6 +513,27 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </p>
               </section>
             ) : null}
+
+            {field ? (
+              <section className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Current Status</p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-black">{field.name}</h2>
+                    <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{venue?.name ?? "Venue unavailable"}</p>
+                  </div>
+                  <span className={`w-fit rounded-md px-3 py-2 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
+                    {getFieldStatusLabel(field.status)}
+                  </span>
+                </div>
+              </section>
+            ) : null}
+
+            {field ? <FieldStatusBanner field={field} /> : null}
+
+            <AlertStack alerts={weatherAlerts} showState title="Active Alerts" />
+
+            <AlertStack alerts={otherAlerts} showState title="Venue Announcements" />
 
             <section
               className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-4 shadow-lg sm:p-6" : "rounded-lg border-2 bg-white p-4 shadow-md sm:p-6"}
@@ -553,11 +661,14 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               )}
             </section>
 
-            <AlertStack alerts={weatherAlerts} title="Operations Alerts" />
-
-            <AlertStack alerts={otherAlerts} title="Venue Announcements" />
-
-            {field ? <FieldStatusBanner field={field} /> : null}
+            {shouldShowNextUpcoming && nextUpcomingSession ? (
+              <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+                <h2 className="text-lg font-black">Next Game</h2>
+                <div className="mt-4">
+                  <CompactSessionRow badge={getSessionBadge(nextUpcomingSession)} session={nextUpcomingSession} />
+                </div>
+              </section>
+            ) : null}
 
             <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5">
               <h2 className="text-xl font-black">Today&apos;s Schedule</h2>
@@ -627,16 +738,15 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </section>
             ) : null}
 
-            {field ? <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} /> : null}
+            <CommunityLinks links={communityLinks} />
 
-            {shouldShowNextUpcoming && nextUpcomingSession ? (
-              <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-                <h2 className="text-lg font-black">Next Upcoming Session</h2>
-                <div className="mt-4">
-                  <CompactSessionRow badge={getSessionBadge(nextUpcomingSession)} session={nextUpcomingSession} />
-                </div>
-              </section>
+            {field && venue ? (
+              <ResourceActivationForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
             ) : null}
+
+            <AlertStack alerts={recentUpdates} showState title="Recent updates" />
+
+            {field ? <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} /> : null}
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5">
               <h2 className="text-lg font-black">Find This Field</h2>
