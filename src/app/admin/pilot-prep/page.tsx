@@ -330,7 +330,7 @@ export default async function PilotPrepPage({ searchParams }: PilotPrepPageProps
                   </div>
                 </article>
               )) : (
-                <p className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4 text-sm font-semibold text-[var(--muted)]">No fields are configured for this venue yet.</p>
+                <p className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4 text-sm font-semibold text-[var(--muted)]">No fields yet. Add your first field.</p>
               )}
             </div>
           </section>

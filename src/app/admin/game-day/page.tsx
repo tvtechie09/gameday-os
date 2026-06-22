@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CloudSun } from "lucide-react";
 import { getPublicFieldUrl, getPublicVenueDisplayUrl } from "@/lib/public-url";
 import { getAudioModeLabel, getAudioProfiles, getAudioStatusClass, getAudioStatusLabel } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts } from "@/lib/services/alerts";
@@ -9,7 +10,8 @@ import { getSessions } from "@/lib/services/sessions";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoles } from "@/lib/services/volunteer-roles";
-import type { Alert, AudioProfile, Field, ResourceActivation, ScoreboardProfile, Session, Tournament, Venue, VolunteerRole } from "@/lib/types";
+import { getWeatherProfiles, getWeatherStatusClass, getWeatherStatusLabel } from "@/lib/services/weather-profiles";
+import type { Alert, AudioProfile, Field, ResourceActivation, ScoreboardProfile, Session, Tournament, Venue, VolunteerRole, WeatherProfile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +98,15 @@ function SummaryCard({ label, note, value }: { label: string; note: string; valu
       <p className="mt-2 text-4xl font-black leading-none tabular-nums">{value}</p>
       <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{note}</p>
     </article>
+  );
+}
+
+function WeatherPlaceholder({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white p-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">{label}</p>
+      <p className="mt-1 text-sm font-black">{value}</p>
+    </div>
   );
 }
 
@@ -194,6 +205,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
     safeLoad<ScoreboardProfile>("scoreboard profiles", getScoreboardProfiles),
     safeLoad<AudioProfile>("audio profiles", getAudioProfiles),
   ]);
+  const weatherProfiles = await safeLoad<WeatherProfile>("weather profiles", getWeatherProfiles);
 
   const filteredFields = fields.filter((field) => !selectedVenueId || field.venueId === selectedVenueId);
   const filteredSessions = sessions.filter((session) => {
@@ -225,6 +237,8 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
   const configuredScoreboards = fieldCards.filter((card) => card.scoreboardProfile).length;
   const activeAudioFields = fieldCards.filter((card) => card.audioProfile?.status === "active").length;
   const displayVenueId = selectedVenueId || venues[0]?.id || "";
+  const weatherProfilesByVenueId = new Map(weatherProfiles.map((profile) => [profile.venueId, profile]));
+  const selectedWeatherProfiles = selectedVenueId ? weatherProfiles.filter((profile) => profile.venueId === selectedVenueId) : weatherProfiles.slice(0, 4);
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -245,8 +259,14 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
           <Link href="/admin/status-board" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Open Status Board
           </Link>
+          <Link href="/admin/operations-center" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-950">
+            Venue Operations
+          </Link>
           <Link href="/admin/resources/dashboard" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
             Open Resource Dashboard
+          </Link>
+          <Link href="/admin/alerts/new?weather_delay=true" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-950">
+            Create Weather Delay Alert
           </Link>
         </div>
       </div>
@@ -278,6 +298,49 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
           <Link href="/admin/game-day" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">Clear</Link>
         </div>
       </form>
+
+      <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Weather</p>
+            <h2 className="mt-1 text-xl font-black">Venue weather awareness</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Manual placeholder status for rain, lightning, and game day weather checks.</p>
+          </div>
+          <Link href="/admin/weather" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+            Manage Weather
+          </Link>
+          <Link href="/admin/operations-center" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
+            Venue Operations
+          </Link>
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          {selectedWeatherProfiles.length > 0 ? selectedWeatherProfiles.map((profile) => {
+            const venue = venues.find((item) => item.id === profile.venueId);
+
+            return (
+              <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={profile.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black">{venue?.name ?? "Venue unavailable"}</p>
+                    <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{profile.locationName}</p>
+                  </div>
+                  <span className={`rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getWeatherStatusClass(profile.status)}`}>
+                    {getWeatherStatusLabel(profile.status)}
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <WeatherPlaceholder label="Condition" value="Manual check" />
+                  <WeatherPlaceholder label="Temp" value="Pending" />
+                  <WeatherPlaceholder label="Rain / Lightning" value="Not automated" />
+                  <WeatherPlaceholder label="Last checked" value="Manual" />
+                </div>
+              </article>
+            );
+          }) : (
+            <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No weather profiles configured yet.</p>
+          )}
+        </div>
+      </section>
 
       <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
         <SummaryCard label="Active Games" note="Live now" value={activeGames.length} />
@@ -356,6 +419,20 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Volunteers</p>
                     <p className="mt-1 text-xl font-black">{card.activeVolunteersCount}</p>
                   </div>
+                </div>
+
+                <div className="mt-3 rounded-lg bg-white p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Weather</p>
+                  {weatherProfilesByVenueId.get(card.field.venueId) ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <CloudSun className="h-4 w-4 text-[var(--accent-strong)]" aria-hidden="true" />
+                      <span className={`w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getWeatherStatusClass(weatherProfilesByVenueId.get(card.field.venueId)!.status)}`}>
+                        {getWeatherStatusLabel(weatherProfilesByVenueId.get(card.field.venueId)!.status)}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm font-black text-slate-700">Not configured</p>
+                  )}
                 </div>
 
                 <div className="mt-3 rounded-lg bg-white p-3">

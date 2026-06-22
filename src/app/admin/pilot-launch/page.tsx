@@ -334,6 +334,7 @@ export default async function PilotLaunchPage({ searchParams }: PilotLaunchPageP
                 <ActionLink href="#field-pages" label="Open Field Pages" />
                 <ActionLink href="/admin/game-day" label="Open Game Day Center" />
                 <ActionLink href="/admin/status-board" label="Open Status Board" />
+                <ActionLink href="/admin/operations-center" label="Open Venue Operations" />
                 <ActionLink href="/admin/pilot-script" label="Open Pilot Test Script" />
                 <ActionLink href="/admin/system-health" label="Open System Health" />
                 <ActionLink href="/admin/schema-audit" label="Open Schema Audit" />
@@ -365,7 +366,7 @@ export default async function PilotLaunchPage({ searchParams }: PilotLaunchPageP
                 <SectionHeader note="Field-level operational state at a glance." title="Field Snapshot" />
                 <div className="mt-5 grid gap-3">
                   {venueFields.length === 0 ? (
-                    <EmptyState>No fields are configured for this venue yet.</EmptyState>
+                    <EmptyState>No fields yet. Add your first field.</EmptyState>
                   ) : venueFields.map((field) => {
                     const currentSession = activeSessions.find((session) => session.fieldId === field.id);
                     const nextSession = nextSessionsByField.get(field.id);

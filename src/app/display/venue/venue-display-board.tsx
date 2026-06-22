@@ -139,14 +139,17 @@ export function VenueDisplayBoard({
         </header>
 
         {payload.alerts.length > 0 ? (
-          <section className={`grid gap-3 ${compact ? "lg:grid-cols-2" : "xl:grid-cols-2"}`}>
-            {payload.alerts.slice(0, compact ? 2 : 4).map((alert) => (
-              <article className={`rounded-2xl border-2 p-4 shadow-xl sm:p-5 ${alertTone(alert.alertType, dark)}`} key={alert.id}>
-                <p className="text-xs font-black uppercase tracking-[0.2em]">{alertLabel(alert.alertType)} · {alert.alertPriority.toUpperCase()}</p>
-                <h2 className="mt-2 text-2xl font-black leading-tight sm:text-4xl">{alert.title}</h2>
-                {!compact ? <p className="mt-2 text-base font-semibold leading-7">{alert.message}</p> : null}
-              </article>
-            ))}
+          <section>
+            <p className={`mb-3 text-sm font-black uppercase tracking-[0.2em] ${mutedClass}`}>Venue Status and Announcements</p>
+            <div className={`grid gap-3 ${compact ? "lg:grid-cols-2" : "xl:grid-cols-2"}`}>
+              {payload.alerts.slice(0, compact ? 2 : 4).map((alert) => (
+                <article className={`rounded-2xl border-2 p-4 shadow-xl sm:p-5 ${alertTone(alert.alertType, dark)}`} key={alert.id}>
+                  <p className="text-xs font-black uppercase tracking-[0.2em]">{alertLabel(alert.alertType)} · {alert.alertPriority.toUpperCase()}</p>
+                  <h2 className="mt-2 text-2xl font-black leading-tight sm:text-4xl">{alert.title}</h2>
+                  {!compact ? <p className="mt-2 text-base font-semibold leading-7">{alert.message}</p> : null}
+                </article>
+              ))}
+            </div>
           </section>
         ) : null}
 
@@ -199,7 +202,7 @@ export function VenueDisplayBoard({
                 </article>
               )) : (
                 <div className={`rounded-2xl border p-8 text-center ${panelClass}`}>
-                  <p className="text-3xl font-black">No fields configured</p>
+                  <p className="text-3xl font-black">No fields yet. Add your first field.</p>
                 </div>
               )}
             </div>
@@ -221,7 +224,7 @@ export function VenueDisplayBoard({
                     </div>
                   </article>
                 )) : (
-                  <p className={`rounded-xl border p-4 text-sm font-bold ${panelClass} ${mutedClass}`}>No sessions scheduled today.</p>
+                  <p className={`rounded-xl border p-4 text-sm font-bold ${panelClass} ${mutedClass}`}>No sessions today. Import or create a session.</p>
                 )}
               </div>
             </section>

@@ -201,6 +201,19 @@ create table if not exists public.audio_profiles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.weather_profiles (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  location_name text not null,
+  latitude double precision,
+  longitude double precision,
+  weather_source text not null default 'manual' check (weather_source in ('manual', 'national_weather_service', 'weatherkit', 'other')),
+  status text not null default 'not_configured' check (status in ('not_configured', 'configured', 'monitoring', 'paused', 'offline')),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.session_events (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references public.sessions(id) on delete cascade,
@@ -366,6 +379,9 @@ create index if not exists audio_profiles_venue_id_idx on public.audio_profiles(
 create index if not exists audio_profiles_field_id_idx on public.audio_profiles(field_id);
 create index if not exists audio_profiles_session_id_idx on public.audio_profiles(session_id);
 create index if not exists audio_profiles_status_idx on public.audio_profiles(status);
+create index if not exists weather_profiles_venue_id_idx on public.weather_profiles(venue_id);
+create index if not exists weather_profiles_status_idx on public.weather_profiles(status);
+create index if not exists weather_profiles_source_idx on public.weather_profiles(weather_source);
 create index if not exists resource_activations_venue_id_idx on public.resource_activations(venue_id);
 create index if not exists resource_activations_field_id_idx on public.resource_activations(field_id);
 create index if not exists resource_activations_session_id_idx on public.resource_activations(session_id);
@@ -432,6 +448,7 @@ alter table public.resources enable row level security;
 alter table public.scoreboard_profiles enable row level security;
 alter table public.scoreboard_adapters enable row level security;
 alter table public.audio_profiles enable row level security;
+alter table public.weather_profiles enable row level security;
 alter table public.resource_activations enable row level security;
 alter table public.volunteer_roles enable row level security;
 alter table public.tournaments enable row level security;
@@ -493,6 +510,19 @@ create policy "Public can read scoreboard adapters"
 create policy "Public can read audio profiles"
   on public.audio_profiles for select
   using (true);
+
+create policy "Public can read weather profiles"
+  on public.weather_profiles for select
+  using (true);
+
+create policy "Public can create weather profiles"
+  on public.weather_profiles for insert
+  with check (true);
+
+create policy "Public can update weather profiles"
+  on public.weather_profiles for update
+  using (true)
+  with check (true);
 
 create policy "Public can read resource activations"
   on public.resource_activations for select

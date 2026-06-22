@@ -195,6 +195,14 @@ export default async function StatusBoardPage() {
           </div>
         </div>
       </div>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <Link href="/admin/operations-center" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-950">
+          Venue Operations
+        </Link>
+        <Link href="/admin/game-day" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          Game Day Center
+        </Link>
+      </div>
 
       <div className="mt-8 grid gap-8">
         {board.map((group) => (
@@ -288,7 +296,7 @@ export default async function StatusBoardPage() {
               </div>
             ) : (
               <p className="mt-4 rounded-lg border border-[var(--line)] bg-white p-5 text-sm leading-6 text-[var(--muted)]">
-                No fields have been added for this venue.
+                No fields yet. Add your first field.
               </p>
             )}
           </section>

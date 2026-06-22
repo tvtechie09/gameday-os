@@ -15,6 +15,8 @@ export type ResourceType = "camera" | "audio" | "scoreboard" | "display" | "netw
 export type ResourceStatus = "active" | "inactive" | "maintenance" | "unknown";
 export type AudioMode = "none" | "parent_speaker" | "venue_pa" | "bluetooth_speaker" | "obs_audio" | "future_integration";
 export type AudioProfileStatus = "not_configured" | "configured" | "testing" | "active" | "offline";
+export type WeatherProfileStatus = "not_configured" | "configured" | "monitoring" | "paused" | "offline";
+export type WeatherSource = "manual" | "national_weather_service" | "weatherkit" | "other";
 export type ScoreboardConnectionType = "manual" | "network" | "serial" | "controller_bridge" | "cloud_api" | "obs_overlay" | "unknown";
 export type ScoreboardIntegrationMode = "manual_only" | "read_only" | "write_to_scoreboard" | "write_to_overlay" | "future_hardware";
 export type ScoreboardStatus = "not_configured" | "configured" | "testing" | "active" | "offline";
@@ -200,6 +202,19 @@ export interface AudioProfile {
   speakerType: string | null;
   provider: string | null;
   status: AudioProfileStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WeatherProfile {
+  id: string;
+  venueId: string;
+  locationName: string;
+  latitude: number | null;
+  longitude: number | null;
+  weatherSource: WeatherSource;
+  status: WeatherProfileStatus;
   notes: string | null;
   createdAt: string;
   updatedAt: string;

@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { alertPriorities, alertScopes, alertTypes, alertVisibilities, getAlertPriorityLabel, getAlertScopeLabel } from "@/lib/services/alerts";
-import type { Field, Tournament, Venue } from "@/lib/types";
+import type { AlertPriority, AlertScope, AlertType, Field, Tournament, Venue } from "@/lib/types";
 import { createAlertAction } from "../actions";
 
 type Message = {
@@ -11,7 +11,25 @@ type Message = {
   text: string;
 };
 
-export function AlertForm({ fields, tournaments, venues }: { fields: Field[]; tournaments: Tournament[]; venues: Venue[] }) {
+type AlertFormInitialValues = {
+  alertPriority?: AlertPriority;
+  alertScope?: AlertScope;
+  alertType?: AlertType;
+  message?: string;
+  title?: string;
+};
+
+export function AlertForm({
+  fields,
+  initialValues,
+  tournaments,
+  venues,
+}: {
+  fields: Field[];
+  initialValues?: AlertFormInitialValues;
+  tournaments: Tournament[];
+  venues: Venue[];
+}) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedVenueId, setSelectedVenueId] = useState("");
@@ -55,16 +73,16 @@ export function AlertForm({ fields, tournaments, venues }: { fields: Field[]; to
       ) : null}
       <label className="grid gap-2">
         <span className="text-sm font-bold">Title</span>
-        <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="title" placeholder="Lightning Delay" required />
+        <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={initialValues?.title ?? ""} disabled={isSaving} name="title" placeholder="Lightning Delay" required />
       </label>
       <label className="grid gap-2">
         <span className="text-sm font-bold">Message</span>
-        <textarea className="min-h-28 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base" disabled={isSaving} name="message" placeholder="Games are paused until the all-clear." required />
+        <textarea className="min-h-28 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base" defaultValue={initialValues?.message ?? ""} disabled={isSaving} name="message" placeholder="Games are paused until the all-clear." required />
       </label>
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-bold">Alert type</span>
-          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="alert_type" required>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={initialValues?.alertType ?? "info"} disabled={isSaving} name="alert_type" required>
             {alertTypes.map((type) => (
               <option key={type} value={type}>{type.replace("_", " ")}</option>
             ))}
@@ -72,7 +90,7 @@ export function AlertForm({ fields, tournaments, venues }: { fields: Field[]; to
         </label>
         <label className="grid gap-2">
           <span className="text-sm font-bold">Scope</span>
-          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" disabled={isSaving} name="alert_scope" required>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={initialValues?.alertScope ?? "venue"} disabled={isSaving} name="alert_scope" required>
             {alertScopes.map((scope) => (
               <option key={scope} value={scope}>{getAlertScopeLabel(scope)}</option>
             ))}
@@ -82,7 +100,7 @@ export function AlertForm({ fields, tournaments, venues }: { fields: Field[]; to
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-bold">Priority</span>
-          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue="normal" disabled={isSaving} name="alert_priority" required>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={initialValues?.alertPriority ?? "normal"} disabled={isSaving} name="alert_priority" required>
             {alertPriorities.map((priority) => (
               <option key={priority} value={priority}>{getAlertPriorityLabel(priority)}</option>
             ))}

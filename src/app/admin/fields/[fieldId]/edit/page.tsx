@@ -111,7 +111,7 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
           </div>
           <label className="grid gap-2">
             <span className="text-sm font-bold">Map Label</span>
-            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={field.mapLabel ?? ""} name="map_label" placeholder="Field 1, Diamond A, Court 3" />
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={field.mapLabel ?? ""} name="map_label" placeholder="Field 1, Field A, Court 3" />
           </label>
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="grid gap-2">

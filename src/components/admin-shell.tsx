@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChevronRight,
   ClipboardCheck,
+  CloudSun,
   Database,
   Gauge,
   HandHeart,
@@ -51,6 +52,7 @@ const adminNavGroups: AdminNavGroup[] = [
       { href: "/admin", icon: Home, label: "Overview" },
       { href: "/admin/executive", icon: ShieldCheck, label: "Executive Dashboard" },
       { href: "/admin/dashboard", icon: LayoutDashboard, label: "Operations Dashboard" },
+      { href: "/admin/operations-center", icon: Gauge, label: "Venue Operations Center" },
       { href: "/admin/game-day", icon: Activity, label: "Game Day" },
       { href: "/admin/status-board", icon: Gauge, label: "Status Board" },
       { href: "/admin/system-health", icon: ShieldCheck, label: "System Health Center" },
@@ -88,6 +90,7 @@ const adminNavGroups: AdminNavGroup[] = [
     label: "RESOURCES",
     items: [
       { href: "/admin/resources", icon: Wrench, label: "Resources" },
+      { href: "/admin/weather", icon: CloudSun, label: "Weather" },
       { href: "/admin/resources/dashboard", icon: Radio, label: "Resource Dashboard" },
       { href: "/admin/audio", icon: Radio, label: "Audio" },
       { href: "/admin/scoreboards", icon: Gauge, label: "Scoreboards" },
@@ -114,6 +117,7 @@ const adminNavGroups: AdminNavGroup[] = [
 ];
 
 const quickActions = [
+  { href: "/admin/organizations/new", label: "Organization" },
   { href: "/admin/venues/new", label: "Venue" },
   { href: "/admin/fields/new", label: "Field" },
   { href: "/admin/sessions/new", label: "Session" },
@@ -121,10 +125,12 @@ const quickActions = [
 ];
 
 const pinnedNavItems: AdminNavItem[] = [
-  { href: "/admin/dashboard", icon: LayoutDashboard, label: "Operations Dashboard" },
+  { href: "/admin/pilot-launch", icon: ClipboardCheck, label: "Pilot Launch" },
+  { href: "/admin/operations-center", icon: Gauge, label: "Operations Center" },
+  { href: "/admin/game-day", icon: Activity, label: "Game Day Center" },
   { href: "/admin/status-board", icon: Gauge, label: "Status Board" },
-  { href: "/admin/fields", icon: QrCode, label: "Fields" },
-  { href: "/admin/sync", icon: Shuffle, label: "Sync Engine" },
+  { href: "/admin/pilot-launch", icon: MapPin, label: "Public Venue Links" },
+  { href: "/admin/fields", icon: QrCode, label: "Public Field Links" },
 ];
 
 const breadcrumbLabels: Record<string, string> = {
@@ -144,6 +150,7 @@ const breadcrumbLabels: Record<string, string> = {
   integrations: "Integrations",
   new: "New",
   notifications: "Notifications",
+  operations: "Operations",
   organizations: "Organizations",
   "pilot-launch": "Pilot Launch",
   "pilot-prep": "Pilot Prep",
@@ -162,6 +169,7 @@ const breadcrumbLabels: Record<string, string> = {
   tournaments: "Tournaments",
   venues: "Venues",
   volunteers: "Volunteers",
+  weather: "Weather",
 };
 
 function isActivePath(pathname: string, href: string) {
@@ -218,8 +226,8 @@ export function AdminShell({
         <div className="min-w-0 px-4 py-5 sm:px-6 lg:sticky lg:top-[73px] lg:px-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">Admin</p>
-              <h2 className="mt-2 text-xl font-black">Operations</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">GameDay Venue</p>
+              <h2 className="mt-2 text-xl font-black">Admin Operations</h2>
             </div>
               <details className="relative lg:hidden">
                 <summary className="grid h-12 w-12 cursor-pointer place-items-center rounded-lg bg-white/10 text-white marker:hidden">
@@ -234,6 +242,17 @@ export function AdminShell({
 
           <div className="mt-5">
             <OrganizationSwitcher organizations={organizations} pathname={pathname} selectedOrganizationId={selectedOrganizationId} />
+          </div>
+
+          <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Hierarchy</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {["Organization", "Venue", "Field", "Session"].map((label) => (
+                <span className="rounded-md bg-white/10 px-2 py-2 text-center text-[11px] font-black text-white/80" key={label}>
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className="mt-5 lg:hidden">
@@ -274,7 +293,7 @@ export function AdminShell({
                   <Image alt="" className="h-6 w-6 shrink-0 rounded bg-white object-contain p-0.5" height={24} src={selectedOrganization.logoUrl} unoptimized width={24} />
                 ) : null}
                 <span className="min-w-0 leading-5">
-                  {selectedOrganization ? `Viewing as ${selectedOrganization.name}` : "Super Admin · All Organizations"}
+                  {selectedOrganization ? `Viewing as ${selectedOrganization.name}` : "Viewing as All Organizations"}
                 </span>
               </span>
               <label className="relative min-w-0 sm:w-64">
@@ -291,7 +310,8 @@ export function AdminShell({
                   <Plus className="h-4 w-4" aria-hidden="true" />
                   Quick Actions
                 </summary>
-                <div className="absolute right-0 top-12 z-20 grid w-48 gap-1 rounded-lg border border-[var(--line)] bg-white p-2 shadow-xl">
+                <div className="absolute right-0 top-12 z-20 grid w-56 gap-1 rounded-lg border border-[var(--line)] bg-white p-2 shadow-xl">
+                  <p className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted)]">GameDay Venue hierarchy</p>
                   {quickActions.map((action) => (
                     <Link className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-bold transition hover:bg-[var(--background)]" href={action.href} key={action.href}>
                       <Plus className="h-4 w-4 text-[var(--accent-strong)]" aria-hidden="true" />
@@ -325,7 +345,7 @@ function OrganizationSwitcher({
   return (
     <form action="/admin/organization" className="rounded-lg border border-white/10 bg-white/[0.04] p-3" method="post">
       <label className="grid gap-2">
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Demo Client View</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">GameDay Venue view</span>
         <select
           className="min-h-12 w-full rounded-lg border border-white/10 bg-[var(--black-soft)] px-3 text-sm font-bold text-white outline-none"
           defaultValue={selectedOrganizationId}
@@ -354,7 +374,7 @@ function OrganizationSwitcher({
           </span>
         ) : (
           <span className="inline-flex min-h-9 items-center rounded-lg bg-white/10 px-3 py-2 text-xs font-black text-white/75">
-            Viewing all organizations
+            Viewing as All Organizations
           </span>
         )}
         {isViewingClient ? (

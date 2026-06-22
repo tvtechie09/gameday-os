@@ -131,7 +131,7 @@ function formatInning(session: Session) {
   return `${session.inningHalf === "top" ? "Top" : "Bottom"} ${session.inning}`;
 }
 
-function isDiamondSport(session: Session) {
+function isBaseballSoftballSport(session: Session) {
   return session.sportType === "baseball" || session.sportType === "softball";
 }
 
@@ -173,13 +173,14 @@ function TournamentBadge({ tournament }: { tournament: Tournament }) {
   );
 }
 
-function AlertStack({ alerts }: { alerts: Alert[] }) {
+function AlertStack({ alerts, title }: { alerts: Alert[]; title: string }) {
   if (alerts.length === 0) {
     return null;
   }
 
   return (
     <section className="grid gap-3">
+      <h2 className="px-1 text-xl font-black">{title}</h2>
       {alerts.map((alert) => (
         <article className={`rounded-lg border-2 p-4 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
           <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
@@ -221,7 +222,7 @@ function FieldStatusBanner({ field }: { field: Field }) {
 }
 
 function SessionCard({ session }: { session: Session }) {
-  const diamondSport = isDiamondSport(session);
+  const baseballSoftballSport = isBaseballSoftballSport(session);
 
   return (
     <article className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
@@ -237,7 +238,7 @@ function SessionCard({ session }: { session: Session }) {
           <p className="mt-3 w-fit rounded-lg border border-[var(--line)] bg-[var(--background)] px-3 py-2 text-base font-black">
             {session.homeTeam} {session.homeScore} · {session.awayTeam} {session.awayScore}
           </p>
-          {diamondSport ? (
+          {baseballSoftballSport ? (
             <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
               {formatInning(session)} · Count {session.balls}-{session.strikes} · Outs {session.outs}
             </p>
@@ -372,15 +373,10 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
       tournamentId: currentSession?.tournamentId,
     })
     : [];
+  const weatherAlerts = publicAlerts.filter((alert) => alert.alertType === "weather" || alert.alertType === "delay");
+  const otherAlerts = publicAlerts.filter((alert) => alert.alertType !== "weather" && alert.alertType !== "delay");
   const trackedSponsorIds = [...new Set(sponsorPlacements.map((placement) => placement.sponsorId))];
-  const topSessionLabel =
-    currentSessionBadge === "LIVE NOW"
-      ? "Happening now"
-      : currentSessionBadge === "NEXT GAME"
-        ? "Next game"
-        : currentSessionBadge === "FINAL"
-          ? "Final score"
-          : "Game info";
+  const topSessionLabel = currentSessionBadge === "FINAL" ? "Final score" : "Current / Next Game";
   const primaryColor = venue?.primaryColor ?? organization?.primaryColor ?? "#166534";
   const secondaryColor = venue?.secondaryColor ?? organization?.secondaryColor ?? "#111827";
   const logoUrl = venue?.logoUrl ?? organization?.logoUrl;
@@ -404,7 +400,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   const fieldMarker = field && field.mapX !== null && field.mapY !== null
     ? { label: field.mapLabel ?? field.name, x: field.mapX, y: field.mapY }
     : null;
-  const currentSessionIsDiamondSport = currentSession ? isDiamondSport(currentSession) : false;
+  const currentSessionIsBaseballSoftball = currentSession ? isBaseballSoftballSport(currentSession) : false;
 
   return (
     <section className="min-h-screen bg-white">
@@ -451,6 +447,10 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </section>
             ) : null}
 
+            <AlertStack alerts={weatherAlerts} title="Venue status and weather" />
+
+            <AlertStack alerts={otherAlerts} title="Venue announcements" />
+
             <section
               className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-4 shadow-lg sm:p-6" : "rounded-lg border-2 bg-white p-4 shadow-md sm:p-6"}
               style={currentSessionBadge === "LIVE NOW" ? undefined : accentStyle}
@@ -485,7 +485,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                         <p className="mt-1 text-2xl font-black leading-tight sm:truncate">{currentSession.awayTeam}</p>
                       </div>
                     </div>
-                    {currentSessionIsDiamondSport ? (
+                    {currentSessionIsBaseballSoftball ? (
                       <div className="mt-4 grid grid-cols-3 gap-2">
                         <div className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Inning</p>
@@ -576,8 +576,6 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 </div>
               )}
             </section>
-
-            <AlertStack alerts={publicAlerts} />
 
             {field ? <FieldStatusBanner field={field} /> : null}
 
@@ -718,7 +716,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                   ))
                 ) : (
                   <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
-                    No sessions scheduled today.
+                    No sessions today. Import or create a session.
                   </p>
                 )}
               </div>

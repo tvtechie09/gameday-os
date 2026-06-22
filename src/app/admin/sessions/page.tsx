@@ -154,8 +154,8 @@ export default async function SessionsPage() {
       ) : (
         <div className="mt-8">
           <EmptyState
-            title="No sessions yet"
-            message="Create a session and attach it to a Supabase field so parents can see current and upcoming activity."
+            title="No sessions today"
+            message="No sessions today. Import or create a session."
             actionHref="/admin/sessions/new"
             actionLabel="Create session"
           />

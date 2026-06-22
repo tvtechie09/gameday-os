@@ -60,7 +60,7 @@ function formatInning(session: Session) {
   return `${session.inningHalf === "top" ? "Top" : "Bottom"} ${session.inning}`;
 }
 
-function isDiamondSport(session: Session) {
+function isBaseballSoftballSport(session: Session) {
   return session.sportType === "baseball" || session.sportType === "softball";
 }
 
@@ -93,8 +93,8 @@ function Scoreboard({ session }: { session: Session | null }) {
       </div>
       <div className="mt-5 grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-white/10 p-3">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">{isDiamondSport(session) ? "Inning" : "Period"}</p>
-          <p className="mt-1 text-sm font-black">{isDiamondSport(session) ? formatInning(session) : session.inning}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">{isBaseballSoftballSport(session) ? "Inning" : "Period"}</p>
+          <p className="mt-1 text-sm font-black">{isBaseballSoftballSport(session) ? formatInning(session) : session.inning}</p>
         </div>
         <div className="rounded-lg bg-white/10 p-3">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">Count</p>
@@ -323,7 +323,7 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
                 <h3 className="mt-1 text-base font-black">{alert.title}</h3>
                 <p className="mt-2 text-sm leading-6">{alert.message}</p>
               </article>
-            )) : <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No active alerts for this field.</p>}
+            )) : <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No active alerts.</p>}
           </div>
         </section>
 

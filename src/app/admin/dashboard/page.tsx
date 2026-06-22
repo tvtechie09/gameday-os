@@ -16,7 +16,8 @@ import { getSyncDashboardStats, getSyncJobs } from "@/lib/services/sync-engine";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoleLabel, getVolunteerRoles } from "@/lib/services/volunteer-roles";
-import type { Alert, Field, Resource, ResourceActivation, Session, Sponsor, Venue, VolunteerRole } from "@/lib/types";
+import { getWeatherProfiles, getWeatherStatusClass, getWeatherStatusLabel } from "@/lib/services/weather-profiles";
+import type { Alert, Field, Resource, ResourceActivation, Session, Sponsor, Venue, VolunteerRole, WeatherProfile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -207,6 +208,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
     safeLoad<ResourceActivation>("resource activations", getResourceActivations),
     safeLoad<VolunteerRole>("volunteer roles", getVolunteerRoles),
   ]);
+  const weatherProfiles = await safeLoad<WeatherProfile>("weather profiles", getWeatherProfiles);
   const fieldPageViews = await getFieldPageViewDashboardCounts().catch((error: unknown) => {
     console.error("Failed to load dashboard field page view counts", error);
     return { today: 0, last7Days: 0 };
@@ -241,6 +243,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
   const pendingVolunteerRoles = volunteerRoles.filter((role) => role.status === "requested");
   const urgentAlerts = sortAlertsForDisplay(activeAlerts.filter((alert) => alert.alertPriority === "urgent"));
   const sportsEngineSyncJobs = syncJobs.filter((job) => job.sourceType === "sportsengine");
+  const weatherProfilesByVenueId = new Map(weatherProfiles.map((profile) => [profile.venueId, profile]));
   const organizationBrandStyle: CSSProperties = {
     background: selectedOrganization
       ? `linear-gradient(135deg, ${selectedOrganization.secondaryColor ?? "#111827"}, ${selectedOrganization.primaryColor ?? "#166534"})`
@@ -266,6 +269,12 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           </Link>
           <Link href="/admin/resources/dashboard" className="ui-button ui-button-secondary">
             Resource Dashboard
+          </Link>
+          <Link href="/admin/weather" className="ui-button ui-button-secondary">
+            Weather
+          </Link>
+          <Link href="/admin/alerts/new?weather_delay=true" className="ui-button ui-button-secondary">
+            Weather Delay Alert
           </Link>
           <Link href="/admin/integrations" className="ui-button ui-button-secondary">
             Integrations
@@ -340,6 +349,59 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Failed sync jobs" note="External imports needing attention" value={syncStats.failedJobs} />
             <SummaryCard label="SportsEngine sync jobs" note="CSV, feed, and public URL imports" value={sportsEngineSyncJobs.length} />
+          </section>
+
+          <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black">Weather awareness</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                  Manual placeholder status for venue weather checks. No paid weather API, lightning detection, or automatic cancellations are connected yet.
+                </p>
+              </div>
+              <Link href="/admin/alerts/new?weather_delay=true" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-950">
+                Create Weather Delay Alert
+              </Link>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {weatherProfiles.length > 0 ? weatherProfiles.slice(0, 6).map((profile) => {
+                const venue = venuesById.get(profile.venueId);
+
+                return (
+                  <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={profile.id}>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-black">{venue?.name ?? "Venue unavailable"}</p>
+                        <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{profile.locationName}</p>
+                      </div>
+                      <span className={`w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getWeatherStatusClass(profile.status)}`}>
+                        {getWeatherStatusLabel(profile.status)}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div className="rounded-lg bg-white p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Condition</p>
+                        <p className="mt-1 text-sm font-black">Manual check</p>
+                      </div>
+                      <div className="rounded-lg bg-white p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Temp</p>
+                        <p className="mt-1 text-sm font-black">Pending</p>
+                      </div>
+                      <div className="rounded-lg bg-white p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Rain / Lightning</p>
+                        <p className="mt-1 text-sm font-black">Not automated</p>
+                      </div>
+                      <div className="rounded-lg bg-white p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Last checked</p>
+                        <p className="mt-1 text-sm font-black">Manual</p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              }) : (
+                <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No weather profiles configured yet.</p>
+              )}
+            </div>
           </section>
 
           {urgentAlerts.length > 0 ? (
@@ -434,7 +496,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
               </div>
             ) : (
               <p className="mt-4 rounded-lg border border-[var(--line)] bg-white p-5 text-sm leading-6 text-[var(--muted)]">
-                No active alerts right now.
+                No active alerts.
               </p>
             )}
           </section>
@@ -465,6 +527,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
                 const venueUpcomingToday = upcomingToday.filter((session) => venueFieldIds.has(session.fieldId));
                 const venueResources = resources.filter((resource) => resource.venueId === venue.id);
                 const venueActiveResources = venueResources.filter((resource) => resource.status === "active");
+                const venueWeatherProfile = weatherProfilesByVenueId.get(venue.id);
 
                 return (
                   <article key={venue.id} className="rounded-lg border border-[var(--line)] bg-white p-5">
@@ -486,6 +549,16 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
                       <div className="rounded-lg bg-[var(--background)] p-3">
                         <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Resources</p>
                         <p className="mt-1 text-xl font-black">{venueActiveResources.length}/{venueResources.length}</p>
+                      </div>
+                      <div className="rounded-lg bg-[var(--background)] p-3 sm:col-span-4">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Weather</p>
+                        {venueWeatherProfile ? (
+                          <p className="mt-1 text-sm font-black">
+                            {venueWeatherProfile.locationName} · {getWeatherStatusLabel(venueWeatherProfile.status)}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-sm font-black">No weather profile configured</p>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -666,7 +739,7 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
                 })
               ) : (
                 <p className="rounded-lg bg-[var(--background)] p-5 text-sm leading-6 text-[var(--muted)]">
-                  No sessions scheduled for today.
+                  No sessions today. Import or create a session.
                 </p>
               )}
             </div>

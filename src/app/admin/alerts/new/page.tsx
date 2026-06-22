@@ -6,8 +6,16 @@ import { AlertForm } from "./alert-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewAlertPage() {
+type NewAlertPageProps = {
+  searchParams?: Promise<{
+    weather_delay?: string;
+  }>;
+};
+
+export default async function NewAlertPage({ searchParams }: NewAlertPageProps) {
+  const resolvedSearchParams = await searchParams;
   const [venues, fields, tournaments] = await Promise.all([getVenues(), getFields(), getTournaments()]);
+  const isWeatherDelay = resolvedSearchParams?.weather_delay === "true";
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -21,7 +29,18 @@ export default async function NewAlertPage() {
           Share important venue, tournament, or field-specific updates with parents and coaches.
         </p>
       </div>
-      <AlertForm fields={fields} tournaments={tournaments} venues={venues} />
+      <AlertForm
+        fields={fields}
+        initialValues={isWeatherDelay ? {
+          alertPriority: "high",
+          alertScope: "venue",
+          alertType: "weather",
+          message: "Games are delayed while venue staff monitors weather conditions. Please stay close to official venue updates.",
+          title: "Weather Delay",
+        } : undefined}
+        tournaments={tournaments}
+        venues={venues}
+      />
     </section>
   );
 }

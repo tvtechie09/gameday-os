@@ -264,9 +264,9 @@ export default async function FieldsPage() {
         <div className="mt-8">
           <EmptyState
             title="No fields yet"
-            message="Create a field and assign it to a Supabase venue to start building QR-accessible field pages."
+            message="No fields yet. Add your first field."
             actionHref="/admin/fields/new"
-            actionLabel="Create field"
+            actionLabel="Add field"
           />
         </div>
       )}

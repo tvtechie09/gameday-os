@@ -145,7 +145,7 @@ export function FieldForm({ venues }: { venues: Venue[] }) {
             className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
             disabled={!hasVenues || isSaving}
             name="map_label"
-            placeholder="Field 1, Diamond A, Court 3"
+            placeholder="Field 1, Field A, Court 3"
             type="text"
           />
         </label>

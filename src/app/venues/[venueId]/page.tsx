@@ -118,13 +118,14 @@ function getVenueSponsorCards({
   });
 }
 
-function AlertStack({ alerts }: { alerts: Alert[] }) {
+function AlertStack({ alerts, title }: { alerts: Alert[]; title: string }) {
   if (alerts.length === 0) {
     return null;
   }
 
   return (
     <section className="grid gap-3">
+      <h2 className="px-1 text-xl font-black">{title}</h2>
       {alerts.map((alert) => (
         <article className={`rounded-lg border-2 p-5 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
           <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
@@ -247,6 +248,8 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
     venueId,
   });
   const resourceTypes = [...new Map(resources.map((resource) => [resource.resourceType, resource])).values()];
+  const weatherAlerts = alerts.filter((alert) => alert.alertType === "weather" || alert.alertType === "delay");
+  const otherAlerts = alerts.filter((alert) => alert.alertType !== "weather" && alert.alertType !== "delay");
 
   return (
     <section className="min-h-screen bg-white">
@@ -288,13 +291,15 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               </section>
             ) : null}
 
-            <AlertStack alerts={alerts} />
+            <AlertStack alerts={weatherAlerts} title="Venue status and weather" />
+
+            <AlertStack alerts={otherAlerts} title="Venue announcements" />
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Today</p>
-                  <h2 className="mt-1 text-2xl font-black">Venue Schedule</h2>
+                  <h2 className="mt-1 text-2xl font-black">Today at this venue</h2>
                 </div>
                 <p className="text-sm font-bold text-[var(--muted)]">{todaySessionCount} sessions today</p>
               </div>
@@ -319,7 +324,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
                     </div>
                   </article>
                 )) : (
-                  <p className="ui-empty">No sessions scheduled at this venue today.</p>
+                  <p className="ui-empty">No sessions today. Import or create a session.</p>
                 )}
               </div>
             </section>
@@ -330,7 +335,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
                 {fieldSummaries.length > 0 ? fieldSummaries.map((summary) => (
                   <FieldCard key={summary.field.id} summary={summary} />
                 )) : (
-                  <p className="ui-empty lg:col-span-2">No public fields are configured for this venue yet.</p>
+                  <p className="ui-empty lg:col-span-2">No fields yet. Add your first field.</p>
                 )}
               </div>
             </section>

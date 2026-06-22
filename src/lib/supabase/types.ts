@@ -742,6 +742,53 @@ export type Database = {
           },
         ];
       };
+      weather_profiles: {
+        Row: {
+          id: string;
+          venue_id: string;
+          location_name: string;
+          latitude: number | null;
+          longitude: number | null;
+          weather_source: string;
+          status: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          location_name: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          weather_source?: string;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          location_name?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          weather_source?: string;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "weather_profiles_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       resource_activations: {
         Row: {
           id: string;
