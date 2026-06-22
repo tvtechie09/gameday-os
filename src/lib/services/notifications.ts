@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Notification, NotificationType } from "@/lib/types";
+import { getOrganizationDataScope } from "./organization-data-scope";
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
@@ -39,6 +40,15 @@ function mapNotification(row: NotificationRow): Notification {
   };
 }
 
+function isNotificationInScope(notification: Notification, scope: Awaited<ReturnType<typeof getOrganizationDataScope>>) {
+  if (!scope) return true;
+  return Boolean(
+    (notification.fieldId && scope.fieldIds.has(notification.fieldId))
+    || (notification.venueId && scope.venueIds.has(notification.venueId))
+    || (notification.sessionId && scope.sessionIds.has(notification.sessionId)),
+  );
+}
+
 export function getNotificationTypeLabel(type: NotificationType) {
   const labels: Record<NotificationType, string> = {
     alert: "Alert",
@@ -67,6 +77,7 @@ export function getNotificationTypeClass(type: NotificationType) {
 
 export async function getNotifications(type?: NotificationType | "all"): Promise<Notification[]> {
   const supabase = getSupabaseServerClient();
+  const scope = await getOrganizationDataScope();
   let query = supabase
     .from("notifications")
     .select(notificationSelect)
@@ -82,7 +93,7 @@ export async function getNotifications(type?: NotificationType | "all"): Promise
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapNotification);
+  return (data ?? []).map(mapNotification).filter((notification) => isNotificationInScope(notification, scope));
 }
 
 export async function createNotification(data: CreateNotificationInput): Promise<Notification> {

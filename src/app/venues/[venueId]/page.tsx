@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getPublicFieldUrl, getPublicVenueUrl } from "@/lib/public-url";
+import { getPublicFieldUrl, getPublicVenueDisplayUrl, getPublicVenueUrl } from "@/lib/public-url";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { getFieldStatusClass, getFieldStatusLabel, getFields } from "@/lib/services/fields";
 import { getResourceTypeLabel, getResources } from "@/lib/services/resources";
@@ -173,6 +173,7 @@ function FieldCard({ summary }: { summary: FieldSummary }) {
 export default async function PublicVenuePage({ params }: PublicVenuePageProps) {
   const { venueId } = await params;
   const publicVenueUrl = getPublicVenueUrl(venueId);
+  const publicVenueDisplayUrl = getPublicVenueDisplayUrl(venueId);
   let venue: Venue | null = null;
   let organization: Organization | null = null;
   let fields: Field[] = [];
@@ -263,6 +264,11 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
             </div>
             {organization?.description ? <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-white/80">{organization.description}</p> : null}
             {venue?.address ? <p className="mt-5 max-w-2xl text-base font-bold leading-7 text-white/85">{venue.address}</p> : null}
+            {venue ? (
+              <Link className="mt-6 inline-flex min-h-12 items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-black text-[var(--foreground)]" href={publicVenueDisplayUrl}>
+                Open Venue Display
+              </Link>
+            ) : null}
           </header>
 
           <main className="grid gap-5 p-4 sm:p-6">
@@ -406,6 +412,10 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Use this public URL for venue-wide sharing.</p>
               <div className="mt-4 overflow-x-auto rounded-lg bg-[var(--background)] p-4">
                 <code className="whitespace-nowrap text-sm font-bold text-[var(--foreground)]">{publicVenueUrl}</code>
+              </div>
+              <p className="mt-4 text-sm font-black text-[var(--foreground)]">Venue display</p>
+              <div className="mt-2 overflow-x-auto rounded-lg bg-[var(--background)] p-4">
+                <code className="whitespace-nowrap text-sm font-bold text-[var(--foreground)]">{publicVenueDisplayUrl}</code>
               </div>
               {fields.length > 0 ? (
                 <div className="mt-4 flex flex-wrap gap-2">

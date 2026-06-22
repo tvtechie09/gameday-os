@@ -8,6 +8,7 @@ import { getSession } from "@/lib/services/sessions";
 import { getVenue } from "@/lib/services/venues";
 import { getVolunteerRolesBySessionId } from "@/lib/services/volunteer-roles";
 import type { ResourceActivation, SessionEvent, VolunteerRole } from "@/lib/types";
+import { DemoScoreboardControls } from "@/components/demo-scoreboard-controls";
 import { LiveSessionDashboard } from "./live-session-dashboard";
 
 type SessionDashboardPageProps = {
@@ -103,6 +104,11 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
           <p className="mt-3 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
             {session.sportType}
           </p>
+          {session.isDemo ? (
+            <p className="mt-2 w-fit rounded-md bg-amber-100 px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-amber-900">
+              Demo Session
+            </p>
+          ) : null}
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
             {venue?.name ?? "Venue unavailable"} · {field?.name ?? "Field unavailable"} · {formatSessionTime(session.startTime)}
           </p>
@@ -120,6 +126,12 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
               className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white"
             >
               Open scoreboard display
+            </Link>
+            <Link
+              href={`/admin/scoreboards/display?session=${session.id}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
+            >
+              Display controls
             </Link>
           </div>
         ) : null}
@@ -159,6 +171,10 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
           </p>
         )}
       </section>
+
+      <div className="mt-5">
+        <DemoScoreboardControls session={session} />
+      </div>
 
       <LiveSessionDashboard activeResources={activeResources} session={session} volunteerRoles={volunteerRoles} />
     </section>

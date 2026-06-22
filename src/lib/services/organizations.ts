@@ -18,13 +18,22 @@ export type CreateOrganizationInput = {
 export type UpdateOrganizationInput = CreateOrganizationInput;
 
 const organizationSelect = "id,name,slug,logo_url,banner_url,primary_color,secondary_color,website_url,description,created_at";
+const organizationSelectWithoutBranding = "id,name,slug,logo_url,created_at";
 
 function readOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
 
-function mapOrganization(row: OrganizationRow): Organization {
+function isMissingOrganizationBrandingColumnError(error: { message?: string }) {
+  return error.message?.includes("organizations.banner_url") === true
+    || error.message?.includes("organizations.primary_color") === true
+    || error.message?.includes("organizations.secondary_color") === true
+    || error.message?.includes("organizations.website_url") === true
+    || error.message?.includes("organizations.description") === true;
+}
+
+function mapOrganization(row: Omit<OrganizationRow, "banner_url" | "primary_color" | "secondary_color" | "website_url" | "description"> & Partial<Pick<OrganizationRow, "banner_url" | "primary_color" | "secondary_color" | "website_url" | "description">>): Organization {
   return {
     createdAt: row.created_at,
     id: row.id,
@@ -47,6 +56,19 @@ export async function getOrganizations(): Promise<Organization[]> {
     .order("name", { ascending: true });
 
   if (error) {
+    if (isMissingOrganizationBrandingColumnError(error)) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("organizations")
+        .select(organizationSelectWithoutBranding)
+        .order("name", { ascending: true });
+
+      if (fallbackError) {
+        throw new Error(fallbackError.message);
+      }
+
+      return (fallbackData ?? []).map(mapOrganization);
+    }
+
     throw new Error(error.message);
   }
 
@@ -62,6 +84,20 @@ export async function getOrganization(id: string): Promise<Organization | null> 
     .maybeSingle();
 
   if (error) {
+    if (isMissingOrganizationBrandingColumnError(error)) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("organizations")
+        .select(organizationSelectWithoutBranding)
+        .eq("id", id)
+        .maybeSingle();
+
+      if (fallbackError) {
+        throw new Error(fallbackError.message);
+      }
+
+      return fallbackData ? mapOrganization(fallbackData) : null;
+    }
+
     throw new Error(error.message);
   }
 

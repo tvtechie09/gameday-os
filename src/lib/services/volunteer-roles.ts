@@ -2,6 +2,7 @@ import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/
 import type { Database } from "@/lib/supabase/types";
 import type { VolunteerRole, VolunteerRoleStatus, VolunteerRoleType } from "@/lib/types";
 import { safelyCreateNotification } from "./notifications";
+import { getOrganizationDataScope } from "./organization-data-scope";
 
 type VolunteerRoleRow = Database["public"]["Tables"]["volunteer_roles"]["Row"];
 
@@ -53,6 +54,11 @@ function mapVolunteerRole(row: VolunteerRoleRow): VolunteerRole {
   };
 }
 
+function isVolunteerRoleInScope(role: VolunteerRole, scope: Awaited<ReturnType<typeof getOrganizationDataScope>>) {
+  if (!scope) return true;
+  return scope.fieldIds.has(role.fieldId) || scope.venueIds.has(role.venueId);
+}
+
 export function getVolunteerRoleLabel(type: VolunteerRoleType) {
   const labels: Record<VolunteerRoleType, string> = {
     scorekeeper: "Scorekeeper",
@@ -69,6 +75,7 @@ export function getVolunteerRoleLabel(type: VolunteerRoleType) {
 
 export async function getVolunteerRoles(): Promise<VolunteerRole[]> {
   const supabase = getSupabaseServerClient();
+  const scope = await getOrganizationDataScope();
   const { data, error } = await supabase
     .from("volunteer_roles")
     .select(volunteerRoleSelect)
@@ -78,7 +85,7 @@ export async function getVolunteerRoles(): Promise<VolunteerRole[]> {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapVolunteerRole);
+  return (data ?? []).map(mapVolunteerRole).filter((role) => isVolunteerRoleInScope(role, scope));
 }
 
 export async function getVolunteerRolesBySessionId(sessionId: string): Promise<VolunteerRole[]> {

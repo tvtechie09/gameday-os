@@ -218,6 +218,16 @@ export function SessionForm({ fields, tournaments, venues }: { fields: Field[]; 
       </div>
 
       <section className="grid gap-5 border-t border-[var(--line)] pt-5">
+        <label className="flex min-h-12 items-start gap-3 rounded-lg border border-[var(--line)] bg-white p-4">
+          <input className="mt-1 h-5 w-5" disabled={isSaving} name="is_demo" type="checkbox" />
+          <span>
+            <span className="block text-sm font-black">Demo session</span>
+            <span className="mt-1 block text-sm leading-6 text-[var(--muted)]">
+              Allows Scoreboard Demo Mode controls. Leave unchecked for real games.
+            </span>
+          </span>
+        </label>
+
         <div>
           <h2 className="text-lg font-black">Session links</h2>
           <p className="mt-1 text-sm leading-6 text-[var(--muted)]">

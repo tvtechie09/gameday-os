@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getPublicFieldScoreboardUrl, getPublicFieldUrl } from "@/lib/public-url";
+import { getAudioModeLabel, getAudioProfileForField, getAudioStatusClass, getAudioStatusLabel } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { fieldStatuses, getField, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
@@ -141,7 +142,7 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
     );
   }
 
-  const [venue, sessions, activeAlerts, resources, activations, volunteerRoles, scoreboardProfile] = await Promise.all([
+  const [venue, sessions, activeAlerts, resources, activations, volunteerRoles, scoreboardProfile, audioProfile] = await Promise.all([
     getVenue(field.venueId),
     getSessionsByFieldId(fieldId),
     getActiveAlerts(),
@@ -149,6 +150,7 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
     getResourceActivations(),
     getVolunteerRoles(),
     getScoreboardProfileForField(fieldId),
+    getAudioProfileForField({ fieldId }),
   ]);
   const currentSession = getCurrentSession(sessions);
   const [sponsorPlacements, timelineEvents] = await Promise.all([
@@ -193,6 +195,9 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
           </Link>
           <Link href={getPublicFieldScoreboardUrl(field.id)} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Open Scoreboard
+          </Link>
+          <Link href={`/admin/scoreboards/display?venue=${field.venueId}&field=${field.id}`} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Display Controls
           </Link>
           {currentSession ? (
             <Link href={`/admin/sessions/${currentSession.id}`} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
@@ -269,6 +274,43 @@ export default async function FieldControlCenterPage({ params }: FieldControlPag
         <button className="mt-5 min-h-12 rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold text-[var(--foreground)]" type="button">
           Use GameDay OS Manual Scoreboard
         </button>
+      </section>
+
+      <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Audio framework</p>
+            <h2 className="mt-1 text-xl font-black">Field audio profile</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+              Audio profiles document speaker/PA readiness only. GameDay OS does not play, stream, or manage music files.
+            </p>
+          </div>
+          <Link href={audioProfile ? `/admin/audio/${audioProfile.id}/edit` : "/admin/audio/new"} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            {audioProfile ? "Edit Audio Profile" : "Create Audio Profile"}
+          </Link>
+        </div>
+        {audioProfile ? (
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg bg-[var(--background)] p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Audio mode</p>
+              <p className="mt-1 text-sm font-black">{getAudioModeLabel(audioProfile.audioMode)}</p>
+            </div>
+            <div className="rounded-lg bg-[var(--background)] p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Audio status</p>
+              <p className={`mt-2 w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getAudioStatusClass(audioProfile.status)}`}>
+                {getAudioStatusLabel(audioProfile.status)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-[var(--background)] p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Provider</p>
+              <p className="mt-1 text-sm font-black">{audioProfile.provider ?? "Not assigned"}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-5 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
+            No audio profile is configured for this field.
+          </p>
+        )}
       </section>
 
       <section className="mt-5 grid gap-4 lg:grid-cols-3">

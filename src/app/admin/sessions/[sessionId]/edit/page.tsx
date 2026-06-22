@@ -60,6 +60,7 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
       start_time: new Date(startTime).toISOString(),
       end_time: endTime ? new Date(endTime).toISOString() : null,
       status: status === "active" || status === "final" ? status : "scheduled",
+      is_demo: formData.get("is_demo") === "on",
       primary_link_label: readLinkLabel(formData, "primary_link_label"),
       primary_link_url: readOptionalText(formData, "primary_link_url"),
       secondary_link_label: readLinkLabel(formData, "secondary_link_label"),
@@ -158,6 +159,16 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
           </label>
         </div>
         <div className="grid gap-4 border-t border-[var(--line)] pt-5">
+          <label className="flex min-h-12 items-start gap-3 rounded-lg border border-[var(--line)] bg-white p-4">
+            <input className="mt-1 h-5 w-5" defaultChecked={session.isDemo} name="is_demo" type="checkbox" />
+            <span>
+              <span className="block text-sm font-black">Demo session</span>
+              <span className="mt-1 block text-sm leading-6 text-[var(--muted)]">
+                Allows Scoreboard Demo Mode controls. Leave unchecked for real games.
+              </span>
+            </span>
+          </label>
+
           <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
             <label className="grid gap-2">
               <span className="text-sm font-bold">Primary label</span>

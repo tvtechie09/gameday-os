@@ -6,6 +6,11 @@ export function hasConfiguredPublicAppUrl() {
   return Boolean(process.env.NEXT_PUBLIC_APP_URL);
 }
 
+export function publicAppUrlPointsToLocalhost() {
+  const appUrl = getPublicAppUrl();
+  return appUrl.includes("localhost") || appUrl.includes("127.0.0.1") || appUrl.includes("[::1]");
+}
+
 export function getPublicFieldUrl(fieldId: string) {
   return `${getPublicAppUrl()}/fields/${fieldId}`;
 }
@@ -20,4 +25,8 @@ export function getPublicFieldScoreboardUrl(fieldId: string) {
 
 export function getPublicVenueUrl(venueId: string) {
   return `${getPublicAppUrl()}/venues/${venueId}`;
+}
+
+export function getPublicVenueDisplayUrl(venueId: string) {
+  return `${getPublicAppUrl()}/display/venue/${venueId}`;
 }

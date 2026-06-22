@@ -30,6 +30,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import { demoClientOrganizationNames, getDemoClientOptionState } from "@/lib/demo-client-mode";
 import type { Organization } from "@/lib/types";
 
 type AdminNavItem = {
@@ -55,7 +56,9 @@ const adminNavGroups: AdminNavGroup[] = [
       { href: "/admin/system-health", icon: ShieldCheck, label: "System Health Center" },
       { href: "/admin/organizations", icon: Users, label: "Organization Dashboard" },
       { href: "/admin/roles", icon: ShieldCheck, label: "Roles & Permissions" },
+      { href: "/admin/pilot-launch", icon: ClipboardCheck, label: "Pilot Launch" },
       { href: "/admin/pilot-prep", icon: ClipboardCheck, label: "Pilot Prep" },
+      { href: "/admin/pilot-script", icon: ClipboardCheck, label: "Pilot Script" },
     ],
   },
   {
@@ -86,7 +89,9 @@ const adminNavGroups: AdminNavGroup[] = [
     items: [
       { href: "/admin/resources", icon: Wrench, label: "Resources" },
       { href: "/admin/resources/dashboard", icon: Radio, label: "Resource Dashboard" },
+      { href: "/admin/audio", icon: Radio, label: "Audio" },
       { href: "/admin/scoreboards", icon: Gauge, label: "Scoreboards" },
+      { href: "/admin/scoreboards/adapters", icon: Gauge, label: "Scoreboard Adapters" },
     ],
   },
   {
@@ -101,6 +106,7 @@ const adminNavGroups: AdminNavGroup[] = [
     items: [
       { href: "/admin/sync", icon: Shuffle, label: "Sync Engine" },
       { href: "/admin/schema-audit", icon: Database, label: "Schema Audit" },
+      { href: "/admin/showcase", icon: Sparkles, label: "Client Showcase" },
       { href: "/admin/import", icon: Sparkles, label: "CSV Import" },
       { href: "/admin/sessions/bulk", icon: Menu, label: "Bulk Sessions" },
     ],
@@ -123,7 +129,9 @@ const pinnedNavItems: AdminNavItem[] = [
 
 const breadcrumbLabels: Record<string, string> = {
   admin: "Admin",
+  adapters: "Adapters",
   alerts: "Alerts",
+  audio: "Audio",
   bulk: "Bulk Tools",
   control: "Control Center",
   dashboard: "Dashboard",
@@ -137,13 +145,16 @@ const breadcrumbLabels: Record<string, string> = {
   new: "New",
   notifications: "Notifications",
   organizations: "Organizations",
+  "pilot-launch": "Pilot Launch",
   "pilot-prep": "Pilot Prep",
+  "pilot-script": "Pilot Script",
   qr: "QR",
   resources: "Resources",
   roles: "Roles",
   scoreboards: "Scoreboards",
   "schema-audit": "Schema Audit",
   sessions: "Sessions",
+  showcase: "Showcase",
   sponsors: "Sponsors",
   "status-board": "Status Board",
   "system-health": "System Health",
@@ -182,6 +193,12 @@ function formatGroupLabel(label: string) {
   return label.charAt(0) + label.slice(1).toLowerCase();
 }
 
+function isDemoStylePath(pathname: string) {
+  return pathname.startsWith("/admin/showcase")
+    || pathname.startsWith("/admin/pilot-launch")
+    || pathname.startsWith("/admin/pilot-prep");
+}
+
 export function AdminShell({
   children,
   organizations = [],
@@ -193,6 +210,7 @@ export function AdminShell({
 }>) {
   const pathname = usePathname();
   const breadcrumbs = buildBreadcrumbs(pathname);
+  const selectedOrganization = organizations.find((organization) => organization.id === selectedOrganizationId);
 
   return (
     <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-0 overflow-hidden lg:grid-cols-[360px_1fr]">
@@ -215,7 +233,7 @@ export function AdminShell({
           </div>
 
           <div className="mt-5">
-            <OrganizationSwitcher organizations={organizations} selectedOrganizationId={selectedOrganizationId} />
+            <OrganizationSwitcher organizations={organizations} pathname={pathname} selectedOrganizationId={selectedOrganizationId} />
           </div>
 
           <div className="mt-5 lg:hidden">
@@ -251,6 +269,14 @@ export function AdminShell({
             </nav>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+              <span className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--background)] px-3 py-2 text-xs font-black text-[var(--foreground)] sm:max-w-72">
+                {selectedOrganization?.logoUrl ? (
+                  <Image alt="" className="h-6 w-6 shrink-0 rounded bg-white object-contain p-0.5" height={24} src={selectedOrganization.logoUrl} unoptimized width={24} />
+                ) : null}
+                <span className="min-w-0 leading-5">
+                  {selectedOrganization ? `Viewing as ${selectedOrganization.name}` : "Super Admin · All Organizations"}
+                </span>
+              </span>
               <label className="relative min-w-0 sm:w-64">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
                 <span className="sr-only">Search</span>
@@ -285,41 +311,63 @@ export function AdminShell({
 
 function OrganizationSwitcher({
   organizations,
+  pathname,
   selectedOrganizationId,
 }: {
   organizations: Organization[];
+  pathname: string;
   selectedOrganizationId: string;
 }) {
   const selectedOrganization = organizations.find((organization) => organization.id === selectedOrganizationId);
+  const isViewingClient = Boolean(selectedOrganization);
+  const showAllOrganizationsOption = !isDemoStylePath(pathname) || !isViewingClient;
 
   return (
     <form action="/admin/organization" className="rounded-lg border border-white/10 bg-white/[0.04] p-3" method="post">
       <label className="grid gap-2">
-        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Organization</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Demo Client View</span>
         <select
           className="min-h-12 w-full rounded-lg border border-white/10 bg-[var(--black-soft)] px-3 text-sm font-bold text-white outline-none"
           defaultValue={selectedOrganizationId}
           name="organization_id"
           onChange={(event) => event.currentTarget.form?.requestSubmit()}
         >
-          <option value="all">All Organizations</option>
-          {organizations.map((organization) => (
-            <option key={organization.id} value={organization.id}>
-              {organization.name}
-            </option>
-          ))}
+          {showAllOrganizationsOption ? <option value="all">All Organizations</option> : null}
+          {demoClientOrganizationNames.map((name) => {
+            const organization = getDemoClientOptionState(name, organizations);
+
+            return (
+              <option disabled={!organization} key={name} value={organization?.id ?? `missing-${name}`}>
+                {organization ? organization.name : `${name} (not configured)`}
+              </option>
+            );
+          })}
         </select>
       </label>
-      <p className="mt-2 text-xs font-semibold leading-5 text-white/55">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {selectedOrganization ? (
-          <span className="flex items-center gap-2">
+          <span className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-black text-emerald-100 ring-1 ring-emerald-400/25">
             {selectedOrganization.logoUrl ? (
               <Image alt="" className="h-6 w-6 rounded bg-white object-contain p-0.5" height={24} src={selectedOrganization.logoUrl} unoptimized width={24} />
             ) : null}
-            <span>Viewing {selectedOrganization.name}</span>
+            <span>Viewing as {selectedOrganization.name}</span>
           </span>
-        ) : "Super Admin view across every organization"}
-      </p>
+        ) : (
+          <span className="inline-flex min-h-9 items-center rounded-lg bg-white/10 px-3 py-2 text-xs font-black text-white/75">
+            Viewing all organizations
+          </span>
+        )}
+        {isViewingClient ? (
+          <button
+            className="min-h-9 rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-white/75 transition hover:bg-white/10 hover:text-white"
+            name="organization_id"
+            type="submit"
+            value="all"
+          >
+            Reset to All
+          </button>
+        ) : null}
+      </div>
     </form>
   );
 }

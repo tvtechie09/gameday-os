@@ -13,9 +13,13 @@ export type AlertPriority = "low" | "normal" | "high" | "urgent";
 export type AlertVisibility = "public" | "admin_only";
 export type ResourceType = "camera" | "audio" | "scoreboard" | "display" | "network" | "streaming" | "other";
 export type ResourceStatus = "active" | "inactive" | "maintenance" | "unknown";
+export type AudioMode = "none" | "parent_speaker" | "venue_pa" | "bluetooth_speaker" | "obs_audio" | "future_integration";
+export type AudioProfileStatus = "not_configured" | "configured" | "testing" | "active" | "offline";
 export type ScoreboardConnectionType = "manual" | "network" | "serial" | "controller_bridge" | "cloud_api" | "obs_overlay" | "unknown";
 export type ScoreboardIntegrationMode = "manual_only" | "read_only" | "write_to_scoreboard" | "write_to_overlay" | "future_hardware";
 export type ScoreboardStatus = "not_configured" | "configured" | "testing" | "active" | "offline";
+export type ScoreboardAdapterType = "manual" | "daktronics" | "nevco" | "fairplay" | "musco" | "custom";
+export type ScoreboardAdapterStatus = "inactive" | "configured" | "testing" | "active" | "error";
 export type ResourceActivationType = "parent_camera" | "livestream_link" | "bluetooth_speaker" | "scoreboard_operator" | "announcer" | "other";
 export type ResourceActivationStatus = "requested" | "active" | "ended" | "rejected";
 export type VolunteerRoleType = "scorekeeper" | "stream_operator" | "audio_operator" | "announcer" | "scoreboard_operator" | "field_admin" | "other";
@@ -86,6 +90,7 @@ export interface Session {
   status: SessionStatus;
   homeScore: number;
   awayScore: number;
+  isDemo: boolean;
   inning: number;
   inningHalf: InningHalf;
   balls: number;
@@ -185,6 +190,21 @@ export interface Resource {
   updatedAt: string;
 }
 
+export interface AudioProfile {
+  id: string;
+  organizationId?: string | null;
+  venueId: string;
+  fieldId: string;
+  sessionId: string | null;
+  audioMode: AudioMode;
+  speakerType: string | null;
+  provider: string | null;
+  status: AudioProfileStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ScoreboardProfile {
   id: string;
   organizationId?: string | null;
@@ -201,6 +221,15 @@ export interface ScoreboardProfile {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ScoreboardAdapter {
+  id: string;
+  scoreboardId: string;
+  adapterType: ScoreboardAdapterType;
+  adapterStatus: ScoreboardAdapterStatus;
+  lastSyncAt: string | null;
+  notes: string | null;
 }
 
 export interface ResourceActivation {

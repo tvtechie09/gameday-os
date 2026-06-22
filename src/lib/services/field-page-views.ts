@@ -1,5 +1,6 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { FieldPageViewSummary } from "@/lib/types";
+import { getOrganizationDataScope } from "./organization-data-scope";
 
 export type RecordFieldPageViewInput = {
   venueId: string;
@@ -54,10 +55,21 @@ export async function recordFieldPageView(input: RecordFieldPageViewInput) {
 
 export async function getFieldPageViewCountSince(since: string): Promise<number> {
   const supabase = getSupabaseAdminClient();
-  const { count, error } = await supabase
+  const scope = await getOrganizationDataScope();
+  let query = supabase
     .from("field_page_views")
     .select("id", { count: "exact", head: true })
     .gte("viewed_at", since);
+
+  if (scope) {
+    if (scope.fieldIds.size === 0) {
+      return 0;
+    }
+
+    query = query.in("field_id", [...scope.fieldIds]);
+  }
+
+  const { count, error } = await query;
 
   if (error) {
     if (isMissingFieldPageViewsTableError(error)) {
@@ -82,9 +94,20 @@ export async function getFieldPageViewDashboardCounts() {
 
 export async function getFieldPageViewCountsByField(): Promise<FieldPageViewSummary[]> {
   const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
+  const scope = await getOrganizationDataScope();
+  let query = supabase
     .from("field_page_views")
     .select("field_id");
+
+  if (scope) {
+    if (scope.fieldIds.size === 0) {
+      return [];
+    }
+
+    query = query.in("field_id", [...scope.fieldIds]);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     if (isMissingFieldPageViewsTableError(error)) {

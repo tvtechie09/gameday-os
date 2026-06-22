@@ -2,6 +2,7 @@ import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/
 import type { Database } from "@/lib/supabase/types";
 import type { ResourceActivation, ResourceActivationStatus, ResourceActivationType } from "@/lib/types";
 import { safelyCreateNotification } from "./notifications";
+import { getOrganizationDataScope } from "./organization-data-scope";
 
 type ResourceActivationRow = Database["public"]["Tables"]["resource_activations"]["Row"];
 
@@ -63,6 +64,11 @@ function mapActivation(row: ResourceActivationRow): ResourceActivation {
   };
 }
 
+function isActivationInScope(activation: ResourceActivation, scope: Awaited<ReturnType<typeof getOrganizationDataScope>>) {
+  if (!scope) return true;
+  return scope.fieldIds.has(activation.fieldId) || scope.venueIds.has(activation.venueId);
+}
+
 export function getActivationLabel(type: ResourceActivationType) {
   const labels: Record<ResourceActivationType, string> = {
     parent_camera: "Camera active",
@@ -90,6 +96,7 @@ export function getAttachmentOptionLabel(type: ResourceActivationType) {
 
 export async function getResourceActivations(): Promise<ResourceActivation[]> {
   const supabase = getSupabaseServerClient();
+  const scope = await getOrganizationDataScope();
   const { data, error } = await supabase
     .from("resource_activations")
     .select(activationSelect)
@@ -99,7 +106,7 @@ export async function getResourceActivations(): Promise<ResourceActivation[]> {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapActivation);
+  return (data ?? []).map(mapActivation).filter((activation) => isActivationInScope(activation, scope));
 }
 
 export async function getActiveResourceActivationsForField({ fieldId, sessionId }: { fieldId: string; sessionId?: string | null }): Promise<ResourceActivation[]> {

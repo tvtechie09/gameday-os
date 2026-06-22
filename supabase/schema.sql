@@ -93,6 +93,15 @@ create table if not exists public.scoreboard_profiles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.scoreboard_adapters (
+  id uuid primary key default gen_random_uuid(),
+  scoreboard_id uuid not null references public.scoreboard_profiles(id) on delete cascade,
+  adapter_type text not null default 'manual' check (adapter_type in ('manual', 'daktronics', 'nevco', 'fairplay', 'musco', 'custom')),
+  adapter_status text not null default 'inactive' check (adapter_status in ('inactive', 'configured', 'testing', 'active', 'error')),
+  last_sync_at timestamptz,
+  notes text
+);
+
 create table if not exists public.resource_activations (
   id uuid primary key default gen_random_uuid(),
   resource_id uuid references public.resources(id) on delete set null,
@@ -158,6 +167,7 @@ create table if not exists public.sessions (
   status text not null default 'scheduled' check (status in ('scheduled', 'active', 'final')),
   home_score integer not null default 0 check (home_score >= 0),
   away_score integer not null default 0 check (away_score >= 0),
+  is_demo boolean not null default false,
   inning integer not null default 1 check (inning >= 1),
   inning_half text not null default 'top' check (inning_half in ('top', 'bottom')),
   balls integer not null default 0 check (balls between 0 and 3),
@@ -171,6 +181,21 @@ create table if not exists public.sessions (
   external_source text,
   external_source_id text,
   external_source_url text,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.audio_profiles (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  field_id uuid not null references public.fields(id) on delete cascade,
+  session_id uuid references public.sessions(id) on delete set null,
+  audio_mode text not null default 'none' check (audio_mode in ('none', 'parent_speaker', 'venue_pa', 'bluetooth_speaker', 'obs_audio', 'future_integration')),
+  speaker_type text,
+  provider text,
+  status text not null default 'not_configured' check (status in ('not_configured', 'configured', 'testing', 'active', 'offline')),
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -333,6 +358,14 @@ create index if not exists scoreboard_profiles_venue_id_idx on public.scoreboard
 create index if not exists scoreboard_profiles_field_id_idx on public.scoreboard_profiles(field_id);
 create index if not exists scoreboard_profiles_resource_id_idx on public.scoreboard_profiles(resource_id);
 create index if not exists scoreboard_profiles_status_idx on public.scoreboard_profiles(scoreboard_status);
+create index if not exists scoreboard_adapters_scoreboard_id_idx on public.scoreboard_adapters(scoreboard_id);
+create index if not exists scoreboard_adapters_type_idx on public.scoreboard_adapters(adapter_type);
+create index if not exists scoreboard_adapters_status_idx on public.scoreboard_adapters(adapter_status);
+create index if not exists audio_profiles_organization_id_idx on public.audio_profiles(organization_id);
+create index if not exists audio_profiles_venue_id_idx on public.audio_profiles(venue_id);
+create index if not exists audio_profiles_field_id_idx on public.audio_profiles(field_id);
+create index if not exists audio_profiles_session_id_idx on public.audio_profiles(session_id);
+create index if not exists audio_profiles_status_idx on public.audio_profiles(status);
 create index if not exists resource_activations_venue_id_idx on public.resource_activations(venue_id);
 create index if not exists resource_activations_field_id_idx on public.resource_activations(field_id);
 create index if not exists resource_activations_session_id_idx on public.resource_activations(session_id);
@@ -344,6 +377,7 @@ create index if not exists volunteer_roles_status_idx on public.volunteer_roles(
 create index if not exists sessions_field_id_idx on public.sessions(field_id);
 create index if not exists sessions_organization_id_idx on public.sessions(organization_id);
 create index if not exists sessions_tournament_id_idx on public.sessions(tournament_id);
+create index if not exists sessions_is_demo_idx on public.sessions(is_demo);
 create index if not exists tournaments_organization_id_idx on public.tournaments(organization_id);
 create unique index if not exists sessions_external_source_unique_idx
   on public.sessions(external_source, external_source_id)
@@ -396,6 +430,8 @@ alter table public.venues enable row level security;
 alter table public.fields enable row level security;
 alter table public.resources enable row level security;
 alter table public.scoreboard_profiles enable row level security;
+alter table public.scoreboard_adapters enable row level security;
+alter table public.audio_profiles enable row level security;
 alter table public.resource_activations enable row level security;
 alter table public.volunteer_roles enable row level security;
 alter table public.tournaments enable row level security;
@@ -449,6 +485,14 @@ create policy "Public can update scoreboard profiles"
   on public.scoreboard_profiles for update
   using (true)
   with check (true);
+
+create policy "Public can read scoreboard adapters"
+  on public.scoreboard_adapters for select
+  using (true);
+
+create policy "Public can read audio profiles"
+  on public.audio_profiles for select
+  using (true);
 
 create policy "Public can read resource activations"
   on public.resource_activations for select

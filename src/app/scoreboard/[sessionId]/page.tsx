@@ -7,6 +7,7 @@ type SessionScoreboardPageProps = {
   }>;
   searchParams?: Promise<{
     compact?: string;
+    fullscreen?: string;
     sponsor?: string;
     theme?: string;
   }>;
@@ -33,6 +34,7 @@ export default async function SessionScoreboardPage({ params, searchParams }: Se
     <ScoreboardDisplay
       apiPath={`/api/scoreboard/session/${sessionId}`}
       compact={readBoolean(options?.compact, false)}
+      fullscreen={readBoolean(options?.fullscreen, false)}
       initialPayload={payload}
       showSponsor={readBoolean(options?.sponsor, true)}
       theme={readTheme(options?.theme)}

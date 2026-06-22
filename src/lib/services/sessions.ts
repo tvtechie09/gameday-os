@@ -9,6 +9,8 @@ type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type SessionUpdateRow = Database["public"]["Tables"]["sessions"]["Update"];
 
 const sessionSelect =
+  "id,organization_id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,is_demo,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
+const sessionSelectWithoutDemo =
   "id,organization_id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
 
 const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
@@ -23,6 +25,7 @@ export type CreateSessionInput = {
   away_team: string;
   start_time: string;
   end_time?: string | null;
+  is_demo?: boolean;
   status: Session["status"];
   primary_link_label?: SessionLinkLabel | "" | null;
   primary_link_url?: string | null;
@@ -90,6 +93,11 @@ function readSportType(value: string | null | undefined): SessionSportType {
   return validSportTypes.find((sportType) => sportType === value) ?? "baseball";
 }
 
+function isMissingIsDemoColumnError(error: { message?: string }) {
+  return error.message?.includes("sessions.is_demo") === true
+    || error.message?.includes("column sessions.is_demo does not exist") === true;
+}
+
 async function recordAutomaticStatusEvents(previousStatus: Session["status"] | null, nextSession: Session) {
   if (previousStatus !== "active" && nextSession.gameStatus === "active") {
     await recordSessionEvent({
@@ -155,7 +163,7 @@ async function getOrganizationIdForField(fieldId: string) {
   return data?.organization_id ?? await getWritableOrganizationId();
 }
 
-function mapSession(row: SessionRow): Session {
+function mapSession(row: Omit<SessionRow, "is_demo"> & { is_demo?: boolean | null }): Session {
   return {
     id: row.id,
     organizationId: row.organization_id ?? null,
@@ -170,6 +178,7 @@ function mapSession(row: SessionRow): Session {
     status: readSessionStatus(row.status),
     homeScore: readNumber(row.home_score, 0),
     awayScore: readNumber(row.away_score, 0),
+    isDemo: Boolean(row.is_demo),
     inning: readNumber(row.inning, 1),
     inningHalf: readInningHalf(row.inning_half),
     balls: readNumber(row.balls, 0),
@@ -203,6 +212,25 @@ export async function getSessions(): Promise<Session[]> {
   const { data, error } = await query;
 
   if (error) {
+    if (isMissingIsDemoColumnError(error)) {
+      let fallbackQuery = supabase
+        .from("sessions")
+        .select(sessionSelectWithoutDemo)
+        .order("start_time", { ascending: true });
+
+      if (organizationId) {
+        fallbackQuery = fallbackQuery.eq("organization_id", organizationId);
+      }
+
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+
+      if (fallbackError) {
+        throw new Error(fallbackError.message);
+      }
+
+      return (fallbackData ?? []).map(mapSession);
+    }
+
     throw new Error(error.message);
   }
 
@@ -218,6 +246,20 @@ export async function getSession(id: string): Promise<Session | null> {
     .maybeSingle();
 
   if (error) {
+    if (isMissingIsDemoColumnError(error)) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("sessions")
+        .select(sessionSelectWithoutDemo)
+        .eq("id", id)
+        .maybeSingle();
+
+      if (fallbackError) {
+        throw new Error(fallbackError.message);
+      }
+
+      return fallbackData ? mapSession(fallbackData) : null;
+    }
+
     throw new Error(error.message);
   }
 
@@ -233,6 +275,20 @@ export async function getSessionsByFieldId(fieldId: string): Promise<Session[]> 
     .order("start_time", { ascending: true });
 
   if (error) {
+    if (isMissingIsDemoColumnError(error)) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("sessions")
+        .select(sessionSelectWithoutDemo)
+        .eq("field_id", fieldId)
+        .order("start_time", { ascending: true });
+
+      if (fallbackError) {
+        throw new Error(fallbackError.message);
+      }
+
+      return (fallbackData ?? []).map(mapSession);
+    }
+
     throw new Error(error.message);
   }
 
@@ -254,6 +310,7 @@ export async function createSession(data: CreateSessionInput): Promise<Session> 
       away_team: data.away_team,
       start_time: data.start_time,
       end_time: readOptionalText(data.end_time),
+      is_demo: Boolean(data.is_demo),
       status: data.status,
       game_status: data.status,
       primary_link_label: readLinkLabel(data.primary_link_label),
@@ -299,6 +356,7 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
       away_team: data.away_team,
       start_time: data.start_time,
       end_time: readOptionalText(data.end_time),
+      is_demo: Boolean(data.is_demo),
       status: data.status,
       game_status: data.status,
       primary_link_label: readLinkLabel(data.primary_link_label),

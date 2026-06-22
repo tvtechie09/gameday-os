@@ -10,6 +10,7 @@ import {
   Radio,
   Users,
 } from "lucide-react";
+import { getPublicVenueDisplayUrl } from "@/lib/public-url";
 import { getActiveAlerts, getAlertLabel, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getExternalSources } from "@/lib/services/external-sources";
 import { getFields } from "@/lib/services/fields";
@@ -257,6 +258,7 @@ export default async function ExecutiveDashboardPage() {
     events: sessionEvents,
     sessions,
   });
+  const primaryVenueDisplayUrl = venues[0] ? getPublicVenueDisplayUrl(venues[0].id) : "";
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -272,6 +274,11 @@ export default async function ExecutiveDashboardPage() {
           <Link className="ui-button ui-button-primary" href="/admin/game-day">
             Game Day
           </Link>
+          {primaryVenueDisplayUrl ? (
+            <Link className="ui-button ui-button-secondary" href={primaryVenueDisplayUrl}>
+              Venue Display
+            </Link>
+          ) : null}
           <Link className="ui-button ui-button-secondary" href="/admin/dashboard">
             Operations Dashboard
           </Link>
@@ -315,9 +322,14 @@ export default async function ExecutiveDashboardPage() {
                       <h3 className="text-xl font-black">{venue.name}</h3>
                       <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{venue.address || "No address listed"}</p>
                     </div>
-                    <Link className="ui-button ui-button-secondary min-h-10 px-3 py-2" href={`/admin/venues/${venue.id}/edit`}>
-                      Edit
-                    </Link>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Link className="ui-button ui-button-secondary min-h-10 px-3 py-2" href={getPublicVenueDisplayUrl(venue.id)}>
+                        Display
+                      </Link>
+                      <Link className="ui-button ui-button-secondary min-h-10 px-3 py-2" href={`/admin/venues/${venue.id}/edit`}>
+                        Edit
+                      </Link>
+                    </div>
                   </div>
                   <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <MetricPill label="Total Fields" value={venueFields.length} />

@@ -56,6 +56,7 @@ export async function createSessionAction(formData: FormData): Promise<CreateSes
       away_team: awayTeam,
       start_time: new Date(startTime).toISOString(),
       end_time: endTime ? new Date(endTime).toISOString() : null,
+      is_demo: formData.get("is_demo") === "on",
       status: status as Session["status"],
       primary_link_label: readLinkLabel(formData, "primary_link_label"),
       primary_link_url: readOptionalText(formData, "primary_link_url"),

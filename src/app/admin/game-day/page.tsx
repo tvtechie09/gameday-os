@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getPublicFieldUrl } from "@/lib/public-url";
+import { getPublicFieldUrl, getPublicVenueDisplayUrl } from "@/lib/public-url";
+import { getAudioModeLabel, getAudioProfiles, getAudioStatusClass, getAudioStatusLabel } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts } from "@/lib/services/alerts";
 import { getFields, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { getResourceActivations } from "@/lib/services/resource-activations";
@@ -8,7 +9,7 @@ import { getSessions } from "@/lib/services/sessions";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoles } from "@/lib/services/volunteer-roles";
-import type { Alert, Field, ResourceActivation, ScoreboardProfile, Session, Tournament, Venue, VolunteerRole } from "@/lib/types";
+import type { Alert, AudioProfile, Field, ResourceActivation, ScoreboardProfile, Session, Tournament, Venue, VolunteerRole } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ type FieldCard = {
   alertsCount: number;
   activeVolunteersCount: number;
   scoreboardProfile: ScoreboardProfile | null;
+  audioProfile: AudioProfile | null;
 };
 
 const sportFilters = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
@@ -115,6 +117,7 @@ function getFieldCardTone(card: FieldCard) {
 
 function buildFieldCards({
   activeAlerts,
+  audioProfiles,
   fields,
   resourceActivations,
   scoreboardProfiles,
@@ -123,6 +126,7 @@ function buildFieldCards({
   volunteerRoles,
 }: {
   activeAlerts: Alert[];
+  audioProfiles: AudioProfile[];
   fields: Field[];
   resourceActivations: ResourceActivation[];
   scoreboardProfiles: ScoreboardProfile[];
@@ -133,6 +137,7 @@ function buildFieldCards({
   const now = new Date();
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
   const scoreboardProfilesByFieldId = new Map(scoreboardProfiles.map((profile) => [profile.fieldId, profile]));
+  const audioProfilesByFieldId = new Map(audioProfiles.map((profile) => [profile.fieldId, profile]));
 
   return fields.map((field): FieldCard => {
     const fieldSessions = sessions
@@ -161,6 +166,7 @@ function buildFieldCards({
         tournamentId: activeSessionContext?.tournamentId,
         venueId: field.venueId,
       }).length,
+      audioProfile: audioProfilesByFieldId.get(field.id) ?? null,
       currentSession,
       field,
       nextSession,
@@ -177,7 +183,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
   const selectedTournamentId = filters?.tournament ?? "";
   const selectedSport = sportFilters.find((sport) => sport === filters?.sport) ?? "";
   const now = new Date();
-  const [venues, fields, sessions, tournaments, activeAlerts, resourceActivations, volunteerRoles, scoreboardProfiles] = await Promise.all([
+  const [venues, fields, sessions, tournaments, activeAlerts, resourceActivations, volunteerRoles, scoreboardProfiles, audioProfiles] = await Promise.all([
     safeLoad<Venue>("venues", getVenues),
     safeLoad<Field>("fields", getFields),
     safeLoad<Session>("sessions", getSessions),
@@ -186,6 +192,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
     safeLoad<ResourceActivation>("resource activations", getResourceActivations),
     safeLoad<VolunteerRole>("volunteer roles", getVolunteerRoles),
     safeLoad<ScoreboardProfile>("scoreboard profiles", getScoreboardProfiles),
+    safeLoad<AudioProfile>("audio profiles", getAudioProfiles),
   ]);
 
   const filteredFields = fields.filter((field) => !selectedVenueId || field.venueId === selectedVenueId);
@@ -199,6 +206,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
   const delayedGames = filteredSessions.filter((session) => isSameDay(session.startTime, now) && isDelayedSession(session));
   const fieldCards = buildFieldCards({
     activeAlerts,
+    audioProfiles,
     fields: filteredFields.filter((field) => {
       if (selectedSport && field.sportType !== selectedSport) return false;
       if (selectedTournamentId) {
@@ -215,6 +223,8 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
   const activeResources = resourceActivations.filter((activation) => activation.status === "active");
   const activeVolunteers = volunteerRoles.filter((role) => role.status === "active" || role.status === "approved");
   const configuredScoreboards = fieldCards.filter((card) => card.scoreboardProfile).length;
+  const activeAudioFields = fieldCards.filter((card) => card.audioProfile?.status === "active").length;
+  const displayVenueId = selectedVenueId || venues[0]?.id || "";
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -227,6 +237,11 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          {displayVenueId ? (
+            <Link href={getPublicVenueDisplayUrl(displayVenueId)} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+              Open Venue Display
+            </Link>
+          ) : null}
           <Link href="/admin/status-board" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Open Status Board
           </Link>
@@ -264,7 +279,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
         </div>
       </form>
 
-      <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
+      <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
         <SummaryCard label="Active Games" note="Live now" value={activeGames.length} />
         <SummaryCard label="Upcoming Games" note="Scheduled future games" value={upcomingGames.length} />
         <SummaryCard label="Delayed Games" note="Today's sessions with delay notes" value={delayedGames.length} />
@@ -272,6 +287,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
         <SummaryCard label="Active Resources" note="Approved active resources" value={activeResources.length} />
         <SummaryCard label="Active Volunteers" note="Approved or active roles" value={activeVolunteers.length} />
         <SummaryCard label="Scoreboards" note="Configured field profiles" value={configuredScoreboards} />
+        <SummaryCard label="Audio Active" note="Fields with active audio profiles" value={activeAudioFields} />
       </section>
 
       <section className="mt-8">
@@ -348,6 +364,20 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
                     <p className={`mt-2 w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getScoreboardStatusClass(card.scoreboardProfile.scoreboardStatus)}`}>
                       {getScoreboardStatusLabel(card.scoreboardProfile.scoreboardStatus)}
                     </p>
+                  ) : (
+                    <p className="mt-1 text-sm font-black text-slate-700">Not configured</p>
+                  )}
+                </div>
+
+                <div className="mt-3 rounded-lg bg-white p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Audio</p>
+                  {card.audioProfile ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className={`w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getAudioStatusClass(card.audioProfile.status)}`}>
+                        {getAudioStatusLabel(card.audioProfile.status)}
+                      </span>
+                      <span className="text-xs font-black text-[var(--muted)]">{getAudioModeLabel(card.audioProfile.audioMode)}</span>
+                    </div>
                   ) : (
                     <p className="mt-1 text-sm font-black text-slate-700">Not configured</p>
                   )}

@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { getPublicFieldUrl } from "@/lib/public-url";
+import { getAudioModeLabel, getAudioProfileForField } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { getActivationLabel, getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
@@ -11,7 +12,7 @@ import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
-import type { Alert, Field, Organization, Resource, ResourceActivation, ScoreboardProfile, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
+import type { Alert, AudioProfile, Field, Organization, Resource, ResourceActivation, ScoreboardProfile, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
 import { ResourceActivationForm } from "./resource-activation-form";
 import { VolunteerRoleForm } from "./volunteer-role-form";
@@ -180,9 +181,9 @@ function AlertStack({ alerts }: { alerts: Alert[] }) {
   return (
     <section className="grid gap-3">
       {alerts.map((alert) => (
-        <article className={`rounded-lg border-2 p-5 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
+        <article className={`rounded-lg border-2 p-4 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
           <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
-          <h2 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{alert.title}</h2>
+          <h2 className="mt-1 text-2xl font-black leading-tight">{alert.title}</h2>
           <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-7">{alert.message}</p>
         </article>
       ))}
@@ -223,7 +224,7 @@ function SessionCard({ session }: { session: Session }) {
   const diamondSport = isDiamondSport(session);
 
   return (
-    <article className="ui-card p-4 sm:p-5">
+    <article className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-lg font-black">{session.title}</h3>
@@ -260,10 +261,10 @@ function SessionBadge({ label }: { label: SessionBadgeLabel }) {
     <span
       className={
         label === "LIVE NOW"
-          ? "inline-flex w-fit rounded-md bg-red-600 px-2 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
+          ? "inline-flex min-h-8 w-fit items-center rounded-md bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
           : label === "NEXT GAME"
-            ? "inline-flex w-fit rounded-md bg-[var(--accent)] px-2 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
-            : "inline-flex w-fit rounded-md bg-[var(--black-soft)] px-2 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
+            ? "inline-flex min-h-8 w-fit items-center rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
+            : "inline-flex min-h-8 w-fit items-center rounded-md bg-[var(--black-soft)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
       }
     >
       {label}
@@ -273,11 +274,11 @@ function SessionBadge({ label }: { label: SessionBadgeLabel }) {
 
 function CompactSessionRow({ session, badge }: { session: Session; badge?: SessionBadgeLabel | null }) {
   return (
-    <article className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
+    <article className="rounded-lg border border-[var(--line)] bg-white p-3 shadow-sm sm:p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-black">{session.title}</p>
+            <p className="text-base font-black leading-tight sm:truncate">{session.title}</p>
             {badge ? <SessionBadge label={badge} /> : null}
           </div>
           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
@@ -289,7 +290,7 @@ function CompactSessionRow({ session, badge }: { session: Session; badge?: Sessi
         </div>
         <div className="text-left sm:text-right">
           <p className="text-sm font-black">{formatTimeOnly(session.startTime)}</p>
-          <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">{session.gameStatus}</p>
+          <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">{session.status}</p>
         </div>
       </div>
     </article>
@@ -309,6 +310,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   let activeActivations: ResourceActivation[] = [];
   let sponsorPlacements: SponsorPlacement[] = [];
   let scoreboardProfile: ScoreboardProfile | null = null;
+  let audioProfile: AudioProfile | null = null;
   let errorMessage: string | null = null;
 
   try {
@@ -326,7 +328,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
       tournaments = tournamentResults;
       activeAlerts = alertResults;
       const activeOrNextSession = getActiveOrNextSession(sessionResults);
-      [sponsorPlacements, resources, activeActivations, scoreboardProfile] = await Promise.all([
+      [sponsorPlacements, resources, activeActivations, scoreboardProfile, audioProfile] = await Promise.all([
         getSponsorPlacementsForFieldPage({
           venueId: field.venueId,
           fieldId,
@@ -341,6 +343,10 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
           sessionId: activeOrNextSession?.id,
         }),
         getScoreboardProfileForField(fieldId),
+        getAudioProfileForField({
+          fieldId,
+          sessionId: activeOrNextSession?.id,
+        }),
       ]);
     }
   } catch (error) {
@@ -369,12 +375,12 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   const trackedSponsorIds = [...new Set(sponsorPlacements.map((placement) => placement.sponsorId))];
   const topSessionLabel =
     currentSessionBadge === "LIVE NOW"
-      ? "Live field status"
+      ? "Happening now"
       : currentSessionBadge === "NEXT GAME"
         ? "Next game"
         : currentSessionBadge === "FINAL"
-          ? "Final session"
-          : "Session";
+          ? "Final score"
+          : "Game info";
   const primaryColor = venue?.primaryColor ?? organization?.primaryColor ?? "#166534";
   const secondaryColor = venue?.secondaryColor ?? organization?.secondaryColor ?? "#111827";
   const logoUrl = venue?.logoUrl ?? organization?.logoUrl;
@@ -404,20 +410,29 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
     <section className="min-h-screen bg-white">
       <div className="mx-auto max-w-3xl px-0 sm:px-6 sm:py-8">
         <div className="overflow-hidden bg-[var(--panel)] shadow-sm sm:rounded-lg sm:border sm:border-[var(--line)]">
-          <header className="p-5 text-white sm:p-7" style={brandedHeaderStyle}>
+          <header className="p-4 text-white sm:p-7" style={brandedHeaderStyle}>
             <div className="flex items-center gap-3">
               {logoUrl ? (
                 <Image alt="" className="h-14 w-14 rounded-lg border border-white/25 bg-white object-contain p-1.5" height={56} src={logoUrl} unoptimized width={56} />
               ) : null}
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">{brandName}</p>
-                <h1 className="truncate text-2xl font-black sm:text-4xl">{venue?.name ?? "GameDay OS"}</h1>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">{venue?.name ?? brandName}</p>
+                <h1 className="text-3xl font-black leading-tight sm:text-4xl">{field?.name ?? "Field unavailable"}</h1>
               </div>
             </div>
-            <p className="mt-5 text-2xl font-black leading-tight">{field?.name ?? "Field unavailable"}</p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-white/15 px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-white">
+                {field?.sportType ?? "Field"}
+              </span>
+              {field ? (
+                <span className={`rounded-md px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
+                  {getFieldStatusLabel(field.status)}
+                </span>
+              ) : null}
+            </div>
           </header>
 
-          <main className="grid gap-5 p-4 sm:p-5">
+          <main className="grid gap-4 p-3 sm:gap-5 sm:p-5">
             {field && venue ? <FieldPageViewTracker fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} /> : null}
 
             {errorMessage ? (
@@ -436,12 +451,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </section>
             ) : null}
 
-            <AlertStack alerts={publicAlerts} />
-
-            {field ? <FieldStatusBanner field={field} /> : null}
-
             <section
-            className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-5 shadow-lg sm:p-6" : "rounded-lg border-2 bg-white p-5 shadow-md sm:p-6"}
+              className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-4 shadow-lg sm:p-6" : "rounded-lg border-2 bg-white p-4 shadow-md sm:p-6"}
               style={currentSessionBadge === "LIVE NOW" ? undefined : accentStyle}
             >
               <div className="flex flex-wrap items-center gap-2">
@@ -452,7 +463,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </div>
               {currentSession ? (
                 <div className="mt-4">
-                  <h2 className="text-3xl font-black leading-tight sm:text-4xl">{currentSession.title}</h2>
+                  <h2 className="text-3xl font-black leading-tight">{currentSession.title}</h2>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
                       {currentSession.sportType}
@@ -460,18 +471,18 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     <p className="text-sm font-semibold text-[var(--muted)]">{formatSessionTime(currentSession.startTime)}</p>
                   </div>
                   {currentTournament ? <TournamentBadge tournament={currentTournament} /> : null}
-                  <div className="mt-5 rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
-                    <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4">
+                  <div className="mt-5 rounded-lg border border-[var(--line)] bg-white p-3 shadow-sm sm:p-5">
+                    <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4">
                       <div className="min-w-0 rounded-lg bg-[var(--background)] p-3 sm:bg-transparent sm:p-0">
                         <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Home</p>
-                        <p className="mt-1 text-xl font-black leading-tight sm:truncate sm:text-xl">{currentSession.homeTeam}</p>
+                        <p className="mt-1 text-2xl font-black leading-tight sm:truncate">{currentSession.homeTeam}</p>
                       </div>
-                      <p className="rounded-xl bg-[var(--black-soft)] px-4 py-5 text-center text-6xl font-black leading-none text-white shadow-sm sm:min-w-36 sm:px-5 sm:text-6xl" style={currentSessionBadge === "LIVE NOW" ? undefined : accentButtonStyle}>
+                      <p className="rounded-xl bg-[var(--black-soft)] px-4 py-5 text-center text-7xl font-black leading-none text-white shadow-sm sm:min-w-36 sm:px-5" style={currentSessionBadge === "LIVE NOW" ? undefined : accentButtonStyle}>
                         {currentSession.homeScore}-{currentSession.awayScore}
                       </p>
                       <div className="min-w-0 rounded-lg bg-[var(--background)] p-3 sm:bg-transparent sm:p-0 sm:text-right">
                         <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Away</p>
-                        <p className="mt-1 text-xl font-black leading-tight sm:truncate sm:text-xl">{currentSession.awayTeam}</p>
+                        <p className="mt-1 text-2xl font-black leading-tight sm:truncate">{currentSession.awayTeam}</p>
                       </div>
                     </div>
                     {currentSessionIsDiamondSport ? (
@@ -508,29 +519,29 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                       </div>
                     )}
                   </div>
-                  <span className="mt-4 inline-flex rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                  <span className="mt-4 inline-flex min-h-9 items-center rounded-md bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
                     {currentSession.gameStatus}
                   </span>
                   <div className="mt-4 rounded-lg border border-[var(--line)] bg-white p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Score source</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Score updates</p>
                     {scoreboardProfile ? (
                       <>
                         <p className="mt-1 text-base font-black">
-                          {scoreboardProfile.scoreboardStatus === "active" ? "Scoreboard connected" : "Scoreboard manual mode."}
+                          {scoreboardProfile.scoreboardStatus === "active" ? "Connected scoreboard" : "Manual score updates"}
                         </p>
                         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
                           {getScoreboardIntegrationModeLabel(scoreboardProfile.integrationMode)} · {getScoreboardStatusLabel(scoreboardProfile.scoreboardStatus)}
                         </p>
                       </>
                     ) : (
-                      <p className="mt-1 text-base font-black">Score powered by GameDay OS.</p>
+                      <p className="mt-1 text-base font-black">Live score updates from the field.</p>
                     )}
                   </div>
                   {gameLinks.length > 0 || currentSession.notes ? (
                     <div className="mt-5 rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
                       {gameLinks.length > 0 ? (
                         <div>
-                          <h3 className="text-base font-black">Game Links</h3>
+                          <h3 className="text-base font-black">Watch or follow</h3>
                           <div className="mt-3 grid gap-3">
                             {gameLinks.map((link) => (
                               <a
@@ -566,20 +577,24 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               )}
             </section>
 
+            <AlertStack alerts={publicAlerts} />
+
+            {field ? <FieldStatusBanner field={field} /> : null}
+
             {!currentSession ? (
               <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Score source</p>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Score updates</p>
                 {scoreboardProfile ? (
                   <>
                     <p className="mt-1 text-base font-black">
-                      {scoreboardProfile.scoreboardStatus === "active" ? "Scoreboard connected" : "Scoreboard manual mode."}
+                      {scoreboardProfile.scoreboardStatus === "active" ? "Connected scoreboard" : "Manual score updates"}
                     </p>
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
                       {getScoreboardIntegrationModeLabel(scoreboardProfile.integrationMode)} · {getScoreboardStatusLabel(scoreboardProfile.scoreboardStatus)}
                     </p>
                   </>
                 ) : (
-                  <p className="mt-1 text-base font-black">Score powered by GameDay OS.</p>
+                  <p className="mt-1 text-base font-black">Live score updates from the field.</p>
                 )}
               </section>
             ) : null}
@@ -752,6 +767,15 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5">
               <h2 className="text-lg font-black">Available Resources</h2>
+              {audioProfile?.status === "active" ? (
+                <article className="mt-4 flex items-start gap-3 rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] p-4">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-black text-white">✓</span>
+                  <div>
+                    <h3 className="text-base font-black text-[var(--accent-strong)]">Audio available</h3>
+                    <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{getAudioModeLabel(audioProfile.audioMode)}</p>
+                  </div>
+                </article>
+              ) : null}
               {resources.length > 0 ? (
                 <div className="mt-4 grid gap-3">
                   {resources.map((resource) => (
@@ -765,11 +789,11 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     </article>
                   ))}
                 </div>
-              ) : (
+              ) : audioProfile?.status !== "active" ? (
                 <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
                   No venue resources configured.
                 </p>
-              )}
+              ) : null}
             </section>
 
             {activeActivations.length > 0 ? (

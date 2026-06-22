@@ -59,14 +59,18 @@ export function ResourceActivationForm({
       return;
     }
 
-    setMessage({ kind: "success", text: "Request submitted. An operator can approve it from the admin dashboard." });
+    setMessage({ kind: "success", text: "Thanks. The field crew can review it shortly." });
     event.currentTarget.reset();
     setIsSaving(false);
   }
 
   return (
-    <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-      <h2 className="text-lg font-black">Attach Resource</h2>
+    <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4 sm:p-5">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Optional</p>
+      <h2 className="mt-1 text-lg font-black">Share a Field Resource</h2>
+      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+        Use this if you are helping with a stream, camera, audio, or scoreboard.
+      </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {options.map((option) => (
           <button

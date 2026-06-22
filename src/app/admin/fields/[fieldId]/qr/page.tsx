@@ -1,6 +1,6 @@
 import { FieldQrCode } from "@/components/field-qr-code";
 import { PrintDownloadButton } from "@/components/print-download-button";
-import { getPublicFieldUrl, getPublicVenueUrl, hasConfiguredPublicAppUrl } from "@/lib/public-url";
+import { getPublicFieldUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getField } from "@/lib/services/fields";
 import { getVenue } from "@/lib/services/venues";
 import type { Field, Venue } from "@/lib/types";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function FieldQrPage({ params }: FieldQrPageProps) {
   const { fieldId } = await params;
   const publicFieldUrl = getPublicFieldUrl(fieldId);
-  const hasPublicAppUrl = hasConfiguredPublicAppUrl();
+  const publicUrlIsLocalhost = publicAppUrlPointsToLocalhost();
   let field: Field | null = null;
   let venue: Venue | null = null;
   let errorMessage: string | null = null;
@@ -34,9 +34,9 @@ export default async function FieldQrPage({ params }: FieldQrPageProps) {
         <PrintDownloadButton />
       </div>
 
-      {!hasPublicAppUrl ? (
+      {publicUrlIsLocalhost ? (
         <div className="mx-auto mb-4 max-w-[8.5in] rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 print:hidden">
-          NEXT_PUBLIC_APP_URL is not set. This QR code points to localhost and is not ready for field testing.
+          This QR code points to localhost. Set NEXT_PUBLIC_APP_URL to the deployed site before field testing.
         </div>
       ) : null}
 
@@ -61,9 +61,9 @@ export default async function FieldQrPage({ params }: FieldQrPageProps) {
                 <FieldQrCode value={publicFieldUrl} size={300} />
               </div>
 
-              <p className="mt-10 text-3xl font-black leading-tight print:text-4xl">Scan to connect to this field</p>
+              <p className="mt-10 text-3xl font-black leading-tight print:text-4xl">Scan for live game info.</p>
               <p className="mx-auto mt-4 max-w-xl text-lg font-bold leading-8 text-[var(--muted)] print:text-xl">
-                View current game, upcoming schedule, and field info
+                View current game, upcoming schedule, field status, alerts, sponsors, and venue info.
               </p>
               <p className="mx-auto mt-6 max-w-xl break-all rounded-lg bg-[var(--background)] p-4 text-sm font-bold text-[var(--muted)] print:text-base">
                 {publicFieldUrl}

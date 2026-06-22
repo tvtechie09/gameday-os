@@ -2,7 +2,7 @@
 
 import { QRCodeSVG } from "qrcode.react";
 
-export function FieldQrCode({ value, size = 128 }: { value: string; size?: number }) {
+export function FieldQrCode({ title = "GameDay OS public link QR code", value, size = 128 }: { title?: string; value: string; size?: number }) {
   return (
     <QRCodeSVG
       value={value}
@@ -11,7 +11,7 @@ export function FieldQrCode({ value, size = 128 }: { value: string; size?: numbe
       marginSize={2}
       bgColor="#ffffff"
       fgColor="#0b120e"
-      title="GameDay OS field link QR code"
+      title={title}
     />
   );
 }

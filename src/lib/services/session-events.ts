@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { SessionEvent, SessionEventType } from "@/lib/types";
+import { getOrganizationDataScope } from "./organization-data-scope";
 
 type SessionEventRow = Database["public"]["Tables"]["session_events"]["Row"];
 
@@ -91,11 +92,21 @@ export async function getSessionEvents(sessionId: string): Promise<SessionEvent[
 
 export async function getRecentSessionEvents(limit = 12): Promise<SessionEvent[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const scope = await getOrganizationDataScope();
+  let query = supabase
     .from("session_events")
     .select(sessionEventSelect)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .order("created_at", { ascending: false });
+
+  if (scope) {
+    if (scope.sessionIds.size === 0) {
+      return [];
+    }
+
+    query = query.in("session_id", [...scope.sessionIds]);
+  }
+
+  const { data, error } = await query.limit(limit);
 
   if (error) {
     throw new Error(error.message);

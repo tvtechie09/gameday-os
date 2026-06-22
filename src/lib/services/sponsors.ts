@@ -153,13 +153,27 @@ export async function deleteSponsor(id: string): Promise<void> {
 
 export async function getSponsorAssignments(): Promise<SponsorAssignment[]> {
   const supabase = getSupabaseServerClient();
+  const organizationId = await getCurrentOrganizationScope();
   const { data, error } = await supabase.from("sponsor_assignments").select(assignmentSelect).order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapSponsorAssignment);
+  const assignments = (data ?? []).map(mapSponsorAssignment);
+
+  if (!organizationId) {
+    return assignments;
+  }
+
+  const { data: sponsors, error: sponsorError } = await supabase.from("sponsors").select("id").eq("organization_id", organizationId);
+
+  if (sponsorError) {
+    throw new Error(sponsorError.message);
+  }
+
+  const sponsorIds = new Set((sponsors ?? []).map((sponsor) => sponsor.id));
+  return assignments.filter((assignment) => sponsorIds.has(assignment.sponsorId));
 }
 
 export async function createSponsorAssignment(data: CreateSponsorAssignmentInput): Promise<SponsorAssignment> {

@@ -640,6 +640,108 @@ export type Database = {
           },
         ];
       };
+      scoreboard_adapters: {
+        Row: {
+          id: string;
+          scoreboard_id: string;
+          adapter_type: string;
+          adapter_status: string;
+          last_sync_at: string | null;
+          notes: string | null;
+        };
+        Insert: {
+          id?: string;
+          scoreboard_id: string;
+          adapter_type?: string;
+          adapter_status?: string;
+          last_sync_at?: string | null;
+          notes?: string | null;
+        };
+        Update: {
+          id?: string;
+          scoreboard_id?: string;
+          adapter_type?: string;
+          adapter_status?: string;
+          last_sync_at?: string | null;
+          notes?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "scoreboard_adapters_scoreboard_id_fkey";
+            columns: ["scoreboard_id"];
+            isOneToOne: false;
+            referencedRelation: "scoreboard_profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      audio_profiles: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          venue_id: string;
+          field_id: string;
+          session_id: string | null;
+          audio_mode: string;
+          speaker_type: string | null;
+          provider: string | null;
+          status: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id: string;
+          field_id: string;
+          session_id?: string | null;
+          audio_mode?: string;
+          speaker_type?: string | null;
+          provider?: string | null;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id?: string;
+          field_id?: string;
+          session_id?: string | null;
+          audio_mode?: string;
+          speaker_type?: string | null;
+          provider?: string | null;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "audio_profiles_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "audio_profiles_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "audio_profiles_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       resource_activations: {
         Row: {
           id: string;
@@ -820,6 +922,7 @@ export type Database = {
           status: string;
           home_score: number;
           away_score: number;
+          is_demo: boolean;
           inning: number;
           inning_half: string;
           balls: number;
@@ -851,6 +954,7 @@ export type Database = {
           status?: string;
           home_score?: number;
           away_score?: number;
+          is_demo?: boolean;
           inning?: number;
           inning_half?: string;
           balls?: number;
@@ -882,6 +986,7 @@ export type Database = {
           status?: string;
           home_score?: number;
           away_score?: number;
+          is_demo?: boolean;
           inning?: number;
           inning_half?: string;
           balls?: number;

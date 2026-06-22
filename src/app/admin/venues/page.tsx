@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { EmptyState } from "@/components/empty-state";
-import { getPublicVenueUrl } from "@/lib/public-url";
+import { FieldQrCode } from "@/components/field-qr-code";
+import { getPublicAppUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getVenues } from "@/lib/services/venues";
 import type { Venue } from "@/lib/types";
 
@@ -16,6 +18,8 @@ function formatUpdatedAt(value: string) {
 export default async function VenuesPage() {
   let venues: Venue[] = [];
   let errorMessage: string | null = null;
+  const appUrl = getPublicAppUrl();
+  const publicUrlIsLocalhost = publicAppUrlPointsToLocalhost();
 
   try {
     venues = await getVenues();
@@ -62,12 +66,33 @@ export default async function VenuesPage() {
               <div className="mt-4 overflow-x-auto rounded-lg bg-[var(--background)] p-4">
                 <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">Public venue URL</p>
                 <code className="mt-2 block whitespace-nowrap text-sm font-bold text-[var(--foreground)]">{getPublicVenueUrl(venue.id)}</code>
+                {publicUrlIsLocalhost ? (
+                  <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-900">
+                    Warning: this public URL points to localhost. Set NEXT_PUBLIC_APP_URL before printing QR codes for field testing.
+                  </p>
+                ) : null}
+              </div>
+              <div className="mt-4 grid gap-4 lg:grid-cols-[auto_1fr]">
+                <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">
+                  <FieldQrCode title={`${venue.name} venue QR code`} value={getPublicVenueUrl(venue.id)} size={132} />
+                </div>
+                <div className="min-w-0 rounded-lg border border-[var(--line)] bg-[var(--black-soft)] p-3">
+                  <div className="mx-auto h-[360px] max-w-[210px] overflow-hidden rounded-[1.5rem] border-4 border-white/15 bg-white shadow-sm">
+                    <iframe className="h-full w-full border-0" src={`/venues/${venue.id}`} title={`${venue.name} mobile venue preview`} />
+                  </div>
+                  <p className="mt-3 text-center text-xs font-bold uppercase tracking-[0.12em] text-white/60">Mobile venue preview</p>
+                </div>
               </div>
               <div className="mt-5 flex flex-col gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(venue.updatedAt)}</p>
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <CopyLinkButton label="Copy public link" value={getPublicVenueUrl(venue.id)} />
+                  <CopyLinkButton label="Copy QR link" value={`${appUrl}/admin/venues/${venue.id}/qr`} />
                   <Link href={`/venues/${venue.id}`} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
                     Public Page
+                  </Link>
+                  <Link href={`/admin/venues/${venue.id}/qr`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                    Print Venue QR
                   </Link>
                   <Link href={`/admin/venues/${venue.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                     Edit

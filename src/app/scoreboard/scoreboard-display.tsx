@@ -7,6 +7,7 @@ import type { ScoreboardPayload } from "@/lib/services/scoreboard-display";
 type ScoreboardDisplayProps = {
   apiPath: string;
   compact?: boolean;
+  fullscreen?: boolean;
   initialPayload: ScoreboardPayload;
   showSponsor?: boolean;
   theme?: "dark" | "light";
@@ -48,6 +49,7 @@ function statusLabel(payload: ScoreboardPayload) {
 export function ScoreboardDisplay({
   apiPath,
   compact = false,
+  fullscreen = false,
   initialPayload,
   showSponsor = true,
   theme = "dark",
@@ -97,12 +99,17 @@ export function ScoreboardDisplay({
 
   return (
     <main className={`min-h-screen ${containerClass}`}>
-      <section className={`mx-auto flex min-h-screen w-full max-w-[1800px] flex-col justify-between gap-4 p-4 sm:p-6 lg:p-8 ${compact ? "xl:max-w-6xl" : ""}`}>
+      <section className={`mx-auto flex min-h-screen w-full flex-col justify-between gap-4 ${fullscreen ? "max-w-none p-3 sm:p-4 lg:p-5" : `max-w-[1800px] p-4 sm:p-6 lg:p-8 ${compact ? "xl:max-w-6xl" : ""}`}`}>
         <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className={`text-sm font-black uppercase tracking-[0.22em] ${mutedClass}`}>{payload.venue?.name ?? "GameDay OS"}</p>
             <h1 className="mt-1 text-3xl font-black leading-none sm:text-5xl lg:text-6xl">{payload.field?.name ?? "Field unavailable"}</h1>
             {session ? <p className={`mt-2 text-lg font-bold sm:text-2xl ${mutedClass}`}>{session.title} · {formatTime(session.startTime)}</p> : null}
+            {session?.isDemo ? (
+              <p className="mt-3 w-fit rounded-lg bg-amber-300 px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-black">
+                Demo Mode
+              </p>
+            ) : null}
           </div>
           <div className={`w-fit rounded-xl border px-4 py-3 text-right ${panelClass}`}>
             <p className={`text-xs font-black uppercase tracking-[0.18em] ${mutedClass}`}>Status</p>

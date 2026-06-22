@@ -34,9 +34,14 @@ export default async function EditScoreboardProfilePage({ params }: EditScoreboa
             Update connection notes, sync status, and the field this profile belongs to.
           </p>
         </div>
-        <Link href={getPublicFieldScoreboardUrl(profile.fieldId)} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white">
-          Open display
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href={`/admin/scoreboards/display?venue=${profile.venueId}&field=${profile.fieldId}`} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Display controls
+          </Link>
+          <Link href={getPublicFieldScoreboardUrl(profile.fieldId)} className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white">
+            Open display
+          </Link>
+        </div>
       </div>
       <ScoreboardForm fields={fields} profile={profile} resources={resources} venues={venues} />
     </section>

@@ -60,14 +60,18 @@ export function VolunteerRoleForm({
       return;
     }
 
-    setMessage({ kind: "success", text: "Volunteer request submitted. An operator can approve it from the admin dashboard." });
+    setMessage({ kind: "success", text: "Thanks. The field crew can review it shortly." });
     event.currentTarget.reset();
     setIsSaving(false);
   }
 
   return (
-    <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-      <h2 className="text-lg font-black">Help Run This Game</h2>
+    <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4 sm:p-5">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Optional</p>
+      <h2 className="mt-1 text-lg font-black">Help Run This Game</h2>
+      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+        For scorekeepers, stream helpers, audio, announcing, or scoreboard help.
+      </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {options.map((option) => (
           <button

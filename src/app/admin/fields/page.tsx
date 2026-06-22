@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { EmptyState } from "@/components/empty-state";
 import { FieldQrCode } from "@/components/field-qr-code";
-import { getPublicFieldUrl } from "@/lib/public-url";
+import { getPublicAppUrl, getPublicFieldUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getFieldPageViewCountsByField } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getFollowCountsByField } from "@/lib/services/follows";
@@ -54,6 +54,8 @@ export default async function FieldsPage() {
   let fieldViewCounts = new Map<string, number>();
   let fieldFollowCounts = new Map<string, number>();
   let errorMessage: string | null = null;
+  const appUrl = getPublicAppUrl();
+  const publicUrlIsLocalhost = publicAppUrlPointsToLocalhost();
 
   try {
     const [fieldResults, venueResults, viewCounts, followCounts] = await Promise.all([getFields(), getVenues(), getFieldPageViewCountsByField(), getFollowCountsByField()]);
@@ -117,9 +119,17 @@ export default async function FieldsPage() {
                         <p className="mt-2 w-fit rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
                           {fieldFollowCounts.get(field.id) ?? 0} follows
                         </p>
-                        <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
+                        <div className="mt-3 rounded-lg bg-white p-3">
+                          <p className="break-all text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
+                          {publicUrlIsLocalhost ? (
+                            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-900">
+                              Warning: this public URL points to localhost. Set NEXT_PUBLIC_APP_URL before printing QR codes for field testing.
+                            </p>
+                          ) : null}
+                        </div>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                          <CopyLinkButton value={getPublicFieldUrl(field.id)} />
+                          <CopyLinkButton label="Copy public link" value={getPublicFieldUrl(field.id)} />
+                          <CopyLinkButton label="Copy QR link" value={`${appUrl}/admin/fields/${field.id}/qr`} />
                           <Link href={field.qrPath} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                             View public page
                           </Link>
@@ -151,8 +161,16 @@ export default async function FieldsPage() {
                         </form>
                         <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(field.updatedAt)}</p>
                       </div>
-                      <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">
-                        <FieldQrCode value={getPublicFieldUrl(field.id)} size={132} />
+                      <div className="grid gap-3">
+                        <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">
+                          <FieldQrCode title={`${field.name} field QR code`} value={getPublicFieldUrl(field.id)} size={132} />
+                        </div>
+                        <div className="hidden rounded-lg border border-[var(--line)] bg-[var(--black-soft)] p-3 lg:block">
+                          <div className="mx-auto h-[360px] w-[210px] overflow-hidden rounded-[1.5rem] border-4 border-white/15 bg-white shadow-sm">
+                            <iframe className="h-full w-full border-0" src={`/fields/${field.id}`} title={`${field.name} mobile field preview`} />
+                          </div>
+                          <p className="mt-3 text-center text-xs font-bold uppercase tracking-[0.12em] text-white/60">Mobile field preview</p>
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -185,9 +203,17 @@ export default async function FieldsPage() {
                         <p className="mt-2 w-fit rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
                           {fieldFollowCounts.get(field.id) ?? 0} follows
                         </p>
-                        <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
+                        <div className="mt-3 rounded-lg bg-white p-3">
+                          <p className="break-all text-sm font-semibold text-[var(--muted)]">{getPublicFieldUrl(field.id)}</p>
+                          {publicUrlIsLocalhost ? (
+                            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-900">
+                              Warning: this public URL points to localhost. Set NEXT_PUBLIC_APP_URL before printing QR codes for field testing.
+                            </p>
+                          ) : null}
+                        </div>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                          <CopyLinkButton value={getPublicFieldUrl(field.id)} />
+                          <CopyLinkButton label="Copy public link" value={getPublicFieldUrl(field.id)} />
+                          <CopyLinkButton label="Copy QR link" value={`${appUrl}/admin/fields/${field.id}/qr`} />
                           <Link href={`/admin/fields/${field.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                             Edit
                           </Link>
@@ -216,8 +242,16 @@ export default async function FieldsPage() {
                         </form>
                         <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(field.updatedAt)}</p>
                       </div>
-                      <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">
-                        <FieldQrCode value={getPublicFieldUrl(field.id)} size={132} />
+                      <div className="grid gap-3">
+                        <div className="w-fit rounded-lg border border-[var(--line)] bg-white p-3">
+                          <FieldQrCode title={`${field.name} field QR code`} value={getPublicFieldUrl(field.id)} size={132} />
+                        </div>
+                        <div className="hidden rounded-lg border border-[var(--line)] bg-[var(--black-soft)] p-3 lg:block">
+                          <div className="mx-auto h-[360px] w-[210px] overflow-hidden rounded-[1.5rem] border-4 border-white/15 bg-white shadow-sm">
+                            <iframe className="h-full w-full border-0" src={`/fields/${field.id}`} title={`${field.name} mobile field preview`} />
+                          </div>
+                          <p className="mt-3 text-center text-xs font-bold uppercase tracking-[0.12em] text-white/60">Mobile field preview</p>
+                        </div>
                       </div>
                     </div>
                   </article>

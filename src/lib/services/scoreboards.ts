@@ -44,6 +44,12 @@ function readScoreboardStatus(value: string): ScoreboardStatus {
   return scoreboardStatuses.find((status) => status === value) ?? "not_configured";
 }
 
+function isMissingScoreboardProfilesTableError(error: { code?: string; message?: string }) {
+  return error.code === "PGRST205"
+    || error.message?.includes("scoreboard_profiles") === true
+    || error.message?.includes("schema cache") === true;
+}
+
 export function getScoreboardConnectionTypeLabel(type: ScoreboardConnectionType) {
   const labels: Record<ScoreboardConnectionType, string> = {
     manual: "Manual",
@@ -133,6 +139,11 @@ export async function getScoreboardProfiles(): Promise<ScoreboardProfile[]> {
   const { data, error } = await query;
 
   if (error) {
+    if (isMissingScoreboardProfilesTableError(error)) {
+      console.error("scoreboard_profiles table is unavailable; returning no scoreboard profiles.", error);
+      return [];
+    }
+
     throw new Error(error.message);
   }
 
@@ -148,6 +159,11 @@ export async function getScoreboardProfile(id: string): Promise<ScoreboardProfil
     .maybeSingle();
 
   if (error) {
+    if (isMissingScoreboardProfilesTableError(error)) {
+      console.error("scoreboard_profiles table is unavailable; returning no scoreboard profile.", error);
+      return null;
+    }
+
     throw new Error(error.message);
   }
 
@@ -165,6 +181,11 @@ export async function getScoreboardProfileForField(fieldId: string): Promise<Sco
     .maybeSingle();
 
   if (error) {
+    if (isMissingScoreboardProfilesTableError(error)) {
+      console.error("scoreboard_profiles table is unavailable; returning no scoreboard profile for field.", error);
+      return null;
+    }
+
     throw new Error(error.message);
   }
 

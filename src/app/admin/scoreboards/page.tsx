@@ -38,9 +38,17 @@ export default async function ScoreboardsPage() {
             Prepare fields for manual, overlay, and future physical scoreboard integrations. No hardware commands are sent in v1.
           </p>
         </div>
-        <Link href="/admin/scoreboards/new" className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
-          New scoreboard profile
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/scoreboards/adapters" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Adapter framework
+          </Link>
+          <Link href="/admin/scoreboards/display" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Display controls
+          </Link>
+          <Link href="/admin/scoreboards/new" className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            New scoreboard profile
+          </Link>
+        </div>
       </div>
 
       <section className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -102,6 +110,9 @@ export default async function ScoreboardsPage() {
                     </Link>
                     <Link href={`${getPublicFieldScoreboardUrl(profile.fieldId)}?theme=dark&compact=true&sponsor=true`} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                       OBS compact
+                    </Link>
+                    <Link href={`/admin/scoreboards/display?venue=${profile.venueId}&field=${profile.fieldId}`} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                      Controls
                     </Link>
                     <Link href={`/admin/scoreboards/${profile.id}/edit`} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                       Edit
