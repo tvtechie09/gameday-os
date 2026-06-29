@@ -94,6 +94,9 @@ export default async function VenuesPage() {
                   <Link href={`/admin/venues/${venue.id}/qr`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                     Print Venue QR
                   </Link>
+                  <Link href={`/admin/venues/${venue.id}/mode`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                    Venue Mode
+                  </Link>
                   <Link href={`/admin/venues/${venue.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                     Edit
                   </Link>

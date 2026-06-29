@@ -77,6 +77,522 @@ export type Database = {
           },
         ];
       };
+      users: {
+        Row: {
+          id: string;
+          auth_user_id: string | null;
+          email: string | null;
+          display_name: string | null;
+          avatar_url: string | null;
+          user_status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          auth_user_id?: string | null;
+          email?: string | null;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          user_status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          auth_user_id?: string | null;
+          email?: string | null;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          user_status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      roles: {
+        Row: {
+          id: string;
+          key: string;
+          name: string;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          name: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          name?: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      permissions: {
+        Row: {
+          id: string;
+          key: string;
+          name: string;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          name: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          name?: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      role_permissions: {
+        Row: {
+          role_id: string;
+          permission_id: string;
+        };
+        Insert: {
+          role_id: string;
+          permission_id: string;
+        };
+        Update: {
+          role_id?: string;
+          permission_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey";
+            columns: ["permission_id"];
+            isOneToOne: false;
+            referencedRelation: "permissions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      organization_memberships: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string;
+          membership_status: string;
+          joined_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          user_id: string;
+          membership_status?: string;
+          joined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          user_id?: string;
+          membership_status?: string;
+          joined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "organization_memberships_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "organization_memberships_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_role_assignments: {
+        Row: {
+          id: string;
+          user_id: string;
+          role_id: string;
+          scope_type: string;
+          scope_id: string;
+          starts_at: string | null;
+          ends_at: string | null;
+          granted_by: string | null;
+          assignment_status: string;
+          revoked_by: string | null;
+          revoked_at: string | null;
+          approval_notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          role_id: string;
+          scope_type: string;
+          scope_id: string;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          granted_by?: string | null;
+          assignment_status?: string;
+          revoked_by?: string | null;
+          revoked_at?: string | null;
+          approval_notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          role_id?: string;
+          scope_type?: string;
+          scope_id?: string;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          granted_by?: string | null;
+          assignment_status?: string;
+          revoked_by?: string | null;
+          revoked_at?: string | null;
+          approval_notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_role_assignments_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_role_assignments_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_role_assignments_granted_by_fkey";
+            columns: ["granted_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      identity_invites: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          email: string;
+          role_id: string;
+          scope_type: string;
+          scope_id: string;
+          invite_status: string;
+          invited_by: string | null;
+          approved_by: string | null;
+          expires_at: string | null;
+          approved_at: string | null;
+          revoked_at: string | null;
+          approval_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          email: string;
+          role_id: string;
+          scope_type: string;
+          scope_id: string;
+          invite_status?: string;
+          invited_by?: string | null;
+          approved_by?: string | null;
+          expires_at?: string | null;
+          approved_at?: string | null;
+          revoked_at?: string | null;
+          approval_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          email?: string;
+          role_id?: string;
+          scope_type?: string;
+          scope_id?: string;
+          invite_status?: string;
+          invited_by?: string | null;
+          approved_by?: string | null;
+          expires_at?: string | null;
+          approved_at?: string | null;
+          revoked_at?: string | null;
+          approval_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "identity_invites_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_invites_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_invites_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      identity_access_requests: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          email: string | null;
+          requested_role_id: string | null;
+          requested_by: string | null;
+          scope_type: string;
+          scope_id: string;
+          request_status: string;
+          reason: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
+          revoked_by: string | null;
+          revoked_at: string | null;
+          approval_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          email?: string | null;
+          requested_role_id?: string | null;
+          requested_by?: string | null;
+          scope_type: string;
+          scope_id: string;
+          request_status?: string;
+          reason?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          revoked_by?: string | null;
+          revoked_at?: string | null;
+          approval_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          email?: string | null;
+          requested_role_id?: string | null;
+          requested_by?: string | null;
+          scope_type?: string;
+          scope_id?: string;
+          request_status?: string;
+          reason?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          revoked_by?: string | null;
+          revoked_at?: string | null;
+          approval_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "identity_access_requests_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_access_requests_requested_role_id_fkey";
+            columns: ["requested_role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_access_requests_requested_by_fkey";
+            columns: ["requested_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_access_requests_approved_by_fkey";
+            columns: ["approved_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_access_requests_revoked_by_fkey";
+            columns: ["revoked_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      identity_approvals: {
+        Row: {
+          id: string;
+          approval_status: string;
+          approval_type: string;
+          invite_id: string | null;
+          access_request_id: string | null;
+          assignment_id: string | null;
+          scope_type: string;
+          scope_id: string;
+          requested_by: string | null;
+          approved_by: string | null;
+          revoked_by: string | null;
+          reason: string | null;
+          approval_notes: string | null;
+          starts_at: string | null;
+          ends_at: string | null;
+          decided_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          approval_status?: string;
+          approval_type: string;
+          invite_id?: string | null;
+          access_request_id?: string | null;
+          assignment_id?: string | null;
+          scope_type: string;
+          scope_id: string;
+          requested_by?: string | null;
+          approved_by?: string | null;
+          revoked_by?: string | null;
+          reason?: string | null;
+          approval_notes?: string | null;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          decided_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          approval_status?: string;
+          approval_type?: string;
+          invite_id?: string | null;
+          access_request_id?: string | null;
+          assignment_id?: string | null;
+          scope_type?: string;
+          scope_id?: string;
+          requested_by?: string | null;
+          approved_by?: string | null;
+          revoked_by?: string | null;
+          reason?: string | null;
+          approval_notes?: string | null;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          decided_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "identity_approvals_invite_id_fkey";
+            columns: ["invite_id"];
+            isOneToOne: false;
+            referencedRelation: "identity_invites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_approvals_access_request_id_fkey";
+            columns: ["access_request_id"];
+            isOneToOne: false;
+            referencedRelation: "identity_access_requests";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_approvals_assignment_id_fkey";
+            columns: ["assignment_id"];
+            isOneToOne: false;
+            referencedRelation: "user_role_assignments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      audit_logs: {
+        Row: {
+          id: string;
+          actor_user_id: string | null;
+          action: string;
+          resource_type: string;
+          resource_id: string | null;
+          scope_type: string;
+          scope_id: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          actor_user_id?: string | null;
+          action: string;
+          resource_type: string;
+          resource_id?: string | null;
+          scope_type: string;
+          scope_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          actor_user_id?: string | null;
+          action?: string;
+          resource_type?: string;
+          resource_id?: string | null;
+          scope_type?: string;
+          scope_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       alerts: {
         Row: {
           id: string;
@@ -447,8 +963,12 @@ export type Database = {
           id: string;
           organization_id: string | null;
           venue_id: string;
+          zone_id: string | null;
+          parent_field_id: string | null;
           name: string;
           sport_type: string;
+          surface_code: string | null;
+          layout_role: string;
           map_label: string | null;
           map_x: number | null;
           map_y: number | null;
@@ -463,8 +983,12 @@ export type Database = {
           id?: string;
           organization_id?: string | null;
           venue_id: string;
+          zone_id?: string | null;
+          parent_field_id?: string | null;
           name: string;
           sport_type: string;
+          surface_code?: string | null;
+          layout_role?: string;
           map_label?: string | null;
           map_x?: number | null;
           map_y?: number | null;
@@ -479,8 +1003,12 @@ export type Database = {
           id?: string;
           organization_id?: string | null;
           venue_id?: string;
+          zone_id?: string | null;
+          parent_field_id?: string | null;
           name?: string;
           sport_type?: string;
+          surface_code?: string | null;
+          layout_role?: string;
           map_label?: string | null;
           map_x?: number | null;
           map_y?: number | null;
@@ -494,6 +1022,298 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fields_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fields_zone_id_fkey";
+            columns: ["zone_id"];
+            isOneToOne: false;
+            referencedRelation: "venue_zones";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fields_parent_field_id_fkey";
+            columns: ["parent_field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      venue_zones: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          venue_id: string;
+          name: string;
+          description: string | null;
+          zone_type: string;
+          map_label: string | null;
+          map_x: number | null;
+          map_y: number | null;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id: string;
+          name: string;
+          description?: string | null;
+          zone_type?: string;
+          map_label?: string | null;
+          map_x?: number | null;
+          map_y?: number | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id?: string;
+          name?: string;
+          description?: string | null;
+          zone_type?: string;
+          map_label?: string | null;
+          map_x?: number | null;
+          map_y?: number | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_zones_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      play_surfaces: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          venue_id: string;
+          zone_id: string | null;
+          parent_field_id: string | null;
+          field_id: string | null;
+          name: string;
+          surface_code: string | null;
+          sport_types: string[];
+          surface_type: string;
+          layout_role: string;
+          status: string;
+          map_label: string | null;
+          map_x: number | null;
+          map_y: number | null;
+          capacity: number | null;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id: string;
+          zone_id?: string | null;
+          parent_field_id?: string | null;
+          field_id?: string | null;
+          name: string;
+          surface_code?: string | null;
+          sport_types?: string[];
+          surface_type?: string;
+          layout_role?: string;
+          status?: string;
+          map_label?: string | null;
+          map_x?: number | null;
+          map_y?: number | null;
+          capacity?: number | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id?: string;
+          zone_id?: string | null;
+          parent_field_id?: string | null;
+          field_id?: string | null;
+          name?: string;
+          surface_code?: string | null;
+          sport_types?: string[];
+          surface_type?: string;
+          layout_role?: string;
+          status?: string;
+          map_label?: string | null;
+          map_x?: number | null;
+          map_y?: number | null;
+          capacity?: number | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "play_surfaces_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "play_surfaces_zone_id_fkey";
+            columns: ["zone_id"];
+            isOneToOne: false;
+            referencedRelation: "venue_zones";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "play_surfaces_parent_field_id_fkey";
+            columns: ["parent_field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "play_surfaces_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      field_layouts: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          venue_id: string;
+          parent_field_id: string | null;
+          layout_name: string;
+          layout_type: string;
+          is_active: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id: string;
+          parent_field_id?: string | null;
+          layout_name: string;
+          layout_type?: string;
+          is_active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id?: string;
+          parent_field_id?: string | null;
+          layout_name?: string;
+          layout_type?: string;
+          is_active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "field_layouts_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      field_layout_surfaces: {
+        Row: {
+          layout_id: string;
+          play_surface_id: string;
+          created_at: string;
+        };
+        Insert: {
+          layout_id: string;
+          play_surface_id: string;
+          created_at?: string;
+        };
+        Update: {
+          layout_id?: string;
+          play_surface_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "field_layout_surfaces_layout_id_fkey";
+            columns: ["layout_id"];
+            isOneToOne: false;
+            referencedRelation: "field_layouts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "field_layout_surfaces_play_surface_id_fkey";
+            columns: ["play_surface_id"];
+            isOneToOne: false;
+            referencedRelation: "play_surfaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      venue_mode_endpoints: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          venue_id: string;
+          endpoint_type: string;
+          provider_key: string;
+          endpoint_label: string;
+          endpoint_url: string | null;
+          status: string;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id: string;
+          endpoint_type: string;
+          provider_key?: string;
+          endpoint_label: string;
+          endpoint_url?: string | null;
+          status?: string;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id?: string;
+          endpoint_type?: string;
+          provider_key?: string;
+          endpoint_label?: string;
+          endpoint_url?: string | null;
+          status?: string;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_mode_endpoints_venue_id_fkey";
             columns: ["venue_id"];
             isOneToOne: false;
             referencedRelation: "venues";
@@ -959,6 +1779,7 @@ export type Database = {
           id: string;
           organization_id: string | null;
           field_id: string;
+          play_surface_id: string | null;
           tournament_id: string | null;
           title: string;
           sport_type: string;
@@ -991,6 +1812,7 @@ export type Database = {
           id?: string;
           organization_id?: string | null;
           field_id: string;
+          play_surface_id?: string | null;
           tournament_id?: string | null;
           title: string;
           sport_type?: string;
@@ -1023,6 +1845,7 @@ export type Database = {
           id?: string;
           organization_id?: string | null;
           field_id?: string;
+          play_surface_id?: string | null;
           tournament_id?: string | null;
           title?: string;
           sport_type?: string;
@@ -1057,6 +1880,13 @@ export type Database = {
             columns: ["field_id"];
             isOneToOne: false;
             referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sessions_play_surface_id_fkey";
+            columns: ["play_surface_id"];
+            isOneToOne: false;
+            referencedRelation: "play_surfaces";
             referencedColumns: ["id"];
           },
           {

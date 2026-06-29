@@ -2,6 +2,7 @@ import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/
 import type { Database } from "@/lib/supabase/types";
 import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
+import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 import { safelyCreateNotification } from "./notifications";
 import { recordSessionEvent } from "./session-events";
 
@@ -9,15 +10,16 @@ type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type SessionUpdateRow = Database["public"]["Tables"]["sessions"]["Update"];
 
 const sessionSelect =
-  "id,organization_id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,is_demo,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
+  "id,organization_id,field_id,play_surface_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,is_demo,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
 const sessionSelectWithoutDemo =
-  "id,organization_id,field_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
+  "id,organization_id,field_id,play_surface_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
 
 const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
 const validSportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
 
 export type CreateSessionInput = {
   field_id: string;
+  play_surface_id?: string | null;
   tournament_id?: string | null;
   title: string;
   sport_type?: SessionSportType | "" | null;
@@ -168,6 +170,7 @@ function mapSession(row: Omit<SessionRow, "is_demo"> & { is_demo?: boolean | nul
     id: row.id,
     organizationId: row.organization_id ?? null,
     fieldId: row.field_id,
+    playSurfaceId: readOptionalText(row.play_surface_id),
     tournamentId: readOptionalText(row.tournament_id),
     title: row.title,
     sportType: readSportType(row.sport_type),
@@ -303,6 +306,7 @@ export async function createSession(data: CreateSessionInput): Promise<Session> 
     .insert({
       organization_id: organizationId,
       field_id: data.field_id,
+      play_surface_id: readOptionalText(data.play_surface_id),
       tournament_id: readOptionalText(data.tournament_id),
       title: data.title,
       sport_type: readSportType(data.sport_type),
@@ -349,6 +353,7 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
     .update({
       organization_id: organizationId,
       field_id: data.field_id,
+      play_surface_id: readOptionalText(data.play_surface_id),
       tournament_id: readOptionalText(data.tournament_id),
       title: data.title,
       sport_type: readSportType(data.sport_type),
@@ -390,7 +395,10 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
   return mappedSession;
 }
 
-export async function updateSessionGameState(id: string, data: UpdateSessionGameStateInput): Promise<Session> {
+export async function updateSessionGameState(id: string, data: UpdateSessionGameStateInput, actorUserId?: string | null): Promise<Session> {
+  const actor = assertActorUserId(actorUserId);
+  await requirePermission(actor, "game.score.update", "session", id);
+
   const supabase = getSupabaseAdminClient();
   const previousSession = await getSession(id);
   const { data: session, error } = await supabase
@@ -428,6 +436,19 @@ export async function updateSessionGameState(id: string, data: UpdateSessionGame
     });
   }
   await recordAutomaticStatusEvents(previousSession?.gameStatus ?? null, mappedSession);
+  await safelyLogAudit({
+    action: "session.game_state.updated",
+    actorUserId: actor,
+    metadata: {
+      away_score: mappedSession.awayScore,
+      game_status: mappedSession.gameStatus,
+      home_score: mappedSession.homeScore,
+    },
+    resourceId: mappedSession.id,
+    resourceType: "session",
+    scopeId: mappedSession.id,
+    scopeType: "session",
+  });
 
   return mappedSession;
 }
@@ -541,6 +562,7 @@ export async function duplicateSessionsToDate(data: DuplicateSessionsInput): Pro
 
     return {
       field_id: session.field_id,
+      play_surface_id: session.play_surface_id,
       tournament_id: session.tournament_id,
       title: session.title,
       sport_type: readSportType(session.sport_type),

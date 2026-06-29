@@ -29,14 +29,17 @@ export default async function EditTournamentPage({ params }: EditTournamentPageP
       return;
     }
 
-    await updateTournament(tournamentId, {
-      name,
-      description: readOptionalText(formData, "description"),
-      start_date: startDate,
-      end_date: endDate,
-      logo_url: readOptionalText(formData, "logo_url"),
-      website_url: readOptionalText(formData, "website_url"),
-    });
+    await updateTournament(
+      tournamentId,
+      {
+        name,
+        description: readOptionalText(formData, "description"),
+        start_date: startDate,
+        end_date: endDate,
+        logo_url: readOptionalText(formData, "logo_url"),
+        website_url: readOptionalText(formData, "website_url"),
+      },
+    );
 
     revalidatePath("/admin/tournaments");
     revalidatePath("/admin/sessions");

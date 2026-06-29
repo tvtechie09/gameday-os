@@ -30,17 +30,20 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
       return;
     }
 
-    await updateVenue(venueId, {
-      name,
-      description,
-      address,
-      logo_url: logoUrl || null,
-      banner_url: bannerUrl || null,
-      map_image_url: mapImageUrl || null,
-      map_notes: mapNotes || null,
-      primary_color: primaryColor || null,
-      secondary_color: secondaryColor || null,
-    });
+    await updateVenue(
+      venueId,
+      {
+        name,
+        description,
+        address,
+        logo_url: logoUrl || null,
+        banner_url: bannerUrl || null,
+        map_image_url: mapImageUrl || null,
+        map_notes: mapNotes || null,
+        primary_color: primaryColor || null,
+        secondary_color: secondaryColor || null,
+      },
+    );
     revalidatePath("/admin/venues");
     redirect("/admin/venues");
   }

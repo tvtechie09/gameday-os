@@ -2,6 +2,7 @@ import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/
 import type { Database } from "@/lib/supabase/types";
 import type { Tournament } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
+import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 
 type TournamentRow = Database["public"]["Tables"]["tournaments"]["Row"];
 
@@ -74,9 +75,15 @@ export async function getTournament(id: string): Promise<Tournament | null> {
   return data ? mapTournament(data) : null;
 }
 
-export async function createTournament(data: CreateTournamentInput): Promise<Tournament> {
+export async function createTournament(data: CreateTournamentInput, actorUserId?: string | null): Promise<Tournament> {
   const supabase = getSupabaseAdminClient();
   const organizationId = await getWritableOrganizationId();
+  const actor = assertActorUserId(actorUserId);
+  if (!organizationId) {
+    throw new Error("Organization scope is required to create a tournament.");
+  }
+  await requirePermission(actor, "tournament.manage", "organization", organizationId);
+
   const { data: tournament, error } = await supabase
     .from("tournaments")
     .insert({
@@ -95,10 +102,24 @@ export async function createTournament(data: CreateTournamentInput): Promise<Tou
     throw new Error(error.message);
   }
 
-  return mapTournament(tournament);
+  const mappedTournament = mapTournament(tournament);
+  await safelyLogAudit({
+    action: "tournament.created",
+    actorUserId: actor,
+    metadata: { name: mappedTournament.name },
+    resourceId: mappedTournament.id,
+    resourceType: "tournament",
+    scopeId: mappedTournament.organizationId ?? null,
+    scopeType: "organization",
+  });
+
+  return mappedTournament;
 }
 
-export async function updateTournament(id: string, data: UpdateTournamentInput): Promise<Tournament> {
+export async function updateTournament(id: string, data: UpdateTournamentInput, actorUserId?: string | null): Promise<Tournament> {
+  const actor = assertActorUserId(actorUserId);
+  await requirePermission(actor, "tournament.manage", "tournament", id);
+
   const supabase = getSupabaseAdminClient();
   const { data: tournament, error } = await supabase
     .from("tournaments")
@@ -119,5 +140,16 @@ export async function updateTournament(id: string, data: UpdateTournamentInput):
     throw new Error(error.message);
   }
 
-  return mapTournament(tournament);
+  const mappedTournament = mapTournament(tournament);
+  await safelyLogAudit({
+    action: "tournament.updated",
+    actorUserId: actor,
+    metadata: { name: mappedTournament.name },
+    resourceId: mappedTournament.id,
+    resourceType: "tournament",
+    scopeId: mappedTournament.id,
+    scopeType: "tournament",
+  });
+
+  return mappedTournament;
 }

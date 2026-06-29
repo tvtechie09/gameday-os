@@ -30,21 +30,24 @@ export async function updateSessionStateAction(
   const gameStatus = validGameStatuses.includes(data.game_status) ? data.game_status : "scheduled";
 
   try {
-    const session = await updateSessionGameState(sessionId, {
-      home_score: Math.max(readNumber(data.home_score, 0), 0),
-      away_score: Math.max(readNumber(data.away_score, 0), 0),
-      inning: Math.max(readNumber(data.inning, 1), 1),
-      inning_half: inningHalf as InningHalf,
-      balls: clamp(readNumber(data.balls, 0), 0, 3),
-      strikes: clamp(readNumber(data.strikes, 0), 0, 2),
-      outs: clamp(readNumber(data.outs, 0), 0, 2),
-      game_status: gameStatus,
-      primary_link_label: data.primary_link_label,
-      primary_link_url: data.primary_link_url,
-      secondary_link_label: data.secondary_link_label,
-      secondary_link_url: data.secondary_link_url,
-      notes: data.notes,
-    });
+    const session = await updateSessionGameState(
+      sessionId,
+      {
+        home_score: Math.max(readNumber(data.home_score, 0), 0),
+        away_score: Math.max(readNumber(data.away_score, 0), 0),
+        inning: Math.max(readNumber(data.inning, 1), 1),
+        inning_half: inningHalf as InningHalf,
+        balls: clamp(readNumber(data.balls, 0), 0, 3),
+        strikes: clamp(readNumber(data.strikes, 0), 0, 2),
+        outs: clamp(readNumber(data.outs, 0), 0, 2),
+        game_status: gameStatus,
+        primary_link_label: data.primary_link_label,
+        primary_link_url: data.primary_link_url,
+        secondary_link_label: data.secondary_link_label,
+        secondary_link_url: data.secondary_link_url,
+        notes: data.notes,
+      },
+    );
 
     revalidatePath("/admin/sessions");
     revalidatePath(`/admin/sessions/${sessionId}`);

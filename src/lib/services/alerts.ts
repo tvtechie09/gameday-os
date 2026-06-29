@@ -337,7 +337,7 @@ export async function updateAlertLifecycle(id: string, data: { alert_visibility?
 export async function clearActiveOperationsAlerts(venueId: string): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
-  const { error } = await supabase
+  const { error: typeError } = await supabase
     .from("alerts")
     .update({
       end_time: now,
@@ -348,8 +348,23 @@ export async function clearActiveOperationsAlerts(venueId: string): Promise<void
     .eq("is_active", true)
     .in("alert_type", ["weather", "delay", "emergency", "field_closure"]);
 
-  if (error) {
-    throw new Error(error.message);
+  if (typeError) {
+    throw new Error(typeError.message);
+  }
+
+  const { error: titleError } = await supabase
+    .from("alerts")
+    .update({
+      end_time: now,
+      is_active: false,
+      updated_at: now,
+    })
+    .eq("venue_id", venueId)
+    .eq("is_active", true)
+    .in("title", ["All Clear", "Normal Operations"]);
+
+  if (titleError) {
+    throw new Error(titleError.message);
   }
 }
 

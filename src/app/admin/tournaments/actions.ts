@@ -24,14 +24,16 @@ export async function createTournamentAction(formData: FormData): Promise<Create
   }
 
   try {
-    const tournament = await createTournament({
-      name,
-      description: readOptionalText(formData, "description"),
-      start_date: startDate,
-      end_date: endDate,
-      logo_url: readOptionalText(formData, "logo_url"),
-      website_url: readOptionalText(formData, "website_url"),
-    });
+    const tournament = await createTournament(
+      {
+        name,
+        description: readOptionalText(formData, "description"),
+        start_date: startDate,
+        end_date: endDate,
+        logo_url: readOptionalText(formData, "logo_url"),
+        website_url: readOptionalText(formData, "website_url"),
+      },
+    );
     revalidatePath("/admin/tournaments");
     revalidatePath("/admin/sessions/new");
     return { tournament };

@@ -36,15 +36,18 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
       return;
     }
 
-    await updateField(fieldId, {
-      venue_id: venueId,
-      name,
-      sport_type: sportType,
-      status,
-      map_label: mapLabel || null,
-      map_x: readOptionalCoordinate(formData, "map_x"),
-      map_y: readOptionalCoordinate(formData, "map_y"),
-    });
+    await updateField(
+      fieldId,
+      {
+        venue_id: venueId,
+        name,
+        sport_type: sportType,
+        status,
+        map_label: mapLabel || null,
+        map_x: readOptionalCoordinate(formData, "map_x"),
+        map_y: readOptionalCoordinate(formData, "map_y"),
+      },
+    );
     revalidatePath("/admin/fields");
     revalidatePath(`/fields/${fieldId}`);
     redirect("/admin/fields");

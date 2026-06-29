@@ -30,15 +30,17 @@ export async function createFieldAction(formData: FormData): Promise<CreateField
   }
 
   try {
-    const field = await createField({
-      venue_id: venueId,
-      name,
-      sport_type: sportType,
-      status: fieldStatuses.includes(status) ? status : "open",
-      map_label: mapLabel || null,
-      map_x: readOptionalCoordinate(formData, "map_x"),
-      map_y: readOptionalCoordinate(formData, "map_y"),
-    });
+    const field = await createField(
+      {
+        venue_id: venueId,
+        name,
+        sport_type: sportType,
+        status: fieldStatuses.includes(status) ? status : "open",
+        map_label: mapLabel || null,
+        map_x: readOptionalCoordinate(formData, "map_x"),
+        map_y: readOptionalCoordinate(formData, "map_y"),
+      },
+    );
     revalidatePath("/admin/fields");
     return { field };
   } catch (error) {

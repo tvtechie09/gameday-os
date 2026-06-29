@@ -1,5 +1,12 @@
 export type VenueStatus = "Draft" | "Live";
 export type FieldStatus = "open" | "active" | "delayed" | "closed" | "maintenance";
+export type VenueZoneType = "field_area" | "building" | "parking" | "entrance" | "concourse" | "support" | "other";
+export type PlaySurfaceType = "field" | "court" | "pitch" | "diamond" | "track" | "turf" | "room" | "other";
+export type PlaySurfaceLayoutRole = "standalone" | "parent" | "split_child" | "overlay" | "temporary";
+export type FieldLayoutType = "full" | "split" | "overlay" | "temporary";
+export type VenueModeEndpointType = "qr_entry" | "equipment" | "location_provider" | "display" | "api" | "other";
+export type VenueModeProviderKey = "manual" | "meraki" | "cisco_spaces" | "future_provider" | "other";
+export type VenueModeEndpointStatus = "not_configured" | "configured" | "active" | "offline" | "error";
 export type SessionStatus = "scheduled" | "active" | "final";
 export type InningHalf = "top" | "bottom";
 export type SessionLinkLabel = "GameChanger" | "SidelineHD" | "YouTube" | "SportsEngine" | "TeamSnap" | "Other";
@@ -33,6 +40,21 @@ export type NotificationType = "alert" | "field_status" | "session_status" | "re
 export type SyncJobStatus = "pending" | "running" | "completed" | "failed";
 export type SyncQueueReviewStatus = "pending" | "approved" | "rejected" | "imported";
 export type RoleType = "super_admin" | "organization_admin" | "field_operator" | "volunteer" | "read_only";
+export type IdentityScopeType =
+  | "platform"
+  | "organization"
+  | "venue"
+  | "field"
+  | "play_surface"
+  | "tournament"
+  | "league"
+  | "team"
+  | "player"
+  | "family"
+  | "game"
+  | "session"
+  | "device"
+  | "integration";
 export type SessionEventType =
   | "session_created"
   | "score_update"
@@ -66,8 +88,12 @@ export interface Field {
   id: string;
   organizationId?: string | null;
   venueId: string;
+  zoneId: string | null;
+  parentFieldId: string | null;
   name: string;
   sportType: string;
+  surfaceCode: string | null;
+  layoutRole: PlaySurfaceLayoutRole;
   mapLabel: string | null;
   mapX: number | null;
   mapY: number | null;
@@ -82,6 +108,7 @@ export interface Session {
   id: string;
   organizationId?: string | null;
   fieldId: string;
+  playSurfaceId: string | null;
   tournamentId: string | null;
   title: string;
   sportType: SessionSportType;
@@ -107,6 +134,71 @@ export interface Session {
   externalSourceId: string | null;
   externalSourceUrl: string | null;
   notes: string | null;
+  updatedAt: string;
+}
+
+export interface VenueZone {
+  id: string;
+  organizationId?: string | null;
+  venueId: string;
+  name: string;
+  description: string | null;
+  zoneType: VenueZoneType;
+  mapLabel: string | null;
+  mapX: number | null;
+  mapY: number | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlaySurface {
+  id: string;
+  organizationId?: string | null;
+  venueId: string;
+  zoneId: string | null;
+  parentFieldId: string | null;
+  fieldId: string | null;
+  name: string;
+  surfaceCode: string | null;
+  sportTypes: SessionSportType[];
+  surfaceType: PlaySurfaceType;
+  layoutRole: PlaySurfaceLayoutRole;
+  status: FieldStatus;
+  mapLabel: string | null;
+  mapX: number | null;
+  mapY: number | null;
+  capacity: number | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FieldLayout {
+  id: string;
+  organizationId?: string | null;
+  venueId: string;
+  parentFieldId: string | null;
+  layoutName: string;
+  layoutType: FieldLayoutType;
+  isActive: boolean;
+  notes: string | null;
+  playSurfaceIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VenueModeEndpoint {
+  id: string;
+  organizationId?: string | null;
+  venueId: string;
+  endpointType: VenueModeEndpointType;
+  providerKey: VenueModeProviderKey;
+  endpointLabel: string;
+  endpointUrl: string | null;
+  status: VenueModeEndpointStatus;
+  metadata: Record<string, unknown>;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -378,4 +470,133 @@ export interface FieldFollowSummary {
 export interface FieldPageViewSummary {
   fieldId: string;
   views: number;
+}
+
+export interface IdentityRole {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface IdentityPermission {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface IdentityUser {
+  id: string;
+  authUserId: string | null;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  userStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrganizationMembership {
+  id: string;
+  organizationId: string;
+  userId: string;
+  membershipStatus: string;
+  joinedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityRoleAssignment {
+  id: string;
+  userId: string;
+  roleId: string;
+  roleKey: string;
+  roleName: string;
+  scopeType: IdentityScopeType | string;
+  scopeId: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  grantedBy: string | null;
+  assignmentStatus: string;
+  revokedBy: string | null;
+  revokedAt: string | null;
+  approvalNotes: string | null;
+  createdAt: string;
+}
+
+export interface IdentityInvite {
+  id: string;
+  organizationId: string | null;
+  email: string;
+  roleId: string;
+  roleKey: string;
+  roleName: string;
+  scopeType: IdentityScopeType | string;
+  scopeId: string;
+  inviteStatus: string;
+  invitedBy: string | null;
+  approvedBy: string | null;
+  expiresAt: string | null;
+  approvedAt: string | null;
+  revokedAt: string | null;
+  approvalNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityAccessRequest {
+  id: string;
+  userId: string | null;
+  email: string | null;
+  requestedRoleId: string | null;
+  requestedRoleKey: string | null;
+  requestedRoleName: string | null;
+  requestedBy: string | null;
+  scopeType: IdentityScopeType | string;
+  scopeId: string;
+  requestStatus: string;
+  reason: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  revokedBy: string | null;
+  revokedAt: string | null;
+  approvalNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityApproval {
+  id: string;
+  approvalStatus: string;
+  approvalType: string;
+  inviteId: string | null;
+  accessRequestId: string | null;
+  assignmentId: string | null;
+  scopeType: IdentityScopeType | string;
+  scopeId: string;
+  requestedBy: string | null;
+  approvedBy: string | null;
+  revokedBy: string | null;
+  reason: string | null;
+  approvalNotes: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityAuditLog {
+  id: string;
+  actorUserId: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  scopeType: IdentityScopeType | string;
+  scopeId: string | null;
+  metadata: unknown;
+  createdAt: string;
 }

@@ -2,6 +2,7 @@ import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/
 import type { Database } from "@/lib/supabase/types";
 import type { Venue } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
+import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 
 type VenueRow = Database["public"]["Tables"]["venues"]["Row"];
 
@@ -99,9 +100,15 @@ export async function getVenue(id: string): Promise<Venue | null> {
   return data ? mapVenue(data) : null;
 }
 
-export async function createVenue(data: CreateVenueInput): Promise<Venue> {
+export async function createVenue(data: CreateVenueInput, actorUserId?: string | null): Promise<Venue> {
   const supabase = getSupabaseServerClient();
   const organizationId = await getWritableOrganizationId();
+  const actor = assertActorUserId(actorUserId);
+  if (!organizationId) {
+    throw new Error("Organization scope is required to create a venue.");
+  }
+  await requirePermission(actor, "venue.manage", "organization", organizationId);
+
   const { data: venue, error } = await supabase
     .from("venues")
     .insert({
@@ -124,10 +131,24 @@ export async function createVenue(data: CreateVenueInput): Promise<Venue> {
     throw new Error(error.message);
   }
 
-  return mapVenue(venue);
+  const mappedVenue = mapVenue(venue);
+  await safelyLogAudit({
+    action: "venue.created",
+    actorUserId: actor,
+    metadata: { name: mappedVenue.name },
+    resourceId: mappedVenue.id,
+    resourceType: "venue",
+    scopeId: mappedVenue.organizationId ?? null,
+    scopeType: "organization",
+  });
+
+  return mappedVenue;
 }
 
-export async function updateVenue(id: string, data: UpdateVenueInput): Promise<Venue> {
+export async function updateVenue(id: string, data: UpdateVenueInput, actorUserId?: string | null): Promise<Venue> {
+  const actor = assertActorUserId(actorUserId);
+  await requirePermission(actor, "venue.manage", "venue", id);
+
   const supabase = getSupabaseAdminClient();
   const { data: venue, error } = await supabase
     .from("venues")
@@ -151,5 +172,16 @@ export async function updateVenue(id: string, data: UpdateVenueInput): Promise<V
     throw new Error(error.message);
   }
 
-  return mapVenue(venue);
+  const mappedVenue = mapVenue(venue);
+  await safelyLogAudit({
+    action: "venue.updated",
+    actorUserId: actor,
+    metadata: { name: mappedVenue.name },
+    resourceId: mappedVenue.id,
+    resourceType: "venue",
+    scopeId: mappedVenue.id,
+    scopeType: "venue",
+  });
+
+  return mappedVenue;
 }
