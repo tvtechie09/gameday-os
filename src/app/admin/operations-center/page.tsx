@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AiRecommendationsPanel } from "@/components/ai/ai-recommendations-panel";
+import { generateAiRecommendations } from "@/lib/ai-recommendations";
 import { getActiveAlerts, getAlerts, getAlertLabel, getAlertTone, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getFields, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { getVenues } from "@/lib/services/venues";
@@ -383,6 +385,12 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
   const closedFields = venueFields.filter((field) => field.status === "closed").length;
   const delayedFields = venueFields.filter((field) => field.status === "delayed").length;
   const venueStatus = inferVenueStatus(venueActiveAlerts, closedFields, delayedFields);
+  const aiRecommendations = generateAiRecommendations({
+    activeAlerts: venueActiveAlerts,
+    alerts: history,
+    fields: venueFields,
+    venues: selectedVenue ? [selectedVenue] : venues,
+  });
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -431,6 +439,10 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
             <StatusCard label="Closed Fields" value={closedFields} tone={closedFields > 0 ? "text-red-700" : undefined} />
             <StatusCard label="Active Alerts" value={venueActiveAlerts.length} />
           </section>
+
+          <div className="mt-8">
+            <AiRecommendationsPanel compact recommendations={aiRecommendations} title="Operations Suggestions" />
+          </div>
 
           <div className="mt-8 grid gap-8">
             <SectionShell

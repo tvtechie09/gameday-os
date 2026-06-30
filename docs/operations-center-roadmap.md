@@ -140,3 +140,12 @@ Phase 5: Emergency hierarchy
 - Status Board alert counts match active alerts.
 - Game Day Center highlights delayed/closed fields.
 - Venue Display Board refreshes operational state.
+# Operations-First Refactor Note
+
+The Phase 1 operations-first audit is captured in [operations-first-refactor-report.md](./operations-first-refactor-report.md).
+
+Key direction:
+
+- Operations Center is the single source of truth for venue status, announcements, delays, emergency state, all-clear, and public operations communications.
+- Game Day Center, Status Board, Executive Dashboard, Public Venue, Public Field, Venue Display, Alerts, and Notifications should consume shared Operations data rather than re-derive it.
+- The next implementation pass should extract `src/lib/services/operations.ts` as a shared Operations Snapshot/read model before moving any UI or database structure.

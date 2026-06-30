@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { CloudSun } from "lucide-react";
+import { AiRecommendationsPanel } from "@/components/ai/ai-recommendations-panel";
+import { generateAiRecommendations } from "@/lib/ai-recommendations";
 import { getPublicFieldUrl, getPublicVenueDisplayUrl } from "@/lib/public-url";
 import { getAudioModeLabel, getAudioProfiles, getAudioStatusClass, getAudioStatusLabel } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts } from "@/lib/services/alerts";
@@ -239,6 +241,13 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
   const displayVenueId = selectedVenueId || venues[0]?.id || "";
   const weatherProfilesByVenueId = new Map(weatherProfiles.map((profile) => [profile.venueId, profile]));
   const selectedWeatherProfiles = selectedVenueId ? weatherProfiles.filter((profile) => profile.venueId === selectedVenueId) : weatherProfiles.slice(0, 4);
+  const aiRecommendations = generateAiRecommendations({
+    activeAlerts,
+    fields: filteredFields,
+    scoreboards: scoreboardProfiles.filter((profile) => filteredFields.some((field) => field.id === profile.fieldId)),
+    sessions: filteredSessions,
+    venues,
+  });
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -352,6 +361,10 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
         <SummaryCard label="Scoreboards" note="Configured field profiles" value={configuredScoreboards} />
         <SummaryCard label="Audio Active" note="Fields with active audio profiles" value={activeAudioFields} />
       </section>
+
+      <div className="mt-8">
+        <AiRecommendationsPanel compact recommendations={aiRecommendations} title="Game Day Suggestions" />
+      </div>
 
       <section className="mt-8">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

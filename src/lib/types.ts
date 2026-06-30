@@ -40,6 +40,23 @@ export type NotificationType = "alert" | "field_status" | "session_status" | "re
 export type SyncJobStatus = "pending" | "running" | "completed" | "failed";
 export type SyncQueueReviewStatus = "pending" | "approved" | "rejected" | "imported";
 export type RoleType = "super_admin" | "organization_admin" | "field_operator" | "volunteer" | "read_only";
+export type IdentityPlatformRoleType =
+  | "super_admin"
+  | "organization_admin"
+  | "venue_director"
+  | "venue_staff"
+  | "tournament_director"
+  | "league_director"
+  | "coach"
+  | "parent"
+  | "player"
+  | "scorekeeper"
+  | "stream_operator"
+  | "read_only";
+export type IdentityPersonType = "player" | "parent" | "guardian" | "coach" | "staff" | "fan" | "other";
+export type FamilyMemberRelationship = "parent" | "guardian" | "player" | "grandparent" | "relative" | "fan" | "other";
+export type TeamMemberRoleType = "coach" | "assistant_coach" | "team_manager" | "player" | "scorekeeper" | "stream_operator" | "other";
+export type TeamSessionRelationshipType = "home" | "away" | "participant";
 export type IdentityScopeType =
   | "platform"
   | "organization"
@@ -424,6 +441,73 @@ export interface Organization {
   secondaryColor: string | null;
   websiteUrl: string | null;
   description: string;
+  createdAt: string;
+}
+
+export interface IdentityPerson {
+  id: string;
+  organizationId: string | null;
+  userId: string | null;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  personType: IdentityPersonType;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityFamily {
+  id: string;
+  organizationId: string | null;
+  name: string;
+  primaryContactPersonId: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityFamilyMember {
+  id: string;
+  organizationId: string | null;
+  familyId: string;
+  personId: string;
+  relationship: FamilyMemberRelationship;
+  isPrimaryGuardian: boolean;
+  createdAt: string;
+}
+
+export interface IdentityTeam {
+  id: string;
+  organizationId: string | null;
+  venueId: string | null;
+  leagueId: string | null;
+  name: string;
+  sportType: SessionSportType;
+  ageGroup: string | null;
+  seasonName: string | null;
+  status: "draft" | "active" | "archived";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityTeamMember {
+  id: string;
+  organizationId: string | null;
+  teamId: string;
+  personId: string;
+  roleType: TeamMemberRoleType;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IdentityTeamSessionLink {
+  id: string;
+  organizationId: string | null;
+  teamId: string;
+  sessionId: string;
+  relationshipType: TeamSessionRelationshipType;
   createdAt: string;
 }
 

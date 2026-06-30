@@ -1,3 +1,12 @@
+import Link from "next/link";
+import { permissionsMatrix } from "@/lib/identity-permissions-matrix";
+import {
+  getIdentityFamilies,
+  getIdentityFamilyMembers,
+  getIdentityPeople,
+  getIdentityTeamMembers,
+  getIdentityTeams,
+} from "@/lib/services/identity-platform";
 import {
   getIdentityAccessRequests,
   getIdentityApprovals,
@@ -53,6 +62,28 @@ export default async function IdentityPage() {
       return [];
     }),
   ]);
+  const [people, families, familyMembers, teams, teamMembers] = await Promise.all([
+    getIdentityPeople().catch((error: unknown) => {
+      console.error("Failed to load identity people", error);
+      return [];
+    }),
+    getIdentityFamilies().catch((error: unknown) => {
+      console.error("Failed to load identity families", error);
+      return [];
+    }),
+    getIdentityFamilyMembers().catch((error: unknown) => {
+      console.error("Failed to load identity family members", error);
+      return [];
+    }),
+    getIdentityTeams().catch((error: unknown) => {
+      console.error("Failed to load identity teams", error);
+      return [];
+    }),
+    getIdentityTeamMembers().catch((error: unknown) => {
+      console.error("Failed to load identity team members", error);
+      return [];
+    }),
+  ]);
 
   const assignedUserIds = [...new Set(assignments.map((assignment) => assignment.userId))];
   const activeAssignments = assignments.filter((assignment) => !assignment.endsAt || new Date(assignment.endsAt) > new Date());
@@ -72,11 +103,34 @@ export default async function IdentityPage() {
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <MetricCard label="Users" value={users.length} />
-          <MetricCard label="Roles" value={roles.length} />
-          <MetricCard label="Active Grants" value={activeAssignments.length} />
-          <MetricCard label="Pending Ops" value={pendingInvites.length + pendingAccessRequests.length} />
+          <MetricCard label="People" value={people.length} />
+          <MetricCard label="Families" value={families.length} />
+          <MetricCard label="Teams" value={teams.length} />
         </div>
       </div>
+
+      <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/people">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Identity Graph</p>
+          <h2 className="mt-2 text-xl font-black">People</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{people.length} person records</p>
+        </Link>
+        <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/families">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Family Layer</p>
+          <h2 className="mt-2 text-xl font-black">Families</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{families.length} families · {familyMembers.length} members</p>
+        </Link>
+        <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/teams">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Team Layer</p>
+          <h2 className="mt-2 text-xl font-black">Teams</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{teams.length} teams · {teamMembers.length} members</p>
+        </Link>
+        <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/roles">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Permissions</p>
+          <h2 className="mt-2 text-xl font-black">Role Matrix</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{permissionsMatrix.length} platform roles</p>
+        </Link>
+      </section>
 
       <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
         <LayerHeader
@@ -86,6 +140,9 @@ export default async function IdentityPage() {
         />
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           <SummaryPanel label="Users" value={`${users.length} identity users`} />
+          <SummaryPanel label="People" value={`${people.length} person records`} />
+          <SummaryPanel label="Families" value={`${families.length} family records`} />
+          <SummaryPanel label="Teams" value={`${teams.length} team records`} />
           <SummaryPanel label="Memberships" value={`${memberships.length} organization memberships`} />
           <SummaryPanel label="Assignments" value={`${assignments.length} scoped assignments across ${assignedUserIds.length} users`} />
         </div>

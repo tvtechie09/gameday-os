@@ -12,12 +12,15 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { AiRecommendationsPanel } from "@/components/ai/ai-recommendations-panel";
+import { generateAiRecommendations } from "@/lib/ai-recommendations";
 import { getPublicFieldUrl } from "@/lib/public-url";
 import { getAlerts, isAlertActive, isAlertExpired, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getExternalSources } from "@/lib/services/external-sources";
 import { getFields } from "@/lib/services/fields";
 import { getResourceActivations } from "@/lib/services/resource-activations";
 import { getResources } from "@/lib/services/resources";
+import { getScoreboardProfiles } from "@/lib/services/scoreboards";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAnalytics } from "@/lib/services/sponsor-analytics";
 import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
@@ -30,6 +33,7 @@ import type {
   Field,
   Resource,
   ResourceActivation,
+  ScoreboardProfile,
   Session,
   Sponsor,
   SponsorAssignment,
@@ -229,6 +233,7 @@ export default async function SystemHealthPage() {
     externalSources,
     syncJobs,
     pendingSyncQueue,
+    scoreboardProfiles,
   ] = await Promise.all([
     safeLoad<Venue>("venues", getVenues),
     safeLoad<Field>("fields", getFields),
@@ -242,6 +247,7 @@ export default async function SystemHealthPage() {
     safeLoad<ExternalSource>("external sources", getExternalSources),
     safeLoad<SyncJob>("sync jobs", getSyncJobs),
     safeLoad<SyncQueueItem>("pending sync queue", () => getSyncQueueItems("pending")),
+    safeLoad<ScoreboardProfile>("scoreboard profiles", getScoreboardProfiles),
   ]);
 
   const sponsorAnalyticsAvailable = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), "today")
@@ -391,6 +397,18 @@ export default async function SystemHealthPage() {
   const score = calculateHealthScore(categories);
   const overallLabel = getOverallLabel(score, errors);
   const pilotReadiness = getPilotReadinessLabel(score, errors, warnings);
+  const aiRecommendations = generateAiRecommendations({
+    activeAlerts,
+    alerts,
+    fields,
+    resources,
+    scoreboards: scoreboardProfiles,
+    sessions,
+    sponsorAssignments,
+    sponsors,
+    systemHealth: { errors, score, warnings },
+    venues,
+  });
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -445,6 +463,10 @@ export default async function SystemHealthPage() {
             </div>
           </div>
         </section>
+      </div>
+
+      <div className="mt-8">
+        <AiRecommendationsPanel compact recommendations={aiRecommendations} title="System Health Suggestions" />
       </div>
 
       <section className="mt-8 grid gap-4 xl:grid-cols-2">
