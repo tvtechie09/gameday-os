@@ -52,7 +52,6 @@ const adminNavGroups: AdminNavGroup[] = [
       { href: "/admin", icon: Home, label: "Overview" },
       { href: "/admin/executive", icon: ShieldCheck, label: "Executive Dashboard" },
       { href: "/admin/dashboard", icon: LayoutDashboard, label: "Operations Dashboard" },
-      { href: "/admin/operations-center", icon: Gauge, label: "Venue Operations Center" },
       { href: "/admin/game-day", icon: Activity, label: "Game Day" },
       { href: "/admin/ai", icon: Sparkles, label: "AI Assistant" },
       { href: "/admin/status-board", icon: Gauge, label: "Status Board" },
@@ -66,10 +65,11 @@ const adminNavGroups: AdminNavGroup[] = [
     ],
   },
   {
-    label: "VENUES",
+    label: "VENUE OPERATIONS",
     items: [
+      { href: "/admin/operations-center", icon: Gauge, label: "Operations Center" },
       { href: "/admin/venues", icon: MapPin, label: "Venues" },
-      { href: "/admin/fields", icon: QrCode, label: "Fields" },
+      { href: "/admin/fields", icon: QrCode, label: "Fields & Surfaces" },
     ],
   },
   {
@@ -132,7 +132,7 @@ const pinnedNavItems: AdminNavItem[] = [
   { href: "/admin/game-day", icon: Activity, label: "Game Day Center" },
   { href: "/admin/ai", icon: Sparkles, label: "AI Assistant" },
   { href: "/admin/status-board", icon: Gauge, label: "Status Board" },
-  { href: "/admin/pilot-launch", icon: MapPin, label: "Public Venue Links" },
+  { href: "/admin/venues", icon: MapPin, label: "Public Venue Links" },
   { href: "/admin/fields", icon: QrCode, label: "Public Field Links" },
 ];
 
