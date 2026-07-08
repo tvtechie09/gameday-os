@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { resolveActorUserId } from "./actor";
 import type { Database, Json } from "@/lib/supabase/types";
 import type {
   IdentityAccessRequest,
@@ -1027,4 +1028,13 @@ export function assertActorUserId(actorUserId: string | null | undefined): strin
   }
 
   return normalizedActorUserId;
+}
+
+// Single seam for resolving the trusted server-side actor for permission-checked
+// mutations. The server Supabase client is anon-key only (see supabase/server.ts),
+// so there is no auth session to read yet; a real Supabase Auth user id should be
+// resolved here once auth lands. Until then the operator id is read from
+// GAMEDAY_OPERATOR_USER_ID and falls back to the seeded platform-admin.
+export async function getServerActorUserId(): Promise<string | null> {
+  return resolveActorUserId(process.env.GAMEDAY_OPERATOR_USER_ID);
 }

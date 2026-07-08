@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { fieldStatuses, getField, getFieldStatusLabel, readFieldStatus, updateField } from "@/lib/services/fields";
+import { getServerActorUserId } from "@/lib/services/identity";
 import { getVenues } from "@/lib/services/venues";
 
 type EditFieldPageProps = {
@@ -36,6 +37,11 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
       return;
     }
 
+    const actorUserId = await getServerActorUserId();
+    if (!actorUserId) {
+      return;
+    }
+
     await updateField(
       fieldId,
       {
@@ -47,6 +53,7 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
         map_x: readOptionalCoordinate(formData, "map_x"),
         map_y: readOptionalCoordinate(formData, "map_y"),
       },
+      actorUserId,
     );
     revalidatePath("/admin/fields");
     revalidatePath(`/fields/${fieldId}`);

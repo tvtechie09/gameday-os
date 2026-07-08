@@ -6,6 +6,7 @@ import { FieldQrCode } from "@/components/field-qr-code";
 import { getPublicAppUrl, getPublicFieldUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getFieldPageViewCountsByField } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { getServerActorUserId } from "@/lib/services/identity";
 import { getFollowCountsByField } from "@/lib/services/follows";
 import { getVenues } from "@/lib/services/venues";
 import type { Field, Venue } from "@/lib/types";
@@ -39,8 +40,14 @@ export default async function FieldsPage() {
       return;
     }
 
+    const actorUserId = await getServerActorUserId();
+    if (!actorUserId) {
+      console.error("Failed to update field status: no authenticated operator");
+      return;
+    }
+
     try {
-      await updateFieldStatus(fieldId, status);
+      await updateFieldStatus(fieldId, status, actorUserId);
       revalidatePath("/admin/fields");
       revalidatePath("/admin/dashboard");
       revalidatePath(`/fields/${fieldId}`);
