@@ -1,7 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Venue } from "@/lib/types";
-import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
+import { getCurrentOrganizationScope, getCurrentVenueScope, getWritableOrganizationId } from "../organization-scope";
 import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 
 type VenueRow = Database["public"]["Tables"]["venues"]["Row"];
@@ -49,15 +49,35 @@ function countFieldsByVenueId(fields: Array<{ venue_id: string }>) {
   }, {});
 }
 
+export async function getScopeVenues(): Promise<Array<{ id: string; name: string; organizationId: string | null }>> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("venues")
+    .select("id,name,organization_id")
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    organizationId: row.organization_id ?? null,
+  }));
+}
+
 export async function getVenues(): Promise<Venue[]> {
   const supabase = getSupabaseServerClient();
-  const organizationId = await getCurrentOrganizationScope();
+  const [organizationId, venueId] = await Promise.all([getCurrentOrganizationScope(), getCurrentVenueScope()]);
   let venueQuery = supabase
     .from("venues")
     .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
     .order("created_at", { ascending: false });
 
-  if (organizationId) {
+  if (venueId) {
+    venueQuery = venueQuery.eq("id", venueId);
+  } else if (organizationId) {
     venueQuery = venueQuery.eq("organization_id", organizationId);
   }
 

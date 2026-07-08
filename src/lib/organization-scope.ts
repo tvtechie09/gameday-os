@@ -1,30 +1,73 @@
-export const organizationScopeCookieName = "gameday_org_scope";
-export const allOrganizationsScope = "all";
+import {
+  allOrganizationsScope,
+  normalizeScopeSelection,
+  parseScopeValue,
+  resolveScopeOrganizationId,
+  resolveScopeVenueId,
+  serializeScopeValue,
+  type ScopeSelection,
+} from "./organization-scope-helpers";
 
-export async function getCurrentOrganizationScope(): Promise<string | null> {
+export { allOrganizationsScope };
+export type { ScopeSelection };
+
+export const organizationScopeCookieName = "gameday_org_scope";
+
+type ResolvedScope = {
+  selection: ScopeSelection;
+  organizationId: string | null;
+  venueId: string | null;
+};
+
+async function loadScopeContext() {
+  const [{ getOrganizations }, { getScopeVenues }] = await Promise.all([
+    import("@/lib/services/organizations"),
+    import("@/lib/services/venues"),
+  ]);
+  const [organizations, venues] = await Promise.all([getOrganizations(), getScopeVenues()]);
+  return { organizations, venues };
+}
+
+async function resolveScope(): Promise<ResolvedScope> {
   const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
-  const value = cookieStore.get(organizationScopeCookieName)?.value;
+  const parsed = parseScopeValue(cookieStore.get(organizationScopeCookieName)?.value);
 
-  if (!value || value === allOrganizationsScope) {
-    return null;
+  if (parsed.type === "all") {
+    return { selection: parsed, organizationId: null, venueId: null };
   }
 
   try {
-    const [{ getDemoClientOrganizations }, { getOrganizations }] = await Promise.all([
-      import("@/lib/demo-client-mode"),
-      import("@/lib/services/organizations"),
-    ]);
-    const organizations = await getOrganizations();
-    const allowedOrganizationIds = new Set(getDemoClientOrganizations(organizations).map((organization) => organization.id));
-    return allowedOrganizationIds.has(value) ? value : null;
+    const { organizations, venues } = await loadScopeContext();
+    const selection = normalizeScopeSelection(parsed, organizations, venues);
+    return {
+      selection,
+      organizationId: resolveScopeOrganizationId(selection, venues),
+      venueId: resolveScopeVenueId(selection),
+    };
   } catch (error) {
     console.error("Failed to validate organization scope", error);
-    return null;
+    return { selection: { type: "all" }, organizationId: null, venueId: null };
   }
+}
+
+export async function getCurrentScopeSelection(): Promise<ScopeSelection> {
+  return (await resolveScope()).selection;
+}
+
+export async function getCurrentScopeValue(): Promise<string> {
+  return serializeScopeValue((await resolveScope()).selection);
+}
+
+export async function getCurrentOrganizationScope(): Promise<string | null> {
+  return (await resolveScope()).organizationId;
+}
+
+export async function getCurrentVenueScope(): Promise<string | null> {
+  return (await resolveScope()).venueId;
 }
 
 export async function getWritableOrganizationId(): Promise<string | null> {
   const { getDefaultOrganizationId } = await import("@/lib/services/organizations");
-  return getCurrentOrganizationScope() ?? getDefaultOrganizationId();
+  return (await getCurrentOrganizationScope()) ?? getDefaultOrganizationId();
 }
