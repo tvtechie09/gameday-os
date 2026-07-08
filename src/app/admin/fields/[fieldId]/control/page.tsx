@@ -6,6 +6,7 @@ import { getPublicFieldScoreboardUrl, getPublicFieldUrl, getPublicScoreboardUrl 
 import { getAudioModeLabel, getAudioProfileForField, getAudioStatusClass, getAudioStatusLabel } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { fieldStatuses, getField, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { getServerActorUserId } from "@/lib/services/identity";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
 import { getResourcesForFieldPage, getResourceTypeLabel } from "@/lib/services/resources";
 import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusClass, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
@@ -115,8 +116,14 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
 
     const status = readFieldStatus(String(formData.get("status") ?? "open"));
 
+    const actorUserId = await getServerActorUserId();
+    if (!actorUserId) {
+      console.error("Failed to update field control status: no authenticated operator");
+      return;
+    }
+
     try {
-      await updateFieldStatus(fieldId, status);
+      await updateFieldStatus(fieldId, status, actorUserId);
       revalidatePath(`/admin/fields/${fieldId}/control`);
       revalidatePath("/admin/game-day");
       revalidatePath("/admin/status-board");

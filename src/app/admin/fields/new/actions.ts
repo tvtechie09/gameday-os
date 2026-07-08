@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createField, fieldStatuses, readFieldStatus } from "@/lib/services/fields";
+import { getServerActorUserId } from "@/lib/services/identity";
 import type { Field, FieldStatus } from "@/lib/types";
 
 export type CreateFieldResult = {
@@ -29,6 +30,11 @@ export async function createFieldAction(formData: FormData): Promise<CreateField
     return { error: "Venue, field name, and sport type are required." };
   }
 
+  const actorUserId = await getServerActorUserId();
+  if (!actorUserId) {
+    return { error: "You must be signed in as an operator to create a field." };
+  }
+
   try {
     const field = await createField(
       {
@@ -40,6 +46,7 @@ export async function createFieldAction(formData: FormData): Promise<CreateField
         map_x: readOptionalCoordinate(formData, "map_x"),
         map_y: readOptionalCoordinate(formData, "map_y"),
       },
+      actorUserId,
     );
     revalidatePath("/admin/fields");
     return { field };
