@@ -86,7 +86,23 @@ function readLayoutRole(value: string | null | undefined): PlaySurfaceLayoutRole
 const fieldSelect =
   "id,organization_id,venue_id,zone_id,parent_field_id,name,sport_type,surface_code,layout_role,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at";
 
-function mapField(row: FieldRow): Field {
+// Columns guaranteed to exist since the original schema. Used as a resilient
+// fallback so venue-ops admin pages degrade to a usable state (instead of the
+// generic "This admin page could not load." boundary) when the complex-venue
+// hierarchy migration has not been applied to the connected database yet.
+const baseFieldSelect =
+  "id,organization_id,venue_id,name,sport_type,map_label,map_x,map_y,surface,status,field_status,resources,created_at,updated_at";
+
+function isMissingSchemaError(error: { message?: string; code?: string }) {
+  const message = error.message ?? "";
+  return error.code === "42P01" // undefined_table
+    || error.code === "42703" // undefined_column
+    || message.includes("Could not find the")
+    || message.includes("schema cache")
+    || message.includes("does not exist");
+}
+
+function mapField(row: Partial<FieldRow> & Pick<FieldRow, "id" | "venue_id" | "name" | "sport_type" | "resources" | "created_at" | "updated_at">): Field {
   return {
     id: row.id,
     organizationId: row.organization_id ?? null,
@@ -111,37 +127,51 @@ function mapField(row: FieldRow): Field {
 export async function getFields(): Promise<Field[]> {
   const supabase = getSupabaseServerClient();
   const organizationId = await getCurrentOrganizationScope();
-  let query = supabase
-    .from("fields")
-    .select(fieldSelect)
-    .order("created_at", { ascending: false });
 
-  if (organizationId) {
-    query = query.eq("organization_id", organizationId);
+  const runQuery = (columns: string) => {
+    let query = supabase
+      .from("fields")
+      .select(columns)
+      .order("created_at", { ascending: false });
+
+    if (organizationId) {
+      query = query.eq("organization_id", organizationId);
+    }
+
+    return query;
+  };
+
+  let { data, error } = await runQuery(fieldSelect);
+
+  if (error && isMissingSchemaError(error)) {
+    console.warn("Field hierarchy columns are unavailable. Run the complex venue foundation migration.");
+    ({ data, error } = await runQuery(baseFieldSelect));
   }
-
-  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapField);
+  return ((data ?? []) as unknown as FieldRow[]).map(mapField);
 }
 
 export async function getField(id: string): Promise<Field | null> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("fields")
-    .select(fieldSelect)
-    .eq("id", id)
-    .maybeSingle();
+
+  const runQuery = (columns: string) =>
+    supabase.from("fields").select(columns).eq("id", id).maybeSingle();
+
+  let { data, error } = await runQuery(fieldSelect);
+
+  if (error && isMissingSchemaError(error)) {
+    ({ data, error } = await runQuery(baseFieldSelect));
+  }
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return data ? mapField(data) : null;
+  return data ? mapField(data as unknown as FieldRow) : null;
 }
 
 export async function createField(data: CreateFieldInput, actorUserId?: string | null): Promise<Field> {
