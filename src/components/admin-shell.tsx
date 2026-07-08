@@ -31,7 +31,12 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import { demoClientOrganizationNames, getDemoClientOptionState } from "@/lib/demo-client-mode";
+import {
+  buildScopeSwitcherGroups,
+  describeScopeSelection,
+  parseScopeValue,
+  type ScopeVenueLike,
+} from "@/lib/organization-scope-helpers";
 import type { Organization } from "@/lib/types";
 
 type AdminNavItem = {
@@ -214,15 +219,24 @@ function isDemoStylePath(pathname: string) {
 export function AdminShell({
   children,
   organizations = [],
-  selectedOrganizationId = "all",
+  venues = [],
+  selectedScope = "all",
 }: Readonly<{
   children: React.ReactNode;
   organizations?: Organization[];
-  selectedOrganizationId?: string;
+  venues?: ScopeVenueLike[];
+  selectedScope?: string;
 }>) {
   const pathname = usePathname();
   const breadcrumbs = buildBreadcrumbs(pathname);
-  const selectedOrganization = organizations.find((organization) => organization.id === selectedOrganizationId);
+  const selection = parseScopeValue(selectedScope);
+  const selectedOrganization =
+    selection.type === "organization"
+      ? organizations.find((organization) => organization.id === selection.organizationId)
+      : undefined;
+  const scopeLabel = describeScopeSelection(selection, organizations, venues);
+  const isScoped = selection.type !== "all";
+  const scopeLogoUrl = selectedOrganization?.logoUrl ?? null;
 
   return (
     <div className="mx-auto grid w-full max-w-7xl min-w-0 gap-0 overflow-hidden lg:grid-cols-[360px_1fr]">
@@ -245,7 +259,7 @@ export function AdminShell({
           </div>
 
           <div className="mt-5">
-            <OrganizationSwitcher organizations={organizations} pathname={pathname} selectedOrganizationId={selectedOrganizationId} />
+            <OrganizationSwitcher organizations={organizations} pathname={pathname} selectedScope={selectedScope} venues={venues} />
           </div>
 
           <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.04] p-3">
@@ -293,11 +307,11 @@ export function AdminShell({
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
               <span className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--background)] px-3 py-2 text-xs font-black text-[var(--foreground)] sm:max-w-72">
-                {selectedOrganization?.logoUrl ? (
-                  <Image alt="" className="h-6 w-6 shrink-0 rounded bg-white object-contain p-0.5" height={24} src={selectedOrganization.logoUrl} unoptimized width={24} />
+                {scopeLogoUrl ? (
+                  <Image alt="" className="h-6 w-6 shrink-0 rounded bg-white object-contain p-0.5" height={24} src={scopeLogoUrl} unoptimized width={24} />
                 ) : null}
                 <span className="min-w-0 leading-5">
-                  {selectedOrganization ? `Viewing as ${selectedOrganization.name}` : "Viewing as All Organizations"}
+                  {isScoped ? `Viewing as ${scopeLabel}` : "Viewing as All Organizations"}
                 </span>
               </span>
               <label className="relative min-w-0 sm:w-64">
@@ -336,15 +350,19 @@ export function AdminShell({
 function OrganizationSwitcher({
   organizations,
   pathname,
-  selectedOrganizationId,
+  selectedScope,
+  venues,
 }: {
   organizations: Organization[];
   pathname: string;
-  selectedOrganizationId: string;
+  selectedScope: string;
+  venues: ScopeVenueLike[];
 }) {
-  const selectedOrganization = organizations.find((organization) => organization.id === selectedOrganizationId);
-  const isViewingClient = Boolean(selectedOrganization);
-  const showAllOrganizationsOption = !isDemoStylePath(pathname) || !isViewingClient;
+  const selection = parseScopeValue(selectedScope);
+  const isScoped = selection.type !== "all";
+  const showAllOrganizationsOption = !isDemoStylePath(pathname) || !isScoped;
+  const scopeLabel = describeScopeSelection(selection, organizations, venues);
+  const scopeGroups = buildScopeSwitcherGroups(organizations, venues);
 
   return (
     <form action="/admin/organization" className="rounded-lg border border-white/10 bg-white/[0.04] p-3" method="post">
@@ -352,36 +370,33 @@ function OrganizationSwitcher({
         <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">GameDay Venue view</span>
         <select
           className="min-h-12 w-full rounded-lg border border-white/10 bg-[var(--black-soft)] px-3 text-sm font-bold text-white outline-none"
-          defaultValue={selectedOrganizationId}
+          defaultValue={selectedScope}
           name="organization_id"
           onChange={(event) => event.currentTarget.form?.requestSubmit()}
         >
           {showAllOrganizationsOption ? <option value="all">All Organizations</option> : null}
-          {demoClientOrganizationNames.map((name) => {
-            const organization = getDemoClientOptionState(name, organizations);
-
-            return (
-              <option disabled={!organization} key={name} value={organization?.id ?? `missing-${name}`}>
-                {organization ? organization.name : `${name} (not configured)`}
-              </option>
-            );
-          })}
+          {scopeGroups.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </label>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {selectedOrganization ? (
+        {isScoped ? (
           <span className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-black text-emerald-100 ring-1 ring-emerald-400/25">
-            {selectedOrganization.logoUrl ? (
-              <Image alt="" className="h-6 w-6 rounded bg-white object-contain p-0.5" height={24} src={selectedOrganization.logoUrl} unoptimized width={24} />
-            ) : null}
-            <span>Viewing as {selectedOrganization.name}</span>
+            <span>Viewing as {scopeLabel}</span>
           </span>
         ) : (
           <span className="inline-flex min-h-9 items-center rounded-lg bg-white/10 px-3 py-2 text-xs font-black text-white/75">
             Viewing as All Organizations
           </span>
         )}
-        {isViewingClient ? (
+        {isScoped ? (
           <button
             className="min-h-9 rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-white/75 transition hover:bg-white/10 hover:text-white"
             name="organization_id"
