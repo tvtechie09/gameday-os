@@ -19,6 +19,9 @@ export default async function ImpersonationPage({
 
   const params = await searchParams;
   const targets = demoUsers.filter((user) => user.roleKey !== "platform_admin");
+  // The demo users targeted by impersonation are dev-login fixtures, so the
+  // tool is only usable where dev-login is enabled (dev/staging). A production
+  // super_admin still sees the console; the note explains the constraint.
   const devLogin = isDevLoginEnabled();
 
   return (

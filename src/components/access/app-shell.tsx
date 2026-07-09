@@ -95,12 +95,12 @@ export function AppShell({ navGroups, roleLabel, venueName, email, children }: R
             ))}
           </nav>
 
-          <form action="/api/dev-login/logout" method="post" className="mt-8">
+          <form action="/logout" method="post" className="mt-8">
             <button
               type="submit"
               className="min-h-10 w-full rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-white/70 transition hover:bg-white/10 hover:text-white"
             >
-              Switch role / Sign out
+              Sign out
             </button>
           </form>
         </div>

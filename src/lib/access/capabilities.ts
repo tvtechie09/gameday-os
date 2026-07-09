@@ -47,16 +47,26 @@ export function buildAccessContext(input: {
   };
 }
 
+// super_admin is the highest authorization tier: a strict superset of
+// platform_admin. Every capability check short-circuits to true for it, so all
+// canX helpers (and hasPermission) grant access regardless of the underlying
+// permission set. This is additive — no other role is affected.
+export function isSuperAdmin(ctx: AccessContext | null): boolean {
+  return ctx?.roleKey === "super_admin";
+}
+
 export function hasPermission(ctx: AccessContext | null, key: string): boolean {
-  return Boolean(ctx?.permissions.has(key));
+  return isSuperAdmin(ctx) || Boolean(ctx?.permissions.has(key));
 }
 
 function hasAny(ctx: AccessContext | null, keys: string[]): boolean {
   return keys.some((key) => hasPermission(ctx, key));
 }
 
+// platform_admin (unchanged) and super_admin (superset) both satisfy the
+// platform-admin role gate used for platform-only navigation and route guards.
 export function isPlatformAdmin(ctx: AccessContext | null): boolean {
-  return ctx?.roleKey === "platform_admin";
+  return ctx?.roleKey === "platform_admin" || isSuperAdmin(ctx);
 }
 
 // --- Admin workspace umbrella ------------------------------------------------
