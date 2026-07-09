@@ -3,6 +3,7 @@ import { buildAccessContext, isPlatformAdmin } from "@/lib/access/capabilities";
 import { findDemoUserByKey } from "@/lib/access/demo-users";
 import {
   encodeSession,
+  impersonationCookieName,
   impersonatorCookieName,
   sessionCookieName,
 } from "@/lib/access/session-cookie";
@@ -45,5 +46,6 @@ export async function POST(request: NextRequest) {
   }), { httpOnly: true, sameSite: "lax", path: "/" });
   // Starting a fresh session ends any prior impersonation.
   response.cookies.delete(impersonatorCookieName);
+  response.cookies.delete(impersonationCookieName);
   return response;
 }

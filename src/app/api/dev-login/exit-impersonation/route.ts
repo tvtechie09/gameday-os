@@ -1,34 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isDevLoginEnabled } from "@/lib/access/env";
-import {
-  decodeSession,
-  encodeSession,
-  impersonatorCookieName,
-  sessionCookieName,
-} from "@/lib/access/session-cookie";
+import { canImpersonate } from "@/lib/access/capabilities";
+import { impersonationCookieName } from "@/lib/access/session-cookie";
+import { getActingContext } from "@/lib/access/session";
 
-// End impersonation and return to the real underlying session.
-//   - dev/staging: restore the dev-login admin snapshot into gameday_session.
-//   - production: drop both cookies so session resolution falls back to the
-//     real Supabase auth user.
+// End the synthetic venue+role preview: clear the impersonation cookie so session
+// resolution falls back to the real base user (the super_admin). Authorized on
+// the REAL base user's canImpersonate capability — resolved while ignoring the
+// impersonation cookie, so a low-permission preview can never block exit.
 export async function POST(request: NextRequest) {
-  const impersonator = decodeSession(request.cookies.get(impersonatorCookieName)?.value);
+  const actingCtx = await getActingContext();
+  const home = actingCtx && canImpersonate(actingCtx) ? "/admin/impersonation" : "/";
 
-  if (!impersonator) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  const response = NextResponse.redirect(new URL("/admin/impersonation", request.url));
-
-  if (isDevLoginEnabled()) {
-    response.cookies.set(sessionCookieName, encodeSession(impersonator), {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-    });
-  } else {
-    response.cookies.delete(sessionCookieName);
-  }
-  response.cookies.delete(impersonatorCookieName);
+  const response = NextResponse.redirect(new URL(home, request.url));
+  response.cookies.delete(impersonationCookieName);
   return response;
 }
