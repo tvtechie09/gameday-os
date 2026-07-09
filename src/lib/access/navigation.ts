@@ -60,7 +60,7 @@ export const navItems: NavItem[] = [
   { key: "billing", href: "/admin/billing", label: "Billing", icon: "Gauge", group: "admin", cap: canManageBilling },
   { key: "marketplace", href: "/admin/marketplace", label: "Automation Marketplace", icon: "Sparkles", group: "admin", cap: canViewDevTools },
   { key: "developer", href: "/admin/developer", label: "Developer & API", icon: "Database", group: "admin", cap: canViewDevTools },
-  { key: "impersonation", href: "/admin/impersonation", label: "Dev Login & Impersonation", icon: "ShieldCheck", group: "admin", cap: canImpersonate },
+  { key: "impersonation", href: "/admin/impersonation", label: "Impersonation", icon: "ShieldCheck", group: "admin", cap: canImpersonate },
 ];
 
 const groupLabels: Record<NavGroupKey, string> = {

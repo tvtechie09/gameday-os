@@ -25,7 +25,7 @@ export async function AppFrame({ children }: Readonly<{ children: React.ReactNod
   return (
     <>
       {ctx.isImpersonating && impersonator ? (
-        <ImpersonationBanner roleLabel={ctx.roleLabel} email={ctx.email} />
+        <ImpersonationBanner roleLabel={ctx.roleLabel} venueName={ctx.venueName} adminEmail={impersonator.email} />
       ) : null}
       <AppShell navGroups={navGroups} roleLabel={ctx.roleLabel} venueName={ctx.venueName} email={ctx.email}>
         {children}

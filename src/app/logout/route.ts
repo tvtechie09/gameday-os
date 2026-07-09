@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
-import { impersonatorCookieName, sessionCookieName } from "@/lib/access/session-cookie";
+import { impersonationCookieName, impersonatorCookieName, sessionCookieName } from "@/lib/access/session-cookie";
 
 // Sign out of Supabase and clear ALL session cookies: Supabase auth cookies
 // (sb-*), the legacy dev-login session, and the impersonation snapshot. Then
@@ -22,6 +22,7 @@ async function handleLogout(request: NextRequest) {
   }
   response.cookies.delete(sessionCookieName);
   response.cookies.delete(impersonatorCookieName);
+  response.cookies.delete(impersonationCookieName);
 
   return response;
 }

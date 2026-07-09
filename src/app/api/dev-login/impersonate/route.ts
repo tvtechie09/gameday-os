@@ -1,21 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildAccessContext, canImpersonate, isPlatformAdmin } from "@/lib/access/capabilities";
-import { findDemoUserByKey } from "@/lib/access/demo-users";
+import { canImpersonate } from "@/lib/access/capabilities";
 import {
-  encodeSession,
-  impersonatorCookieName,
-  sessionCookieName,
-  type SessionPayload,
+  encodeImpersonation,
+  impersonationCookieName,
+  type ImpersonationPayload,
 } from "@/lib/access/session-cookie";
 import { getActingContext } from "@/lib/access/session";
 
-// Switch the active session into a demo user while preserving the real
-// (underlying) session so "Exit Impersonation" can restore it. Guarded on the
-// REAL acting user's canImpersonate capability:
-//   - dev/staging: the dev-login session
-//   - production: the verified Supabase auth user (a real super_admin/
-//     platform_admin) — a dev-login-only or unauthenticated caller cannot reach
-//     this because dev-login routes are not public in production.
+// Venue-agnostic roles can be previewed without selecting a venue (platform
+// scope). Every other role requires a venue.
+const platformScopedRoles = new Set(["super_admin", "platform_admin", "organization_admin"]);
+
+// Start a synthetic venue+role preview. No fake user is created: we store only
+// the selection ({ venueId, roleKey, startedByUserId, startedAt }) in an
+// HTTP-only cookie. Capabilities are derived from the selected role at session
+// resolution time, and only when the REAL base user can impersonate.
+//
+// Gated on the REAL acting user's canImpersonate capability (super_admin) — NOT
+// on the non-prod dev-login flag. This is a legitimate production feature:
+//   - production: the verified Supabase auth user (a real super_admin)
+//   - dev/staging: the dev-login break-glass session
 export async function POST(request: NextRequest) {
   const actingCtx = await getActingContext();
   if (!actingCtx || !canImpersonate(actingCtx)) {
@@ -23,60 +27,31 @@ export async function POST(request: NextRequest) {
   }
 
   const form = await request.formData();
-  const key = String(form.get("user") ?? "");
-  const target = findDemoUserByKey(key);
-  if (!target) {
-    return NextResponse.redirect(new URL("/admin/impersonation?error=unknown-user", request.url));
+  const roleKey = String(form.get("roleKey") ?? "").trim();
+  const venueId = String(form.get("venueId") ?? "").trim() || null;
+
+  if (!roleKey) {
+    return NextResponse.redirect(new URL("/admin/impersonation?error=missing-role", request.url));
   }
 
-  const targetCtx = buildAccessContext({
-    userId: target.id,
-    email: target.email,
-    displayName: target.displayName,
-    roleKey: target.roleKey,
-    scopeType: target.scopeType,
-    scopeId: target.scopeId,
-    venueName: target.venueName,
+  if (!venueId && !platformScopedRoles.has(roleKey)) {
+    return NextResponse.redirect(new URL("/admin/impersonation?error=missing-venue", request.url));
+  }
+
+  const selection: ImpersonationPayload = {
+    venueId,
+    roleKey,
+    startedByUserId: actingCtx.userId,
+    startedAt: new Date().toISOString(),
+  };
+
+  // Previewed roles rarely have admin access; land on Today's Operations so the
+  // no-access guard is never hit immediately after starting.
+  const response = NextResponse.redirect(new URL("/today", request.url));
+  response.cookies.set(impersonationCookieName, encodeImpersonation(selection), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
   });
-
-  const home = isPlatformAdmin(targetCtx) ? "/admin" : "/today";
-  const response = NextResponse.redirect(new URL(home, request.url));
-
-  // Snapshot the real acting user so Exit Impersonation + the banner work,
-  // unless we are already impersonating (preserve the original admin).
-  const existingImpersonator = request.cookies.get(impersonatorCookieName)?.value;
-  if (!existingImpersonator) {
-    const impersonatorPayload: SessionPayload = {
-      userId: actingCtx.userId,
-      email: actingCtx.email,
-      displayName: actingCtx.displayName,
-      roleKey: actingCtx.roleKey,
-      scopeType: actingCtx.scopeType,
-      scopeId: actingCtx.scopeId,
-      venueId: actingCtx.venueId,
-      venueName: actingCtx.venueName,
-    };
-    response.cookies.set(impersonatorCookieName, encodeSession(impersonatorPayload), {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-    });
-  }
-
-  response.cookies.set(
-    sessionCookieName,
-    encodeSession({
-      userId: target.id,
-      email: target.email,
-      displayName: target.displayName,
-      roleKey: target.roleKey,
-      scopeType: target.scopeType,
-      scopeId: target.scopeId,
-      venueId: null,
-      venueName: target.venueName,
-    }),
-    { httpOnly: true, sameSite: "lax", path: "/" },
-  );
-
   return response;
 }
