@@ -1,17 +1,21 @@
 import { redirect } from "next/navigation";
 import { buildNavigation } from "@/lib/access/navigation";
-import { getImpersonatorContext, getSessionContext } from "@/lib/access/session";
+import { getImpersonatorContext, resolveSession } from "@/lib/access/session";
 import { AppShell } from "./app-shell";
 import { ImpersonationBanner } from "./impersonation-banner";
 
 // Server frame shared by role pages and the admin workspace. Resolves the
 // session, builds capability-filtered navigation, and renders the persistent
-// impersonation banner when a Platform Admin is impersonating a demo user.
+// impersonation banner when an admin is impersonating another user.
 export async function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) {
-  const ctx = await getSessionContext();
-  if (!ctx) {
-    redirect("/dev-login");
+  const resolved = await resolveSession();
+  if (resolved.kind === "guest") {
+    redirect("/login");
   }
+  if (resolved.kind === "no-access") {
+    redirect("/no-access");
+  }
+  const ctx = resolved.context;
 
   const [navGroups, impersonator] = await Promise.all([
     Promise.resolve(buildNavigation(ctx)),

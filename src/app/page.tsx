@@ -1,15 +1,18 @@
 import { redirect } from "next/navigation";
 import { getRoleHome } from "@/lib/access/navigation";
-import { getSessionContext, isDevLoginEnabled } from "@/lib/access/session";
+import { resolveSession } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
-// Root routes to the signed-in role's home. No session -> dev-login (non-prod)
-// so every entry point flows through the role-based experiences.
+// Root routes to the signed-in role's home. Guests go to the login wall and
+// authenticated users with no role assignment land on the no-access screen.
 export default async function Home() {
-  const ctx = await getSessionContext();
-  if (ctx) {
-    redirect(getRoleHome(ctx));
+  const resolved = await resolveSession();
+  if (resolved.kind === "active") {
+    redirect(getRoleHome(resolved.context));
   }
-  redirect(isDevLoginEnabled() ? "/dev-login" : "/today");
+  if (resolved.kind === "no-access") {
+    redirect("/no-access");
+  }
+  redirect("/login");
 }

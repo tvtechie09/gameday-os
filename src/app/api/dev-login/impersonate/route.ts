@@ -2,36 +2,23 @@ import { NextResponse, type NextRequest } from "next/server";
 import { buildAccessContext, canImpersonate, isPlatformAdmin } from "@/lib/access/capabilities";
 import { findDemoUserByKey } from "@/lib/access/demo-users";
 import {
-  decodeSession,
   encodeSession,
   impersonatorCookieName,
   sessionCookieName,
+  type SessionPayload,
 } from "@/lib/access/session-cookie";
-import { isDevLoginEnabled } from "@/lib/access/session";
+import { getActingContext } from "@/lib/access/session";
 
-// Admin-only: switch the active session into a demo user while preserving the
-// real admin session in a separate cookie so "Exit Impersonation" can restore
-// it. Guarded on the CURRENT session's canImpersonate capability.
+// Switch the active session into a demo user while preserving the real
+// (underlying) session so "Exit Impersonation" can restore it. Guarded on the
+// REAL acting user's canImpersonate capability:
+//   - dev/staging: the dev-login session
+//   - production: the verified Supabase auth user (a real super_admin/
+//     platform_admin) — a dev-login-only or unauthenticated caller cannot reach
+//     this because dev-login routes are not public in production.
 export async function POST(request: NextRequest) {
-  if (!isDevLoginEnabled()) {
-    return NextResponse.json({ error: "Dev login is disabled." }, { status: 403 });
-  }
-
-  const current = decodeSession(request.cookies.get(sessionCookieName)?.value);
-  const currentCtx = current
-    ? buildAccessContext({
-        userId: current.userId,
-        email: current.email,
-        displayName: current.displayName,
-        roleKey: current.roleKey,
-        scopeType: current.scopeType,
-        scopeId: current.scopeId,
-        venueId: current.venueId,
-        venueName: current.venueName,
-      })
-    : null;
-
-  if (!currentCtx || !canImpersonate(currentCtx)) {
+  const actingCtx = await getActingContext();
+  if (!actingCtx || !canImpersonate(actingCtx)) {
     return NextResponse.json({ error: "Not permitted to impersonate." }, { status: 403 });
   }
 
@@ -55,26 +42,41 @@ export async function POST(request: NextRequest) {
   const home = isPlatformAdmin(targetCtx) ? "/admin" : "/today";
   const response = NextResponse.redirect(new URL(home, request.url));
 
-  // Preserve the real admin session (only if we are not already impersonating).
+  // Snapshot the real acting user so Exit Impersonation + the banner work,
+  // unless we are already impersonating (preserve the original admin).
   const existingImpersonator = request.cookies.get(impersonatorCookieName)?.value;
   if (!existingImpersonator) {
-    response.cookies.set(impersonatorCookieName, encodeSession(current!), {
+    const impersonatorPayload: SessionPayload = {
+      userId: actingCtx.userId,
+      email: actingCtx.email,
+      displayName: actingCtx.displayName,
+      roleKey: actingCtx.roleKey,
+      scopeType: actingCtx.scopeType,
+      scopeId: actingCtx.scopeId,
+      venueId: actingCtx.venueId,
+      venueName: actingCtx.venueName,
+    };
+    response.cookies.set(impersonatorCookieName, encodeSession(impersonatorPayload), {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
     });
   }
 
-  response.cookies.set(sessionCookieName, encodeSession({
-    userId: target.id,
-    email: target.email,
-    displayName: target.displayName,
-    roleKey: target.roleKey,
-    scopeType: target.scopeType,
-    scopeId: target.scopeId,
-    venueId: null,
-    venueName: target.venueName,
-  }), { httpOnly: true, sameSite: "lax", path: "/" });
+  response.cookies.set(
+    sessionCookieName,
+    encodeSession({
+      userId: target.id,
+      email: target.email,
+      displayName: target.displayName,
+      roleKey: target.roleKey,
+      scopeType: target.scopeType,
+      scopeId: target.scopeId,
+      venueId: null,
+      venueName: target.venueName,
+    }),
+    { httpOnly: true, sameSite: "lax", path: "/" },
+  );
 
   return response;
 }

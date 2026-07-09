@@ -5,6 +5,7 @@
 // Supabase imports, so it can be shared by middleware and server code.
 
 export const roleKeys = [
+  "super_admin",
   "platform_admin",
   "venue_director",
   "venue_staff",
@@ -15,6 +16,7 @@ export const roleKeys = [
 export type ExperienceRoleKey = (typeof roleKeys)[number];
 
 export const roleLabels: Record<ExperienceRoleKey, string> = {
+  super_admin: "Super Admin",
   platform_admin: "Platform Admin",
   venue_director: "Venue GM",
   venue_staff: "Venue Staff",
@@ -27,44 +29,53 @@ export const roleLabels: Record<ExperienceRoleKey, string> = {
 // tournament.game.delay so a Venue GM can run the Today's Operations quick
 // actions, and venue_tech_manager is an additive device/field operations role
 // (see supabase/role-based-experiences-seed.sql).
+// The complete set of platform-admin permissions. super_admin reuses this exact
+// list so it is, by construction, a superset of platform_admin (every canX
+// helper returns true) without weakening platform_admin.
+const platformAdminPermissions: string[] = [
+  "venue.manage",
+  "venue.staff.manage",
+  "venue.field.manage",
+  "venue.device.control",
+  "venue.alert.send",
+  "venue.emergency.override",
+  "device.manage",
+  "device.control",
+  "tournament.manage",
+  "tournament.schedule.manage",
+  "tournament.bracket.manage",
+  "tournament.game.delay",
+  "tournament.score.approve",
+  "league.manage",
+  "league.schedule.manage",
+  "league.team.manage",
+  "game.score.update",
+  "game.status.update",
+  "game.stream.control",
+  "game.music.control",
+  "sponsor.manage",
+  "media.manage",
+  "media.publish",
+  "identity.role.manage",
+  "integration.api.read",
+  "integration.api.write",
+  "integration.webhook.manage",
+  "audit.review",
+  // Platform-only capabilities that have no dedicated seeded permission key.
+  "platform.manage",
+  "platform.billing.manage",
+  "platform.users.manage",
+  "platform.permissions.manage",
+  "platform.impersonate",
+  "platform.devtools",
+];
+
 export const rolePermissionCatalog: Record<ExperienceRoleKey, string[]> = {
-  platform_admin: [
-    "venue.manage",
-    "venue.staff.manage",
-    "venue.field.manage",
-    "venue.device.control",
-    "venue.alert.send",
-    "venue.emergency.override",
-    "device.manage",
-    "device.control",
-    "tournament.manage",
-    "tournament.schedule.manage",
-    "tournament.bracket.manage",
-    "tournament.game.delay",
-    "tournament.score.approve",
-    "league.manage",
-    "league.schedule.manage",
-    "league.team.manage",
-    "game.score.update",
-    "game.status.update",
-    "game.stream.control",
-    "game.music.control",
-    "sponsor.manage",
-    "media.manage",
-    "media.publish",
-    "identity.role.manage",
-    "integration.api.read",
-    "integration.api.write",
-    "integration.webhook.manage",
-    "audit.review",
-    // Platform-only capabilities that have no dedicated seeded permission key.
-    "platform.manage",
-    "platform.billing.manage",
-    "platform.users.manage",
-    "platform.permissions.manage",
-    "platform.impersonate",
-    "platform.devtools",
-  ],
+  // super_admin is the HIGHEST authorization: a strict superset of
+  // platform_admin. It gets every platform_admin permission (canImpersonate,
+  // admin workspace, billing, users, permissions, devtools, all ops actions).
+  super_admin: [...platformAdminPermissions],
+  platform_admin: platformAdminPermissions,
   venue_director: [
     "venue.manage",
     "venue.staff.manage",
