@@ -24,7 +24,7 @@ const statusStyles: Record<string, string> = {
 
 function Badge({ status }: { status: string }) {
   return (
-    <span className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] ${statusStyles[status] ?? "bg-slate-500/10 text-slate-600"}`}>
+    <span className={`inline-block shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] ${statusStyles[status] ?? "bg-slate-500/10 text-slate-600"}`}>
       {status}
     </span>
   );

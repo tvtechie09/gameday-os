@@ -8,13 +8,11 @@ import {
   type SessionPayload,
 } from "./session-cookie";
 
-// Dev-login / impersonation is only enabled outside production, or when
-// explicitly turned on for a staging deployment.
+// The app has no real auth yet, so dev-login is the only way in. Default it
+// ON (including production) unless explicitly disabled. Set
+// NEXT_PUBLIC_ENABLE_DEV_LOGIN=false to lock it down once real auth exists.
 export function isDevLoginEnabled(): boolean {
-  if (process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true") {
-    return true;
-  }
-  return process.env.NODE_ENV !== "production";
+  return process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN !== "false";
 }
 
 async function readCookie(name: string): Promise<string | undefined> {
