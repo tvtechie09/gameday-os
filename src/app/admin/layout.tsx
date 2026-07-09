@@ -1,22 +1,8 @@
-import { AdminShell } from "@/components/admin-shell";
-import { allOrganizationsScope, getCurrentOrganizationScope } from "@/lib/organization-scope";
-import { getOrganizations } from "@/lib/services/organizations";
+import { AppFrame } from "@/components/access/app-frame";
 
-export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [organizations, selectedOrganizationId] = await Promise.all([
-    getOrganizations().catch((error: unknown) => {
-      console.error("Failed to load organizations for admin shell", error);
-      return [];
-    }),
-    getCurrentOrganizationScope(),
-  ]);
-
-  return (
-    <AdminShell
-      organizations={organizations}
-      selectedOrganizationId={selectedOrganizationId ?? allOrganizationsScope}
-    >
-      {children}
-    </AdminShell>
-  );
+// Admin workspace shares the capability-filtered AppFrame. Per-route access is
+// enforced in middleware (guardForAdminPath); this layout just renders the
+// role-appropriate navigation and impersonation banner.
+export default function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <AppFrame>{children}</AppFrame>;
 }

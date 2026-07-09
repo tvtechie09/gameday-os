@@ -42,7 +42,7 @@ export default function RootLayout({
                 </span>
               </Link>
               <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
-                <label className="relative min-w-0 sm:w-72">
+                <label className="relative w-full sm:min-w-[24rem] sm:flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
                   <span className="sr-only">Search</span>
                   <input
