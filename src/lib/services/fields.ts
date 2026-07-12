@@ -156,6 +156,11 @@ export async function getFields(): Promise<Field[]> {
 }
 
 export async function getField(id: string): Promise<Field | null> {
+  // Field ids are UUIDs; QR links with stale or malformed ids should read as
+  // "not found" for visitors, not surface a Postgres cast error.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return null;
+  }
   const supabase = getSupabaseServerClient();
 
   const runQuery = (columns: string) =>

@@ -80,7 +80,14 @@ export async function getFollowDashboardCounts() {
 }
 
 export async function getFollowCountsByField(): Promise<FieldFollowSummary[]> {
-  const supabase = getSupabaseAdminClient();
+  // Analytics counts are decoration on the fields list; never take the page down
+  // when the admin client is unavailable in this environment.
+  let supabase: ReturnType<typeof getSupabaseAdminClient>;
+  try {
+    supabase = getSupabaseAdminClient();
+  } catch {
+    return [];
+  }
   const scope = await getOrganizationDataScope();
   let query = supabase
     .from("follows")

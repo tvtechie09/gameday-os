@@ -93,7 +93,14 @@ export async function getFieldPageViewDashboardCounts() {
 }
 
 export async function getFieldPageViewCountsByField(): Promise<FieldPageViewSummary[]> {
-  const supabase = getSupabaseAdminClient();
+  // Analytics counts are decoration on the fields list; never take the page down
+  // when the admin client is unavailable in this environment.
+  let supabase: ReturnType<typeof getSupabaseAdminClient>;
+  try {
+    supabase = getSupabaseAdminClient();
+  } catch {
+    return [];
+  }
   const scope = await getOrganizationDataScope();
   let query = supabase
     .from("field_page_views")

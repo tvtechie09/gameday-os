@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/admin", label: "Admin" },
-  { href: "/fields/field-1", label: "QR preview" },
+  { href: "/admin/fields", label: "Fields & QR" },
 ];
 
 const focusRing =

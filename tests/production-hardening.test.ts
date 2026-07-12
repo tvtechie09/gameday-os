@@ -39,9 +39,16 @@ test("Venue OS pins the patched PostCSS security line", () => {
   assert.equal(packageJson.overrides.postcss, "^8.5.10");
 });
 
-test("known missing local Supabase configuration falls back without noisy build errors", () => {
-  assert.match(adminLayout, /error instanceof SupabaseConfigError/);
-  assert.match(adminLayout, /console\.error\("Failed to load organizations for admin shell", error\)/);
+test("admin layout delegates to the capability-filtered AppFrame", () => {
+  assert.match(adminLayout, /AppFrame/);
+});
+
+test("known missing admin Supabase configuration degrades reads instead of failing pages", () => {
+  const fieldPageViews = readFileSync(new URL("../src/lib/services/field-page-views.ts", import.meta.url), "utf8");
+  const follows = readFileSync(new URL("../src/lib/services/follows.ts", import.meta.url), "utf8");
+  for (const source of [fieldPageViews, follows]) {
+    assert.match(source, /try \{\s*supabase = getSupabaseAdminClient\(\);\s*\} catch \{\s*return \[\];\s*\}/);
+  }
 });
 
 test("public writes have bounded deterministic JSON parsing", () => {
