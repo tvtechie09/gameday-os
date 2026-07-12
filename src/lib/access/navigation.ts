@@ -61,6 +61,7 @@ export const navItems: NavItem[] = [
   { key: "marketplace", href: "/admin/marketplace", label: "Automation Marketplace", icon: "Sparkles", group: "admin", cap: canViewDevTools },
   { key: "developer", href: "/admin/developer", label: "Developer & API", icon: "Database", group: "admin", cap: canViewDevTools },
   { key: "impersonation", href: "/admin/impersonation", label: "Impersonation", icon: "ShieldCheck", group: "admin", cap: canImpersonate },
+  { key: "feedback", href: "/admin/feedback", label: "Send Feedback", icon: "Bell", group: "admin", cap: canAccessAdminWorkspace },
 ];
 
 const groupLabels: Record<NavGroupKey, string> = {
@@ -117,6 +118,7 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   { prefix: "/admin/alerts", cap: canSendAnnouncement },
   { prefix: "/admin/notifications", cap: canSendAnnouncement },
   { prefix: "/admin/sponsors", cap: (ctx) => hasPermission(ctx, "sponsor.manage") },
+  { prefix: "/admin/feedback", cap: canAccessAdminWorkspace },
 ];
 
 export function guardForAdminPath(pathname: string): (ctx: AccessContext | null) => boolean {
