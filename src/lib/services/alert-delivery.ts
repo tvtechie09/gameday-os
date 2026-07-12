@@ -56,10 +56,57 @@ async function sendViaResend(to: string, subject: string, text: string) {
   }
 }
 
+type TeamSnapshotProfile = {
+  people?: Array<{ id: string; email?: string }>;
+  players?: Array<{ id: string; guardianPersonIds?: string[] }>;
+  memberships?: Array<{ playerId: string; teamSeasonId: string; rosterStatus: string }>;
+  guardianRelationships?: Array<{ guardianPersonId: string; playerId: string }>;
+};
+
+/**
+ * Guardians of players on team seasons linked (gdt_team_season_id) to
+ * sessions on the affected fields. Because a parent is the child's guardian,
+ * venue alerts about their child's field reach them automatically — no
+ * follow/opt-in required. Reads the shared GameDay Team snapshot.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function guardianEmailsForFields(supabase: any, fieldIds: string[]): Promise<string[]> {
+  try {
+    const { data: linked } = await supabase
+      .from("sessions")
+      .select("gdt_team_season_id")
+      .in("field_id", fieldIds)
+      .not("gdt_team_season_id", "is", null);
+    const seasonIds = new Set((linked ?? []).map((row: { gdt_team_season_id: string | null }) => row.gdt_team_season_id).filter(Boolean) as string[]);
+    if (!seasonIds.size) return [];
+    const snapshotIds = (process.env.GAMEDAY_TEAM_STATE_IDS || "gameday-team-staging,staging").split(",").map((id) => id.trim()).filter(Boolean);
+    const { data: snapshots } = await supabase.from("gameday_os_state_snapshots").select("id,state").in("id", snapshotIds);
+    const emails = new Set<string>();
+    for (const snapshot of snapshots ?? []) {
+      const profile = (snapshot.state as { teamProfile?: TeamSnapshotProfile })?.teamProfile;
+      if (!profile) continue;
+      const playerIds = new Set((profile.memberships ?? []).filter((m) => seasonIds.has(m.teamSeasonId) && m.rosterStatus === "active").map((m) => m.playerId));
+      if (!playerIds.size) continue;
+      const guardianIds = new Set<string>();
+      (profile.players ?? []).filter((player) => playerIds.has(player.id)).forEach((player) => (player.guardianPersonIds ?? []).forEach((id) => guardianIds.add(id)));
+      (profile.guardianRelationships ?? []).filter((rel) => playerIds.has(rel.playerId)).forEach((rel) => guardianIds.add(rel.guardianPersonId));
+      (profile.people ?? []).filter((person) => guardianIds.has(person.id)).forEach((person) => {
+        const email = (person.email || "").trim().toLowerCase();
+        if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) emails.add(email);
+      });
+    }
+    return Array.from(emails).slice(0, MAX_DELIVERIES_PER_ALERT);
+  } catch (error) {
+    console.error("Guardian lookup for alert delivery failed", error);
+    return [];
+  }
+}
+
 /**
  * Best-effort fan-out; never throws. Called after an alert is created.
  * Field-scoped alerts notify that field's followers; venue/tournament/global
- * alerts notify followers of every field at the venue.
+ * alerts notify followers of every field at the venue. Team guardians of
+ * linked sessions on affected fields are included automatically.
  */
 export async function deliverAlertToFollowers(alert: Alert): Promise<{ audience: number; sent: number }> {
   try {
@@ -80,7 +127,13 @@ export async function deliverAlertToFollowers(alert: Alert): Promise<{ audience:
       .select("id,email,field_id")
       .in("field_id", fieldIds)
       .not("email", "is", null);
-    const recipients = dedupeFollowerEmails((follows ?? []) as FollowerRow[]);
+    const followerRecipients = dedupeFollowerEmails((follows ?? []) as FollowerRow[]);
+    const guardianEmails = await guardianEmailsForFields(supabase, fieldIds);
+    const seen = new Set(followerRecipients.map((item) => item.email));
+    const recipients = [
+      ...followerRecipients,
+      ...guardianEmails.filter((email) => !seen.has(email)).map((email) => ({ followId: "", email }))
+    ].slice(0, MAX_DELIVERIES_PER_ALERT);
     if (!recipients.length) return { audience: 0, sent: 0 };
 
     const { data: venue } = await supabase.from("venues").select("name").eq("id", alert.venueId).maybeSingle();
@@ -93,7 +146,7 @@ export async function deliverAlertToFollowers(alert: Alert): Promise<{ audience:
       if (result.sent) sent += 1;
       rows.push({
         alert_id: alert.id,
-        follow_id: recipient.followId,
+        follow_id: recipient.followId || null,
         email: recipient.email,
         status: result.sent ? "sent" : result.provider ? "failed" : "skipped_no_provider",
         provider: result.provider,
