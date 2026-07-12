@@ -24,6 +24,27 @@ export default async function ScheduleGeneratorPage() {
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
         Round-robin for house leagues: every team plays every team, balanced home/away, spread across your fields and dates. Load teams straight from a GameDay Team division and the games arrive linked — standings and family calendars follow automatically.
       </p>
+      <section className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-lg border-2 border-[var(--accent)] bg-white p-5">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--accent-strong)]">Option 1 — built in</p>
+          <h2 className="mt-1 text-lg font-black">Build the schedule here</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+            Use the round-robin generator below. Games arrive linked to your GameDay Team divisions,
+            so standings and family calendars update automatically.
+          </p>
+        </div>
+        <div className="rounded-lg border border-[var(--line)] bg-white p-5">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Option 2 — bring your platform</p>
+          <h2 className="mt-1 text-lg font-black">Already run your league elsewhere?</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+            Keep your existing scheduling platform and import its schedule export here. Most platforms
+            (SportsEngine, TeamSnap, LeagueApps, and similar) export CSV — we map the columns and create the games.
+          </p>
+          <a className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 text-sm font-bold" href="/admin/sessions/import">
+            Import a schedule CSV
+          </a>
+        </div>
+      </section>
       <div className="mt-6">
         {errorMessage ? <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">{errorMessage}</p> : <ScheduleGeneratorTool fields={fields} divisions={divisions} />}
       </div>
