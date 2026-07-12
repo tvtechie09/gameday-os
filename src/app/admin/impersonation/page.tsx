@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { canImpersonate } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { getActingContext } from "@/lib/access/session";
-import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import {
   ImpersonationConsole,
   type RoleGroup,
@@ -70,9 +70,19 @@ function venueStatusLabel(status: string | null): string | null {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+function getReadClient() {
+  // Reads fall back to the anon server client when the admin key is not
+  // configured in this environment; venues and roles are readable either way.
+  try {
+    return getSupabaseAdminClient();
+  } catch {
+    return getSupabaseServerClient();
+  }
+}
+
 async function loadVenues(): Promise<VenueOption[]> {
   try {
-    const supabase = getSupabaseAdminClient();
+    const supabase = getReadClient();
     const { data } = await supabase
       .from("venues")
       .select("id,name,city,state,status")
@@ -91,7 +101,7 @@ async function loadVenues(): Promise<VenueOption[]> {
 async function loadRoleGroups(): Promise<RoleGroup[]> {
   let roles: Array<{ key: string; name: string; description: string | null }> = [];
   try {
-    const supabase = getSupabaseAdminClient();
+    const supabase = getReadClient();
     const { data } = await supabase.from("roles").select("key,name,description").order("name", { ascending: true });
     roles = data ?? [];
   } catch {

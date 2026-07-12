@@ -92,37 +92,34 @@ export function ImpersonationConsole({
       </div>
 
       <div className="grid gap-2">
-        <label htmlFor="roleKey" className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
-          Role
-        </label>
-        <select
-          id="roleKey"
-          name="roleKey"
-          value={roleKey}
-          onChange={(event) => {
-            const nextKey = event.target.value;
-            setRoleKey(nextKey);
-            const next = rolesByKey.get(nextKey);
-            if (next?.venueAgnostic) {
-              setVenueId("");
-            }
-          }}
-          className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-bold text-[var(--foreground)]"
-        >
-          <option value="">Select a role…</option>
-          {roleGroups.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.roles.map((role) => (
-                <option key={role.key} value={role.key}>
-                  {role.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        {selected?.role.description ? (
-          <p className="text-xs leading-5 text-[var(--muted)]">{selected.role.description}</p>
-        ) : null}
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Role</p>
+        <input type="hidden" name="roleKey" value={roleKey} />
+        {roleGroups.map((group) => (
+          <div key={group.label} className="grid gap-2">
+            <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{group.label}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {group.roles.map((role) => {
+                const active = roleKey === role.key;
+                return (
+                  <button
+                    key={role.key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      setRoleKey(role.key);
+                      if (group.venueAgnostic) setVenueId("");
+                    }}
+                    className={`grid gap-1 rounded-lg border p-3 text-left transition ${active ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)] bg-white hover:border-[var(--accent)]"}`}
+                  >
+                    <span className="text-sm font-black">{role.name}</span>
+                    {role.description ? <span className="text-xs leading-5 text-[var(--muted)]">{role.description}</span> : null}
+                    {group.venueAgnostic ? <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--accent-strong)]">Platform-wide</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {needsVenue ? (
