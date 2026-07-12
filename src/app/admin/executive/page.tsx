@@ -24,6 +24,7 @@ import { getSyncJobs, getSyncQueueItems } from "@/lib/services/sync-engine";
 import { getVenueAssets } from "@/lib/services/venue-assets";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoles } from "@/lib/services/volunteer-roles";
+import { getDistrictReport, type DistrictReport } from "@/lib/services/district-report";
 import type {
   Alert,
   ExternalSource,
@@ -232,6 +233,16 @@ export default async function ExecutiveDashboardPage() {
     safeLoad<VenueAsset>("venue assets", getVenueAssets),
   ]);
 
+  const districtReport: DistrictReport = await getDistrictReport().catch(() => ({
+    available: false,
+    divisions: 0,
+    teams: 0,
+    players: 0,
+    pendingVerifications: 0,
+    upcomingBookings: 0,
+    openWorkOrders: 0,
+  }));
+
   const sponsorAnalyticsResult = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), "all").then(
     (data) => ({ available: true, data }),
     (error: unknown) => {
@@ -318,6 +329,17 @@ export default async function ExecutiveDashboardPage() {
         <SummaryCard href="/admin/assets" icon={Database} label="Total Assets" note={`${connectedAssets.length} connected assets`} value={venueAssets.length} />
         <SummaryCard href="/admin/assets" icon={AlertTriangle} label="Offline Assets" note={`${maintenanceAssets.length} maintenance items`} value={offlineAssets.length} />
       </section>
+
+      {districtReport.available ? (
+        <section className="mt-10">
+          <SectionHeader note="League structure and field operations in one view — the whole district at a glance." title="District Overview" />
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <SummaryCard icon={Users} label="Divisions" note={`${districtReport.teams} team seasons across the league`} value={districtReport.divisions} />
+            <SummaryCard icon={Users} label="Registered Players" note={`${districtReport.pendingVerifications} verifications awaiting review`} value={districtReport.players} />
+            <SummaryCard href="/admin/fields/bookings" icon={CalendarDays} label="Field Reservations" note={`${districtReport.openWorkOrders} open field work orders`} value={districtReport.upcomingBookings} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-10">
         <SectionHeader note="Field health by venue for quick director review." title="Venue Health" />

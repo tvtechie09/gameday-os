@@ -240,6 +240,52 @@ export type Database = {
           },
         ];
       };
+      field_work_orders: {
+        Row: {
+          id: string;
+          field_id: string;
+          title: string;
+          detail: string | null;
+          priority: string;
+          status: string;
+          reported_by: string | null;
+          created_at: string;
+          updated_at: string;
+          closed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          field_id: string;
+          title: string;
+          detail?: string | null;
+          priority?: string;
+          status?: string;
+          reported_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          closed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          field_id?: string;
+          title?: string;
+          detail?: string | null;
+          priority?: string;
+          status?: string;
+          reported_by?: string | null;
+          updated_at?: string;
+          closed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "field_work_orders_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       organization_memberships: {
         Row: {
           id: string;

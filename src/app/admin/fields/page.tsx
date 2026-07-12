@@ -81,6 +81,9 @@ export default async function FieldsPage() {
             Every field with QR codes and status controls, grouped by venue.
           </p>
         </div>
+        <Link href="/admin/fields/work-orders" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          Work orders
+        </Link>
         <Link href="/admin/fields/bookings" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
           Allocation &amp; permits
         </Link>
