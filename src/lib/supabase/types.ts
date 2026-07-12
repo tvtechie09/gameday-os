@@ -188,6 +188,58 @@ export type Database = {
           },
         ];
       };
+      field_bookings: {
+        Row: {
+          id: string;
+          field_id: string;
+          organization_name: string;
+          purpose: string;
+          contact_name: string | null;
+          contact_email: string | null;
+          starts_at: string;
+          ends_at: string;
+          status: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          field_id: string;
+          organization_name: string;
+          purpose?: string;
+          contact_name?: string | null;
+          contact_email?: string | null;
+          starts_at: string;
+          ends_at: string;
+          status?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          field_id?: string;
+          organization_name?: string;
+          purpose?: string;
+          contact_name?: string | null;
+          contact_email?: string | null;
+          starts_at?: string;
+          ends_at?: string;
+          status?: string;
+          notes?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "field_bookings_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "fields";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       organization_memberships: {
         Row: {
           id: string;
