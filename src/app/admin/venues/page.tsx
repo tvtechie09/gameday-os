@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publicErrorMessage } from "@/lib/public-error";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { EmptyState } from "@/components/empty-state";
 import { FieldQrCode } from "@/components/field-qr-code";
@@ -24,7 +25,7 @@ export default async function VenuesPage() {
   try {
     venues = await getVenues();
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load venues.";
+    errorMessage = publicErrorMessage(error, "Unable to load venues.");
   }
 
   return (
@@ -34,7 +35,7 @@ export default async function VenuesPage() {
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Venues</p>
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">Venue roster</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Real venues from Supabase with live field counts from linked field records.
+            Every venue with live field counts from linked field records.
           </p>
         </div>
         <Link href="/admin/venues/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">

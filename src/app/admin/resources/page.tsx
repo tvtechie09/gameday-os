@@ -50,7 +50,7 @@ export default async function ResourcesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Inventory</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Resource inventory</h1>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Devices &amp; Cameras</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
             Track venue and field resources for operations and public field pages.
           </p>
@@ -75,8 +75,8 @@ export default async function ResourcesPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-strong)]">{getResourceTypeLabel(resource.resourceType)}</p>
-                    <span className={`rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${statusClass(resource.status)}`}>{getResourceStatusLabel(resource.status)}</span>
+                    {resource.resourceType !== "other" ? <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-strong)]">{getResourceTypeLabel(resource.resourceType)}</p> : null}
+                    {resource.status !== "unknown" ? <span className={`rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${statusClass(resource.status)}`}>{getResourceStatusLabel(resource.status)}</span> : null}
                   </div>
                   <h2 className="mt-2 text-xl font-black">{resource.resourceName}</h2>
                   <div className="mt-4 grid gap-2 sm:grid-cols-3">

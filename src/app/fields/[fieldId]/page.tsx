@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
 import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
@@ -406,7 +407,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
       ]);
     }
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load field page.";
+    errorMessage = publicErrorMessage(error, "Unable to load field page.");
   }
 
   const activeSession = getActiveSession(sessions);
@@ -521,6 +522,9 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                   <span className={`w-fit rounded-md px-3 py-2 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
                     {getFieldStatusLabel(field.status)}
                   </span>
+                </div>
+                <div className="mt-4 border-t border-[var(--line)] pt-4">
+                  <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} />
                 </div>
               </section>
             ) : null}

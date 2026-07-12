@@ -1,4 +1,5 @@
 import { SessionForm } from "./session-form";
+import { publicErrorMessage } from "@/lib/public-error";
 import { getFields } from "@/lib/services/fields";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getVenues } from "@/lib/services/venues";
@@ -15,7 +16,7 @@ export default async function NewSessionPage() {
   try {
     [venues, fields, tournaments] = await Promise.all([getVenues(), getFields(), getTournaments()]);
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load venues and fields.";
+    errorMessage = publicErrorMessage(error, "Unable to load venues and fields.");
   }
 
   return (

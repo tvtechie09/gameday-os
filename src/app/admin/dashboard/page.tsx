@@ -414,8 +414,8 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
           <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Total venues" note="Configured venues" value={venues.length} />
             <SummaryCard label="Total fields" note="QR-ready fields" value={fields.length} />
-            <SummaryCard label="Total sessions" note="All sessions from Supabase" value={sessions.length} />
-            <SummaryCard label="Total sponsors" note="Sponsor profiles from Supabase" value={sponsors.length} />
+            <SummaryCard label="Total sessions" note="All scheduled and live games" value={sessions.length} />
+            <SummaryCard label="Total sponsors" note="Configured sponsor profiles" value={sponsors.length} />
           </section>
 
           <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

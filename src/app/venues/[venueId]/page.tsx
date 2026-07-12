@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
 import Link from "next/link";
 import { getPublicFieldUrl } from "@/lib/public-url";
@@ -265,7 +266,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
       resources = allResources.filter((resource) => resource.venueId === venueId && resource.status === "active");
     }
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load venue page.";
+    errorMessage = publicErrorMessage(error, "Unable to load venue page.");
   }
 
   const now = new Date();

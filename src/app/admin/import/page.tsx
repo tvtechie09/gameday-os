@@ -1,4 +1,5 @@
 import { getFields } from "@/lib/services/fields";
+import { publicErrorMessage } from "@/lib/public-error";
 import { getSessions } from "@/lib/services/sessions";
 import { getVenues } from "@/lib/services/venues";
 import type { Field, Session, Venue } from "@/lib/types";
@@ -15,7 +16,7 @@ export default async function ImportPage() {
   try {
     [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load import data.";
+    errorMessage = publicErrorMessage(error, "Unable to load import data.");
   }
 
   return (

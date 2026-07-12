@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { getLiveWeatherForVenue, LiveWeatherError } from "@/lib/services/weather-live";
 
+function sentenceCase(value: string) {
+  const lower = value.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 function formatCheckedAt(value: string) {
   return new Intl.DateTimeFormat("en", {
     hour: "numeric",
@@ -12,11 +17,12 @@ export async function WeatherStatusCard({ compact = false, venueId }: { compact?
   const result = await getWeatherStatusResult(venueId);
 
   if (!result.ok) {
+    // One clear line; repeating "unavailable" three ways reads as broken.
+    const detail = result.label.toLowerCase() === "weather unavailable" ? result.message : `${sentenceCase(result.label)}. ${result.message}`;
     return (
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-950">Weather unavailable</p>
-        <h2 className="mt-1 text-xl font-black text-amber-950">{result.label}</h2>
-        <p className="mt-2 text-sm font-bold leading-6 text-amber-900">{result.message}</p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-950">Weather</p>
+        <p className="mt-2 text-sm font-bold leading-6 text-amber-900">{detail}</p>
       </section>
     );
   }

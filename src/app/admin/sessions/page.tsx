@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publicErrorMessage } from "@/lib/public-error";
 import { EmptyState } from "@/components/empty-state";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
@@ -52,7 +53,7 @@ export default async function SessionsPage() {
   try {
     [venues, fields, sessions, tournaments] = await Promise.all([getVenues(), getFields(), getSessions(), getTournaments()]);
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load sessions.";
+    errorMessage = publicErrorMessage(error, "Unable to load sessions.");
   }
 
   const groupedSessions = groupSessions(venues, fields, sessions);
@@ -63,9 +64,9 @@ export default async function SessionsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Sessions</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Session list</h1>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Schedule &amp; Games</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Real sessions from Supabase, grouped by venue and field.
+            All scheduled and live games, grouped by venue and field.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">

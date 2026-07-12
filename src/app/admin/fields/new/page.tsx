@@ -1,4 +1,5 @@
 import { FieldForm } from "./field-form";
+import { publicErrorMessage } from "@/lib/public-error";
 import { getVenues } from "@/lib/services/venues";
 import type { Venue } from "@/lib/types";
 
@@ -11,7 +12,7 @@ export default async function NewFieldPage() {
   try {
     venues = await getVenues();
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load venues.";
+    errorMessage = publicErrorMessage(error, "Unable to load venues.");
   }
 
   return (

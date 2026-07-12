@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
 import { EmptyState } from "@/components/empty-state";
 import { getFields } from "@/lib/services/fields";
@@ -62,7 +63,7 @@ export default async function SponsorsPage({ searchParams }: SponsorsPageProps) 
     ]);
     analytics = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), analyticsRange);
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load sponsors.";
+    errorMessage = publicErrorMessage(error, "Unable to load sponsors.");
   }
 
   const sponsorsById = new Map(sponsors.map((sponsor) => [sponsor.id, sponsor]));

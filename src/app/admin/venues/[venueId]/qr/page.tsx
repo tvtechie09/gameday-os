@@ -1,4 +1,5 @@
 import { FieldQrCode } from "@/components/field-qr-code";
+import { publicErrorMessage } from "@/lib/public-error";
 import { PrintDownloadButton } from "@/components/print-download-button";
 import { getPublicVenueDisplayUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getVenue } from "@/lib/services/venues";
@@ -23,7 +24,7 @@ export default async function VenueQrPage({ params }: VenueQrPageProps) {
   try {
     venue = await getVenue(venueId);
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load venue QR page.";
+    errorMessage = publicErrorMessage(error, "Unable to load venue QR page.");
   }
 
   return (

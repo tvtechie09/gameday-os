@@ -232,10 +232,15 @@ export default async function ExecutiveDashboardPage() {
     safeLoad<VenueAsset>("venue assets", getVenueAssets),
   ]);
 
-  const sponsorAnalytics = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), "all").catch((error: unknown) => {
-    console.error("Failed to load executive dashboard sponsor analytics", error);
-    return [] as SponsorAnalyticsSummary[];
-  });
+  const sponsorAnalyticsResult = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), "all").then(
+    (data) => ({ available: true, data }),
+    (error: unknown) => {
+      console.error("Failed to load executive dashboard sponsor analytics", error);
+      return { available: false, data: [] as SponsorAnalyticsSummary[] };
+    }
+  );
+  const sponsorAnalyticsAvailable = sponsorAnalyticsResult.available;
+  const sponsorAnalytics = sponsorAnalyticsResult.data;
 
   const activeGames = sessions.filter((session) => isActiveSession(session, now));
   const gamesToday = sessions.filter((session) => isSameDay(session.startTime, now));
@@ -272,7 +277,7 @@ export default async function ExecutiveDashboardPage() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Executive</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Executive dashboard</h1>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Reports</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)]">
             A director-level snapshot of venue activity, sponsor engagement, resource coverage, volunteers, alerts, and external data health.
           </p>
@@ -306,7 +311,7 @@ export default async function ExecutiveDashboardPage() {
         <SummaryCard href="/admin/fields" icon={Activity} label="Fields" note="Operational field inventory" value={fields.length} />
         <SummaryCard href="/admin/game-day" icon={Radio} label="Active Games" note="Live or in-window sessions" value={activeGames.length} />
         <SummaryCard href="/admin/sessions" icon={CalendarDays} label="Games Today" note="Sessions scheduled today" value={gamesToday.length} />
-        <SummaryCard href="/admin/sponsors" icon={HandHeart} label="Sponsor Impressions" note={`${totalSponsorClicks} total sponsor clicks`} value={totalSponsorImpressions} />
+        <SummaryCard href="/admin/sponsors" icon={HandHeart} label="Sponsor Impressions" note={sponsorAnalyticsAvailable ? `${totalSponsorClicks} total sponsor clicks` : "Analytics are not available in this environment"} value={sponsorAnalyticsAvailable ? totalSponsorImpressions : "—"} />
         <SummaryCard href="/admin/resources" icon={Database} label="Active Resources" note={`${activeActivations.length} live parent/operator activations`} value={activeResources.length} />
         <SummaryCard href="/admin/volunteers" icon={Users} label="Active Volunteers" note={`${openVolunteerRoles.length} open role requests`} value={activeVolunteers.length} />
         <SummaryCard href="/admin/alerts" icon={Bell} label="Active Alerts" note="Currently visible operational alerts" value={activeAlerts.length} />

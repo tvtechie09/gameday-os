@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publicErrorMessage } from "@/lib/public-error";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getVenues } from "@/lib/services/venues";
@@ -16,7 +17,7 @@ export default async function BulkSessionsPage() {
   try {
     [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load bulk session tools.";
+    errorMessage = publicErrorMessage(error, "Unable to load bulk session tools.");
   }
 
   return (

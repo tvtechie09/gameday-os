@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publicErrorMessage } from "@/lib/public-error";
 import { revalidatePath } from "next/cache";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { EmptyState } from "@/components/empty-state";
@@ -64,7 +65,7 @@ export default async function FieldsPage() {
     fieldViewCounts = new Map(viewCounts.map((summary) => [summary.fieldId, summary.views]));
     fieldFollowCounts = new Map(followCounts.map((summary) => [summary.fieldId, summary.follows]));
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load fields.";
+    errorMessage = publicErrorMessage(error, "Unable to load fields.");
   }
 
   const groupedFields = groupFieldsByVenue(fields, venues);
@@ -75,9 +76,9 @@ export default async function FieldsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Fields</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Field list</h1>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Fields</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Real fields from Supabase, grouped by their venue.
+            Every field with QR codes and status controls, grouped by venue.
           </p>
         </div>
         <Link href="/admin/fields/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">

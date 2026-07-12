@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -13,20 +13,6 @@ const navItems = [
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
-
-function SearchField() {
-  return (
-    <label className="relative block min-w-0 lg:w-72">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
-      <span className="sr-only">Search</span>
-      <input
-        className="min-h-10 w-full rounded-lg border border-[var(--line)] bg-[var(--background)] pl-9 pr-3 text-sm font-semibold outline-none transition focus:border-[var(--accent)] focus:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-        placeholder="Search venues, fields, sessions"
-        type="search"
-      />
-    </label>
-  );
-}
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -54,6 +40,14 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Signed-in app routes render the capability-filtered sidebar (AppFrame);
+  // showing this public header there duplicates navigation. Keep it for
+  // public, QR, and auth pages only.
+  if (pathname.startsWith("/admin") || pathname === "/today" || pathname.startsWith("/today/")) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-white/95 backdrop-blur">
@@ -68,7 +62,6 @@ export function SiteHeader() {
           </span>
         </Link>
         <div className="hidden min-w-0 items-center gap-3 lg:flex">
-          <SearchField />
           <NavLinks />
         </div>
         <button
@@ -85,8 +78,7 @@ export function SiteHeader() {
       {open ? (
         <div id="site-menu" className="border-t border-[var(--line)] px-4 pb-4 pt-3 lg:hidden">
           <div className="flex flex-col gap-3">
-            <SearchField />
-            <NavLinks onNavigate={() => setOpen(false)} />
+              <NavLinks onNavigate={() => setOpen(false)} />
           </div>
         </div>
       ) : null}

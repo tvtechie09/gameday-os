@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { publicErrorMessage } from "@/lib/public-error";
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
@@ -44,7 +45,7 @@ export default async function TournamentsPage() {
   try {
     [tournaments, sessions, fields, venues, activeAlerts] = await Promise.all([getTournaments(), getSessions(), getFields(), getVenues(), getActiveAlerts()]);
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load tournaments.";
+    errorMessage = publicErrorMessage(error, "Unable to load tournaments.");
   }
 
   return (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { publicErrorMessage } from "@/lib/public-error";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { getPublicScoreboardUrl } from "@/lib/public-url";
 import { getField } from "@/lib/services/fields";
@@ -58,7 +59,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
       venue = field ? await getVenue(field.venueId) : null;
     }
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load session dashboard.";
+    errorMessage = publicErrorMessage(error, "Unable to load session dashboard.");
   }
 
   if (errorMessage) {
