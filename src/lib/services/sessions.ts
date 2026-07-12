@@ -34,6 +34,9 @@ export type CreateSessionInput = {
   secondary_link_label?: SessionLinkLabel | "" | null;
   secondary_link_url?: string | null;
   external_source?: string | null;
+  gdt_team_season_id?: string | null;
+  gdt_home_team_season_id?: string | null;
+  gdt_away_team_season_id?: string | null;
   external_source_id?: string | null;
   external_source_url?: string | null;
   notes?: string | null;
@@ -165,7 +168,7 @@ async function getOrganizationIdForField(fieldId: string) {
   return data?.organization_id ?? await getWritableOrganizationId();
 }
 
-function mapSession(row: Omit<SessionRow, "is_demo" | "scorekeeper_token" | "scorekeeper_pin" | "scorekeeper_seq"> & { is_demo?: boolean | null; scorekeeper_token?: string | null; scorekeeper_pin?: string | null; scorekeeper_seq?: number }): Session {
+function mapSession(row: Omit<SessionRow, "is_demo" | "scorekeeper_token" | "scorekeeper_pin" | "scorekeeper_seq" | "gdt_team_season_id" | "gdt_home_team_season_id" | "gdt_away_team_season_id"> & { is_demo?: boolean | null; scorekeeper_token?: string | null; scorekeeper_pin?: string | null; scorekeeper_seq?: number; gdt_team_season_id?: string | null; gdt_home_team_season_id?: string | null; gdt_away_team_season_id?: string | null }): Session {
   return {
     id: row.id,
     organizationId: row.organization_id ?? null,
@@ -322,6 +325,9 @@ export async function createSession(data: CreateSessionInput): Promise<Session> 
       secondary_link_label: readLinkLabel(data.secondary_link_label),
       secondary_link_url: readOptionalText(data.secondary_link_url),
       external_source: readOptionalText(data.external_source),
+      gdt_team_season_id: readOptionalText(data.gdt_team_season_id),
+      gdt_home_team_season_id: readOptionalText(data.gdt_home_team_season_id),
+      gdt_away_team_season_id: readOptionalText(data.gdt_away_team_season_id),
       external_source_id: readOptionalText(data.external_source_id),
       external_source_url: readOptionalText(data.external_source_url),
       notes: readOptionalText(data.notes),

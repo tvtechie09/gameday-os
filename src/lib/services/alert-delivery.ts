@@ -69,7 +69,7 @@ type TeamSnapshotProfile = {
  * venue alerts about their child's field reach them automatically — no
  * follow/opt-in required. Reads the shared GameDay Team snapshot.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export async function guardianEmailsForFields(supabase: any, fieldIds: string[]): Promise<string[]> {
   try {
     const { data: linked } = await supabase

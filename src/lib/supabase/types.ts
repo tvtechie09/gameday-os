@@ -1813,6 +1813,9 @@ export type Database = {
           scorekeeper_token: string | null;
           scorekeeper_pin: string | null;
           scorekeeper_seq: number;
+          gdt_team_season_id: string | null;
+          gdt_home_team_season_id: string | null;
+          gdt_away_team_season_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1849,6 +1852,9 @@ export type Database = {
           scorekeeper_token?: string | null;
           scorekeeper_pin?: string | null;
           scorekeeper_seq?: number;
+          gdt_team_season_id?: string | null;
+          gdt_home_team_season_id?: string | null;
+          gdt_away_team_season_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1885,6 +1891,9 @@ export type Database = {
           scorekeeper_token?: string | null;
           scorekeeper_pin?: string | null;
           scorekeeper_seq?: number;
+          gdt_team_season_id?: string | null;
+          gdt_home_team_season_id?: string | null;
+          gdt_away_team_season_id?: string | null;
         };
         Relationships: [
           {
