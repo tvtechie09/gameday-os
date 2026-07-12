@@ -26,9 +26,9 @@ export default async function IdentityRolesPage() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Identity Platform</p>
-      <h1 className="mt-2 text-3xl font-black sm:text-4xl">Roles & Permission Matrix</h1>
+      <h1 className="mt-2 text-3xl font-black sm:text-4xl">Identity Permission Matrix</h1>
       <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)]">
-        This page documents expected access. Route-level enforcement is intentionally deferred until authentication and actor resolution are connected.
+        This page documents what each scoped Identity Platform role can access across core GameDay OS surfaces. Route-level enforcement is intentionally deferred until authentication and actor resolution are connected.
       </p>
 
       <section className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -39,7 +39,7 @@ export default async function IdentityRolesPage() {
 
       <section className="mt-8 overflow-hidden rounded-lg border border-[var(--line)] bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] text-left text-sm">
+          <table className="min-w-[1320px] text-left text-sm">
             <thead className="bg-[var(--background)] text-xs uppercase tracking-[0.12em] text-[var(--muted)]">
               <tr>
                 <th className="px-4 py-3">Role</th>

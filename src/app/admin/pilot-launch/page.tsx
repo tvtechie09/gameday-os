@@ -334,7 +334,7 @@ export default async function PilotLaunchPage({ searchParams }: PilotLaunchPageP
                 <ActionLink href="#field-pages" label="Open Field Pages" />
                 <ActionLink href="/admin/game-day" label="Open Game Day Center" />
                 <ActionLink href="/admin/status-board" label="Open Status Board" />
-                <ActionLink href="/admin/operations-center" label="Open Venue Operations" />
+                <ActionLink href="/admin/operations-center" label="Open Venue Command Center" />
                 <ActionLink href="/admin/pilot-script" label="Open Pilot Test Script" />
                 <ActionLink href="/admin/system-health" label="Open System Health" />
                 <ActionLink href="/admin/schema-audit" label="Open Schema Audit" />

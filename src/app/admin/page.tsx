@@ -1,19 +1,10 @@
 import Link from "next/link";
-import { CalendarDays, HandHeart, MapPin, QrCode, type LucideIcon } from "lucide-react";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
 import { getVenues } from "@/lib/services/venues";
 
 export const dynamic = "force-dynamic";
-
-type DashboardCard = {
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  note: string;
-  value: number;
-};
 
 async function loadCount(label: string, load: () => Promise<unknown[]>) {
   try {
@@ -28,76 +19,80 @@ export default async function AdminDashboard() {
   const [venueCount, fieldCount, sessionCount, sponsorCount] = await Promise.all([
     loadCount("venues", getVenues),
     loadCount("fields", getFields),
-    loadCount("sessions", getSessions),
+    loadCount("games", getSessions),
     loadCount("sponsors", getSponsors),
   ]);
 
-  const dashboardCards: DashboardCard[] = [
-    { href: "/admin/venues", icon: MapPin, label: "Total Venues", note: "Venue profiles from Supabase.", value: venueCount },
-    { href: "/admin/fields", icon: QrCode, label: "Total Fields", note: "Field pages from Supabase.", value: fieldCount },
-    { href: "/admin/sessions", icon: CalendarDays, label: "Total Sessions", note: "Game day blocks from Supabase.", value: sessionCount },
-    { href: "/admin/sponsors", icon: HandHeart, label: "Total Sponsors", note: "Sponsor profiles from Supabase.", value: sponsorCount },
-  ];
+  const primaryAction = venueCount === 0
+    ? { href: "/admin/venues/new", label: "Create Venue" }
+    : fieldCount === 0
+      ? { href: "/admin/fields/new", label: "Add First Field" }
+      : sessionCount === 0
+        ? { href: "/admin/sessions/new", label: "Add First Game" }
+        : { href: "/admin/operations-center", label: "Open Venue Command" };
+
+  const attentionItems = [
+    venueCount === 0 ? { href: "/admin/venues/new", label: "Create a venue before anything else can be organized." } : null,
+    venueCount > 0 && fieldCount === 0 ? { href: "/admin/fields/new", label: "Add at least one field so games and QR pages have a home." } : null,
+    fieldCount > 0 && sessionCount === 0 ? { href: "/admin/sessions/new", label: "Add or import today's games." } : null,
+    sponsorCount === 0 ? { href: "/admin/sponsors/new", label: "Sponsors are optional. Add one when you are ready." } : null,
+  ].filter(Boolean) as Array<{ href: string; label: string }>;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Admin</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Operations dashboard</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Manage venues, fields, sessions, and sponsors from one mobile-friendly operations shell.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Link href="/admin/pilot-prep" className="ui-button ui-button-secondary">
-            Pilot Prep
+    <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="rounded-2xl bg-[var(--black-soft)] p-6 text-white shadow-sm sm:p-8">
+        <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">GameDay OS</p>
+        <h1 className="mt-3 max-w-3xl text-3xl font-black leading-tight sm:text-5xl">What needs attention today?</h1>
+        <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-white/75">
+          Start with the next useful action. Setup, reports, and advanced tools stay available when you need them.
+        </p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <Link href={primaryAction.href} className="ui-button ui-button-primary min-h-12 bg-white text-[var(--foreground)] hover:bg-white/90">
+            {primaryAction.label}
           </Link>
-          <Link href="/admin/fields/new" className="ui-button ui-button-primary">
-            New field
+          <Link href="/admin/game-day" className="ui-button min-h-12 border border-white/20 bg-white/10 text-white hover:bg-white/15">
+            View Game Day
           </Link>
         </div>
       </div>
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {dashboardCards.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <Link key={item.label} href={item.href} className="group ui-card p-5 transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md">
-              <div className="flex items-start justify-between gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)] transition group-hover:bg-[var(--accent)] group-hover:text-white">
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <span className="rounded-md bg-[var(--background)] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">Open</span>
-              </div>
-              <p className="mt-5 text-sm font-bold text-[var(--muted)]">{item.label}</p>
-              <p className="mt-2 text-4xl font-black">{item.value}</p>
-              <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{item.note}</p>
-            </Link>
-          );
-        })}
-      </div>
-
-      <div className="ui-card mt-8 bg-[var(--panel)]">
-        <div className="border-b border-[var(--line)] p-5">
-          <h2 className="text-lg font-black">Setup checklist</h2>
+      <section className="mt-6 rounded-xl border border-[var(--line)] bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Needs attention</p>
+            <h2 className="mt-1 text-2xl font-black">Next steps</h2>
+          </div>
+          <Link href="/admin/operations-center" className="text-sm font-black text-[var(--accent-strong)] hover:underline">
+            Open Venue Command
+          </Link>
         </div>
-        <div className="grid gap-0 divide-y divide-[var(--line)]">
-          {[
-            { href: "/admin/venues", label: "Review venues" },
-            { href: "/admin/pilot-prep", label: "Run pilot prep checks" },
-            { href: "/admin/fields", label: "Audit field QR pages" },
-            { href: "/admin/sessions", label: "Plan game day sessions" },
-            { href: "/admin/sponsors", label: "Confirm sponsor placements" },
-          ].map((item) => (
-            <Link key={item.label} href={item.href} className="flex items-center justify-between gap-4 p-5 transition hover:bg-[var(--background)]">
-              <span className="text-sm font-bold">{item.label}</span>
-              <span className="rounded-md border border-[var(--line)] px-2 py-1 text-xs font-bold text-[var(--muted)]">Open</span>
+        <div className="mt-5 grid gap-3">
+          {attentionItems.length > 0 ? attentionItems.map((item) => (
+            <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg bg-[var(--background)] px-4 py-3 text-sm font-bold transition hover:bg-[var(--accent-soft)]" href={item.href} key={item.label}>
+              <span>{item.label}</span>
+              <span className="text-[var(--accent-strong)]">Open</span>
             </Link>
-          ))}
+          )) : (
+            <p className="rounded-lg bg-emerald-50 p-4 text-sm font-black text-emerald-900">No setup blockers. Open Venue Command to run the day.</p>
+          )}
         </div>
-      </div>
+      </section>
+
+      <section className="mt-6 grid gap-3 sm:grid-cols-4">
+        <Metric href="/admin/venues" label="Venues" value={venueCount} />
+        <Metric href="/admin/fields" label="Fields" value={fieldCount} />
+        <Metric href="/admin/sessions" label="Games" value={sessionCount} />
+        <Metric href="/admin/sponsors" label="Sponsors" value={sponsorCount} />
+      </section>
     </section>
+  );
+}
+
+function Metric({ href, label, value }: { href: string; label: string; value: number }) {
+  return (
+    <Link className="rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href={href}>
+      <p className="text-sm font-bold text-[var(--muted)]">{label}</p>
+      <p className="mt-2 text-3xl font-black tabular-nums">{value}</p>
+    </Link>
   );
 }

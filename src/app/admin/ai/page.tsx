@@ -68,7 +68,7 @@ export default async function AiAssistantPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link className="ui-button ui-button-secondary" href="/admin/operations-center">
-            Operations Center
+            Venue Command Center
           </Link>
           <Link className="ui-button ui-button-primary" href="/admin/system-health">
             System Health
@@ -85,7 +85,7 @@ export default async function AiAssistantPage() {
       </section>
 
       <div className="mt-8">
-        <AiRecommendationsPanel recommendations={recommendations} title="Operations Suggestions" />
+        <AiRecommendationsPanel recommendations={recommendations} title="Venue Command Suggestions" />
       </div>
 
       <section className="mt-8 rounded-xl border border-[var(--line)] bg-white p-5 shadow-sm">

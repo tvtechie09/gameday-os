@@ -4,8 +4,9 @@ import { AiRecommendationsPanel } from "@/components/ai/ai-recommendations-panel
 import { generateAiRecommendations } from "@/lib/ai-recommendations";
 import { getActiveAlerts, getAlerts, getAlertLabel, getAlertTone, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getFields, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
+import { getVenueAssets, getVenueAssetStatusClass, getVenueAssetStatusLabel, getVenueAssetTypeLabel } from "@/lib/services/venue-assets";
 import { getVenues } from "@/lib/services/venues";
-import type { Alert, Field, Venue } from "@/lib/types";
+import type { Alert, Field, Venue, VenueAsset } from "@/lib/types";
 import { clearActiveOperationsAlertsAction, clearAnnouncementAction, createDelayUpdateAction, createVenueAnnouncementAction, createVenueStatusAction, reopenAllClosedFieldsAction, resetAllFieldDelaysAction, resetSelectedFieldDelayAction, type VenueOperationType } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -31,10 +32,16 @@ const venueStatusTemplates: OperationTemplate[] = [
     type: "normal_operations",
   },
   {
-    description: "Use when all or selected fields are behind schedule.",
-    message: "Venue delay. Please wait for updated game times.",
-    title: "Delay",
-    type: "delay",
+    description: "Use when weather is affecting games or safety decisions.",
+    message: "Weather delay. Games are paused while venue staff monitors conditions.",
+    title: "Weather Delay",
+    type: "weather_delay",
+  },
+  {
+    description: "Use when games are running behind schedule.",
+    message: "Schedule delay. Games are running behind. Please watch for updated start times.",
+    title: "Schedule Delay",
+    type: "schedule_delay",
   },
   {
     description: "Use when the venue or selected fields are closed.",
@@ -48,6 +55,12 @@ const venueStatusTemplates: OperationTemplate[] = [
     title: "Emergency",
     type: "emergency",
   },
+  {
+    description: "Use when maintenance affects venue or field availability.",
+    message: "Maintenance in progress. Please follow venue staff guidance before using affected areas.",
+    title: "Maintenance",
+    type: "maintenance",
+  },
 ];
 
 const delayOptions = [
@@ -59,11 +72,39 @@ const delayOptions = [
   { label: "Closed", value: "closed" },
 ];
 
+const incidentTypes = [
+  "Injury",
+  "Medical Emergency",
+  "Lost Child",
+  "Equipment Failure",
+  "Power Outage",
+  "Network Outage",
+  "Security Event",
+];
+
+const decisionSupportCards = [
+  {
+    title: "Field 3 is 45 minutes behind",
+    message: "Consider notifying parents and tournament staff before the next scheduled game.",
+    severity: "warning",
+  },
+  {
+    title: "Venue is delayed",
+    message: "Confirm resume time and keep public venue, field, and display pages aligned.",
+    severity: "warning",
+  },
+  {
+    title: "Emergency mode active",
+    message: "Public display override recommended. Push and hardware controls are future integrations.",
+    severity: "urgent",
+  },
+];
+
 async function safeLoad<T>(label: string, load: () => Promise<T[]>): Promise<T[]> {
   try {
     return await load();
   } catch (error) {
-    console.error(`Failed to load operations center ${label}`, error);
+    console.error(`Failed to load venue command center ${label}`, error);
     return [];
   }
 }
@@ -179,6 +220,9 @@ function AnnouncementForm({ fields, venueId }: { fields: Field[]; venueId: strin
             <option value="emergency">Emergency</option>
             <option value="concessions">Concessions</option>
             <option value="field_change">Field Change</option>
+            <option value="lost_child">Lost Child</option>
+            <option value="medical">Medical</option>
+            <option value="maintenance">Maintenance</option>
           </select>
         </label>
         <label className="grid gap-2">
@@ -302,8 +346,10 @@ function ResetControls({ fields, venueId }: { fields: Field[]; venueId: string }
 
 function inferVenueStatus(activeAlerts: Alert[], closedFields: number, delayedFields: number) {
   if (activeAlerts.some((alert) => alert.alertType === "emergency")) return "Emergency";
+  if (activeAlerts.some((alert) => alert.title.toLowerCase().includes("maintenance"))) return "Maintenance";
   if (closedFields > 0 || activeAlerts.some((alert) => alert.alertType === "field_closure")) return "Closed";
-  if (delayedFields > 0 || activeAlerts.some((alert) => alert.alertType === "delay" || alert.alertType === "weather")) return "Delay";
+  if (activeAlerts.some((alert) => alert.alertType === "weather")) return "Weather Delay";
+  if (delayedFields > 0 || activeAlerts.some((alert) => alert.alertType === "delay")) return "Schedule Delay";
   return "Normal Operations";
 }
 
@@ -317,13 +363,15 @@ function formatDateTime(value: string) {
 function getHistoryStatusChange(alert: Alert) {
   if (alert.title === "All Clear" || alert.title === "Normal Operations") return "Normal Operations";
   if (alert.alertType === "emergency") return "Emergency";
+  if (alert.title.toLowerCase().includes("maintenance")) return "Maintenance";
   if (alert.alertType === "field_closure") return "Closed";
-  if (alert.alertType === "delay" || alert.alertType === "weather") return "Delay";
+  if (alert.alertType === "weather") return "Weather Delay";
+  if (alert.alertType === "delay") return "Schedule Delay";
   return "Announcement";
 }
 
 function getHistoryUser(alert: Alert) {
-  return alert.title === "All Clear" ? "Operations Center" : "Venue Operator";
+  return alert.title === "All Clear" ? "Venue Command Center" : "Venue Operator";
 }
 
 function PublicImpactPreview({ activeAlerts, delayedFields, venueStatus }: { activeAlerts: Alert[]; delayedFields: number; venueStatus: string }) {
@@ -335,6 +383,7 @@ function PublicImpactPreview({ activeAlerts, delayedFields, venueStatus }: { act
         "Venue Display Board",
         "Game Day Center",
         "Status Board",
+        "Executive Dashboard",
         "Pilot Launch Dashboard",
       ].map((target) => (
         <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={target}>
@@ -350,14 +399,14 @@ function PublicImpactPreview({ activeAlerts, delayedFields, venueStatus }: { act
 }
 
 function AutomationTargets() {
-  const targets = ["Venue Displays", "Scoreboards", "Audio / PA", "Public Pages", "Push Notifications"];
+  const targets = ["Public Pages", "Venue Displays", "Scoreboards", "Audio / PA", "Push Notifications", "Streaming Overlays"];
 
   return (
     <section className="mt-8 rounded-lg border border-dashed border-[var(--line)] bg-white p-5 shadow-sm">
       <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Automation Targets</p>
       <h2 className="mt-1 text-2xl font-black">Future control surfaces</h2>
-      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Placeholder only. GameDay OS does not control hardware, PA, scoreboards, or push notifications yet.</p>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Placeholder only. GameDay OS does not control hardware, PA, scoreboards, streaming overlays, or push notifications yet.</p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {targets.map((target) => (
           <article className="rounded-lg bg-[var(--background)] p-4" key={target}>
             <p className="text-sm font-black">{target}</p>
@@ -369,13 +418,43 @@ function AutomationTargets() {
   );
 }
 
+function IncidentManagementPlaceholder() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {incidentTypes.map((incident) => (
+        <article className="rounded-lg border border-dashed border-[var(--line)] bg-[var(--background)] p-4" key={incident}>
+          <p className="text-sm font-black">{incident}</p>
+          <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Workflow placeholder</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function DecisionSupportPlaceholders() {
+  return (
+    <div className="grid gap-3 lg:grid-cols-3">
+      {decisionSupportCards.map((card) => (
+        <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={card.title}>
+          <span className={`rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${card.severity === "urgent" ? "bg-red-100 text-red-900" : "bg-amber-100 text-amber-950"}`}>
+            {card.severity}
+          </span>
+          <h3 className="mt-3 text-lg font-black">{card.title}</h3>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{card.message}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export default async function OperationsCenterPage({ searchParams }: OperationsCenterPageProps) {
   const resolvedSearchParams = await searchParams;
-  const [venues, fields, activeAlerts, allAlerts] = await Promise.all([
+  const [venues, fields, activeAlerts, allAlerts, assets] = await Promise.all([
     safeLoad<Venue>("venues", getVenues),
     safeLoad<Field>("fields", getFields),
     safeLoad<Alert>("active alerts", getActiveAlerts),
     safeLoad<Alert>("alert history", getAlerts),
+    safeLoad<VenueAsset>("venue assets", getVenueAssets),
   ]);
   const selectedVenue = venues.find((venue) => venue.id === resolvedSearchParams?.venueId) ?? venues[0] ?? null;
   const venueFields = selectedVenue ? fields.filter((field) => field.venueId === selectedVenue.id) : [];
@@ -384,6 +463,7 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
   const activeAnnouncements = venueActiveAlerts.filter((alert) => alert.alertScope === "venue" || alert.alertScope === "global").length;
   const closedFields = venueFields.filter((field) => field.status === "closed").length;
   const delayedFields = venueFields.filter((field) => field.status === "delayed").length;
+  const criticalAssetIssues = selectedVenue ? assets.filter((asset) => asset.venueId === selectedVenue.id && (asset.status === "offline" || asset.status === "maintenance_needed")) : [];
   const venueStatus = inferVenueStatus(venueActiveAlerts, closedFields, delayedFields);
   const aiRecommendations = generateAiRecommendations({
     activeAlerts: venueActiveAlerts,
@@ -396,10 +476,10 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Operations</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Venue Operations Center</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Venue Command</p>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Venue Command Center</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)]">
-            A venue-wide layer for status, announcements, delays, closures, and field safety decisions across every field.
+            The official venue-wide source of truth for status, communications, delays, weather awareness, incidents, and public impact.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -428,20 +508,51 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
       {!selectedVenue ? (
         <div className="mt-8 rounded-lg border border-[var(--line)] bg-white p-6">
           <h2 className="text-xl font-black">No venue selected</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Create a venue before using the operations center.</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Create a venue before using the Venue Command Center.</p>
         </div>
       ) : (
         <>
           <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <StatusCard label="Venue Status" value={venueStatus} tone={venueStatus === "Emergency" || venueStatus === "Closed" ? "text-red-700" : venueStatus === "Delay" ? "text-amber-800" : "text-[var(--accent-strong)]"} />
+            <StatusCard label="Venue Status" value={venueStatus} tone={venueStatus === "Emergency" || venueStatus === "Closed" ? "text-red-700" : venueStatus.includes("Delay") || venueStatus === "Maintenance" ? "text-amber-800" : "text-[var(--accent-strong)]"} />
             <StatusCard label="Active Announcements" value={activeAnnouncements} />
             <StatusCard label="Delayed Fields" value={delayedFields} tone={delayedFields > 0 ? "text-amber-800" : undefined} />
             <StatusCard label="Closed Fields" value={closedFields} tone={closedFields > 0 ? "text-red-700" : undefined} />
             <StatusCard label="Active Alerts" value={venueActiveAlerts.length} />
           </section>
 
+          <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Digital Venue Awareness</p>
+                <h2 className="mt-1 text-2xl font-black">Critical asset issues</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Durable infrastructure issues that may affect venue command decisions.</p>
+              </div>
+              <Link className="ui-button ui-button-secondary" href="/admin/assets">
+                Open Asset Registry
+              </Link>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {criticalAssetIssues.length > 0 ? criticalAssetIssues.slice(0, 6).map((asset) => (
+                <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={asset.id}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getVenueAssetStatusClass(asset.status)}`}>
+                      {getVenueAssetStatusLabel(asset.status)}
+                    </span>
+                    <span className="rounded-md bg-white px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">
+                      {getVenueAssetTypeLabel(asset.assetType)}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 text-lg font-black">{asset.assetName}</h3>
+                  <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{asset.physicalLocation ?? "Location not configured"}</p>
+                </article>
+              )) : (
+                <p className="rounded-lg bg-[var(--background)] p-4 text-sm font-semibold text-[var(--muted)]">No critical asset issues for this venue.</p>
+              )}
+            </div>
+          </section>
+
           <div className="mt-8">
-            <AiRecommendationsPanel compact recommendations={aiRecommendations} title="Operations Suggestions" />
+            <AiRecommendationsPanel compact recommendations={aiRecommendations} title="Venue Command Suggestions" />
           </div>
 
           <div className="mt-8 grid gap-8">
@@ -458,7 +569,7 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <form action={createVenueStatusAction}>
                   <HiddenFieldInputs fields={venueFields} venueId={selectedVenue.id} />
-                  <input name="operation_type" type="hidden" value="delay" />
+                  <input name="operation_type" type="hidden" value="schedule_delay" />
                   <input name="scope_mode" type="hidden" value="all" />
                   <button className="min-h-14 w-full rounded-lg border border-amber-200 bg-amber-50 px-4 text-sm font-black text-amber-950" type="submit">
                     Start Delay
@@ -533,19 +644,31 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
 
             <SectionShell
               eyebrow="Field Delay Management"
-              note="Manage field-level delay amounts and closures. Updates create timeline records and change public field status."
-              title="Field timing and closures"
+              note="Manage venue delay, field delay, and closures. Session-level delay assignment is a future workflow placeholder."
+              title="Delay management"
             >
               <DelayTracking activeAlerts={venueActiveAlerts} fields={venueFields} venueId={selectedVenue.id} />
+              <div className="mt-5 rounded-lg border border-dashed border-[var(--line)] bg-[var(--background)] p-4">
+                <p className="text-sm font-black">Session delay placeholder</p>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Future workflow: attach a delay directly to selected sessions while preserving field and venue state.</p>
+              </div>
               <div className="mt-5">
                 <ResetControls fields={venueFields} venueId={selectedVenue.id} />
               </div>
             </SectionShell>
 
             <SectionShell
-              eyebrow="Recent Operations Timeline"
-              note="Records status changes, announcements, delay updates, all clear events, and field closures."
-              title="Operations timeline"
+              eyebrow="Incident Management"
+              note="Placeholder taxonomy for future incident intake, escalation, and post-event review. No dispatch, hardware, or push workflow is active yet."
+              title="Incidents"
+            >
+              <IncidentManagementPlaceholder />
+            </SectionShell>
+
+            <SectionShell
+              eyebrow="Operations Timeline"
+              note="Records status changes, announcements, delays, all clear events, incidents, and field closures."
+              title="Venue command timeline"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
@@ -578,10 +701,18 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
 
             <SectionShell
               eyebrow="Public Impact Preview"
-              note="These are the public and operator surfaces affected by the current Operations Center state."
+              note="These are the public and operator surfaces affected by the current Venue Command Center state."
               title="What parents and operators will see"
             >
               <PublicImpactPreview activeAlerts={venueActiveAlerts} delayedFields={delayedFields} venueStatus={venueStatus} />
+            </SectionShell>
+
+            <SectionShell
+              eyebrow="Decision Support"
+              note="Rules-based placeholders only. No AI, hardware control, or push notification workflow is active."
+              title="Recommended operator checks"
+            >
+              <DecisionSupportPlaceholders />
             </SectionShell>
           </div>
 

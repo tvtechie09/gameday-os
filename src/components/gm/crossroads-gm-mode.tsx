@@ -40,7 +40,7 @@ export function CrossroadsGmMode() {
       <section className="rounded-lg border border-[var(--line)] bg-white p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">GM Mode · Demo Data</p>
+            <p className="text-sm font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Operations Center · Demo Data</p>
             <h2 className="mt-2 text-3xl font-black">Monday morning venue operating view</h2>
             <p className="mt-3 max-w-3xl text-sm font-bold leading-6 text-[var(--muted)]">A leadership-level view of weekend operations, maintenance, asset health, facility utilization, and future revenue opportunities. Data shown here is realistic demo data.</p>
           </div>
@@ -73,7 +73,7 @@ export function CrossroadsGmMode() {
           {crossroadsGmPermissions.map((permission) => (
             <div className="rounded-lg bg-[var(--background)] p-3" key={permission.role}>
               <p className="text-sm font-black">{permission.role}</p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)]">{permission.visible ? "GM Mode visible" : "GM Mode hidden"}</p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)]">{permission.visible ? "Executive summary visible" : "Executive summary hidden"}</p>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{permission.note}</p>
             </div>
           ))}

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default function CrossroadsGmPage() {
   return (
-    <CrossroadsPageShell eyebrow="GM Mode" title="Crossroads Executive Center">
+    <CrossroadsPageShell eyebrow="Operations Center" title="Crossroads Executive Summary">
       <CrossroadsGmMode />
     </CrossroadsPageShell>
   );

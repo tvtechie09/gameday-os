@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createResourceActivationRequest, resourceActivationTypes } from "@/lib/services/resource-activations";
 import type { ResourceActivationType } from "@/lib/types";
+import { ApiRequestError, parseJsonObject, readBoundedString, readEmail, readHttpUrl } from "@/lib/api-request";
 
 type ActivationPayload = {
   venueId?: unknown;
@@ -20,11 +21,11 @@ function readString(value: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json() as ActivationPayload;
-    const venueId = readString(payload.venueId);
-    const fieldId = readString(payload.fieldId);
-    const activationType = readString(payload.activationType);
-    const displayName = readString(payload.displayName);
+    const payload = await parseJsonObject<ActivationPayload>(request);
+    const venueId = readBoundedString(payload.venueId, 128);
+    const fieldId = readBoundedString(payload.fieldId, 128);
+    const activationType = readBoundedString(payload.activationType, 64);
+    const displayName = readBoundedString(payload.displayName, 160);
 
     if (!venueId || !fieldId || !displayName) {
       return NextResponse.json({ error: "Venue, field, and display name are required." }, { status: 400 });
@@ -37,17 +38,18 @@ export async function POST(request: Request) {
     const activation = await createResourceActivationRequest({
       venue_id: venueId,
       field_id: fieldId,
-      session_id: readString(payload.sessionId) || null,
+      session_id: readBoundedString(payload.sessionId, 128) || null,
       activation_type: activationType as ResourceActivationType,
       display_name: displayName,
-      contact_name: readString(payload.contactName) || null,
-      contact_email: readString(payload.contactEmail) || null,
-      resource_url: readString(payload.resourceUrl) || null,
-      notes: readString(payload.notes) || null,
+      contact_name: readBoundedString(payload.contactName, 160) || null,
+      contact_email: readEmail(payload.contactEmail) || null,
+      resource_url: readHttpUrl(payload.resourceUrl) || null,
+      notes: readBoundedString(payload.notes, 2000) || null,
     });
 
     return NextResponse.json({ activation });
   } catch (error) {
+    if (error instanceof ApiRequestError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Failed to create resource activation", error);
     return NextResponse.json({ error: "Unable to create community contribution." }, { status: 500 });
   }

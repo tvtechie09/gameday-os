@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordSponsorClick } from "@/lib/services/sponsor-analytics";
+import { ApiRequestError, parseJsonObject, readBoundedString } from "@/lib/api-request";
 
 type ClickPayload = {
   sponsorId?: unknown;
@@ -14,8 +15,8 @@ function readOptionalString(value: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json() as ClickPayload;
-    const sponsorId = readOptionalString(payload.sponsorId);
+    const payload = await parseJsonObject<ClickPayload>(request);
+    const sponsorId = readBoundedString(payload.sponsorId, 128) || null;
 
     if (!sponsorId) {
       return NextResponse.json({ error: "Sponsor is required." }, { status: 400 });
@@ -23,13 +24,14 @@ export async function POST(request: Request) {
 
     await recordSponsorClick({
       sponsorId,
-      fieldId: readOptionalString(payload.fieldId),
-      sessionId: readOptionalString(payload.sessionId),
-      pageType: readOptionalString(payload.pageType) ?? "field_page",
+      fieldId: readBoundedString(payload.fieldId, 128) || null,
+      sessionId: readBoundedString(payload.sessionId, 128) || null,
+      pageType: readBoundedString(payload.pageType, 64) || "field_page",
     });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof ApiRequestError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Failed to record sponsor click", error);
     return NextResponse.json({ error: "Unable to record sponsor click." }, { status: 500 });
   }

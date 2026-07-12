@@ -20,6 +20,22 @@ export type AlertPriority = "low" | "normal" | "high" | "urgent";
 export type AlertVisibility = "public" | "admin_only";
 export type ResourceType = "camera" | "audio" | "scoreboard" | "display" | "network" | "streaming" | "other";
 export type ResourceStatus = "active" | "inactive" | "maintenance" | "unknown";
+export type VenueAssetCategory = "scoreboards" | "displays" | "audio" | "video" | "networking" | "lighting" | "infrastructure" | "miscellaneous";
+export type VenueAssetType =
+  | "scoreboard"
+  | "display"
+  | "tv"
+  | "speaker"
+  | "audio_zone"
+  | "camera"
+  | "network_equipment"
+  | "lighting"
+  | "parking_sign"
+  | "wifi"
+  | "emergency_device"
+  | "other";
+export type VenueAssetStatus = "healthy" | "offline" | "maintenance_needed" | "unknown";
+export type VenueAssetIntegrationStatus = "not_configured" | "configured" | "connected" | "testing";
 export type AudioMode = "none" | "parent_speaker" | "venue_pa" | "bluetooth_speaker" | "obs_audio" | "future_integration";
 export type AudioProfileStatus = "not_configured" | "configured" | "testing" | "active" | "offline";
 export type WeatherProfileStatus = "not_configured" | "configured" | "monitoring" | "paused" | "offline";
@@ -79,7 +95,28 @@ export type SessionEventType =
   | "alert_created"
   | "sponsor_clicked"
   | "game_started"
-  | "game_final";
+  | "game_final"
+  | "operations_update"
+  | "scoreboard_update"
+  | "streaming_update"
+  | "media_added"
+  | "sponsor_update"
+  | "official_update"
+  | "weather_update";
+
+export type SessionOperationsStatus = "normal" | "delayed" | "suspended" | "emergency" | "final_review";
+
+export interface SessionMediaLink {
+  label: string;
+  url: string;
+  type?: "stream" | "photos" | "recap" | "external" | "other";
+}
+
+export interface SessionOfficial {
+  name: string;
+  role: string;
+  organization?: string | null;
+}
 
 export interface Venue {
   id: string;
@@ -131,6 +168,8 @@ export interface Session {
   sportType: SessionSportType;
   homeTeam: string;
   awayTeam: string;
+  homeOrganizationId?: string | null;
+  awayOrganizationId?: string | null;
   startTime: string;
   endTime: string | null;
   status: SessionStatus;
@@ -143,6 +182,13 @@ export interface Session {
   strikes: number;
   outs: number;
   gameStatus: SessionStatus;
+  operationsStatus?: SessionOperationsStatus | null;
+  scoreboardProfileId?: string | null;
+  streamingProfile?: Record<string, unknown> | null;
+  walkupMusicProfile?: Record<string, unknown> | null;
+  sponsorPackage?: Record<string, unknown> | null;
+  mediaLinks?: SessionMediaLink[];
+  officials?: SessionOfficial[];
   primaryLinkLabel: SessionLinkLabel | null;
   primaryLinkUrl: string | null;
   secondaryLinkLabel: SessionLinkLabel | null;
@@ -297,6 +343,45 @@ export interface Resource {
   serialNumber: string | null;
   status: ResourceStatus;
   notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VenueBuilding {
+  id: string;
+  organizationId?: string | null;
+  venueId: string;
+  name: string;
+  description: string | null;
+  mapX: number | null;
+  mapY: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VenueAsset {
+  id: string;
+  organizationId?: string | null;
+  venueId: string;
+  buildingId: string | null;
+  fieldId: string | null;
+  assetName: string;
+  assetType: VenueAssetType;
+  assetCategory: VenueAssetCategory;
+  manufacturer: string | null;
+  model: string | null;
+  serialNumber: string | null;
+  ipAddress: string | null;
+  physicalLocation: string | null;
+  mapX: number | null;
+  mapY: number | null;
+  status: VenueAssetStatus;
+  integrationStatus: VenueAssetIntegrationStatus;
+  notes: string | null;
+  installationDate: string | null;
+  warrantyEnd: string | null;
+  photos: string[];
+  manuals: string[];
   createdAt: string;
   updatedAt: string;
 }

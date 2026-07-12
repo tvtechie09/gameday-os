@@ -9,8 +9,11 @@ import type { AlertPriority, AlertType, FieldStatus } from "@/lib/types";
 export type VenueOperationType =
   | "normal_operations"
   | "delay"
+  | "weather_delay"
+  | "schedule_delay"
   | "closed"
   | "emergency"
+  | "maintenance"
   | "rain_delay"
   | "lightning_delay"
   | "heat_delay"
@@ -48,12 +51,26 @@ const operationConfigs: Record<VenueOperationType, OperationConfig> = {
     priority: "high",
     title: "Venue Delay",
   },
+  schedule_delay: {
+    alertType: "delay",
+    fieldStatus: "delayed",
+    message: "Schedule delay. Games are running behind. Please watch for updated start times.",
+    priority: "high",
+    title: "Schedule Delay",
+  },
   emergency: {
     alertType: "emergency",
     fieldStatus: null,
     message: "Emergency alert. Follow venue staff instructions.",
     priority: "urgent",
     title: "Emergency Alert",
+  },
+  maintenance: {
+    alertType: "field_closure",
+    fieldStatus: "maintenance",
+    message: "Maintenance in progress. Please follow venue staff guidance before using affected areas.",
+    priority: "high",
+    title: "Maintenance",
   },
   field_closure: {
     alertType: "field_closure",
@@ -97,6 +114,13 @@ const operationConfigs: Record<VenueOperationType, OperationConfig> = {
     priority: "high",
     title: "Rain Delay",
   },
+  weather_delay: {
+    alertType: "weather",
+    fieldStatus: "delayed",
+    message: "Weather delay. Games are paused while venue staff monitors conditions.",
+    priority: "high",
+    title: "Weather Delay",
+  },
 };
 
 const announcementConfig: Record<string, { alertType: AlertType; priority: AlertPriority; title: string }> = {
@@ -104,6 +128,9 @@ const announcementConfig: Record<string, { alertType: AlertType; priority: Alert
   emergency: { alertType: "emergency", priority: "urgent", title: "Emergency Announcement" },
   field_change: { alertType: "info", priority: "high", title: "Field Change Announcement" },
   general: { alertType: "info", priority: "normal", title: "Venue Announcement" },
+  lost_child: { alertType: "emergency", priority: "urgent", title: "Lost Child Announcement" },
+  maintenance: { alertType: "field_closure", priority: "high", title: "Maintenance Announcement" },
+  medical: { alertType: "emergency", priority: "urgent", title: "Medical Announcement" },
   parking: { alertType: "parking", priority: "normal", title: "Parking Announcement" },
   tournament: { alertType: "info", priority: "normal", title: "Tournament Announcement" },
   weather: { alertType: "weather", priority: "high", title: "Weather Announcement" },

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordSponsorImpressions } from "@/lib/services/sponsor-analytics";
+import { ApiRequestError, parseJsonObject, readBoundedString } from "@/lib/api-request";
 
 type ImpressionPayload = {
   sponsorIds?: unknown;
@@ -14,9 +15,9 @@ function readOptionalString(value: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json() as ImpressionPayload;
+    const payload = await parseJsonObject<ImpressionPayload>(request);
     const sponsorIds = Array.isArray(payload.sponsorIds)
-      ? [...new Set(payload.sponsorIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0))]
+      ? [...new Set(payload.sponsorIds.map((value) => readBoundedString(value, 128)).filter(Boolean))].slice(0, 50)
       : [];
 
     if (sponsorIds.length === 0) {
@@ -25,13 +26,14 @@ export async function POST(request: Request) {
 
     await recordSponsorImpressions(sponsorIds.map((sponsorId) => ({
       sponsorId,
-      fieldId: readOptionalString(payload.fieldId),
-      sessionId: readOptionalString(payload.sessionId),
-      pageType: readOptionalString(payload.pageType) ?? "field_page",
+      fieldId: readBoundedString(payload.fieldId, 128) || null,
+      sessionId: readBoundedString(payload.sessionId, 128) || null,
+      pageType: readBoundedString(payload.pageType, 64) || "field_page",
     })));
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof ApiRequestError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Failed to record sponsor impressions", error);
     return NextResponse.json({ error: "Unable to record sponsor impressions." }, { status: 500 });
   }

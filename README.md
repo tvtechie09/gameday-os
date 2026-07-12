@@ -2,9 +2,11 @@
 
 Venue-first operating system for sports fields, venue operations, QR-accessible field pages, scoreboards, sponsors, resources, alerts, and complex venue workflows.
 
-## Crossroads Demo
+## Crossroads Experience Center
 
 The flagship demo venue is **Wintrust Crossroads Sports Complex** in New Lenox, IL.
+
+Positioning: **GameDay OS is the Connected Venue Operating System.**
 
 The demo is built on the long-term GameDay Venue hierarchy:
 
@@ -20,10 +22,10 @@ It includes:
 - Championship Field, Chill Zone / hospitality building, playground / family area, main concourse, and picnic/seating areas.
 - Storm water ponds as non-navigable landmarks.
 - Demo games across full fields and subfields.
-- Family Mode, Tournament Mode, and Venue Operations Mode.
+- Crossroads Today, Family Experience, Tournament Operations, Operations Center, Staff Mode, TV Dashboard, and Media Engine.
 - Provider-ready equipment placeholders for scoreboards, speakers, camera/security, network, and lights.
 
-No Daktronics, Cisco, Meraki, Cisco Spaces, Axis, or other real vendor APIs are called.
+No Daktronics, GameChanger, Cisco, Meraki, Cisco Spaces, Axis, OBS, RTMP, YouTube, digital signage, POS/menu, access-control, emergency, or other real vendor APIs are called.
 
 ### Demo Map Asset
 
@@ -47,16 +49,22 @@ These image slots are for the venue hero, single POI previews, and single field 
 
 ### Demo Routes
 
-Venue Mode:
+Primary mayor/GM demo flow:
+
+- `/demo/crossroads/today`
+- `/demo/crossroads/presentation`
+- `/demo/crossroads/operations`
+- `/demo/crossroads/staff`
+- `/demo/crossroads/tv`
+- `/demo/crossroads/media`
+
+Venue and family routes:
 
 - `/venue/crossroads`
-
-Demo modes:
-
 - `/venue/crossroads/family`
 - `/venue/crossroads/tournament`
-- `/venue/crossroads/operations`
-- `/demo/crossroads/presentation`
+- `/demo/crossroads/operations` (presentation-friendly operations entry)
+- `/demo/crossroads/gm`
 
 QR-style entry routes:
 
@@ -67,35 +75,43 @@ QR-style entry routes:
 - `/venue/crossroads/concession/north`
 - `/venue/crossroads/concession/south`
 
+Media Engine routes:
+
+- `/demo/crossroads/media`
+- `/demo/crossroads/media/channel/media-channel-field-6b-live`
+- `/demo/crossroads/media/endpoints`
+- `/demo/crossroads/media/overlay-preview`
+
 ### Presentation Mode
 
 Open:
 
 `/demo/crossroads/presentation`
 
-Recommended demo path:
+Recommended mayor/GM start:
 
-1. Open `/venue/crossroads`.
-2. Click **Start Crossroads Tour** in the hero section.
-3. Keep the scenario set to **Normal Tournament Day** for scenes 1-7.
-4. Switch to **Weather Delay** for scene 8.
-5. Use scene 9 to show recovery and all-clear.
-6. End with scene 10, **Future Vision panel**.
+1. Open `/demo/crossroads/today`.
+2. Use quick links to open Family Experience, Tournament Operations, Operations Center, Staff Mode, TV Dashboard, Media Engine, and Presentation Tour.
+3. Open `/demo/crossroads/presentation` for the guided 10-12 minute story.
+4. Keep the scenario set to **Normal Tournament Day** until the weather delay scene.
+5. Switch to **Weather Delay** for the delay/recovery story.
+6. End with **Crossroads 2030**.
 
-Presentation Mode is a guided Crossroads Experience Center tour for the Crossroads GM, Village leadership, investors, and future venue partners.
+Presentation Mode is a guided Crossroads Experience Center tour for the Mayor, GM, Parks leadership, Village stakeholders, investors, and future venue partners.
 
-It walks through:
+It follows a single Saturday story:
 
-1. Welcome to Wintrust Crossroads powered by GameDay OS
-2. Family arrival
-3. Parent parked in South Lot navigating to Field 6B
-4. Family live game, schedule, weather, concessions, restrooms, and playground
-5. Team/scorekeeper view for Field 6B
-6. Tournament Director dashboard
-7. Venue Operations dashboard
-8. Simulated Weather Delay
-9. Recovery and all-clear
-10. Future Vision panel
+1. 7:00 AM - Staff arrives / facility readiness
+2. 7:30 AM - Tournament director checks fields
+3. 7:45 AM - Families arrive and navigate
+4. 8:00 AM - Games begin / live scores on TVs
+5. 8:15 AM - GameDay Media Engine
+6. Noon - Concessions, playground, high traffic
+7. 2:00 PM - Weather delay / emergency communication
+8. 3:00 PM - Recovery / schedule resumes
+9. 6:00 PM - Championship game / community moment
+10. Monday Morning - Operations Center executive summary
+11. Future Vision - Crossroads 2030
 
 Presenter controls include:
 
@@ -113,37 +129,37 @@ Scenarios:
 
 ### Recommended 10-Minute Demo Script
 
-Use `/demo/crossroads/presentation`.
+Use `/demo/crossroads/today` first, then `/demo/crossroads/presentation`.
 
-1. **Welcome** - 45 seconds  
-   Explain that GameDay OS makes the venue the shared operating layer for families, teams, tournament staff, and venue leadership.
+1. **Crossroads Today** - 60 seconds  
+   Show the front door for the Connected Venue Operating System.
 
 2. **Family arrival** - 60 seconds  
-   Show how a family scans a venue QR, sees parking, finds the main gate, and understands the complex without asking staff.
+   Show South Lot, Field 6B, Visitor Services, and current game context.
 
-3. **South Lot to Field 6B** - 60 seconds  
-   Show the family path from South Lot to Field 6B and explain that 6B is a play surface under Field 6, not a one-off page.
+3. **Tournament operations** - 75 seconds  
+   Show readiness checks, delayed games, and behind-schedule games.
 
-4. **Live family page** - 75 seconds  
-   Point out current game, score/status, schedule, concessions, restrooms, playground, and weather awareness.
+4. **Operations Center** - 90 seconds  
+   Show Today, Maintenance, Assets, Staff, Safety, Communications, Community, Analytics, and Future Roadmap.
 
-5. **Scorekeeper view** - 60 seconds  
-   Show manual score entry as a scoped, temporary game-day workflow. Emphasize that it does not grant venue control.
+5. **TV Dashboard** - 75 seconds  
+   Show Crossroads Live, Tournament HQ, Village Events, Weather & Safety, Sponsor Rotation, and Menu/Concessions.
 
-6. **Tournament dashboard** - 75 seconds  
-   Show live fields, delayed fields, behind-schedule games, and readiness checks for teams, umpires, scorekeepers, scoreboards, and fields.
+6. **Media Engine** - 60 seconds  
+   Show mock Field 6B camera, score overlay, and routing to bar TVs, family app, Tournament HQ, and future livestream destination. Say: **Create media once, distribute it everywhere.**
 
-7. **Venue operations dashboard** - 75 seconds  
-   Show complex health, announcements, weather/emergency workflow, and provider-ready equipment placeholders.
+7. **Weather Delay scenario** - 90 seconds  
+   Toggle Weather Delay. Show public alert, tournament impact, and Operations Center communication.
 
-8. **Weather Delay scenario** - 90 seconds  
-   Toggle **Weather Delay**. Show Field 4/6B delay state, family alert, tournament impact, and venue announcement workflow.
+8. **Staff Mode** - 60 seconds  
+   Show assigned requests, open incidents, tasks, asset issues, and quick actions.
 
-9. **Recovery** - 45 seconds  
-   Show all-clear/recovery: fields return to live or scheduled state and the operating record stays consistent.
+9. **Executive Summary** - 75 seconds  
+   Show weekend games hosted, visitors, maintenance, assets, utilization, and revenue opportunities.
 
-10. **Future Vision** - 75 seconds  
-    Close with the Current vs Future section. Be explicit: Cisco Meraki, Cisco Spaces, Daktronics, security camera, PA/audio, weather automation, and other vendor integrations are future targets only and are not live in this demo.
+10. **Crossroads 2030** - 75 seconds  
+    Close with current vs future clarity. Vendor integrations are future targets and are not live in this demo.
 
 The scene model is reusable and configured in:
 
@@ -159,11 +175,13 @@ The generic presentation and future-vision primitives live in:
 
 Demo-only today:
 
+- Crossroads Today route.
 - Guided presentation flow
 - Simulated weather delay
 - Simulated announcement state
 - Simulated equipment online/offline placeholders
 - Sample youth sports schedules and readiness states
+- Mock Field 6B Media Engine feed and overlay preview
 
 Platform-ready foundation:
 
@@ -174,10 +192,17 @@ Platform-ready foundation:
 - Manual scoreboard concepts
 - Provider-ready equipment endpoint records
 - Scoped permission model for venue, parent field, play surface, and session roles
+- Media Engine model for video sources, audio sources, overlays, media channels, distribution endpoints, routes, and sessions
 
 Future roadmap:
 
 - Physical scoreboard integration
+- GameChanger source-of-truth game state
+- RTSP/NDI/SRT camera ingest
+- PTZ control with permissions
+- OBS/production system integration
+- RTMP livestream destinations
+- Recording, replay, and automated highlight clips
 - PA/audio announcement integration
 - Digital signage automation
 - Weather automation
@@ -192,6 +217,7 @@ Partner/vendor approval required:
 - Cisco Spaces wayfinding
 - Security camera awareness integrations
 - Daktronics/scoreboard hardware integrations
+- Camera vendor, OBS, RTMP, livestream, recording, replay, signage, and POS/menu integrations
 - Tournament app integrations that require partner access or API approval
 
 The UI intentionally does not imply these vendor integrations are live.
@@ -252,5 +278,7 @@ Crossroads-specific tests verify:
 - Tournament Mode shows delayed/behind games
 - Venue Operations Mode shows equipment placeholders
 - Presentation scenes exist in order
+- Media Engine scene exists in the presentation
+- Media Engine routes and seed data exist
 - Presentation scenarios update isolated demo state
 - Future Vision separates foundation-ready, future, and partner/vendor items

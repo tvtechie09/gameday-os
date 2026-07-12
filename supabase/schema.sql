@@ -29,7 +29,10 @@ create table if not exists public.venues (
   description text,
   city text,
   state text,
+  zip text,
   address text,
+  latitude double precision,
+  longitude double precision,
   parking_note text,
   status text not null default 'Draft' check (status in ('Draft', 'Live')),
   logo_url text,
@@ -361,6 +364,7 @@ create index if not exists role_assignments_organization_id_idx on public.role_a
 create index if not exists role_assignments_role_type_idx on public.role_assignments(role_type);
 create index if not exists role_assignments_email_idx on public.role_assignments(email);
 create index if not exists venues_organization_id_idx on public.venues(organization_id);
+create index if not exists venues_latitude_longitude_idx on public.venues(latitude, longitude);
 create index if not exists fields_organization_id_idx on public.fields(organization_id);
 create index if not exists resources_venue_id_idx on public.resources(venue_id);
 create index if not exists resources_organization_id_idx on public.resources(organization_id);

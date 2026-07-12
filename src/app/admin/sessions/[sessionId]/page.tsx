@@ -117,6 +117,12 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
         {field ? (
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
+              href={`/admin/sessions/${session.id}/command-center`}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white"
+            >
+              Open Command Center
+            </Link>
+            <Link
               href="#score-entry"
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
             >

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordFieldPageView } from "@/lib/services/field-page-views";
+import { ApiRequestError, parseJsonObject, readBoundedString } from "@/lib/api-request";
 
 type FieldPageViewPayload = {
   venueId?: unknown;
@@ -14,9 +15,9 @@ function readString(value: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json() as FieldPageViewPayload;
-    const venueId = readString(payload.venueId);
-    const fieldId = readString(payload.fieldId);
+    const payload = await parseJsonObject<FieldPageViewPayload>(request);
+    const venueId = readBoundedString(payload.venueId, 128);
+    const fieldId = readBoundedString(payload.fieldId, 128);
 
     if (!venueId || !fieldId) {
       return NextResponse.json({ error: "Venue and field are required." }, { status: 400 });
@@ -25,13 +26,14 @@ export async function POST(request: Request) {
     await recordFieldPageView({
       venueId,
       fieldId,
-      sessionId: readString(payload.sessionId) || null,
-      pageType: readString(payload.pageType) || "field_page",
+      sessionId: readBoundedString(payload.sessionId, 128) || null,
+      pageType: readBoundedString(payload.pageType, 64) || "field_page",
       userAgent: request.headers.get("user-agent"),
     });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof ApiRequestError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Failed to record field page view", error);
     return NextResponse.json({ error: "Unable to record field page view." }, { status: 500 });
   }

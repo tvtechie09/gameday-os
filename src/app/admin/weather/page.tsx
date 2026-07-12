@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CloudSun } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
+import { WeatherStatusCard } from "@/components/weather/weather-status-card";
 import { getVenues } from "@/lib/services/venues";
 import { getWeatherProfiles, getWeatherSourceLabel, getWeatherStatusClass, getWeatherStatusLabel } from "@/lib/services/weather-profiles";
 
@@ -25,12 +26,12 @@ export default async function WeatherProfilesPage() {
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Weather</p>
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">Weather profiles</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Set up venue weather awareness for game day operations. This is a manual framework only: no paid weather API, lightning detection, or automatic cancellations yet.
+            Set up venue weather awareness for game day operations. Weather profiles can now pull live provider data when coordinates and provider credentials are configured.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link href="/admin/operations-center" className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white">
-            Venue Operations
+            Venue Command Center
           </Link>
           <Link href="/admin/alerts/new?weather_delay=true" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-950">
             Create Weather Delay Alert
@@ -52,7 +53,7 @@ export default async function WeatherProfilesPage() {
         </article>
         <article className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Weather API</p>
-          <p className="mt-2 text-3xl font-black">Off</p>
+          <p className="mt-2 text-3xl font-black">Live</p>
         </article>
       </section>
 
@@ -78,23 +79,8 @@ export default async function WeatherProfilesPage() {
                       {profile.locationName}
                     </h2>
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{venue?.name ?? "Venue unavailable"}</p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                      <div className="rounded-lg bg-[var(--background)] p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Condition</p>
-                        <p className="mt-1 text-sm font-black">Manual check</p>
-                      </div>
-                      <div className="rounded-lg bg-[var(--background)] p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Temperature</p>
-                        <p className="mt-1 text-sm font-black">Pending</p>
-                      </div>
-                      <div className="rounded-lg bg-[var(--background)] p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Rain / Lightning</p>
-                        <p className="mt-1 text-sm font-black">Not automated</p>
-                      </div>
-                      <div className="rounded-lg bg-[var(--background)] p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Last checked</p>
-                        <p className="mt-1 text-sm font-black">Manual</p>
-                      </div>
+                    <div className="mt-4">
+                      <WeatherStatusCard compact venueId={profile.venueId} />
                     </div>
                     {profile.notes ? <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{profile.notes}</p> : null}
                     <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Updated {formatUpdatedAt(profile.updatedAt)}</p>

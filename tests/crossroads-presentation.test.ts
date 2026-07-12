@@ -24,18 +24,32 @@ describe("Crossroads Presentation Mode", () => {
 
   it("has all scenes in the correct order", () => {
     assert.deepEqual(crossroadsPresentationScenes.map((scene) => scene.id), [
-      "welcome",
-      "arrival",
-      "south-lot-to-6b",
-      "family-live-game",
-      "scorekeeper-6b",
-      "tournament-dashboard",
-      "venue-operations",
-      "gm-monday-morning",
+      "staff-readiness",
+      "tournament-field-check",
+      "families-arrive",
+      "games-begin",
+      "media-engine",
+      "noon-high-traffic",
       "weather-delay",
       "recovery",
+      "championship-community",
+      "monday-morning-summary",
       "future-vision",
     ]);
+    assert.deepEqual(crossroadsPresentationScenes.map((scene) => scene.time), [
+      "7:00 AM",
+      "7:30 AM",
+      "7:45 AM",
+      "8:00 AM",
+      "8:15 AM",
+      "Noon",
+      "2:00 PM",
+      "3:00 PM",
+      "6:00 PM",
+      "Monday Morning",
+      "Future Vision",
+    ]);
+    assert(crossroadsPresentationScenes.every((scene) => scene.narrative && scene.visualState));
   });
 
   it("supports next, previous, restart, and jump style navigation indexes", () => {

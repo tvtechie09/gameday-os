@@ -12,6 +12,8 @@ import { getResourceActivations, getActivationLabel } from "@/lib/services/resou
 import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
+import { getSportsEngineDashboardSchedule } from "@/lib/services/sportsengine-integration";
+import { getLatestScoreboardReadings } from "@/lib/services/daktronics-scoreboard";
 import { getSyncDashboardStats, getSyncJobs } from "@/lib/services/sync-engine";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenues } from "@/lib/services/venues";
@@ -159,6 +161,96 @@ function SummaryCard({ label, value, note }: { label: string; value: number | st
   );
 }
 
+function DaktronicsScoreboardWidget({ readings, fields }: { readings: Awaited<ReturnType<typeof getLatestScoreboardReadings>>; fields: Field[] }) {
+  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  return (
+    <section className="mt-8 rounded-xl border border-[var(--line)] bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Daktronics read-only</p>
+          <h2 className="mt-1 text-2xl font-black">Live scoreboard state</h2>
+          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Read-only local adapter readings. GameDay OS does not send physical scoreboard control commands.</p>
+        </div>
+        <Link className="ui-button ui-button-secondary min-h-11" href="/admin/integrations/daktronics">Manage Daktronics</Link>
+      </div>
+      {readings.length === 0 ? (
+        <p className="mt-4 rounded-lg border border-dashed border-[var(--line)] p-4 text-sm font-semibold text-[var(--muted)]">No Daktronics readings have been received yet.</p>
+      ) : (
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {readings.slice(0, 6).map(({ device, latestReading, isStale }) => {
+            const field = device.fieldId ? fieldsById.get(device.fieldId) : null;
+            return (
+              <article className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4" key={device.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black">{field?.name ?? "Venue scoreboard"}</p>
+                    <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{device.model}</p>
+                  </div>
+                  <span className={`rounded-full px-2 py-1 text-xs font-black uppercase ${isStale ? "bg-amber-100 text-amber-900" : "bg-emerald-50 text-emerald-800"}`}>{isStale ? "stale" : device.status}</span>
+                </div>
+                {latestReading ? (
+                  <>
+                    <p className="mt-4 text-3xl font-black tabular-nums">{latestReading.homeScore} - {latestReading.awayScore}</p>
+                    <p className="mt-1 text-sm font-bold text-[var(--muted)]">{latestReading.periodLabel ?? (latestReading.inning ? `Inning ${latestReading.inning}` : "Period not set")} · {latestReading.status}</p>
+                    <p className="mt-2 text-xs font-semibold text-[var(--muted)]">Updated {formatDateTime(latestReading.readAt)}</p>
+                  </>
+                ) : <p className="mt-4 text-sm font-semibold text-[var(--muted)]">Waiting for first reading.</p>}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SportsEngineSchedulePanel({ schedule }: { schedule: Awaited<ReturnType<typeof getSportsEngineDashboardSchedule>> | null }) {
+  if (!schedule) return null;
+  const hasEvents = schedule.todayByField.some((group) => group.events.length > 0) || schedule.upcoming.length > 0 || schedule.unmapped.length > 0;
+
+  return (
+    <section className="mt-8 rounded-xl border border-[var(--line)] bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">SportsEngine</p>
+          <h2 className="mt-1 text-2xl font-black">External schedule by field</h2>
+          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Imported schedule only. GameDay OS controls live operations, delays, field status, scoreboards, and stream assignments.</p>
+        </div>
+        <Link className="ui-button ui-button-secondary min-h-11" href="/admin/integrations/sportsengine">Manage SportsEngine</Link>
+      </div>
+      {!hasEvents ? (
+        <p className="mt-4 rounded-lg border border-dashed border-[var(--line)] p-4 text-sm font-semibold text-[var(--muted)]">No SportsEngine schedule has been synced for this venue yet.</p>
+      ) : (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-lg border border-[var(--line)] p-4">
+            <h3 className="font-black">Today by field</h3>
+            <div className="mt-3 grid gap-3">
+              {schedule.todayByField.filter((group) => group.events.length > 0).slice(0, 6).map((group) => (
+                <div className="rounded-lg bg-[var(--background)] p-3" key={group.field.id}>
+                  <p className="text-sm font-black">{group.field.name}</p>
+                  {group.events.slice(0, 3).map((event) => event.normalizedEvent ? (
+                    <p className="mt-1 text-xs font-bold text-[var(--muted)]" key={event.id}>
+                      <span className="text-[var(--foreground)]">{event.normalizedEvent.home_team} vs {event.normalizedEvent.away_team}</span> · {formatTime(event.normalizedEvent.start_time)} · {event.normalizedEvent.status}
+                    </p>
+                  ) : null)}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-[var(--line)] p-4">
+            <h3 className="font-black">Needs attention</h3>
+            <div className="mt-3 grid gap-2">
+              {schedule.unmapped.length === 0 ? <p className="text-sm font-semibold text-[var(--muted)]">No missing field mappings.</p> : schedule.unmapped.map((event) => event.normalizedEvent ? (
+                <p className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-900" key={event.id}>Map {event.normalizedEvent.external_field_name} for {event.normalizedEvent.home_team} vs {event.normalizedEvent.away_team}</p>
+              ) : null)}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 async function safeLoad<T>(label: string, load: () => Promise<T[]>): Promise<T[]> {
   try {
     return await load();
@@ -221,8 +313,16 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
     console.error("Failed to load dashboard sync stats", error);
     return { failedJobs: 0, lastSync: null, pendingReviewItems: 0 };
   });
+  const sportsEngineSchedule = venues[0] ? await getSportsEngineDashboardSchedule(venues[0].id).catch((error: unknown) => {
+    console.error("Failed to load SportsEngine dashboard schedule", error);
+    return null;
+  }) : null;
   const syncJobs = await getSyncJobs().catch((error: unknown) => {
     console.error("Failed to load dashboard sync jobs", error);
+    return [];
+  });
+  const daktronicsReadings = await getLatestScoreboardReadings().catch((error: unknown) => {
+    console.error("Failed to load Daktronics scoreboard readings", error);
     return [];
   });
 
@@ -566,6 +666,10 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
               })}
             </div>
           </section>
+
+          <DaktronicsScoreboardWidget fields={fields} readings={daktronicsReadings} />
+
+          <SportsEngineSchedulePanel schedule={sportsEngineSchedule} />
 
           <section className="mt-8">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

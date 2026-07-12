@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createFollow } from "@/lib/services/follows";
 import type { FollowType } from "@/lib/types";
+import { ApiRequestError, parseJsonObject, readBoundedString } from "@/lib/api-request";
 
 type FollowPayload = {
   fieldId?: unknown;
@@ -19,9 +20,9 @@ function readFollowType(value: unknown): FollowType {
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json() as FollowPayload;
-    const fieldId = readString(payload.fieldId);
-    const sessionId = readString(payload.sessionId);
+    const payload = await parseJsonObject<FollowPayload>(request);
+    const fieldId = readBoundedString(payload.fieldId, 128);
+    const sessionId = readBoundedString(payload.sessionId, 128);
     const followType = readFollowType(payload.followType);
 
     if (!fieldId) {
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     }
 
     await createFollow({
-      displayName: readString(payload.displayName) || null,
+      displayName: readBoundedString(payload.displayName, 120) || null,
       fieldId,
       followType,
       sessionId: followType === "session" ? sessionId : null,
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof ApiRequestError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Failed to create follow", error);
     return NextResponse.json({ error: "Unable to follow right now." }, { status: 500 });
   }

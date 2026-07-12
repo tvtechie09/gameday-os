@@ -12,6 +12,7 @@ import type {
   IdentityUser,
   OrganizationMembership,
 } from "@/lib/types";
+import { getCurrentOrganizationScope } from "../organization-scope";
 
 type IdentityUserRow = Database["public"]["Tables"]["users"]["Row"];
 type RoleRow = Database["public"]["Tables"]["roles"]["Row"];
@@ -247,7 +248,9 @@ export async function getIdentityUsers(): Promise<IdentityUser[]> {
 
 export async function getOrganizationMemberships(): Promise<OrganizationMembership[]> {
   const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase.from("organization_memberships").select(membershipSelect).order("created_at", { ascending: false });
+  const organizationId = await getCurrentOrganizationScope();
+  const query = supabase.from("organization_memberships").select(membershipSelect).order("created_at", { ascending: false });
+  const { data, error } = organizationId ? await query.eq("organization_id", organizationId) : await query;
 
   if (error) {
     throw new Error(error.message);
@@ -269,9 +272,13 @@ export async function getIdentityPermissions(): Promise<IdentityPermission[]> {
 
 export async function getIdentityRoleAssignments(): Promise<IdentityRoleAssignment[]> {
   const supabase = getSupabaseAdminClient();
-  const [{ data: assignments, error: assignmentError }, roles] = await Promise.all([
+  const organizationId = await getCurrentOrganizationScope();
+  const [{ data: assignments, error: assignmentError }, roles, memberships] = await Promise.all([
     supabase.from("user_role_assignments").select(assignmentSelect).order("created_at", { ascending: false }),
     getIdentityRoles(),
+    organizationId
+      ? supabase.from("organization_memberships").select("user_id").eq("organization_id", organizationId)
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   if (assignmentError) {
@@ -279,13 +286,20 @@ export async function getIdentityRoleAssignments(): Promise<IdentityRoleAssignme
   }
 
   const rolesById = mapRolesById(roles);
-  return (assignments ?? []).map((assignment) => mapAssignment(assignment, rolesById.get(assignment.role_id)));
+  const organizationUserIds = new Set((memberships.data ?? []).map((membership) => membership.user_id));
+  const scopedAssignments = organizationId
+    ? (assignments ?? []).filter((assignment) => organizationUserIds.has(assignment.user_id) || assignment.scope_id === organizationId)
+    : assignments ?? [];
+
+  return scopedAssignments.map((assignment) => mapAssignment(assignment, rolesById.get(assignment.role_id)));
 }
 
 export async function getIdentityInvites(): Promise<IdentityInvite[]> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getCurrentOrganizationScope();
+  const inviteQuery = supabase.from("identity_invites").select(inviteSelect).order("created_at", { ascending: false });
   const [{ data: invites, error }, roles] = await Promise.all([
-    supabase.from("identity_invites").select(inviteSelect).order("created_at", { ascending: false }),
+    organizationId ? inviteQuery.eq("organization_id", organizationId) : inviteQuery,
     getIdentityRoles(),
   ]);
 
@@ -299,8 +313,10 @@ export async function getIdentityInvites(): Promise<IdentityInvite[]> {
 
 export async function getIdentityAccessRequests(): Promise<IdentityAccessRequest[]> {
   const supabase = getSupabaseAdminClient();
+  const organizationId = await getCurrentOrganizationScope();
+  const accessRequestQuery = supabase.from("identity_access_requests").select(accessRequestSelect).order("created_at", { ascending: false });
   const [{ data: accessRequests, error }, roles] = await Promise.all([
-    supabase.from("identity_access_requests").select(accessRequestSelect).order("created_at", { ascending: false }),
+    organizationId ? accessRequestQuery.eq("scope_id", organizationId) : accessRequestQuery,
     getIdentityRoles(),
   ]);
 
@@ -314,7 +330,9 @@ export async function getIdentityAccessRequests(): Promise<IdentityAccessRequest
 
 export async function getIdentityApprovals(): Promise<IdentityApproval[]> {
   const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase.from("identity_approvals").select(approvalSelect).order("created_at", { ascending: false });
+  const organizationId = await getCurrentOrganizationScope();
+  const query = supabase.from("identity_approvals").select(approvalSelect).order("created_at", { ascending: false });
+  const { data, error } = organizationId ? await query.eq("scope_id", organizationId) : await query;
 
   if (error) {
     throw new Error(error.message);

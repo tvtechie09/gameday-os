@@ -25,8 +25,11 @@ export interface DemoStateOverride {
 export interface PresentationScene {
   id: string;
   title: string;
+  time?: string;
   audience: PresentationAudience;
   description: string;
+  narrative?: string;
+  visualState?: string;
   view: string;
   demoStateOverride?: DemoStateOverride;
   talkingPoints: string[];

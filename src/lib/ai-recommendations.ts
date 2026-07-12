@@ -159,7 +159,7 @@ export function generateAiRecommendations(context: AiRecommendationContext): AiR
       recommendations.push(makeRecommendation({
         actions: [
           { actionType: "create_alert", href: `/admin/alerts/new?venueId=${field.venueId}&fieldId=${field.id}`, label: "Create Alert" },
-          { actionType: "open_operations_center", href: `/admin/operations-center?venueId=${field.venueId}`, label: "Open Operations Center" },
+          { actionType: "open_operations_center", href: `/admin/operations-center?venueId=${field.venueId}`, label: "Open Venue Command Center" },
           { actionType: "open_field_control", href: `/admin/fields/${field.id}/control`, label: "Open Field Control" },
         ],
         id: `field-delay-${field.id}`,
@@ -178,7 +178,7 @@ export function generateAiRecommendations(context: AiRecommendationContext): AiR
         actions: [
           { actionType: "open_field_control", href: `/admin/fields/${field.id}/control`, label: "Open Field Control" },
           { actionType: "open_session", href: `/admin/sessions/${upcomingOrActiveSessions[0].id}`, label: "Open Session" },
-          { actionType: "open_operations_center", href: `/admin/operations-center?venueId=${field.venueId}`, label: "Open Operations Center" },
+          { actionType: "open_operations_center", href: `/admin/operations-center?venueId=${field.venueId}`, label: "Open Venue Command Center" },
         ],
         id: `closed-field-sessions-${field.id}`,
         message: `${field.name} is ${field.status}, but ${upcomingOrActiveSessions.length} active or upcoming session${upcomingOrActiveSessions.length === 1 ? "" : "s"} are still scheduled there.`,
@@ -203,7 +203,7 @@ export function generateAiRecommendations(context: AiRecommendationContext): AiR
     recommendations.push(makeRecommendation({
       actions: [
         { actionType: "create_alert", href: `/admin/alerts/new?venueId=${firstVenueId}`, label: "Create Alert" },
-        { actionType: "open_operations_center", href: `/admin/operations-center?venueId=${firstVenueId}`, label: "Open Operations Center" },
+        { actionType: "open_operations_center", href: `/admin/operations-center?venueId=${firstVenueId}`, label: "Open Venue Command Center" },
       ],
       id: "delayed-venue-missing-public-alert",
       message: `${delayedFields.length} field${delayedFields.length === 1 ? " is" : "s are"} delayed, but no active public delay alert was found.`,
@@ -220,7 +220,7 @@ export function generateAiRecommendations(context: AiRecommendationContext): AiR
     if (alert.alertType === "weather" && includesAny(`${alert.title} ${alert.message}`, ["lightning", "thunder", "storm"])) {
       recommendations.push(makeRecommendation({
         actions: [
-          { actionType: "open_operations_center", href: `/admin/operations-center?venueId=${alert.venueId}`, label: "Open Operations Center" },
+          { actionType: "open_operations_center", href: `/admin/operations-center?venueId=${alert.venueId}`, label: "Open Venue Command Center" },
           { actionType: "create_alert", href: `/admin/alerts/new?venueId=${alert.venueId}&weather_delay=true`, label: "Create Alert" },
         ],
         id: `lightning-delay-${alert.id}`,

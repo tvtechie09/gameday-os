@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CrossroadsGameCard, CrossroadsReadinessChecklist } from "@/components/crossroads/crossroads-ui";
+import { FutureVisionPhasesPanel } from "@/components/crossroads/mayor-demo-panels";
 import { FutureVisionPanel } from "@/components/demo/future-vision-panel";
 import {
   crossroadsAmenities,
@@ -14,7 +15,9 @@ import {
   getTournamentModeContext,
   getVenueOperationsContext,
 } from "@/lib/demo/crossroads";
+import { getCrossroadsDigitalExperienceContext, getCrossroadsTvPlaylist } from "@/lib/demo/crossroads-digital-experience";
 import { crossroadsAssets, crossroadsExecutiveKpis, crossroadsRevenueOpportunities } from "@/lib/demo/crossroads-gm";
+import { getCrossroadsMediaEngineContext } from "@/lib/demo/crossroads-media";
 import type { PresentationModel, PresentationScenario } from "@/lib/demo/presentation";
 import { getCurrentDemoState, getNextSceneIndex, getPreviousSceneIndex, getScenarioLabel } from "@/lib/demo/presentation";
 
@@ -35,6 +38,7 @@ export function PresentationMode({ model }: { model: PresentationModel }) {
               <div className="absolute inset-0 bg-black/45" />
               <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-8">
                 <p className="text-sm font-black uppercase tracking-[0.2em] text-white/70">Crossroads Experience Center</p>
+                {scene.time ? <p className="mt-2 text-sm font-black uppercase tracking-[0.18em] text-green-200">{scene.time}</p> : null}
                 <h1 className="mt-2 text-3xl font-black sm:text-5xl">{scene.title}</h1>
                 <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-white/85">{scene.description}</p>
               </div>
@@ -49,6 +53,12 @@ export function PresentationMode({ model }: { model: PresentationModel }) {
                   <span className="text-sm font-black text-[var(--muted)]">{progress}</span>
                 </div>
                 <h2 className="mt-4 text-xl font-black">Talking points</h2>
+                {scene.narrative ? (
+                  <p className="mt-3 rounded-lg bg-white p-3 text-sm font-semibold leading-6 text-[var(--muted)]">{scene.narrative}</p>
+                ) : null}
+                {scene.visualState ? (
+                  <p className="mt-2 rounded-lg bg-emerald-50 p-3 text-sm font-black leading-6 text-emerald-900">{scene.visualState}</p>
+                ) : null}
                 <ul className="mt-3 grid gap-2">
                   {scene.talkingPoints.map((point) => (
                     <li className="rounded-lg bg-white p-3 text-sm font-semibold leading-6" key={point}>{point}</li>
@@ -143,7 +153,12 @@ function SceneView({
   sceneView: string;
 }) {
   if (sceneView === "future_vision") {
-    return <FutureVisionPanel items={futureVision} />;
+    return (
+      <div className="grid gap-4">
+        <FutureVisionPhasesPanel />
+        <FutureVisionPanel items={futureVision} />
+      </div>
+    );
   }
 
   if (sceneView === "family_arrival" || sceneView === "family_navigation") {
@@ -170,11 +185,99 @@ function SceneView({
     return <GmDashboardView />;
   }
 
+  if (sceneView === "digital_experience") {
+    return <DigitalExperienceView />;
+  }
+
+  if (sceneView === "media_engine") {
+    return <MediaEngineView />;
+  }
+
   if (sceneView === "venue_operations" || sceneView === "recovery") {
     return <VenueOperationsView demoState={demoState} />;
   }
 
   return <WelcomeView demoState={demoState} />;
+}
+
+function MediaEngineView() {
+  const media = getCrossroadsMediaEngineContext();
+  const destinations = media.distributionEndpoints.filter((endpoint) => endpoint.activeChannelId === "media-channel-field-6b-live" || endpoint.id === "endpoint-tournament-hq" || endpoint.id === "endpoint-livestream-destination");
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
+        <Metric label="Video Sources" value={String(media.videoSources.length)} />
+        <Metric label="Media Channels" value={String(media.channels.length)} />
+        <Metric label="Distribution Endpoints" value={String(media.distributionEndpoints.length)} />
+        <Metric label="Overlay Templates" value={String(media.overlayTemplates.length)} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--black-soft)] p-5 text-white">
+          <p className="text-sm font-black uppercase tracking-[0.14em] text-green-200">Mock Field Camera</p>
+          <h2 className="mt-2 text-3xl font-black">Field 6B Live</h2>
+          <div className="mt-5 flex min-h-[220px] items-center justify-center rounded-lg bg-black/40 p-5 text-center">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/50">Demo feed only</p>
+              <p className="mt-3 text-4xl font-black">Illinois Celtics vs Bulldogs</p>
+              <p className="mt-2 text-sm font-bold text-white/60">No real camera hardware, OBS, RTMP, or streaming destination is connected.</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border border-[var(--line)] bg-white p-5">
+          <p className="text-sm font-black uppercase tracking-[0.14em] text-[var(--accent-strong)]">Score Overlay</p>
+          <div className="mt-4 grid gap-2">
+            {media.overlayPreview.lines.map((line) => (
+              <p className="rounded-lg bg-[var(--background)] p-3 text-sm font-black" key={line}>{line}</p>
+            ))}
+          </div>
+          <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm font-black text-emerald-900">{media.overlayPreview.poweredBy}</p>
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {destinations.map((endpoint) => (
+          <div className="rounded-lg border border-[var(--line)] bg-white p-4" key={endpoint.id}>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">{endpoint.endpointType.replaceAll("_", " ")}</p>
+            <h3 className="mt-2 text-lg font-black">{endpoint.name}</h3>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{endpoint.notes}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DigitalExperienceView() {
+  const digital = getCrossroadsDigitalExperienceContext();
+  const tv = getCrossroadsTvPlaylist();
+  const featuredZones = digital.displayZones.filter((zone) => ["Chill Zone TVs", "Bar TVs", "Menu Boards", "Main Concourse Displays"].includes(zone.name));
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
+        <Metric label="Display Zones" value={String(digital.displayZones.length)} />
+        <Metric label="Endpoints" value={String(digital.displayEndpoints.length)} />
+        <Metric label="Playlist Items" value={String(digital.contentItems.length)} />
+        <Metric label="Emergency Override" value={tv.hasEmergencyOverride ? "READY" : "MODELED"} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {featuredZones.map((zone) => (
+          <div className="rounded-lg border border-[var(--line)] bg-white p-5" key={zone.id}>
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-[var(--accent-strong)]">{zone.name}</p>
+            <h2 className="mt-2 text-2xl font-black">{zone.endpointIds.length} endpoint{zone.endpointIds.length === 1 ? "" : "s"}</h2>
+            <p className="mt-3 text-sm font-bold leading-6 text-[var(--muted)]">{zone.description}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-lg border border-red-200 bg-red-50 p-5">
+        <p className="text-sm font-black uppercase tracking-[0.14em] text-red-900">Current vs Future</p>
+        <h2 className="mt-2 text-2xl font-black text-red-950">Emergency banner override is modeled, not connected to live emergency systems</h2>
+        <p className="mt-3 text-sm font-bold leading-6 text-red-900">
+          GameDay OS can preview public pages, TV dashboards, sponsor panels, Village event ads, and menu board placeholders today. Signage players, POS/menu systems, PA, and emergency integrations require partner approval and implementation.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function WelcomeView({ demoState }: { demoState: ReturnType<typeof getCurrentDemoState> }) {
@@ -223,7 +326,7 @@ function FamilyLiveView({ demoState }: { demoState: ReturnType<typeof getCurrent
     <div className="grid gap-4">
       {demoState.activeAlert ? <AlertBox message={demoState.activeAlert} /> : null}
       {game ? <CrossroadsGameCard game={{ ...game, status: demoState.field6BStatus }} /> : null}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
         {["Weather: monitoring", "Concession South open", "Restrooms near concourse", "Playground / family area open"].map((item) => (
           <div className="rounded-lg border border-[var(--line)] bg-white p-4 text-sm font-black" key={item}>{item}</div>
         ))}
@@ -255,7 +358,7 @@ function TournamentView({ demoState }: { demoState: ReturnType<typeof getCurrent
   const games = demoState.gamesBehindSchedule ? context.behindGames : context.nextGames.slice(0, 3);
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
         <Metric label="Live Fields" value="2" />
         <Metric label="Delayed Fields" value={String(demoState.delayedSurfaceCodes.length)} />
         <Metric label="Behind Games" value={demoState.gamesBehindSchedule ? String(context.behindGames.length) : "0"} />
@@ -278,7 +381,7 @@ function VenueOperationsView({ demoState }: { demoState: ReturnType<typeof getCu
   return (
     <div className="grid gap-4">
       {demoState.activeAlert ? <AlertBox message={demoState.activeAlert} /> : null}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
         <Metric label="Complex Health" value={demoState.weatherAlertIssued ? "HOLD" : "GOOD"} />
         <Metric label="Field 4" value={demoState.field4Status.toUpperCase()} />
         <Metric label="Field 6B" value={demoState.field6BStatus.toUpperCase()} />
@@ -307,7 +410,7 @@ function WeatherDelayView({ demoState }: { demoState: ReturnType<typeof getCurre
   return (
     <div className="grid gap-4">
       {demoState.activeAlert ? <AlertBox message={demoState.activeAlert} /> : null}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
         <Metric label="Field Status" value={`4: ${demoState.field4Status.toUpperCase()}`} />
         <Metric label="Family Alert" value={demoState.weatherAlertIssued ? "VISIBLE" : "CLEAR"} />
         <Metric label="Tournament Impact" value={demoState.gamesBehindSchedule ? "BEHIND" : "ON TIME"} />
@@ -340,7 +443,7 @@ function GmDashboardView() {
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-3">
         {priorityKpis.slice(0, 4).map((kpi) => <Metric key={kpi.label} label={kpi.label} value={kpi.value} />)}
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
@@ -366,9 +469,9 @@ function GmDashboardView() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-white p-4">
+    <div className="min-w-0 rounded-lg border border-[var(--line)] bg-white p-4">
       <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">{label}</p>
-      <p className="mt-2 text-2xl font-black">{value}</p>
+      <p className="mt-2 break-words text-xl font-black leading-tight md:text-2xl">{value}</p>
     </div>
   );
 }

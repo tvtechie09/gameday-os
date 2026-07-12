@@ -26,7 +26,7 @@ export async function GET(_request: Request, context: RouteContext) {
         note: "Venue Mode exposes provider-ready endpoint metadata only. Network/location providers are not implemented in v1.",
       },
       ...data,
-    });
+    }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error("Failed to load Venue Mode data", error);
     return NextResponse.json({ error: "Unable to load Venue Mode data" }, { status: 500 });

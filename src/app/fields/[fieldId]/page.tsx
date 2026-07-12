@@ -1,16 +1,15 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
+import { WeatherStatusCard } from "@/components/weather/weather-status-card";
 import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
-import { getPublicFieldUrl } from "@/lib/public-url";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
-import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
-import type { Alert, Field, Organization, ResourceActivation, ScoreboardProfile, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
+import type { Alert, Field, Organization, ResourceActivation, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
 import { FieldPageViewTracker } from "./field-page-view-tracker";
 import { FollowButtons } from "./follow-buttons";
@@ -369,7 +368,6 @@ function CompactSessionRow({ session, badge }: { session: Session; badge?: Sessi
 
 export default async function PublicFieldPage({ params }: FieldPageProps) {
   const { fieldId } = await params;
-  const publicFieldUrl = getPublicFieldUrl(fieldId);
   let field: Field | null = null;
   let venue: Venue | null = null;
   let organization: Organization | null = null;
@@ -379,7 +377,6 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   let allAlerts: Alert[] = [];
   let communityLinks: ResourceActivation[] = [];
   let sponsorPlacements: SponsorPlacement[] = [];
-  let scoreboardProfile: ScoreboardProfile | null = null;
   let errorMessage: string | null = null;
 
   try {
@@ -399,13 +396,12 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
       activeAlerts = alertResults;
       allAlerts = allAlertResults;
       const activeOrNextSession = getActiveOrNextSession(sessionResults);
-      [sponsorPlacements, scoreboardProfile, communityLinks] = await Promise.all([
+      [sponsorPlacements, communityLinks] = await Promise.all([
         getSponsorPlacementsForFieldPage({
           venueId: field.venueId,
           fieldId,
           sessionId: activeOrNextSession?.id,
         }),
-        getScoreboardProfileForField(fieldId),
         getActiveResourceActivationsForField({ fieldId, sessionId: activeOrNextSession?.id }),
       ]);
     }
@@ -533,6 +529,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
 
             <AlertStack alerts={weatherAlerts} showState title="Active Alerts" />
 
+            {venue ? <WeatherStatusCard compact venueId={venue.id} /> : null}
+
             <AlertStack alerts={otherAlerts} showState title="Venue Announcements" />
 
             <section
@@ -606,21 +604,6 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                   <span className="mt-4 inline-flex min-h-9 items-center rounded-md bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
                     {currentSession.gameStatus}
                   </span>
-                  <div className="mt-4 rounded-lg border border-[var(--line)] bg-white p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Score updates</p>
-                    {scoreboardProfile ? (
-                      <>
-                        <p className="mt-1 text-base font-black">
-                          {scoreboardProfile.scoreboardStatus === "active" ? "Connected scoreboard" : "Manual score updates"}
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                          {getScoreboardIntegrationModeLabel(scoreboardProfile.integrationMode)} · {getScoreboardStatusLabel(scoreboardProfile.scoreboardStatus)}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-1 text-base font-black">Live score updates from the field.</p>
-                    )}
-                  </div>
                   {gameLinks.length > 0 || currentSession.notes ? (
                     <div className="mt-5 rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
                       {gameLinks.length > 0 ? (
@@ -738,15 +721,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </section>
             ) : null}
 
-            <CommunityLinks links={communityLinks} />
-
-            {field && venue ? (
-              <ResourceActivationForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
-            ) : null}
-
             <AlertStack alerts={recentUpdates} showState title="Recent updates" />
-
-            {field ? <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} /> : null}
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5">
               <h2 className="text-lg font-black">Find This Field</h2>
@@ -794,56 +769,17 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               ) : null}
             </section>
 
-            <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-              <h2 className="text-lg font-black">Upcoming sessions</h2>
-              <div className="mt-4 grid gap-3">
-                {upcomingSessions.length > 0 ? (
-                  upcomingSessions.map((session) => <SessionCard key={session.id} session={session} />)
-                ) : (
-                  <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
-                    No upcoming sessions scheduled.
-                  </p>
-                )}
-              </div>
-            </section>
+            {field && venue ? (
+              <details className="rounded-lg border border-[var(--line)] bg-white p-5">
+                <summary className="cursor-pointer text-lg font-black marker:text-[var(--accent-strong)]">More ways to connect</summary>
+                <div className="mt-5 grid gap-4">
+                  <CommunityLinks links={communityLinks} />
+                  <ResourceActivationForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
+                  <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} />
+                </div>
+              </details>
+            ) : null}
 
-            <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-              <h2 className="text-lg font-black">Field Info</h2>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-[var(--background)] p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Field</p>
-                  <p className="mt-1 text-lg font-black">{field?.name ?? "Field unavailable"}</p>
-                </div>
-                <div className="rounded-lg bg-[var(--background)] p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Sport</p>
-                  <p className="mt-1 text-lg font-black">{field?.sportType ?? "Sport type unavailable"}</p>
-                </div>
-                <div className="rounded-lg bg-[var(--background)] p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Venue</p>
-                  <p className="mt-1 text-lg font-black">{venue?.name ?? "GameDay OS"}</p>
-                </div>
-                <div className="rounded-lg bg-[var(--background)] p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Field status</p>
-                  {field ? (
-                    <p className={`mt-2 w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
-                      {getFieldStatusLabel(field.status)}
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-lg font-black">Not found</p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-              <h2 className="text-lg font-black">Share Field Link</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                Use this public URL for QR code sharing.
-              </p>
-              <div className="mt-4 overflow-x-auto rounded-lg bg-[var(--background)] p-4">
-                <code className="whitespace-nowrap text-sm font-bold text-[var(--foreground)]">{publicFieldUrl}</code>
-              </div>
-            </section>
           </main>
         </div>
       </div>

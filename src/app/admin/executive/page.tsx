@@ -21,6 +21,7 @@ import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAnalytics } from "@/lib/services/sponsor-analytics";
 import { getSponsors } from "@/lib/services/sponsors";
 import { getSyncJobs, getSyncQueueItems } from "@/lib/services/sync-engine";
+import { getVenueAssets } from "@/lib/services/venue-assets";
 import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoles } from "@/lib/services/volunteer-roles";
 import type {
@@ -36,6 +37,7 @@ import type {
   SyncJob,
   SyncQueueItem,
   Venue,
+  VenueAsset,
   VolunteerRole,
 } from "@/lib/types";
 
@@ -213,6 +215,7 @@ export default async function ExecutiveDashboardPage() {
     syncJobs,
     syncQueueItems,
     sessionEvents,
+    venueAssets,
   ] = await Promise.all([
     safeLoad<Venue>("venues", getVenues),
     safeLoad<Field>("fields", getFields),
@@ -226,6 +229,7 @@ export default async function ExecutiveDashboardPage() {
     safeLoad<SyncJob>("sync jobs", getSyncJobs),
     safeLoad<SyncQueueItem>("sync queue", () => getSyncQueueItems("pending")),
     safeLoad<SessionEvent>("session events", () => getRecentSessionEvents(12)),
+    safeLoad<VenueAsset>("venue assets", getVenueAssets),
   ]);
 
   const sponsorAnalytics = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), "all").catch((error: unknown) => {
@@ -240,6 +244,9 @@ export default async function ExecutiveDashboardPage() {
   const pendingActivations = activations.filter((activation) => activation.status === "requested");
   const activeVolunteers = volunteerRoles.filter((role) => role.status === "active");
   const openVolunteerRoles = volunteerRoles.filter((role) => role.status === "requested" || role.status === "approved");
+  const connectedAssets = venueAssets.filter((asset) => asset.integrationStatus === "connected");
+  const offlineAssets = venueAssets.filter((asset) => asset.status === "offline");
+  const maintenanceAssets = venueAssets.filter((asset) => asset.status === "maintenance_needed");
   const totalSponsorImpressions = sponsorAnalytics.reduce((total, item) => total + item.impressions, 0);
   const totalSponsorClicks = sponsorAnalytics.reduce((total, item) => total + item.clicks, 0);
   const topSponsorRows = sponsorAnalytics
@@ -303,6 +310,8 @@ export default async function ExecutiveDashboardPage() {
         <SummaryCard href="/admin/resources" icon={Database} label="Active Resources" note={`${activeActivations.length} live parent/operator activations`} value={activeResources.length} />
         <SummaryCard href="/admin/volunteers" icon={Users} label="Active Volunteers" note={`${openVolunteerRoles.length} open role requests`} value={activeVolunteers.length} />
         <SummaryCard href="/admin/alerts" icon={Bell} label="Active Alerts" note="Currently visible operational alerts" value={activeAlerts.length} />
+        <SummaryCard href="/admin/assets" icon={Database} label="Total Assets" note={`${connectedAssets.length} connected assets`} value={venueAssets.length} />
+        <SummaryCard href="/admin/assets" icon={AlertTriangle} label="Offline Assets" note={`${maintenanceAssets.length} maintenance items`} value={offlineAssets.length} />
       </section>
 
       <section className="mt-10">
@@ -371,6 +380,17 @@ export default async function ExecutiveDashboardPage() {
         </div>
 
         <div className="grid gap-6">
+          <ExecutivePanel
+            href="/admin/assets"
+            items={[
+              { label: "Total Assets", value: venueAssets.length },
+              { label: "Connected Assets", value: connectedAssets.length },
+              { label: "Offline Assets", value: offlineAssets.length },
+              { label: "Maintenance Items", value: maintenanceAssets.length },
+            ]}
+            note="Durable venue infrastructure health."
+            title="Asset Summary"
+          />
           <ExecutivePanel
             href="/admin/resources/dashboard"
             items={[

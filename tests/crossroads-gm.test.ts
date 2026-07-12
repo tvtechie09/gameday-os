@@ -12,7 +12,7 @@ import {
 } from "../src/lib/demo/crossroads-gm.ts";
 import { crossroadsPresentationScenes } from "../src/lib/demo/crossroads-presentation.ts";
 
-describe("Crossroads GM Mode", () => {
+describe("Crossroads Operations Center Executive Summary", () => {
   it("defines the GM route contract and executive dashboard KPIs", () => {
     assert.equal("/demo/crossroads/gm", "/demo/crossroads/gm");
     assert(crossroadsExecutiveKpis.some((kpi) => kpi.label === "Weekend games hosted" && kpi.value === "126"));
@@ -61,7 +61,7 @@ describe("Crossroads GM Mode", () => {
     assert(crossroadsRevenueOpportunities.every((item) => item.status === "future opportunity" || item.status === "demo placeholder"));
   });
 
-  it("keeps GM Mode scoped away from parent/family users", () => {
+  it("keeps executive summary scoped away from parent/family users", () => {
     assert(crossroadsGmPermissions.some((permission) => permission.role === "venue_gm" && permission.visible));
     assert(crossroadsGmPermissions.some((permission) => permission.role === "maintenance_manager" && permission.visible));
     assert(crossroadsGmPermissions.some((permission) => permission.role === "asset_manager" && permission.visible));
@@ -69,12 +69,12 @@ describe("Crossroads GM Mode", () => {
     assert(crossroadsGmPermissions.some((permission) => permission.role === "parent" && !permission.visible));
   });
 
-  it("adds GM scene to Presentation Mode before future vision", () => {
+  it("adds executive summary scene to Presentation Mode before future vision", () => {
     const ids = crossroadsPresentationScenes.map((scene) => scene.id);
 
-    assert(ids.includes("gm-monday-morning"));
-    assert(ids.indexOf("gm-monday-morning") > ids.indexOf("venue-operations"));
-    assert(ids.indexOf("gm-monday-morning") < ids.indexOf("future-vision"));
+    assert(ids.includes("monday-morning-summary"));
+    assert(ids.indexOf("monday-morning-summary") > ids.indexOf("championship-community"));
+    assert(ids.indexOf("monday-morning-summary") < ids.indexOf("future-vision"));
   });
 
   it("labels GM future roadmap items as future or partner work, not live integrations", () => {

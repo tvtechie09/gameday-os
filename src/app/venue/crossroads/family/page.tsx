@@ -1,4 +1,5 @@
 import { CrossroadsGameCard, CrossroadsPageShell, CrossroadsStatusBadge } from "@/components/crossroads/crossroads-ui";
+import { VisitorServicesPanel } from "@/components/crossroads/mayor-demo-panels";
 import { getFamilyModeContext } from "@/lib/demo/crossroads";
 
 export default function CrossroadsFamilyPage() {
@@ -23,6 +24,10 @@ export default function CrossroadsFamilyPage() {
           </div>
         </section>
       </div>
+
+      <section className="mt-8">
+        <VisitorServicesPanel />
+      </section>
     </CrossroadsPageShell>
   );
 }

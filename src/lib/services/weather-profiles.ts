@@ -104,7 +104,7 @@ export function getWeatherStatusClass(status: WeatherProfileStatus) {
 }
 
 export async function getWeatherProfiles(): Promise<WeatherProfile[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const scope = await getOrganizationDataScope();
   const { data, error } = await supabase
     .from("weather_profiles")
@@ -125,7 +125,7 @@ export async function getWeatherProfiles(): Promise<WeatherProfile[]> {
 }
 
 export async function getWeatherProfile(id: string): Promise<WeatherProfile | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("weather_profiles")
     .select(weatherProfileSelect)

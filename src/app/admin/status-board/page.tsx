@@ -197,7 +197,7 @@ export default async function StatusBoardPage() {
       </div>
       <div className="mt-5 flex flex-col gap-2 sm:flex-row">
         <Link href="/admin/operations-center" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-950">
-          Venue Operations
+          Venue Command Center
         </Link>
         <Link href="/admin/game-day" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
           Game Day Center

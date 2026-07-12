@@ -4,9 +4,9 @@ Date: June 30, 2026
 
 ## Purpose
 
-GameDay Identity is the shared identity graph for GameDay OS. It connects organizations, venues, tournaments, leagues, teams, families, and people without requiring full authentication yet.
+GameDay OS Identity Platform is the shared identity graph for GameDay OS. It connects organizations, venues, tournaments, leagues, teams, families, and people without requiring full authentication yet.
 
-This is not a login system. It is the long-term identity foundation that future auth, SSO, invitations, team accounts, family access, scorekeeper QR access, and third-party integrations can attach to.
+This is not a login system yet. It is the long-term identity foundation that future Supabase Auth, SSO, invitations, team accounts, family access, scorekeeper QR access, staff access, and third-party integrations can attach to.
 
 ## Core Hierarchy
 
@@ -21,7 +21,15 @@ Organization
 
 The hierarchy is intentionally graph-friendly. A person can be a parent in one family, a coach on one team, a scorekeeper for one session, and venue staff for one venue.
 
-## Current Identity Audit
+Identity Platform answers five product questions:
+
+- Who someone is.
+- What organization they belong to.
+- What venue, team, tournament, league, family, or session they are connected to.
+- What scoped role they have.
+- What they are allowed to do.
+
+## Current Identity Platform Entities
 
 Existing identity-related models:
 
@@ -40,7 +48,7 @@ Existing identity-related models:
 - `volunteer_roles`: game-day volunteer/operations role requests, separate from durable identity roles.
 - organization filtering: implemented in services through organization scope helpers.
 
-New foundation models:
+Core identity graph models:
 
 - `people`
 - `families`
@@ -48,6 +56,8 @@ New foundation models:
 - `teams`
 - `team_members`
 - `team_session_links`
+
+Every identity graph object supports `organization_id` where appropriate. Admin Identity Platform pages respect the current organization selection through the same organization scope used by venues, fields, sessions, sponsors, and resources.
 
 ## Model Responsibilities
 
@@ -110,7 +120,7 @@ This enables future Team season to Venue session mapping without syncing full ro
 
 ## Role Model
 
-Canonical roles for this sprint:
+Canonical Identity Platform roles:
 
 - super_admin
 - organization_admin
@@ -125,7 +135,7 @@ Canonical roles for this sprint:
 - stream_operator
 - read_only
 
-Existing broader GameDay Identity roles may still exist, such as tournament staff, team manager, livestream operator, sponsor/media roles, and third-party developer. They remain compatible with the longer-term model, but the Sprint 2 admin matrix focuses on the requested core role set.
+Existing broader GameDay Identity roles may still exist, such as tournament staff, team manager, livestream operator, sponsor/media roles, and third-party developer. They remain compatible with the longer-term model, but the current admin matrix focuses on the core role set above.
 
 ## Scope Model
 
@@ -148,7 +158,7 @@ Venue controls:
 - weather/delay/emergency alerts
 - resources
 - scoreboards/audio/displays
-- operations center communications
+- Venue Command Center communications
 
 Tournament controls:
 
@@ -170,17 +180,43 @@ Admin routes:
 - `/admin/identity/teams`
 - `/admin/identity/roles`
 
-These pages provide visibility only. They do not implement authentication or full CRUD workflows yet.
+These pages provide visibility only. They do not implement full authentication or CRUD workflows yet.
+
+Dashboard checks include:
+
+- People count
+- Families count
+- Teams count
+- Role assignment count
+- Missing role assignments
+- Duplicate people warning placeholder
+- Unlinked teams warning placeholder
+
+## Future Authentication Placeholders
+
+Identity Platform is designed to accept future auth providers without redesign:
+
+- Supabase Auth
+- SSO
+- Okta-style organization control
+- Parent login
+- Coach login
+- Staff login
+
+Frontend visibility can hide buttons, but backend enforcement must use scoped server-side permission checks before sensitive writes.
 
 ## Deferred
 
 - Supabase Auth connection
 - SSO providers
+- Okta-style organization control
 - route-level auth enforcement
 - public family pages
+- parent login
+- coach login
+- staff login
 - Team roster sync
 - Team/Venue repo merge
 - Okta/Auth0 integration
 - full invitation UI
 - API tokens and third-party developer flows
-

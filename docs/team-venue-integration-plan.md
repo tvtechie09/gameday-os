@@ -4,7 +4,7 @@ Date: June 30, 2026
 
 ## Goal
 
-Create the identity bridge between GameDay Team and GameDay Venue without merging the repos or syncing full rosters yet.
+Create the Identity Platform bridge between GameDay Team and GameDay Venue without merging the repos or syncing full rosters yet.
 
 ## Shared Identity Model
 
@@ -17,14 +17,14 @@ Shared records:
 - Team Member
 - Session
 
-GameDay Team can eventually own team-centric records. GameDay Venue can own venue/session operations. The shared identity graph allows both products to reference the same people and teams.
+GameDay Team can eventually own team-centric records. GameDay Venue can own venue/session operations. The shared Identity Platform graph allows both products to reference the same organizations, people, families, teams, and sessions.
 
 ## Team to Venue Relationship
 
 The bridge is:
 
 ```text
-Team -> team_session_links -> Session -> Field -> Venue
+Organization -> Team / Tournament -> Session -> Field -> Venue
 ```
 
 `team_session_links` supports:
@@ -35,6 +35,19 @@ Team -> team_session_links -> Session -> Field -> Venue
 
 This is intentionally lightweight. It lets a team be associated with a session without importing rosters or changing scoreboards yet.
 
+The Session is the Connected Game Platform object. It connects:
+
+- home team
+- away team
+- venue
+- field
+- tournament
+- scoreboard
+- streaming/media
+- sponsors
+- operations status
+- timeline
+
 ## Team Season to Session Mapping
 
 Future mapping:
@@ -43,7 +56,7 @@ Future mapping:
 - Session may link to one or more teams.
 - Home/away values can be derived from `team_session_links` or copied into session display fields.
 
-Phase 1 Sprint 2 only adds the placeholder relationship.
+The current foundation only adds the placeholder relationship. It does not build full roster sync, player stats, or login workflows.
 
 ## Roster to Scoreboard/Public Page Mapping
 
@@ -60,15 +73,17 @@ Deferred:
 - player public profiles
 - roster sync
 
+The Session Command Center may show roster sync and lineup placeholders, but full Team roster sync remains deferred.
+
 ## Parent/Guardian Relationship
 
-Families connect parents/guardians to players through:
+Identity Platform families connect parents/guardians to players through:
 
 - `families`
 - `family_members`
 - `people`
 
-Parents should not receive venue/tournament permissions by default. Parent access is family/team scoped.
+Parents should not receive venue/tournament permissions by default. Parent access is family/team scoped and should later be enforced through Supabase Auth, parent login, and guardian approval rules.
 
 ## Venue Roles vs Team Roles
 
@@ -92,6 +107,24 @@ Tournament roles:
 - tournament staff in future broader role set
 
 Venue infrastructure remains venue-controlled even during tournaments.
+
+## Identity Platform Relationship
+
+```text
+Organization
+-> Venue
+-> Tournament / League
+-> Team
+-> Family
+-> Person
+```
+
+Team-to-venue connection is intentionally indirect:
+
+- Team belongs to an organization.
+- Team can be linked to a venue for operational context.
+- Team can be linked to a session through `team_session_links`.
+- Session remains the game object that connects field, venue, scoreboard, stream, sponsors, and public pages.
 
 ## Sync Direction
 
@@ -127,9 +160,17 @@ Future:
 1. Establish shared identity graph.
 2. Link teams to sessions through `team_session_links`.
 3. Keep session home/away display fields intact.
-4. Add admin visibility for teams and session links.
+4. Use `/admin/sessions/[sessionId]/command-center` as the Connected Game Platform command surface.
 5. Do not sync rosters yet.
 6. Do not merge GameDay Team and GameDay Venue yet.
+
+## Future Auth Placeholders
+
+- Supabase Auth connects users to people.
+- Coach login manages assigned team context.
+- Parent login manages approved family/child context.
+- Staff login manages venue-scoped operational context.
+- SSO or Okta-style controls can govern organization staff later.
 
 ## Future Roadmap
 
@@ -143,4 +184,3 @@ Future:
 - parent/fan follow mode tied to family/team identity
 - team-managed livestream links
 - tournament-managed team assignments
-

@@ -22,7 +22,7 @@ const severityLabel = {
   warning: "Warning",
 };
 
-export function AiRecommendationsPanel({ compact = false, recommendations, title = "AI Operations Suggestions" }: AiRecommendationsPanelProps) {
+export function AiRecommendationsPanel({ compact = false, recommendations, title = "AI Venue Command Suggestions" }: AiRecommendationsPanelProps) {
   const [localStatuses, setLocalStatuses] = useState<Record<string, "reviewed" | "dismissed">>({});
   const visibleRecommendations = useMemo(
     () => recommendations.filter((recommendation) => localStatuses[recommendation.id] !== "dismissed"),

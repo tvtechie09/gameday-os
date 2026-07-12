@@ -1,6 +1,7 @@
 import type { VenueAsset } from "../assets.ts";
 import type { FutureVisionItem } from "./presentation.ts";
 import { crossroadsFields, crossroadsGames, crossroadsVenue } from "./crossroads.ts";
+import { crossroadsDisplayRevenueCards } from "./crossroads-digital-experience.ts";
 import { crossroadsMaintenanceRequests } from "./crossroads-maintenance.ts";
 
 export interface ExecutiveKpi {
@@ -75,6 +76,13 @@ export const crossroadsRevenueOpportunities: RevenueOpportunity[] = [
   opportunity("batting-cage-reservations", "Batting cage reservation opportunity", "Future reservation layer for teams and pre-game warmups.", "New bookable venue inventory"),
   opportunity("digital-signage", "Digital signage future opportunity", "Venue-wide signage inventory for alerts, sponsors, schedules, and wayfinding.", "Sponsor and operations surface"),
   opportunity("family-app-sponsorship", "Family app sponsorship placements", "Future family app cards for local sponsors and tournament partners.", "Direct family engagement"),
+  ...crossroadsDisplayRevenueCards.map((card) => ({
+    description: card.description,
+    id: card.id,
+    status: card.status,
+    title: card.title,
+    value: card.value,
+  })),
 ];
 
 export const crossroadsGmPermissions = [
@@ -84,7 +92,7 @@ export const crossroadsGmPermissions = [
   { role: "maintenance_staff", scope: "venue:crossroads", visible: true, note: "Assigned maintenance request execution." },
   { role: "asset_manager", scope: "venue:crossroads", visible: true, note: "Asset register upkeep and inspection workflow." },
   { role: "executive_viewer", scope: "venue:crossroads", visible: true, note: "Read-only GM/Village leadership reporting view." },
-  { role: "parent", scope: "family:demo-family", visible: false, note: "Parent/family users should not see GM Mode." },
+  { role: "parent", scope: "family:demo-family", visible: false, note: "Parent/family users should not see the Operations Center executive summary." },
 ];
 
 export const crossroadsGmFutureItems: FutureVisionItem[] = [

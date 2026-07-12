@@ -5,6 +5,7 @@ import {
   getIdentityFamilyMembers,
   getIdentityPeople,
   getIdentityTeamMembers,
+  getIdentityTeamSessionLinks,
   getIdentityTeams,
 } from "@/lib/services/identity-platform";
 import {
@@ -34,35 +35,35 @@ function scopeLabel(value: string) {
 export default async function IdentityPage() {
   const [roles, users, memberships, assignments, invites, accessRequests, approvals] = await Promise.all([
     getIdentityRoles().catch((error: unknown) => {
-      console.error("Failed to load GameDay Identity roles", error);
+      console.error("Failed to load Identity Platform roles", error);
       return [];
     }),
     getIdentityUsers().catch((error: unknown) => {
-      console.error("Failed to load GameDay Identity users", error);
+      console.error("Failed to load Identity Platform users", error);
       return [];
     }),
     getOrganizationMemberships().catch((error: unknown) => {
-      console.error("Failed to load GameDay Identity memberships", error);
+      console.error("Failed to load Identity Platform memberships", error);
       return [];
     }),
     getIdentityRoleAssignments().catch((error: unknown) => {
-      console.error("Failed to load GameDay Identity assignments", error);
+      console.error("Failed to load Identity Platform assignments", error);
       return [];
     }),
     getIdentityInvites().catch((error: unknown) => {
-      console.error("Failed to load GameDay Identity invites", error);
+      console.error("Failed to load Identity Platform invites", error);
       return [];
     }),
     getIdentityAccessRequests().catch((error: unknown) => {
-      console.error("Failed to load GameDay Identity access requests", error);
+      console.error("Failed to load Identity Platform access requests", error);
       return [];
     }),
     getIdentityApprovals().catch((error: unknown) => {
-      console.error("Failed to load GameDay Identity approvals", error);
+      console.error("Failed to load Identity Platform approvals", error);
       return [];
     }),
   ]);
-  const [people, families, familyMembers, teams, teamMembers] = await Promise.all([
+  const [people, families, familyMembers, teams, teamMembers, teamSessionLinks] = await Promise.all([
     getIdentityPeople().catch((error: unknown) => {
       console.error("Failed to load identity people", error);
       return [];
@@ -83,10 +84,21 @@ export default async function IdentityPage() {
       console.error("Failed to load identity team members", error);
       return [];
     }),
+    getIdentityTeamSessionLinks().catch((error: unknown) => {
+      console.error("Failed to load identity team session links", error);
+      return [];
+    }),
   ]);
 
   const assignedUserIds = [...new Set(assignments.map((assignment) => assignment.userId))];
   const activeAssignments = assignments.filter((assignment) => !assignment.endsAt || new Date(assignment.endsAt) > new Date());
+  const membershipUserIds = [...new Set(memberships.map((membership) => membership.userId))];
+  const missingRoleAssignments = membershipUserIds.filter((userId) => !assignedUserIds.includes(userId)).length;
+  const duplicatePeopleEmails = people
+    .map((person) => person.email?.trim().toLowerCase())
+    .filter((email): email is string => Boolean(email));
+  const duplicatePeopleWarning = duplicatePeopleEmails.length - new Set(duplicatePeopleEmails).size;
+  const unlinkedTeams = teams.filter((team) => !team.venueId && !teamSessionLinks.some((link) => link.teamId === team.id)).length;
   const pendingInvites = invites.filter((invite) => invite.inviteStatus === "pending");
   const pendingAccessRequests = accessRequests.filter((request) => request.requestStatus === "pending");
 
@@ -94,20 +106,42 @@ export default async function IdentityPage() {
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">GameDay Identity</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Scoped access foundation</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Identity Platform</p>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">One identity graph</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)]">
-            Identity is organized into Core, Enforcement, and Operations. Mutations require trusted server-side actor context; this page is
-            read-only until Supabase Auth, SSO, or API actor resolution is connected.
+            Identity Platform connects who someone is, what organization they belong to, which venue/team/tournament/family they touch, what role they hold, and what they are allowed to do.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <MetricCard label="Users" value={users.length} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <MetricCard label="People" value={people.length} />
           <MetricCard label="Families" value={families.length} />
           <MetricCard label="Teams" value={teams.length} />
+          <MetricCard label="Role Assignments" value={assignments.length} />
+          <MetricCard label="Missing Roles" value={missingRoleAssignments} />
+          <MetricCard label="Active Grants" value={activeAssignments.length} />
         </div>
       </div>
+
+      <section className="mt-8 grid gap-3 md:grid-cols-3">
+        <HealthCard
+          label="Missing role assignments"
+          note={missingRoleAssignments > 0 ? "Some organization members do not have scoped Identity Platform roles yet." : "Every organization member has at least one scoped role assignment."}
+          tone={missingRoleAssignments > 0 ? "warning" : "healthy"}
+          value={missingRoleAssignments}
+        />
+        <HealthCard
+          label="Duplicate people warning"
+          note={duplicatePeopleWarning > 0 ? "Potential duplicate people share an email address. Review before enabling auth." : "No duplicate people email matches detected."}
+          tone={duplicatePeopleWarning > 0 ? "warning" : "healthy"}
+          value={duplicatePeopleWarning}
+        />
+        <HealthCard
+          label="Unlinked teams warning"
+          note={unlinkedTeams > 0 ? "Some teams are not linked to a venue or session yet." : "Teams are linked to venue/session context where configured."}
+          tone={unlinkedTeams > 0 ? "warning" : "healthy"}
+          value={unlinkedTeams}
+        />
+      </section>
 
       <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/people">
@@ -127,7 +161,7 @@ export default async function IdentityPage() {
         </Link>
         <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/roles">
           <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Permissions</p>
-          <h2 className="mt-2 text-xl font-black">Role Matrix</h2>
+          <h2 className="mt-2 text-xl font-black">Identity Matrix</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">{permissionsMatrix.length} platform roles</p>
         </Link>
       </section>
@@ -143,6 +177,8 @@ export default async function IdentityPage() {
           <SummaryPanel label="People" value={`${people.length} person records`} />
           <SummaryPanel label="Families" value={`${families.length} family records`} />
           <SummaryPanel label="Teams" value={`${teams.length} team records`} />
+          <SummaryPanel label="Team-session links" value={`${teamSessionLinks.length} session relationships`} />
+          <SummaryPanel label="Roles" value={`${roles.length} canonical roles`} />
           <SummaryPanel label="Memberships" value={`${memberships.length} organization memberships`} />
           <SummaryPanel label="Assignments" value={`${assignments.length} scoped assignments across ${assignedUserIds.length} users`} />
         </div>
@@ -252,6 +288,16 @@ function MetricCard({ label, value }: { label: string; value: number }) {
       <p className="text-2xl font-black">{value}</p>
       <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">{label}</p>
     </div>
+  );
+}
+
+function HealthCard({ label, note, tone, value }: { label: string; note: string; tone: "healthy" | "warning"; value: number }) {
+  return (
+    <article className={`rounded-lg border p-4 shadow-sm ${tone === "healthy" ? "border-green-100 bg-green-50 text-green-950" : "border-amber-100 bg-amber-50 text-amber-950"}`}>
+      <p className="text-2xl font-black">{value}</p>
+      <h2 className="mt-1 text-sm font-black uppercase tracking-[0.12em]">{label}</h2>
+      <p className="mt-2 text-sm font-semibold leading-6 opacity-80">{note}</p>
+    </article>
   );
 }
 

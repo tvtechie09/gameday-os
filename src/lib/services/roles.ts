@@ -32,7 +32,7 @@ export const permissionMatrix: Array<{
     },
   },
   {
-    area: "Venue Operations",
+    area: "Venue Command",
     pages: ["/admin/dashboard", "/admin/game-day", "/admin/status-board", "/admin/venues", "/admin/fields"],
     access: {
       super_admin: "Full access",

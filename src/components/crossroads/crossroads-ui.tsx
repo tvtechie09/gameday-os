@@ -53,8 +53,12 @@ export function CrossroadsModeLinks() {
   const links = [
     ["Family Mode", "/venue/crossroads/family"],
     ["Tournament Mode", "/venue/crossroads/tournament"],
-    ["Venue Operations", "/venue/crossroads/operations"],
-    ["GM Mode", "/demo/crossroads/gm"],
+    ["Crossroads Today", "/demo/crossroads/today"],
+    ["Operations Center", "/demo/crossroads/operations"],
+    ["Executive Summary", "/demo/crossroads/gm"],
+    ["Bar TV Dashboard", "/demo/crossroads/tv"],
+    ["Media Engine", "/demo/crossroads/media"],
+    ["Staff Mode", "/demo/crossroads/staff"],
   ];
 
   return (

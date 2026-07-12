@@ -11,7 +11,7 @@ export async function GET(_request: Request, { params }: FieldScoreboardApiProps
   try {
     const { fieldId } = await params;
     const payload = await getScoreboardPayloadByFieldId(fieldId);
-    return NextResponse.json(payload);
+    return NextResponse.json(payload, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error("Failed to load field scoreboard payload", error);
     return NextResponse.json({ error: "Unable to load scoreboard." }, { status: 500 });

@@ -269,7 +269,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
             Open Status Board
           </Link>
           <Link href="/admin/operations-center" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-950">
-            Venue Operations
+            Venue Command Center
           </Link>
           <Link href="/admin/resources/dashboard" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
             Open Resource Dashboard
@@ -319,7 +319,7 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
             Manage Weather
           </Link>
           <Link href="/admin/operations-center" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
-            Venue Operations
+            Venue Command Center
           </Link>
         </div>
         <div className="mt-5 grid gap-3 lg:grid-cols-2">

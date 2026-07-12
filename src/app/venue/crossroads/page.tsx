@@ -27,13 +27,16 @@ export default function CrossroadsVenuePage() {
           <Image alt={`${crossroadsVenue.name} hero`} className="object-cover opacity-80" fill priority sizes="100vw" src={crossroadsVenue.heroImageUrl} unoptimized />
           <div className="absolute inset-0 bg-black/35" />
           <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-8">
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-white/70">Flagship demo venue</p>
-            <h2 className="mt-2 max-w-3xl text-3xl font-black sm:text-5xl">Venue Mode, Tournament Mode, Family Mode, and Operations in one complex.</h2>
-            <Link className="mt-5 inline-flex min-h-12 items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-black text-black" href="/demo/crossroads/presentation">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-white/70">GameDay OS · Connected Venue Operating System</p>
+            <h2 className="mt-2 max-w-3xl text-3xl font-black sm:text-5xl">Crossroads as the flagship connected municipal venue.</h2>
+            <Link className="mt-5 inline-flex min-h-12 items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-black text-black" href="/demo/crossroads/today">
+              Open Crossroads Today
+            </Link>
+            <Link className="ml-0 mt-3 inline-flex min-h-12 items-center justify-center rounded-lg border border-white/40 bg-white/10 px-5 py-3 text-sm font-black text-white sm:ml-3" href="/demo/crossroads/presentation">
               Start Crossroads Tour
             </Link>
             <Link className="ml-0 mt-3 inline-flex min-h-12 items-center justify-center rounded-lg border border-white/40 bg-white/10 px-5 py-3 text-sm font-black text-white sm:ml-3" href="/demo/crossroads/gm">
-              Open GM Mode
+              Open Operations Summary
             </Link>
           </div>
         </div>

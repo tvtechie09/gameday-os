@@ -19,6 +19,13 @@ export const sessionEventTypes: SessionEventType[] = [
   "sponsor_clicked",
   "game_started",
   "game_final",
+  "operations_update",
+  "scoreboard_update",
+  "streaming_update",
+  "media_added",
+  "sponsor_update",
+  "official_update",
+  "weather_update",
 ];
 
 const sessionEventSelect = "id,session_id,event_type,event_message,created_at";
@@ -47,10 +54,17 @@ export function getSessionEventTypeLabel(type: SessionEventType) {
     alert_created: "Alert",
     game_final: "Final",
     game_started: "Started",
+    media_added: "Media",
+    official_update: "Officials",
+    operations_update: "Operations",
     resource_activated: "Resource",
+    scoreboard_update: "Scoreboard",
     score_update: "Score",
     session_created: "Created",
+    sponsor_update: "Sponsor",
     sponsor_clicked: "Sponsor",
+    streaming_update: "Streaming",
+    weather_update: "Weather",
   };
 
   return labels[type];

@@ -7,6 +7,7 @@ import type {
   IdentityTeamMember,
   IdentityTeamSessionLink,
 } from "@/lib/types";
+import { getCurrentOrganizationScope } from "../organization-scope";
 
 type QueryResult<T> = {
   data: T[] | null;
@@ -123,7 +124,12 @@ async function loadTable<T>(table: string, select: string, orderBy: string, mapp
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapper);
+  const organizationId = await getCurrentOrganizationScope();
+  const rows = organizationId
+    ? (data ?? []).filter((row) => row.organization_id === organizationId)
+    : data ?? [];
+
+  return rows.map(mapper);
 }
 
 export function getIdentityPeople(): Promise<IdentityPerson[]> {
