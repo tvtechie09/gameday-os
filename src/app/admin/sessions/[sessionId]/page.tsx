@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { publicErrorMessage } from "@/lib/public-error";
 import { CopyLinkButton } from "@/components/copy-link-button";
-import { getPublicScoreboardUrl } from "@/lib/public-url";
+import { getPublicAppUrl, getPublicScoreboardUrl } from "@/lib/public-url";
 import { getField } from "@/lib/services/fields";
 import { getFollowCountForSession } from "@/lib/services/follows";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionEvents, getSessionEventTypeLabel } from "@/lib/services/session-events";
 import { getSession } from "@/lib/services/sessions";
+import { ensureScorekeeperAccess } from "@/lib/services/scorekeeper";
 import { getVenue } from "@/lib/services/venues";
 import { getVolunteerRolesBySessionId } from "@/lib/services/volunteer-roles";
 import type { ResourceActivation, SessionEvent, VolunteerRole } from "@/lib/types";
@@ -39,6 +40,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
   const { sessionId } = await params;
   let errorMessage: string | null = null;
   let session: Awaited<ReturnType<typeof getSession>> = null;
+  let scorekeeper: { token: string; pin: string } | null = null;
   let field: Awaited<ReturnType<typeof getField>> = null;
   let venue: Awaited<ReturnType<typeof getVenue>> = null;
   let volunteerRoles: VolunteerRole[] = [];
@@ -49,6 +51,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
   try {
     session = await getSession(sessionId);
     if (session) {
+      scorekeeper = await ensureScorekeeperAccess(session.id).catch(() => null);
       [field, volunteerRoles, followCount, sessionEvents] = await Promise.all([
         getField(session.fieldId),
         getVolunteerRolesBySessionId(session.id),
@@ -136,6 +139,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
               Open Public Scoreboard
             </Link>
             <CopyLinkButton label="Copy Scoreboard Link" value={getPublicScoreboardUrl(session.id)} />
+            {scorekeeper ? <CopyLinkButton label={"Copy Scorekeeper Link (PIN " + scorekeeper.pin + ")"} value={getPublicAppUrl() + "/score/" + scorekeeper.token} /> : null}
             <Link
               href={`/fields/${field.id}`}
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"

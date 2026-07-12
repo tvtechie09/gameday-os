@@ -74,6 +74,7 @@ export function VenueDisplayBoard({
   const [payload, setPayload] = useState(initialPayload);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(initialPayload.generatedAt);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [staleMinutes, setStaleMinutes] = useState(0);
   const dark = theme === "dark";
   const containerClass = dark ? "bg-black text-white" : "bg-white text-slate-950";
   const panelClass = dark ? "border-white/15 bg-white/10" : "border-slate-200 bg-slate-50";
@@ -87,6 +88,25 @@ export function VenueDisplayBoard({
 
   useEffect(() => {
     let cancelled = false;
+    const cacheKey = "gameday-display-cache:" + apiPath;
+
+    // Resilience: register the display service worker (offline reload) and
+    // seed from the last cached payload so a stale board beats a blank TV.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/display-sw.js").catch(() => undefined);
+    }
+    const seedTimer = window.setTimeout(() => {
+      try {
+        const cached = window.localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached) as VenueDisplayPayload;
+          if (Date.parse(parsed.generatedAt) > Date.parse(initialPayload.generatedAt)) {
+            setPayload(parsed);
+            setLastUpdatedAt(parsed.generatedAt);
+          }
+        }
+      } catch { /* corrupt cache — ignore */ }
+    }, 0);
 
     async function refreshDisplay() {
       try {
@@ -102,11 +122,12 @@ export function VenueDisplayBoard({
           setPayload(nextPayload);
           setLastUpdatedAt(nextPayload.generatedAt);
           setErrorMessage(null);
+          try { window.localStorage.setItem(cacheKey, JSON.stringify(nextPayload)); } catch { /* storage full */ }
         }
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to refresh venue display", error);
-          setErrorMessage("Refresh paused.");
+          setErrorMessage("Reconnecting…");
         }
       }
     }
@@ -114,9 +135,17 @@ export function VenueDisplayBoard({
     const interval = window.setInterval(refreshDisplay, 10000);
     return () => {
       cancelled = true;
+      window.clearTimeout(seedTimer);
       window.clearInterval(interval);
     };
-  }, [apiPath]);
+  }, [apiPath, initialPayload.generatedAt]);
+
+  useEffect(() => {
+    const tick = () => setStaleMinutes(Math.max(0, Math.floor((Date.now() - Date.parse(lastUpdatedAt)) / 60000)));
+    const initial = window.setTimeout(tick, 0);
+    const timer = window.setInterval(tick, 15000);
+    return () => { window.clearTimeout(initial); window.clearInterval(timer); };
+  }, [lastUpdatedAt]);
 
   return (
     <main className={`min-h-screen ${containerClass}`}>
@@ -252,7 +281,9 @@ export function VenueDisplayBoard({
 
         <footer className={`flex flex-col gap-2 text-xs font-black uppercase tracking-[0.16em] sm:flex-row sm:items-center sm:justify-between ${mutedClass}`}>
           <p>{errorMessage ?? "Live venue display"}</p>
-          <p>Updated {formatTime(lastUpdatedAt)} · Powered by GameDay OS</p>
+          <p className={staleMinutes >= 2 ? "rounded-md bg-amber-500/90 px-2 py-1 text-black" : undefined}>
+            {staleMinutes >= 2 ? `Last updated ${staleMinutes} min ago — showing saved schedule` : `Updated ${formatTime(lastUpdatedAt)}`} · Powered by GameDay OS
+          </p>
         </footer>
       </section>
     </main>

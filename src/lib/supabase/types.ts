@@ -1810,6 +1810,9 @@ export type Database = {
           notes: string | null;
           created_at: string;
           updated_at: string;
+          scorekeeper_token: string | null;
+          scorekeeper_pin: string | null;
+          scorekeeper_seq: number;
         };
         Insert: {
           id?: string;
@@ -1843,6 +1846,9 @@ export type Database = {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          scorekeeper_token?: string | null;
+          scorekeeper_pin?: string | null;
+          scorekeeper_seq?: number;
         };
         Update: {
           id?: string;
@@ -1876,6 +1882,9 @@ export type Database = {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          scorekeeper_token?: string | null;
+          scorekeeper_pin?: string | null;
+          scorekeeper_seq?: number;
         };
         Relationships: [
           {

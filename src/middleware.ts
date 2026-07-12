@@ -21,6 +21,34 @@ function isDevLoginPath(pathname: string): boolean {
   return pathname === "/dev-login" || pathname.startsWith("/api/dev-login/");
 }
 
+// The venue product's public surface: QR field pages, scoreboards, TV
+// displays, venue pages, the scorekeeper pad, and the read/write APIs those
+// pages use. These are reachable by families and TVs with no account.
+const PUBLIC_CONTENT_PREFIXES = [
+  "/fields/",
+  "/scoreboard/",
+  "/display/",
+  "/venue/",
+  "/venues/",
+  "/score/",
+  "/demo/",
+  "/api/score/",
+  "/api/scoreboard/",
+  "/api/display/",
+  "/api/weather/",
+  "/api/follows",
+  "/api/field-page-views",
+  "/api/resource-activations",
+  "/api/sponsor-analytics/",
+  "/api/integrations/daktronics/readings",
+  "/display-sw.js"
+];
+
+function isPublicContent(pathname: string): boolean {
+  if (pathname.startsWith("/api/venues/") && pathname.endsWith("/mode")) return true;
+  return PUBLIC_CONTENT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+}
+
 // Server-side login wall + /admin capability guards. Resolves the Supabase user
 // via getUser() (verified server-side); unauthenticated users are redirected to
 // /login. When dev-login is enabled a valid gameday_session cookie also
@@ -35,7 +63,7 @@ export async function middleware(request: NextRequest) {
 
   // Public paths: no auth required, but still return `response` so token
   // refresh cookies are persisted.
-  if (isAlwaysPublic(pathname) || (devLogin && isDevLoginPath(pathname))) {
+  if (isAlwaysPublic(pathname) || isPublicContent(pathname) || (devLogin && isDevLoginPath(pathname))) {
     return response;
   }
 

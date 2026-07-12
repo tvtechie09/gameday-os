@@ -165,7 +165,7 @@ async function getOrganizationIdForField(fieldId: string) {
   return data?.organization_id ?? await getWritableOrganizationId();
 }
 
-function mapSession(row: Omit<SessionRow, "is_demo"> & { is_demo?: boolean | null }): Session {
+function mapSession(row: Omit<SessionRow, "is_demo" | "scorekeeper_token" | "scorekeeper_pin" | "scorekeeper_seq"> & { is_demo?: boolean | null; scorekeeper_token?: string | null; scorekeeper_pin?: string | null; scorekeeper_seq?: number }): Session {
   return {
     id: row.id,
     organizationId: row.organization_id ?? null,
