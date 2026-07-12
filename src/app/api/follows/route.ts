@@ -35,6 +35,7 @@ export async function POST(request: Request) {
 
     await createFollow({
       displayName: readBoundedString(payload.displayName, 120) || null,
+      email: readBoundedString((payload as { email?: unknown }).email, 254) || null,
       fieldId,
       followType,
       sessionId: followType === "session" ? sessionId : null,

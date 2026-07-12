@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { deliverAlertToFollowers } from "@/lib/services/alert-delivery";
 import type { Database } from "@/lib/supabase/types";
 import type { Alert, AlertPriority, AlertScope, AlertType, AlertVisibility } from "@/lib/types";
 import { getCurrentOrganizationScope } from "../organization-scope";
@@ -277,6 +278,11 @@ export async function createAlert(data: CreateAlertInput): Promise<Alert> {
     title: mappedAlert.title,
     venue_id: mappedAlert.venueId,
   });
+
+  // Reach followers who left an email; best-effort and never blocks creation.
+  if (mappedAlert.isActive && mappedAlert.alertVisibility === "public") {
+    void deliverAlertToFollowers(mappedAlert);
+  }
 
   return mappedAlert;
 }

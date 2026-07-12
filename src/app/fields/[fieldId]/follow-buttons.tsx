@@ -16,6 +16,7 @@ type FollowMessage = {
 export function FollowButtons({ fieldId, sessionId }: FollowButtonsProps) {
   const [isSaving, setIsSaving] = useState<FollowType | null>(null);
   const [message, setMessage] = useState<FollowMessage | null>(null);
+  const [email, setEmail] = useState("");
 
   async function follow(followType: FollowType) {
     if (isSaving) return;
@@ -28,6 +29,7 @@ export function FollowButtons({ fieldId, sessionId }: FollowButtonsProps) {
         fieldId,
         followType,
         sessionId: followType === "session" ? sessionId : null,
+        email: email.trim() || null,
       }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
@@ -45,7 +47,7 @@ export function FollowButtons({ fieldId, sessionId }: FollowButtonsProps) {
 
     setMessage({
       kind: "success",
-      text: followType === "session" ? "You're following this game." : "You're following this field.",
+      text: (followType === "session" ? "You're following this game." : "You're following this field.") + (email.trim() ? " We'll email you delay and alert updates." : ""),
     });
   }
 
@@ -55,6 +57,17 @@ export function FollowButtons({ fieldId, sessionId }: FollowButtonsProps) {
       <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
         Follow this field or the current game without creating an account.
       </p>
+      <label className="mt-4 block">
+        <span className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Email for delay &amp; alert updates (optional)</span>
+        <input
+          className="mt-1 min-h-11 w-full rounded-lg border border-[var(--line)] bg-[var(--background)] px-3 text-sm font-semibold outline-none transition focus:border-[var(--accent)] focus:bg-white"
+          inputMode="email"
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          type="email"
+          value={email}
+        />
+      </label>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <button
           className="min-h-12 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"

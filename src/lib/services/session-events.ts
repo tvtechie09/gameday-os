@@ -70,8 +70,15 @@ export function getSessionEventTypeLabel(type: SessionEventType) {
   return labels[type];
 }
 
-export async function recordSessionEvent(input: RecordSessionEventInput): Promise<SessionEvent> {
-  const supabase = getSupabaseAdminClient();
+export async function recordSessionEvent(input: RecordSessionEventInput): Promise<SessionEvent | null> {
+  // Event history is decoration on a session; never fail the session write
+  // because the admin client is unavailable in this environment.
+  let supabase: ReturnType<typeof getSupabaseAdminClient>;
+  try {
+    supabase = getSupabaseAdminClient();
+  } catch {
+    return null;
+  }
   const { data, error } = await supabase
     .from("session_events")
     .insert({

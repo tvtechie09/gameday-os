@@ -7,6 +7,7 @@ export type CreateFollowInput = {
   sessionId?: string | null;
   followType: FollowType;
   displayName?: string | null;
+  email?: string | null;
 };
 
 function sanitizeText(value: string | null | undefined) {
@@ -33,11 +34,13 @@ function readFollowType(value: string): FollowType {
 export async function createFollow(input: CreateFollowInput) {
   const supabase = getSupabaseAdminClient();
   const followType = readFollowType(input.followType);
+  const email = typeof input.email === "string" ? input.email.trim().toLowerCase().slice(0, 254) : "";
   const { error } = await supabase.from("follows").insert({
     display_name: sanitizeText(input.displayName),
     field_id: input.fieldId,
     follow_type: followType,
     session_id: followType === "session" ? input.sessionId ?? null : null,
+    email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null,
   });
 
   if (error) {

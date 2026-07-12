@@ -729,6 +729,7 @@ export type Database = {
           session_id: string | null;
           follow_type: string;
           display_name: string | null;
+          email: string | null;
           created_at: string;
         };
         Insert: {
@@ -737,6 +738,7 @@ export type Database = {
           session_id?: string | null;
           follow_type: string;
           display_name?: string | null;
+          email?: string | null;
           created_at?: string;
         };
         Update: {
@@ -745,6 +747,7 @@ export type Database = {
           session_id?: string | null;
           follow_type?: string;
           display_name?: string | null;
+          email?: string | null;
           created_at?: string;
         };
         Relationships: [

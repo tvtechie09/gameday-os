@@ -70,6 +70,9 @@ export default async function SessionsPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/sessions/import" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Import CSV
+          </Link>
           <Link href="/admin/sessions/bulk" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Bulk tools
           </Link>
