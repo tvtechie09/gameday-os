@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { getSessionContext } from "@/lib/access/session";
-import { canDelayGame, canOpenCloseField, canSendAnnouncement, canStartGame } from "@/lib/access/capabilities";
+import { canDelayGame, canOpenCloseField, canSendAnnouncement, canStartGame, managesAllVenues, venueInScope, type AccessContext } from "@/lib/access/capabilities";
 import { getSession, setSessionStatus } from "@/lib/services/sessions";
-import { updateFieldStatus } from "@/lib/services/fields";
+import { getFields, updateFieldStatus } from "@/lib/services/fields";
+import { getVenue } from "@/lib/services/venues";
 import { createAlert } from "@/lib/services/alerts";
 import type { FieldStatus } from "@/lib/types";
 
@@ -15,6 +16,23 @@ function revalidateToday() {
   revalidatePath("/admin/dashboard");
 }
 
+// Capability grants the verb; scope grants the venue. A venue-scoped role holds
+// these capabilities globally, so every action must confirm the target belongs
+// to a venue the caller operates (platform/org admins pass through).
+async function venueIdInScope(ctx: AccessContext | null, venueId: string | undefined): Promise<boolean> {
+  if (managesAllVenues(ctx)) return true;
+  if (!venueId) return false;
+  const venue = await getVenue(venueId);
+  return venue ? venueInScope(ctx, venue) : false;
+}
+
+async function venueIdForField(fieldId: string): Promise<string | undefined> {
+  const fields = await getFields().catch(() => []);
+  return fields.find((field) => field.id === fieldId)?.venueId;
+}
+
+const OUT_OF_SCOPE: QuickActionResult = { ok: false, message: "That venue isn't in your scope." };
+
 // Start the next scheduled game: flip its status to active (live).
 export async function startGameAction(sessionId: string): Promise<QuickActionResult> {
   const ctx = await getSessionContext();
@@ -23,6 +41,7 @@ export async function startGameAction(sessionId: string): Promise<QuickActionRes
   try {
     const session = await getSession(sessionId);
     if (!session) return { ok: false, message: "That game no longer exists." };
+    if (!(await venueIdInScope(ctx, await venueIdForField(session.fieldId)))) return OUT_OF_SCOPE;
     if (session.status === "active") return { ok: true, message: "Game is already live." };
     await setSessionStatus(sessionId, "active");
     revalidateToday();
@@ -38,7 +57,8 @@ export async function delayGameAction(fieldId: string): Promise<QuickActionResul
   if (!canDelayGame(ctx)) return { ok: false, message: "You don't have permission to delay games." };
   if (!fieldId) return { ok: false, message: "No game is available to delay." };
   try {
-    await updateFieldStatus(fieldId, "delayed");
+    if (!(await venueIdInScope(ctx, await venueIdForField(fieldId)))) return OUT_OF_SCOPE;
+    await updateFieldStatus(fieldId, "delayed", ctx?.userId);
     revalidateToday();
     return { ok: true, message: "Field flagged delayed — the hold is now public." };
   } catch {
@@ -52,7 +72,8 @@ export async function setFieldStatusAction(fieldId: string, status: FieldStatus)
   if (!canOpenCloseField(ctx)) return { ok: false, message: "You don't have permission to change field status." };
   if (!fieldId) return { ok: false, message: "Pick a field first." };
   try {
-    await updateFieldStatus(fieldId, status);
+    if (!(await venueIdInScope(ctx, await venueIdForField(fieldId)))) return OUT_OF_SCOPE;
+    await updateFieldStatus(fieldId, status, ctx?.userId);
     revalidateToday();
     return { ok: true, message: "Field marked " + status + "." };
   } catch {
@@ -68,6 +89,7 @@ export async function sendAnnouncementAction(venueId: string, message: string): 
   if (!venueId) return { ok: false, message: "No venue to announce for." };
   if (text.length < 3) return { ok: false, message: "Write a short message first." };
   try {
+    if (!(await venueIdInScope(ctx, venueId))) return OUT_OF_SCOPE;
     const now = new Date();
     await createAlert({
       title: "Venue announcement",

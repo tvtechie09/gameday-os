@@ -3,6 +3,9 @@ import { revalidatePath } from "next/cache";
 import { publicErrorMessage } from "@/lib/public-error";
 import { assessStormRisk, executeStormResponse } from "@/lib/services/storm-watch";
 import { getStormResponseModeLabel } from "@/lib/services/weather-profiles";
+import { getSessionContext } from "@/lib/access/session";
+import { managesAllVenues, venueInScope } from "@/lib/access/capabilities";
+import { getVenue } from "@/lib/services/venues";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +29,12 @@ export default async function StormWatchPage() {
     const venueId = String(formData.get("venueId") || "");
     const severity = String(formData.get("severity") || "caution");
     if (!venueId) return;
+    // Capability reaches the storm page; scope decides which venue can be held.
+    const ctx = await getSessionContext();
+    if (!managesAllVenues(ctx)) {
+      const venue = await getVenue(venueId);
+      if (!venue || !venueInScope(ctx, venue)) return;
+    }
     const current = await assessStormRisk(venueId);
     if (!current) return;
     await executeStormResponse(current, { severe: severity === "severe", source: "manual" });
