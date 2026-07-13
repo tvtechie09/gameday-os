@@ -42,6 +42,7 @@ const PUBLIC_CONTENT_PREFIXES = [
   "/api/resource-activations",
   "/api/sponsor-analytics/",
   "/api/integrations/daktronics/readings",
+  "/api/integrations/schedule",
   "/display-sw.js"
 ];
 
