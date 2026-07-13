@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getVenue, updateVenue } from "@/lib/services/venues";
+import { getSessionContext } from "@/lib/access/session";
+import { venueInScope } from "@/lib/access/capabilities";
 
 type EditVenuePageProps = {
   params: Promise<{ venueId: string }>;
@@ -12,9 +14,20 @@ export const dynamic = "force-dynamic";
 export default async function EditVenuePage({ params }: EditVenuePageProps) {
   const { venueId } = await params;
   const venue = await getVenue(venueId);
+  const ctx = await getSessionContext();
+  // Venue-scoped roles may only edit their own venue; out-of-scope venues read
+  // as "not found" so their existence isn't leaked.
+  const inScope = venue ? venueInScope(ctx, venue) : false;
 
   async function updateVenueAction(formData: FormData) {
     "use server";
+
+    // Defense in depth: re-verify scope on the write, not just the render.
+    const actingCtx = await getSessionContext();
+    const target = await getVenue(venueId);
+    if (!target || !venueInScope(actingCtx, target)) {
+      redirect("/admin/venues");
+    }
 
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
@@ -48,7 +61,7 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
     redirect("/admin/venues");
   }
 
-  if (!venue) {
+  if (!venue || !inScope) {
     return (
       <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <Link href="/admin/venues" className="text-sm font-bold text-[var(--accent-strong)]">

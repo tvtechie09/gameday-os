@@ -3,6 +3,9 @@ import { publicErrorMessage } from "@/lib/public-error";
 import { PrintDownloadButton } from "@/components/print-download-button";
 import { getPublicVenueDisplayUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getVenue } from "@/lib/services/venues";
+import { getSessionContext } from "@/lib/access/session";
+import { venueInScope } from "@/lib/access/capabilities";
+import { redirect } from "next/navigation";
 import type { Venue } from "@/lib/types";
 
 type VenueQrPageProps = {
@@ -25,6 +28,10 @@ export default async function VenueQrPage({ params }: VenueQrPageProps) {
     venue = await getVenue(venueId);
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load venue QR page.");
+  }
+  // Scope check outside the try so the redirect isn't swallowed by the catch.
+  if (venue && !venueInScope(await getSessionContext(), venue)) {
+    redirect("/admin/venues");
   }
 
   return (

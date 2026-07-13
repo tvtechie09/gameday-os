@@ -1,8 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { redirect } from "next/navigation";
 import { getVenueModeData, type VenueModeScheduleGroup } from "@/lib/services/venue-mode";
 import { venueModeProviderDefinitions } from "@/lib/venue-mode-providers";
+import { getSessionContext } from "@/lib/access/session";
+import { venueInScope } from "@/lib/access/capabilities";
 import type { FieldStatus, VenueModeEndpoint } from "@/lib/types";
 
 type VenueModePageProps = {
@@ -98,6 +101,11 @@ function ScheduleGroupCard({ group }: { group: VenueModeScheduleGroup }) {
 export default async function VenueModePage({ params }: VenueModePageProps) {
   const { venueId } = await params;
   const data = await getVenueModeData(venueId);
+
+  // Venue-scoped roles may only manage their own venue.
+  if (data && !venueInScope(await getSessionContext(), data.venue)) {
+    redirect("/admin/venues");
+  }
 
   if (!data) {
     return (

@@ -3,7 +3,7 @@
 // components. Helpers are pure and edge-safe so middleware and server components
 // share identical logic.
 
-import { permissionsForRole, roleLabels, type ExperienceRoleKey } from "./catalog";
+import { permissionsForRole, roleLabels, type ExperienceRoleKey } from "./catalog.ts";
 
 export type AccessContext = {
   userId: string;
@@ -67,6 +67,29 @@ function hasAny(ctx: AccessContext | null, keys: string[]): boolean {
 // platform-admin role gate used for platform-only navigation and route guards.
 export function isPlatformAdmin(ctx: AccessContext | null): boolean {
   return ctx?.roleKey === "platform_admin" || isSuperAdmin(ctx);
+}
+
+// --- Venue scope enforcement -------------------------------------------------
+// Permissions are global booleans; SCOPE decides which venues a role may see and
+// edit. Platform admins and org-scoped roles manage every venue; a venue-scoped
+// role (director, tech manager, staff) manages only the venue it is assigned to.
+// In production scopeId is the venue's id (from user_role_assignments); the
+// dev-login fixtures store a slug of the venue name, so we accept either.
+function slugifyName(value: string): string {
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+export function managesAllVenues(ctx: AccessContext | null): boolean {
+  return isPlatformAdmin(ctx) || ctx?.scopeType === "platform" || ctx?.scopeType === "organization";
+}
+
+export function venueInScope(ctx: AccessContext | null, venue: { id: string; name: string }): boolean {
+  if (!ctx) return false;
+  if (managesAllVenues(ctx)) return true;
+  if (ctx.scopeType !== "venue") return false;
+  if (ctx.venueId && ctx.venueId === venue.id) return true;
+  if (ctx.scopeId === venue.id) return true;
+  return Boolean(ctx.scopeId) && slugifyName(venue.name) === ctx.scopeId;
 }
 
 // --- Admin workspace umbrella ------------------------------------------------

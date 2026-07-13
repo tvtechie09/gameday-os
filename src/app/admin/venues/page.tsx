@@ -5,6 +5,8 @@ import { EmptyState } from "@/components/empty-state";
 import { FieldQrCode } from "@/components/field-qr-code";
 import { getPublicAppUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getVenues } from "@/lib/services/venues";
+import { getSessionContext } from "@/lib/access/session";
+import { managesAllVenues, venueInScope } from "@/lib/access/capabilities";
 import type { Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -21,9 +23,15 @@ export default async function VenuesPage() {
   let errorMessage: string | null = null;
   const appUrl = getPublicAppUrl();
   const publicUrlIsLocalhost = publicAppUrlPointsToLocalhost();
+  const ctx = await getSessionContext();
+  const canManageAll = managesAllVenues(ctx);
 
   try {
     venues = await getVenues();
+    // Venue-scoped roles (director, tech manager) manage only their own venue.
+    if (!canManageAll) {
+      venues = venues.filter((venue) => venueInScope(ctx, venue));
+    }
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load venues.");
   }
@@ -38,9 +46,11 @@ export default async function VenuesPage() {
             Every venue with live field counts from linked field records.
           </p>
         </div>
-        <Link href="/admin/venues/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
-          New venue
-        </Link>
+        {canManageAll ? (
+          <Link href="/admin/venues/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
+            New venue
+          </Link>
+        ) : null}
       </div>
 
       {errorMessage ? (
