@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assessConditions, DEFAULT_ASSESS_OPTIONS, type AssessOptions } from "../src/lib/services/storm-assessment.ts";
+import { assessConditions, buildStormAlertDraft, DEFAULT_ASSESS_OPTIONS, type AssessOptions } from "../src/lib/services/storm-assessment.ts";
 import type { LiveWeatherStatus } from "../src/lib/services/weather-live.ts";
 
 function weather(overrides: Partial<LiveWeatherStatus>): LiveWeatherStatus {
@@ -58,4 +58,17 @@ test("wind crosses the configured threshold, not a fixed 30", () => {
 test("severe (lightning) is not downgraded by a wind caution", () => {
   const result = assessConditions(weather({ lightningStatus: "Storm risk reported", windMph: 40 }), opts());
   assert.equal(result.risk, "severe");
+});
+
+test("alert draft: severe copy vs advisory copy, with reasons", () => {
+  const severe = buildStormAlertDraft({ risk: "severe", venueName: "Wintrust", reasons: ["Lightning: Storm risk reported"] });
+  assert.equal(severe.title, "Weather: clear the fields");
+  assert.ok(severe.message.includes("Wintrust"));
+  assert.ok(severe.message.includes("on hold"));
+  assert.ok(severe.message.includes("(Lightning: Storm risk reported)"));
+
+  const advisory = buildStormAlertDraft({ risk: "caution", venueName: "Wintrust", reasons: [] });
+  assert.equal(advisory.title, "Weather advisory");
+  assert.ok(advisory.message.includes("possible delays"));
+  assert.ok(!advisory.message.includes("()")); // no empty reason parens
 });

@@ -48,7 +48,7 @@ async function fetchJson(url: URL): Promise<unknown | null> {
 
 // Build a cleaner "city,state,US" style query: dedupe repeated comma tokens and
 // drop a leading street line (a token that starts with a house number).
-function cleanCityStateQuery(query: string): string {
+export function cleanCityStateQuery(query: string): string {
   const tokens = query
     .split(",")
     .map((token) => token.trim())

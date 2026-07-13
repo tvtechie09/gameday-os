@@ -41,3 +41,16 @@ export function assessConditions(weather: LiveWeatherStatus, options: AssessOpti
   }
   return { risk, reasons };
 }
+
+// Composes the public weather alert copy from an assessment. Pure.
+export function buildStormAlertDraft(input: { risk: StormRiskLevel; venueName: string; reasons: string[] }): { title: string; message: string } {
+  const severe = input.risk === "severe";
+  return {
+    title: severe ? "Weather: clear the fields" : "Weather advisory",
+    message: (severe
+      ? "Lightning/severe weather detected near " + input.venueName + ". All fields are on hold — clear the fields and take shelter. "
+      : "Weather is deteriorating near " + input.venueName + ". Expect possible delays. ")
+      + (input.reasons.length ? "(" + input.reasons.join("; ") + ") " : "")
+      + "Watch this page for the all-clear.",
+  };
+}

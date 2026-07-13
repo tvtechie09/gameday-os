@@ -6,7 +6,7 @@ import { getOfficialsForSessions } from "@/lib/services/officials";
 import { createAlert } from "@/lib/services/alerts";
 import { getWeatherProfilesByVenueId, markStormAutoTriggered } from "@/lib/services/weather-profiles";
 import { sendSms } from "@/lib/services/sms";
-import { assessConditions, DEFAULT_ASSESS_OPTIONS, type AssessOptions, type StormRiskLevel } from "@/lib/services/storm-assessment";
+import { assessConditions, buildStormAlertDraft, DEFAULT_ASSESS_OPTIONS, type AssessOptions, type StormRiskLevel } from "@/lib/services/storm-assessment";
 import type { WeatherProfile } from "@/lib/types";
 
 // Storm watch: turns live weather into an actionable game-day decision.
@@ -152,14 +152,3 @@ export async function executeStormResponse(
   return { severe, fieldsHeld, umpiresTexted, umpiresSkipped, alertSent };
 }
 
-export function buildStormAlertDraft(assessment: StormAssessment): { title: string; message: string } {
-  const severe = assessment.risk === "severe";
-  return {
-    title: severe ? "Weather: clear the fields" : "Weather advisory",
-    message: (severe
-      ? "Lightning/severe weather detected near " + assessment.venueName + ". All fields are on hold — clear the fields and take shelter. "
-      : "Weather is deteriorating near " + assessment.venueName + ". Expect possible delays. ")
-      + (assessment.reasons.length ? "(" + assessment.reasons.join("; ") + ") " : "")
-      + "Watch this page for the all-clear.",
-  };
-}
