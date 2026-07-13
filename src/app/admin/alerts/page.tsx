@@ -51,6 +51,9 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
             Manage active and scheduled messages for venue, tournament, and field pages.
           </p>
         </div>
+        <Link href="/admin/alerts/storm" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          Storm watch
+        </Link>
         <Link href="/admin/alerts/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
           New alert
         </Link>
