@@ -4,6 +4,7 @@ import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 import { safelyCreateNotification } from "./notifications";
+import { notifyScheduleChange } from "./schedule-notifications";
 import { recordSessionEvent } from "./session-events";
 
 type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
@@ -397,6 +398,20 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
     });
   }
   await recordAutomaticStatusEvents(previousSession?.gameStatus ?? null, mappedSession);
+  if (previousSession && (previousSession.startTime !== mappedSession.startTime || previousSession.fieldId !== mappedSession.fieldId)) {
+    // Awaited but best-effort internally: families and followers hear about
+    // reschedules/moves; failures never block the schedule edit.
+    await notifyScheduleChange({
+      sessionId: mappedSession.id,
+      title: mappedSession.title,
+      homeTeam: mappedSession.homeTeam,
+      awayTeam: mappedSession.awayTeam,
+      fieldId: mappedSession.fieldId,
+      startTime: mappedSession.startTime,
+      previousStartTime: previousSession.startTime,
+      previousFieldId: previousSession.fieldId,
+    });
+  }
 
   return mappedSession;
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getFields } from "@/lib/services/fields";
 import { publicErrorMessage } from "@/lib/public-error";
 import { getTeamDivisions } from "./actions";
@@ -40,9 +41,9 @@ export default async function ScheduleGeneratorPage() {
             Keep your existing scheduling platform and import its schedule export here. Most platforms
             (SportsEngine, TeamSnap, LeagueApps, and similar) export CSV — we map the columns and create the games.
           </p>
-          <a className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 text-sm font-bold" href="/admin/sessions/import">
+          <Link className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 text-sm font-bold" href="/admin/sessions/import">
             Import a schedule CSV
-          </a>
+          </Link>
         </div>
       </section>
       <div className="mt-6">

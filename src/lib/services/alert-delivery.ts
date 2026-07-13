@@ -36,7 +36,7 @@ function getAdminClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
-async function sendViaResend(to: string, subject: string, text: string) {
+export async function sendViaResend(to: string, subject: string, text: string) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { sent: false as const, provider: "", error: "" };
   const from = process.env.ALERT_EMAIL_FROM || "GameDay OS Alerts <onboarding@resend.dev>";
