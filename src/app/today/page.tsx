@@ -7,7 +7,8 @@ import {
 } from "@/lib/access/capabilities";
 import { flagshipVenueDisplayName } from "@/lib/access/demo-users";
 import { getSessionContext } from "@/lib/access/session";
-import { QuickActions, type QuickAction } from "@/components/access/quick-actions";
+import { QuickActions } from "@/components/access/quick-actions";
+import { resolveQuickActionTargets } from "@/lib/services/venue-operations";
 import { crossroadsGames, getVenueOperationsContext } from "@/lib/demo/crossroads";
 
 export const dynamic = "force-dynamic";
@@ -61,12 +62,13 @@ export default async function TodayPage() {
     timeZone: "America/Chicago",
   }).format(now);
 
-  const actions: QuickAction[] = [
-    canStartGame(ctx) ? { key: "start", label: "Start Game", icon: "Play" as const } : null,
-    canDelayGame(ctx) ? { key: "delay", label: "Delay Game", icon: "Clock" as const } : null,
-    canSendAnnouncement(ctx) ? { key: "announce", label: "Send Announcement", icon: "Bell" as const } : null,
-    canOpenCloseField(ctx) ? { key: "field", label: "Open / Close Field", icon: "DoorOpen" as const } : null,
-  ].filter((a): a is QuickAction => a !== null);
+  const allowed = [
+    canStartGame(ctx) ? "start" : null,
+    canDelayGame(ctx) ? "delay" : null,
+    canSendAnnouncement(ctx) ? "announce" : null,
+    canOpenCloseField(ctx) ? "field" : null,
+  ].filter((key): key is string => key !== null);
+  const quickActionTargets = await resolveQuickActionTargets(ctx);
 
   const venueName = ctx.venueName ?? flagshipVenueDisplayName;
 
@@ -95,7 +97,7 @@ export default async function TodayPage() {
       <section className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
         <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Quick Actions</h2>
         <div className="mt-3">
-          <QuickActions actions={actions} />
+          <QuickActions allowed={allowed} targets={quickActionTargets} />
         </div>
       </section>
 

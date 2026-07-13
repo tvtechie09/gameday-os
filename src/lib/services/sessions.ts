@@ -416,6 +416,26 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
   return mappedSession;
 }
 
+// Targeted status flip (e.g. Today's-Operations "Start Game"): updates only the
+// session status without requiring the whole session payload. Records the
+// automatic status event so followers are notified like any other status change.
+export async function setSessionStatus(id: string, status: Session["status"]): Promise<Session> {
+  const supabase = getSupabaseAdminClient();
+  const previousSession = await getSession(id);
+  const { data: session, error } = await supabase
+    .from("sessions")
+    .update({ status, game_status: status, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select(sessionSelect)
+    .single();
+  if (error) {
+    throw new Error(error.message);
+  }
+  const mappedSession = mapSession(session);
+  await recordAutomaticStatusEvents(previousSession?.status ?? null, mappedSession).catch(() => undefined);
+  return mappedSession;
+}
+
 export async function updateSessionGameState(id: string, data: UpdateSessionGameStateInput, actorUserId?: string | null): Promise<Session> {
   const actor = assertActorUserId(actorUserId);
   await requirePermission(actor, "game.score.update", "session", id);
