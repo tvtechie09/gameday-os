@@ -7,7 +7,9 @@
 
 import type { ExperienceRoleKey } from "./catalog";
 
-export const flagshipVenueDisplayName = "New Lenox Crossroads";
+// Sidebar/scope label for the demo venue users. Must match the demo venue's
+// real name (Crossroads Test Complex) so the sidebar and page headers agree.
+export const flagshipVenueDisplayName = "Crossroads Test Complex";
 export const platformScopeSentinel = "00000000-0000-0000-0000-000000000000";
 
 export type DemoUser = {
