@@ -4,20 +4,15 @@ import { getSessions } from "@/lib/services/sessions";
 import { getActiveAlerts } from "@/lib/services/alerts";
 import { getWorkOrders } from "@/lib/services/work-orders";
 import { venueInScope, type AccessContext } from "@/lib/access/capabilities";
-import type { Field, Session, Venue } from "@/lib/types";
+import { computeQuickActionTargets, labelFor, type QuickActionTargets } from "@/lib/services/quick-action-targets";
+import type { Field, Venue } from "@/lib/types";
 
 // Resolves the venue the acting user operates and builds the LIVE Today's-
 // Operations view from real sessions/fields/alerts — no demo data. A
 // venue-scoped user gets their own venue; a platform/org admin gets the busiest
 // venue by field count. The demo dataset stays confined to /demo/crossroads.
 
-export type QuickActionTargets = {
-  venueId: string | null;
-  venueName: string | null;
-  startGame: { sessionId: string; label: string; startTime: string; fieldName: string } | null;
-  delayGame: { sessionId: string; fieldId: string; label: string; fieldName: string } | null;
-  fields: Array<{ id: string; name: string; status: string }>;
-};
+export type { QuickActionTargets };
 
 export type TodayView = {
   venueId: string | null;
@@ -30,10 +25,6 @@ export type TodayView = {
   workOrders: Array<{ id: string; title: string; detail: string; priority: string }>;
   targets: QuickActionTargets;
 };
-
-function labelFor(session: Session): string {
-  return session.title || session.homeTeam + " vs " + session.awayTeam;
-}
 
 function timeLabel(iso: string): string {
   const date = new Date(iso);
@@ -57,27 +48,6 @@ function pickActingVenue(ctx: AccessContext | null, venues: Venue[], fields: Fie
 export async function resolveActingVenue(ctx: AccessContext | null): Promise<Venue | null> {
   const [venues, fields] = await Promise.all([getVenues().catch(() => []), getFields().catch(() => [])]);
   return pickActingVenue(ctx, venues, fields);
-}
-
-function computeTargets(venue: Venue, venueFields: Field[], venueSessions: Session[], fieldName: Map<string, string>): QuickActionTargets {
-  const now = Date.now();
-  const startable = venueSessions.find((session) =>
-    session.status === "scheduled"
-    && new Date(session.startTime).getTime() > now - 2 * 60 * 60 * 1000
-    && new Date(session.startTime).getTime() < now + 12 * 60 * 60 * 1000);
-  const live = venueSessions.find((session) => session.status === "active");
-  const delayTarget = live ?? startable ?? null;
-  return {
-    venueId: venue.id,
-    venueName: venue.name,
-    startGame: startable
-      ? { sessionId: startable.id, label: labelFor(startable), startTime: startable.startTime, fieldName: fieldName.get(startable.fieldId) || "Field" }
-      : null,
-    delayGame: delayTarget
-      ? { sessionId: delayTarget.id, fieldId: delayTarget.fieldId, label: labelFor(delayTarget), fieldName: fieldName.get(delayTarget.fieldId) || "Field" }
-      : null,
-    fields: venueFields.map((field) => ({ id: field.id, name: field.name, status: field.status })),
-  };
 }
 
 const EMPTY_VIEW: TodayView = {
@@ -142,6 +112,6 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
       .filter((order) => fieldIds.has(order.fieldId) && order.status !== "done" && !order.closedAt)
       .slice(0, 6)
       .map((order) => ({ id: order.id, title: order.title, detail: order.detail ?? "", priority: order.priority })),
-    targets: computeTargets(venue, venueFields, venueSessions, fieldName),
+    targets: computeQuickActionTargets(venue, venueFields, venueSessions, Date.now()),
   };
 }
