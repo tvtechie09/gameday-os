@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { getWeatherSourceLabel, getWeatherStatusLabel, weatherProfileStatuses, weatherSources } from "@/lib/services/weather-profiles";
 import type { Venue, WeatherProfile } from "@/lib/types";
-import { createWeatherProfileAction, updateWeatherProfileAction } from "./actions";
+import { createWeatherProfileAction, geocodeAddressAction, updateWeatherProfileAction } from "./actions";
 
 type WeatherProfileFormProps = {
   profile?: WeatherProfile;
@@ -20,6 +20,40 @@ export function WeatherProfileForm({ profile, venues }: WeatherProfileFormProps)
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
+  const [venueId, setVenueId] = useState(profile?.venueId ?? "");
+  const [latitude, setLatitude] = useState(profile?.latitude != null ? String(profile.latitude) : "");
+  const [longitude, setLongitude] = useState(profile?.longitude != null ? String(profile.longitude) : "");
+  const [isGeocoding, setIsGeocoding] = useState(false);
+
+  function buildVenueAddress(): string {
+    const venue = venues.find((item) => item.id === venueId);
+    if (!venue) return "";
+    return [venue.address, venue.city, venue.state].map((part) => (part ?? "").trim()).filter(Boolean).join(", ");
+  }
+
+  async function handleLookup() {
+    if (isGeocoding) return;
+    const address = buildVenueAddress();
+    if (!venueId) {
+      setMessage({ kind: "error", text: "Select a venue first, then look up its coordinates." });
+      return;
+    }
+    if (!address) {
+      setMessage({ kind: "error", text: "The selected venue has no address on file. Add one or enter coordinates manually." });
+      return;
+    }
+    setIsGeocoding(true);
+    setMessage(null);
+    const result = await geocodeAddressAction(address);
+    setIsGeocoding(false);
+    if (!result.ok) {
+      setMessage({ kind: "error", text: result.error });
+      return;
+    }
+    setLatitude(String(result.latitude));
+    setLongitude(String(result.longitude));
+    setMessage({ kind: "success", text: `Coordinates set from ${result.label || address}.` });
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,7 +92,7 @@ export function WeatherProfileForm({ profile, venues }: WeatherProfileFormProps)
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-bold">Venue <span className="text-red-600">*</span></span>
-          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={profile?.venueId ?? ""} disabled={isSaving} name="venue_id" required>
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" value={venueId} onChange={(event) => setVenueId(event.target.value)} disabled={isSaving} name="venue_id" required>
             <option value="">Select venue</option>
             {venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}
           </select>
@@ -84,15 +118,23 @@ export function WeatherProfileForm({ profile, venues }: WeatherProfileFormProps)
         </label>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <label className="grid gap-2">
-          <span className="text-sm font-bold">Latitude</span>
-          <input className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={profile?.latitude ?? ""} disabled={isSaving} name="latitude" placeholder="Optional" step="any" type="number" />
-        </label>
-        <label className="grid gap-2">
-          <span className="text-sm font-bold">Longitude</span>
-          <input className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={profile?.longitude ?? ""} disabled={isSaving} name="longitude" placeholder="Optional" step="any" type="number" />
-        </label>
+      <div className="grid gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm font-bold">Coordinates</span>
+          <button className="min-h-10 rounded-lg border border-[var(--accent)] px-3 py-2 text-sm font-bold text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60" disabled={isSaving || isGeocoding} onClick={handleLookup} type="button">
+            {isGeocoding ? "Looking up..." : "Look up from venue address"}
+          </button>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Latitude</span>
+            <input className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" value={latitude} onChange={(event) => setLatitude(event.target.value)} disabled={isSaving} name="latitude" placeholder="Optional" step="any" type="number" />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Longitude</span>
+            <input className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" value={longitude} onChange={(event) => setLongitude(event.target.value)} disabled={isSaving} name="longitude" placeholder="Optional" step="any" type="number" />
+          </label>
+        </div>
       </div>
 
       <label className="grid gap-2">

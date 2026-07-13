@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { geocodeAddress, type GeocodeResult } from "@/lib/services/geocode";
 import { createWeatherProfile, updateWeatherProfile } from "@/lib/services/weather-profiles";
 import type { WeatherProfile } from "@/lib/types";
 import { readWeatherProfileFormData } from "./form-utils";
@@ -16,6 +17,12 @@ function revalidateWeatherSurfaces() {
   revalidatePath("/admin/game-day");
   revalidatePath("/venues/[venueId]", "page");
   revalidatePath("/fields/[fieldId]", "page");
+}
+
+// Fill latitude/longitude from a venue's address using OpenWeather geocoding,
+// so admins don't have to look up coordinates by hand.
+export async function geocodeAddressAction(address: string): Promise<GeocodeResult> {
+  return geocodeAddress(address);
 }
 
 export async function createWeatherProfileAction(formData: FormData): Promise<WeatherProfileResult> {
