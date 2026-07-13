@@ -41,8 +41,10 @@ function timeLabel(iso: string): string {
   return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).format(date);
 }
 
-export async function resolveActingVenue(ctx: AccessContext | null): Promise<Venue | null> {
-  const [venues, fields] = await Promise.all([getVenues().catch(() => []), getFields().catch(() => [])]);
+// Pure venue picker: a venue-scoped user gets their own venue; everyone else
+// gets the busiest venue by field count. Takes already-loaded venues/fields so
+// callers can avoid redundant queries.
+function pickActingVenue(ctx: AccessContext | null, venues: Venue[], fields: Field[]): Venue | null {
   if (!venues.length) return null;
   if (ctx && ctx.scopeType === "venue") {
     return venues.find((venue) => venueInScope(ctx, venue)) ?? null;
@@ -50,6 +52,11 @@ export async function resolveActingVenue(ctx: AccessContext | null): Promise<Ven
   const fieldCount = new Map<string, number>();
   for (const field of fields) fieldCount.set(field.venueId, (fieldCount.get(field.venueId) ?? 0) + 1);
   return [...venues].sort((a, b) => (fieldCount.get(b.id) ?? 0) - (fieldCount.get(a.id) ?? 0))[0] ?? null;
+}
+
+export async function resolveActingVenue(ctx: AccessContext | null): Promise<Venue | null> {
+  const [venues, fields] = await Promise.all([getVenues().catch(() => []), getFields().catch(() => [])]);
+  return pickActingVenue(ctx, venues, fields);
 }
 
 function computeTargets(venue: Venue, venueFields: Field[], venueSessions: Session[], fieldName: Map<string, string>): QuickActionTargets {
@@ -86,15 +93,16 @@ const EMPTY_VIEW: TodayView = {
 };
 
 export async function buildTodayView(ctx: AccessContext | null): Promise<TodayView> {
-  const venue = await resolveActingVenue(ctx);
-  if (!venue) return EMPTY_VIEW;
-
-  const [allFields, allSessions, activeAlerts, workOrders] = await Promise.all([
+  // Single parallel load, then pick the venue from what we already fetched.
+  const [venues, allFields, allSessions, activeAlerts, workOrders] = await Promise.all([
+    getVenues().catch(() => []),
     getFields().catch(() => []),
     getSessions().catch(() => []),
     getActiveAlerts().catch(() => []),
     getWorkOrders().catch(() => []),
   ]);
+  const venue = pickActingVenue(ctx, venues, allFields);
+  if (!venue) return EMPTY_VIEW;
 
   const venueFields = allFields.filter((field) => field.venueId === venue.id);
   const fieldIds = new Set(venueFields.map((field) => field.id));
