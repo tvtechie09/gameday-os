@@ -5,7 +5,7 @@ import { getVenues } from "@/lib/services/venues";
 import { getOfficialsForSessions } from "@/lib/services/officials";
 import { createAlert } from "@/lib/services/alerts";
 import { getWeatherProfilesByVenueId, markStormAutoTriggered } from "@/lib/services/weather-profiles";
-import { sendSms } from "@/lib/services/sms";
+import { normalizePhone, sendSms } from "@/lib/services/sms";
 import { assessConditions, buildStormAlertDraft, DEFAULT_ASSESS_OPTIONS, type AssessOptions, type StormRiskLevel } from "@/lib/services/storm-assessment";
 import type { WeatherProfile } from "@/lib/types";
 
@@ -134,12 +134,19 @@ export async function executeStormResponse(
   let umpiresSkipped = 0;
   if (assessment.profile?.notifyUmpires && assessment.upcomingGames.length) {
     const officials = await getOfficialsForSessions(assessment.upcomingGames.map((game) => game.id)).catch(() => []);
-    const withPhone = officials.filter((official) => official.officialPhone);
+    // One text per person: an umpire on several of the next few games would
+    // otherwise get the same message once per game. Dedupe on normalized phone.
+    const recipients = new Map<string, string>();
+    for (const official of officials) {
+      if (!official.officialPhone) continue;
+      const key = normalizePhone(official.officialPhone) ?? official.officialPhone;
+      if (!recipients.has(key)) recipients.set(key, official.officialPhone);
+    }
     const smsBody = (severe
       ? "GameDay OS: games at " + assessment.venueName + " are ON HOLD due to weather. Do not start play; watch for the all-clear."
       : "GameDay OS: weather advisory for " + assessment.venueName + ". Possible delays — stay alert for updates.");
-    for (const official of withPhone) {
-      const result = await sendSms(official.officialPhone as string, smsBody);
+    for (const phone of recipients.values()) {
+      const result = await sendSms(phone, smsBody);
       if (result.sent) umpiresTexted += 1;
       else umpiresSkipped += 1;
     }
