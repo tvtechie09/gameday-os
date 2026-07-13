@@ -13,13 +13,20 @@ import { buildTodayView } from "@/lib/services/venue-operations";
 export const dynamic = "force-dynamic";
 
 const statusStyles: Record<string, string> = {
+  // Session / field statuses
   live: "bg-emerald-500/15 text-emerald-700",
-  warmups: "bg-sky-500/15 text-sky-700",
   scheduled: "bg-slate-500/10 text-slate-600",
   delayed: "bg-amber-500/20 text-amber-800",
-  final: "bg-slate-800/10 text-slate-700",
   maintenance: "bg-red-500/15 text-red-700",
+  closed: "bg-red-500/15 text-red-700",
   open: "bg-emerald-500/15 text-emerald-700",
+  active: "bg-emerald-500/15 text-emerald-700",
+  // Work-order priorities
+  urgent: "bg-red-500/15 text-red-700",
+  high: "bg-amber-500/20 text-amber-800",
+  medium: "bg-sky-500/15 text-sky-700",
+  low: "bg-slate-500/10 text-slate-600",
+  normal: "bg-slate-500/10 text-slate-600",
 };
 
 function Badge({ status }: { status: string }) {
