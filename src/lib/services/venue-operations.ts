@@ -1,13 +1,15 @@
 import { getVenues } from "@/lib/services/venues";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
+import { getActiveAlerts } from "@/lib/services/alerts";
+import { getWorkOrders } from "@/lib/services/work-orders";
 import { venueInScope, type AccessContext } from "@/lib/access/capabilities";
 import type { Field, Session, Venue } from "@/lib/types";
 
-// Resolves the venue the acting user operates, then the concrete targets the
-// Today's-Operations quick actions act on: the next game to start, the current
-// game to delay, and the venue's fields to open/close. A venue-scoped user gets
-// their own venue; a platform/org admin gets the busiest venue by field count.
+// Resolves the venue the acting user operates and builds the LIVE Today's-
+// Operations view from real sessions/fields/alerts — no demo data. A
+// venue-scoped user gets their own venue; a platform/org admin gets the busiest
+// venue by field count. The demo dataset stays confined to /demo/crossroads.
 
 export type QuickActionTargets = {
   venueId: string | null;
@@ -17,8 +19,26 @@ export type QuickActionTargets = {
   fields: Array<{ id: string; name: string; status: string }>;
 };
 
+export type TodayView = {
+  venueId: string | null;
+  venueName: string | null;
+  health: { activeGames: number; delayedFields: number; totalFields: number; maintenanceFields: number };
+  liveGames: Array<{ id: string; label: string; fieldName: string; timeLabel: string }>;
+  upcoming: Array<{ id: string; label: string; fieldName: string; timeLabel: string }>;
+  fields: Array<{ id: string; name: string; status: string }>;
+  alerts: Array<{ id: string; title: string; message: string; priority: string }>;
+  workOrders: Array<{ id: string; title: string; detail: string; priority: string }>;
+  targets: QuickActionTargets;
+};
+
 function labelFor(session: Session): string {
   return session.title || session.homeTeam + " vs " + session.awayTeam;
+}
+
+function timeLabel(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).format(date);
 }
 
 export async function resolveActingVenue(ctx: AccessContext | null): Promise<Venue | null> {
@@ -32,32 +52,14 @@ export async function resolveActingVenue(ctx: AccessContext | null): Promise<Ven
   return [...venues].sort((a, b) => (fieldCount.get(b.id) ?? 0) - (fieldCount.get(a.id) ?? 0))[0] ?? null;
 }
 
-export async function resolveQuickActionTargets(ctx: AccessContext | null): Promise<QuickActionTargets> {
-  const venue = await resolveActingVenue(ctx);
-  if (!venue) {
-    return { venueId: null, venueName: null, startGame: null, delayGame: null, fields: [] };
-  }
-  const [allFields, allSessions] = await Promise.all([getFields().catch(() => []), getSessions().catch(() => [])]);
-  const venueFields: Field[] = allFields.filter((field) => field.venueId === venue.id);
-  const fieldIds = new Set(venueFields.map((field) => field.id));
-  const fieldName = new Map(venueFields.map((field) => [field.id, field.name]));
+function computeTargets(venue: Venue, venueFields: Field[], venueSessions: Session[], fieldName: Map<string, string>): QuickActionTargets {
   const now = Date.now();
-
-  const venueSessions = allSessions
-    .filter((session) => fieldIds.has(session.fieldId))
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-  // Next game to start: soonest scheduled game within a sensible window
-  // (from 2h ago to 12h out), so a running-late game is still startable.
   const startable = venueSessions.find((session) =>
     session.status === "scheduled"
     && new Date(session.startTime).getTime() > now - 2 * 60 * 60 * 1000
     && new Date(session.startTime).getTime() < now + 12 * 60 * 60 * 1000);
-
-  // Game to delay: the live one if any, else the next startable.
   const live = venueSessions.find((session) => session.status === "active");
   const delayTarget = live ?? startable ?? null;
-
   return {
     venueId: venue.id,
     venueName: venue.name,
@@ -68,5 +70,70 @@ export async function resolveQuickActionTargets(ctx: AccessContext | null): Prom
       ? { sessionId: delayTarget.id, fieldId: delayTarget.fieldId, label: labelFor(delayTarget), fieldName: fieldName.get(delayTarget.fieldId) || "Field" }
       : null,
     fields: venueFields.map((field) => ({ id: field.id, name: field.name, status: field.status })),
+  };
+}
+
+const EMPTY_VIEW: TodayView = {
+  venueId: null,
+  venueName: null,
+  health: { activeGames: 0, delayedFields: 0, totalFields: 0, maintenanceFields: 0 },
+  liveGames: [],
+  upcoming: [],
+  fields: [],
+  alerts: [],
+  workOrders: [],
+  targets: { venueId: null, venueName: null, startGame: null, delayGame: null, fields: [] },
+};
+
+export async function buildTodayView(ctx: AccessContext | null): Promise<TodayView> {
+  const venue = await resolveActingVenue(ctx);
+  if (!venue) return EMPTY_VIEW;
+
+  const [allFields, allSessions, activeAlerts, workOrders] = await Promise.all([
+    getFields().catch(() => []),
+    getSessions().catch(() => []),
+    getActiveAlerts().catch(() => []),
+    getWorkOrders().catch(() => []),
+  ]);
+
+  const venueFields = allFields.filter((field) => field.venueId === venue.id);
+  const fieldIds = new Set(venueFields.map((field) => field.id));
+  const fieldName = new Map(venueFields.map((field) => [field.id, field.name]));
+  const now = Date.now();
+
+  const venueSessions = allSessions
+    .filter((session) => fieldIds.has(session.fieldId))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  const liveGames = venueSessions
+    .filter((session) => session.status === "active")
+    .map((session) => ({ id: session.id, label: labelFor(session), fieldName: fieldName.get(session.fieldId) || "Field", timeLabel: timeLabel(session.startTime) }));
+
+  const upcoming = venueSessions
+    .filter((session) => session.status === "scheduled" && new Date(session.startTime).getTime() > now - 30 * 60 * 1000)
+    .slice(0, 6)
+    .map((session) => ({ id: session.id, label: labelFor(session), fieldName: fieldName.get(session.fieldId) || "Field", timeLabel: timeLabel(session.startTime) }));
+
+  return {
+    venueId: venue.id,
+    venueName: venue.name,
+    health: {
+      activeGames: liveGames.length,
+      delayedFields: venueFields.filter((field) => field.status === "delayed").length,
+      totalFields: venueFields.length,
+      maintenanceFields: venueFields.filter((field) => field.status === "maintenance").length,
+    },
+    liveGames,
+    upcoming,
+    fields: venueFields.map((field) => ({ id: field.id, name: field.name, status: field.status })),
+    alerts: activeAlerts
+      .filter((alert) => alert.venueId === venue.id && alert.alertVisibility === "public")
+      .slice(0, 5)
+      .map((alert) => ({ id: alert.id, title: alert.title, message: alert.message, priority: alert.alertPriority })),
+    workOrders: workOrders
+      .filter((order) => fieldIds.has(order.fieldId) && order.status !== "done" && !order.closedAt)
+      .slice(0, 6)
+      .map((order) => ({ id: order.id, title: order.title, detail: order.detail ?? "", priority: order.priority })),
+    targets: computeTargets(venue, venueFields, venueSessions, fieldName),
   };
 }
