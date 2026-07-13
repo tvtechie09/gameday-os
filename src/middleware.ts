@@ -31,6 +31,7 @@ const PUBLIC_CONTENT_PREFIXES = [
   "/venue/",
   "/venues/",
   "/score/",
+  "/officiate/",
   "/demo/",
   "/api/score/",
   "/api/scoreboard/",

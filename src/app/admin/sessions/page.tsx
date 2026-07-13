@@ -70,6 +70,9 @@ export default async function SessionsPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/admin/sessions/officials" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+            Umpires &amp; officials
+          </Link>
           <Link href="/admin/sessions/generate" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
             Generate league schedule
           </Link>

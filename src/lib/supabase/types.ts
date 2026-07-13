@@ -286,6 +286,49 @@ export type Database = {
           },
         ];
       };
+      session_officials: {
+        Row: {
+          id: string;
+          session_id: string;
+          official_name: string;
+          official_email: string | null;
+          role: string;
+          status: string;
+          confirm_token: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          official_name: string;
+          official_email?: string | null;
+          role?: string;
+          status?: string;
+          confirm_token: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          official_name?: string;
+          official_email?: string | null;
+          role?: string;
+          status?: string;
+          confirm_token?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "session_officials_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       organization_memberships: {
         Row: {
           id: string;
