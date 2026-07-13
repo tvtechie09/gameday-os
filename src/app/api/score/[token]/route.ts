@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { applyScorekeeperState, openScorekeeperSession, type ScorekeeperState } from "@/lib/services/scorekeeper";
+import { clientIp, isBlocked, recordFailure } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -18,19 +19,36 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     if (!token || token.length > 64) {
       return NextResponse.json({ error: "Invalid scorekeeper link." }, { status: 400, headers: { "cache-control": "no-store" } });
     }
+    // Brute-force protection for the 4-digit PIN (10k combinations). We count
+    // only FAILED attempts, so a legitimate scorekeeper tapping the pad (each
+    // tap is a correct-PIN sync) is never throttled. Keyed per game token (a
+    // distributed attack on one game) and per IP (one source spraying games).
+    const ip = clientIp(request);
+    const tokenBlock = isBlocked("score-token:" + token);
+    const ipBlock = isBlocked("score-ip:" + ip);
+    if (tokenBlock.blocked || ipBlock.blocked) {
+      return NextResponse.json({ error: "Too many incorrect attempts. Wait a moment and try again." }, { status: 429, headers: { "cache-control": "no-store", "retry-after": String(Math.max(tokenBlock.retryAfter, ipBlock.retryAfter)) } });
+    }
     const payload = (await request.json().catch(() => ({}))) as ScorePayload;
     const pin = typeof payload.pin === "string" ? payload.pin.trim() : "";
     if (!/^\d{4}$/.test(pin)) {
+      recordFailure("score-token:" + token, 10, 60_000);
+      recordFailure("score-ip:" + ip, 25, 60_000);
       return NextResponse.json({ error: "Enter the 4-digit game PIN." }, { status: 401, headers: { "cache-control": "no-store" } });
     }
+    const failWrongPin = () => {
+      recordFailure("score-token:" + token, 10, 60_000);
+      recordFailure("score-ip:" + ip, 25, 60_000);
+      return NextResponse.json({ error: "Wrong PIN or this scorekeeper link is no longer active." }, { status: 401, headers: { "cache-control": "no-store" } });
+    };
     if (payload.action === "sync") {
       const seq = Number(payload.seq);
       const view = await applyScorekeeperState(token, pin, seq, payload.state ?? {});
-      if (!view) return NextResponse.json({ error: "Wrong PIN or this scorekeeper link is no longer active." }, { status: 401, headers: { "cache-control": "no-store" } });
+      if (!view) return failWrongPin();
       return NextResponse.json({ ok: true, game: view }, { headers: { "cache-control": "no-store" } });
     }
     const view = await openScorekeeperSession(token, pin);
-    if (!view) return NextResponse.json({ error: "Wrong PIN or this scorekeeper link is no longer active." }, { status: 401, headers: { "cache-control": "no-store" } });
+    if (!view) return failWrongPin();
     return NextResponse.json({ ok: true, game: view }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error("Scorekeeper request failed", error);
