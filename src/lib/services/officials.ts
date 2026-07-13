@@ -11,6 +11,7 @@ export type SessionOfficial = {
   sessionId: string;
   officialName: string;
   officialEmail: string | null;
+  officialPhone: string | null;
   role: string;
   status: "assigned" | "confirmed" | "declined";
   confirmToken: string;
@@ -21,6 +22,7 @@ type OfficialRow = {
   session_id: string;
   official_name: string;
   official_email: string | null;
+  official_phone?: string | null;
   role: string;
   status: string;
   confirm_token: string;
@@ -32,6 +34,7 @@ function mapOfficial(row: OfficialRow): SessionOfficial {
     sessionId: row.session_id,
     officialName: row.official_name,
     officialEmail: row.official_email,
+    officialPhone: row.official_phone ?? null,
     role: row.role,
     status: row.status === "confirmed" || row.status === "declined" ? row.status : "assigned",
     confirmToken: row.confirm_token,
@@ -72,9 +75,10 @@ export async function findOfficialConflicts(officialEmail: string, sessionId: st
     .map((session) => session.title || session.home_team + " vs " + session.away_team);
 }
 
-export async function assignOfficial(input: { sessionId: string; name: string; email?: string | null; role?: string; confirmBaseUrl: string }): Promise<{ official: SessionOfficial; conflicts: string[]; confirmUrl: string }> {
+export async function assignOfficial(input: { sessionId: string; name: string; email?: string | null; phone?: string | null; role?: string; confirmBaseUrl: string }): Promise<{ official: SessionOfficial; conflicts: string[]; confirmUrl: string }> {
   const supabase = getSupabaseAdminClient();
   const email = (input.email || "").trim().toLowerCase() || null;
+  const phone = (input.phone || "").trim().slice(0, 32) || null;
   const conflicts = email ? await findOfficialConflicts(email, input.sessionId) : [];
   const token = randomBytes(16).toString("hex");
   const { data, error } = await supabase
@@ -83,6 +87,7 @@ export async function assignOfficial(input: { sessionId: string; name: string; e
       session_id: input.sessionId,
       official_name: input.name.trim().slice(0, 120),
       official_email: email,
+      official_phone: phone,
       role: (input.role || "umpire").trim().slice(0, 40),
       confirm_token: token,
     })

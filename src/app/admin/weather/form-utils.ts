@@ -34,6 +34,7 @@ export function readWeatherProfileFormData(formData: FormData): { data: CreateWe
     return { error: "Choose a valid weather status." };
   }
 
+  const windThreshold = Number(readString(formData, "wind_threshold_mph"));
   return {
     data: {
       latitude: readOptionalNumber(formData, "latitude"),
@@ -43,6 +44,12 @@ export function readWeatherProfileFormData(formData: FormData): { data: CreateWe
       status: status as CreateWeatherProfileInput["status"],
       venue_id: venueId,
       weather_source: weatherSource as CreateWeatherProfileInput["weather_source"],
+      auto_response_mode: readString(formData, "auto_response_mode") === "automatic" ? "automatic" : "manual",
+      wind_threshold_mph: Number.isFinite(windThreshold) && windThreshold > 0 ? Math.round(windThreshold) : 30,
+      rain_sensitivity: readString(formData, "rain_sensitivity") === "any" ? "any" : "heavy_only",
+      notify_parents: formData.get("notify_parents") !== null,
+      notify_umpires: formData.get("notify_umpires") !== null,
+      notify_staff: formData.get("notify_staff") !== null,
     },
   };
 }

@@ -401,6 +401,9 @@ export interface AudioProfile {
   updatedAt: string;
 }
 
+export type StormResponseMode = "manual" | "automatic";
+export type RainSensitivity = "heavy_only" | "any";
+
 export interface WeatherProfile {
   id: string;
   venueId: string;
@@ -410,6 +413,14 @@ export interface WeatherProfile {
   weatherSource: WeatherSource;
   status: WeatherProfileStatus;
   notes: string | null;
+  // Per-venue storm-response automation.
+  autoResponseMode: StormResponseMode;
+  windThresholdMph: number;
+  rainSensitivity: RainSensitivity;
+  notifyParents: boolean;
+  notifyUmpires: boolean;
+  notifyStaff: boolean;
+  autoLastTriggeredAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

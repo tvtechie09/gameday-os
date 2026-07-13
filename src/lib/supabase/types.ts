@@ -292,6 +292,7 @@ export type Database = {
           session_id: string;
           official_name: string;
           official_email: string | null;
+          official_phone: string | null;
           role: string;
           status: string;
           confirm_token: string;
@@ -303,6 +304,7 @@ export type Database = {
           session_id: string;
           official_name: string;
           official_email?: string | null;
+          official_phone?: string | null;
           role?: string;
           status?: string;
           confirm_token: string;
@@ -314,6 +316,7 @@ export type Database = {
           session_id?: string;
           official_name?: string;
           official_email?: string | null;
+          official_phone?: string | null;
           role?: string;
           status?: string;
           confirm_token?: string;
@@ -1716,6 +1719,13 @@ export type Database = {
           weather_source: string;
           status: string;
           notes: string | null;
+          auto_response_mode: string;
+          wind_threshold_mph: number;
+          rain_sensitivity: string;
+          notify_parents: boolean;
+          notify_umpires: boolean;
+          notify_staff: boolean;
+          auto_last_triggered_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1728,6 +1738,13 @@ export type Database = {
           weather_source?: string;
           status?: string;
           notes?: string | null;
+          auto_response_mode?: string;
+          wind_threshold_mph?: number;
+          rain_sensitivity?: string;
+          notify_parents?: boolean;
+          notify_umpires?: boolean;
+          notify_staff?: boolean;
+          auto_last_triggered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1740,6 +1757,13 @@ export type Database = {
           weather_source?: string;
           status?: string;
           notes?: string | null;
+          auto_response_mode?: string;
+          wind_threshold_mph?: number;
+          rain_sensitivity?: string;
+          notify_parents?: boolean;
+          notify_umpires?: boolean;
+          notify_staff?: boolean;
+          auto_last_triggered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

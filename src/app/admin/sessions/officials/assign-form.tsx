@@ -48,9 +48,13 @@ export function AssignOfficialForm({ sessions }: { sessions: SessionOption[] }) 
             <option value="scorekeeper">Scorekeeper</option>
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-bold sm:col-span-2">
+        <label className="grid gap-1 text-sm font-bold">
           Email (optional — sends the confirm link)
           <input className="min-h-11 rounded-lg border border-[var(--line)] px-3" name="email" type="email" />
+        </label>
+        <label className="grid gap-1 text-sm font-bold">
+          Mobile (optional — weather-hold texts)
+          <input className="min-h-11 rounded-lg border border-[var(--line)] px-3" name="phone" type="tel" placeholder="+1 555 123 4567" />
         </label>
       </div>
       <button className="min-h-12 w-fit rounded-lg bg-[var(--accent)] px-6 text-sm font-black text-white disabled:opacity-50" disabled={pending} type="submit">

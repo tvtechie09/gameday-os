@@ -1,6 +1,6 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
-import type { WeatherProfile, WeatherProfileStatus, WeatherSource } from "@/lib/types";
+import type { RainSensitivity, StormResponseMode, WeatherProfile, WeatherProfileStatus, WeatherSource } from "@/lib/types";
 import { getOrganizationDataScope } from "./organization-data-scope";
 
 type WeatherProfileRow = Database["public"]["Tables"]["weather_profiles"]["Row"];
@@ -13,14 +13,22 @@ export type CreateWeatherProfileInput = {
   weather_source: WeatherSource;
   status: WeatherProfileStatus;
   notes?: string | null;
+  auto_response_mode?: StormResponseMode;
+  wind_threshold_mph?: number;
+  rain_sensitivity?: RainSensitivity;
+  notify_parents?: boolean;
+  notify_umpires?: boolean;
+  notify_staff?: boolean;
 };
 
 export type UpdateWeatherProfileInput = CreateWeatherProfileInput;
 
 export const weatherSources: WeatherSource[] = ["manual", "national_weather_service", "weatherkit", "other"];
 export const weatherProfileStatuses: WeatherProfileStatus[] = ["not_configured", "configured", "monitoring", "paused", "offline"];
+export const stormResponseModes: StormResponseMode[] = ["manual", "automatic"];
+export const rainSensitivities: RainSensitivity[] = ["heavy_only", "any"];
 
-const weatherProfileSelect = "id,venue_id,location_name,latitude,longitude,weather_source,status,notes,created_at,updated_at";
+const weatherProfileSelect = "id,venue_id,location_name,latitude,longitude,weather_source,status,notes,auto_response_mode,wind_threshold_mph,rain_sensitivity,notify_parents,notify_umpires,notify_staff,auto_last_triggered_at,created_at,updated_at";
 
 function readOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -39,6 +47,18 @@ function readOptionalNumber(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function readResponseMode(value: string | null | undefined): StormResponseMode {
+  return value === "automatic" ? "automatic" : "manual";
+}
+
+function readRainSensitivity(value: string | null | undefined): RainSensitivity {
+  return value === "any" ? "any" : "heavy_only";
+}
+
+function readWindThreshold(value: number | null | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.round(value) : 30;
+}
+
 function isMissingWeatherProfilesTableError(error: { code?: string; message?: string }) {
   return error.code === "PGRST205"
     || error.message?.includes("weather_profiles") === true
@@ -54,6 +74,13 @@ function mapWeatherProfile(row: WeatherProfileRow): WeatherProfile {
     longitude: readOptionalNumber(row.longitude),
     notes: readOptionalText(row.notes),
     status: readWeatherStatus(row.status),
+    autoResponseMode: readResponseMode(row.auto_response_mode),
+    windThresholdMph: readWindThreshold(row.wind_threshold_mph),
+    rainSensitivity: readRainSensitivity(row.rain_sensitivity),
+    notifyParents: row.notify_parents ?? true,
+    notifyUmpires: row.notify_umpires ?? false,
+    notifyStaff: row.notify_staff ?? false,
+    autoLastTriggeredAt: row.auto_last_triggered_at ?? null,
     updatedAt: row.updated_at,
     venueId: row.venue_id,
     weatherSource: readWeatherSource(row.weather_source),
@@ -149,6 +176,17 @@ export async function getWeatherProfilesByVenueId(venueId: string): Promise<Weat
   return profiles.filter((profile) => profile.venueId === venueId);
 }
 
+export function getStormResponseModeLabel(mode: StormResponseMode) {
+  return mode === "automatic" ? "Automatic (auto-suspend on severe)" : "Manual (director approves)";
+}
+
+// Records that automation fired for a venue, so the cron doesn't re-suspend
+// the same storm on every poll.
+export async function markStormAutoTriggered(profileId: string, timestamp: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  await supabase.from("weather_profiles").update({ auto_last_triggered_at: timestamp }).eq("id", profileId);
+}
+
 export async function createWeatherProfile(data: CreateWeatherProfileInput): Promise<WeatherProfile> {
   const supabase = getSupabaseAdminClient();
   const { data: profile, error } = await supabase
@@ -161,6 +199,12 @@ export async function createWeatherProfile(data: CreateWeatherProfileInput): Pro
       status: readWeatherStatus(data.status),
       venue_id: data.venue_id,
       weather_source: readWeatherSource(data.weather_source),
+      auto_response_mode: readResponseMode(data.auto_response_mode),
+      wind_threshold_mph: readWindThreshold(data.wind_threshold_mph),
+      rain_sensitivity: readRainSensitivity(data.rain_sensitivity),
+      notify_parents: data.notify_parents ?? true,
+      notify_umpires: data.notify_umpires ?? false,
+      notify_staff: data.notify_staff ?? false,
     })
     .select(weatherProfileSelect)
     .single();
@@ -185,6 +229,12 @@ export async function updateWeatherProfile(id: string, data: UpdateWeatherProfil
       updated_at: new Date().toISOString(),
       venue_id: data.venue_id,
       weather_source: readWeatherSource(data.weather_source),
+      auto_response_mode: readResponseMode(data.auto_response_mode),
+      wind_threshold_mph: readWindThreshold(data.wind_threshold_mph),
+      rain_sensitivity: readRainSensitivity(data.rain_sensitivity),
+      notify_parents: data.notify_parents ?? true,
+      notify_umpires: data.notify_umpires ?? false,
+      notify_staff: data.notify_staff ?? false,
     })
     .eq("id", id)
     .select(weatherProfileSelect)

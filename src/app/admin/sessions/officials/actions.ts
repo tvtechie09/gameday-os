@@ -23,6 +23,7 @@ export async function assignOfficialAction(formData: FormData): Promise<AssignOf
       sessionId,
       name,
       email: String(formData.get("email") || "") || null,
+      phone: String(formData.get("phone") || "") || null,
       role: String(formData.get("role") || "umpire"),
       confirmBaseUrl: getPublicAppUrl(),
     });

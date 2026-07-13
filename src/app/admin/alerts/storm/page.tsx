@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { publicErrorMessage } from "@/lib/public-error";
-import { createAlert } from "@/lib/services/alerts";
-import { getFields, updateFieldStatus } from "@/lib/services/fields";
-import { assessStormRisk, buildStormAlertDraft } from "@/lib/services/storm-watch";
+import { assessStormRisk, executeStormResponse } from "@/lib/services/storm-watch";
+import { getStormResponseModeLabel } from "@/lib/services/weather-profiles";
 
 export const dynamic = "force-dynamic";
 
@@ -29,27 +28,7 @@ export default async function StormWatchPage() {
     if (!venueId) return;
     const current = await assessStormRisk(venueId);
     if (!current) return;
-    const draft = buildStormAlertDraft({ ...current, risk: severity === "severe" ? "severe" : current.risk === "severe" ? "severe" : "caution" });
-    const now = new Date();
-    const end = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-    if (severity === "severe") {
-      const fields = await getFields().catch(() => []);
-      for (const field of fields.filter((item) => item.venueId === venueId)) {
-        await updateFieldStatus(field.id, "delayed").catch(() => undefined);
-      }
-    }
-    await createAlert({
-      title: draft.title,
-      message: draft.message,
-      alert_type: "weather",
-      alert_scope: "venue",
-      alert_priority: severity === "severe" ? "urgent" : "high",
-      alert_visibility: "public",
-      venue_id: venueId,
-      start_time: now.toISOString(),
-      end_time: end.toISOString(),
-      is_active: true,
-    });
+    await executeStormResponse(current, { severe: severity === "severe", source: "manual" });
     revalidatePath("/admin/alerts/storm");
     revalidatePath("/admin/alerts");
   }
@@ -99,6 +78,15 @@ export default async function StormWatchPage() {
             <p className="mt-3 text-sm text-[var(--muted)]">
               {assessment.upcomingGames.length} game{assessment.upcomingGames.length === 1 ? "" : "s"} in the next 6 hours across {assessment.fieldCount} fields.
             </p>
+            {assessment.profile ? (
+              <p className="mt-2 text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
+                {getStormResponseModeLabel(assessment.profile.autoResponseMode)} · wind ≥ {assessment.profile.windThresholdMph} mph · rain: {assessment.profile.rainSensitivity === "any" ? "any" : "heavy only"}
+                {assessment.profile.notifyUmpires ? " · texts umpires" : ""}
+                {assessment.profile.autoResponseMode === "automatic" ? " — auto-suspends on severe" : ""}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--muted)]">No weather profile — set thresholds &amp; automation in <Link className="font-bold text-[var(--accent-strong)] underline" href="/admin/weather">Weather settings</Link>.</p>
+            )}
             {assessment.upcomingGames.slice(0, 6).map((game) => (
               <p key={game.id} className="mt-1 text-sm">
                 {new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(game.startTime))} · {game.fieldName} — {game.label}

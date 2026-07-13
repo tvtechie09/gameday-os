@@ -137,6 +137,41 @@ export function WeatherProfileForm({ profile, venues }: WeatherProfileFormProps)
         </div>
       </div>
 
+      <section className="grid gap-5 rounded-lg border border-[var(--line)] bg-[var(--background)] p-4">
+        <div>
+          <h2 className="text-lg font-black">Storm response automation</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+            When live weather hits severe (lightning, storms, or the thresholds below), decide whether the venue director approves the hold or the system suspends games automatically — and who gets notified.
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Response mode</span>
+            <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={profile?.autoResponseMode ?? "manual"} disabled={isSaving} name="auto_response_mode">
+              <option value="manual">Manual — director approves the hold</option>
+              <option value="automatic">Automatic — auto-suspend on severe</option>
+            </select>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Rain sensitivity</span>
+            <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={profile?.rainSensitivity ?? "heavy_only"} disabled={isSaving} name="rain_sensitivity">
+              <option value="heavy_only">Heavy rain only</option>
+              <option value="any">Any rain (more cautious)</option>
+            </select>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-bold">Wind threshold (mph)</span>
+            <input className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={profile?.windThresholdMph ?? 30} disabled={isSaving} name="wind_threshold_mph" type="number" min="5" max="120" step="1" />
+          </label>
+        </div>
+        <fieldset className="grid gap-2">
+          <span className="text-sm font-bold">Notify on a weather hold</span>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="notify_parents" defaultChecked={profile?.notifyParents ?? true} disabled={isSaving} /> Parents &amp; followers (public alert + email)</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="notify_umpires" defaultChecked={profile?.notifyUmpires ?? false} disabled={isSaving} /> Umpires / officials (text — requires Twilio configured)</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="notify_staff" defaultChecked={profile?.notifyStaff ?? false} disabled={isSaving} /> Venue staff</label>
+        </fieldset>
+      </section>
+
       <label className="grid gap-2">
         <span className="text-sm font-bold">Notes</span>
         <textarea className="min-h-32 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base" defaultValue={profile?.notes ?? ""} disabled={isSaving} name="notes" placeholder="Manual weather process, who checks radar, lightning policy, or venue-specific weather notes." />
