@@ -2,6 +2,18 @@
 
 Date: 2026-07-13 · Branch: `feature/connected-game-engine-foundation` (NOT merged to main)
 
+> **MIGRATION APPLIED 2026-07-13** (Kyle approved). Supabase `connected_game_engine`
+> applied to the shared project. Post-apply verification all green: 0 invalid
+> lifecycle rows; backfill mapping correct (scheduled↔scheduled 9, live↔active 6,
+> final↔final 4); RLS on both tables; `game_events` 0 policies (non-public
+> ledger); `game_live_state` 1 policy (public score read); RPC present; unique
+> indexes present. **Live RPC smoke test passed and was cleaned up:** a
+> scheduled→live transition wrote `game_live_state` + one `game_events` row with
+> correct actor/payload and synced the session's legacy `status`; a same-key
+> replay returned `replayed=true` with NO duplicate event and NO state change
+> (idempotency confirmed). Smoke data deleted; session restored. Tables now
+> empty (0 events, 0 state rows) awaiting Sprint-2 writer cutover.
+
 ## 1. Repository & environment verification
 
 - Repo: `gameday-venue-os` at `~/Documents/gameday-venue-os` · remote `github.com/tvtechie09/gameday-os`
