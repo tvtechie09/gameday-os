@@ -286,6 +286,78 @@ export type Database = {
           },
         ];
       };
+      billing_accounts: {
+        Row: {
+          id: string;
+          organization_id: string;
+          plan_label: string;
+          amount_cents: number;
+          billing_interval: string;
+          status: string;
+          po_number: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          plan_label?: string;
+          amount_cents?: number;
+          billing_interval?: string;
+          status?: string;
+          po_number?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          plan_label?: string;
+          amount_cents?: number;
+          billing_interval?: string;
+          status?: string;
+          po_number?: string | null;
+          notes?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      billing_invoices: {
+        Row: {
+          id: string;
+          organization_id: string;
+          description: string;
+          amount_cents: number;
+          status: string;
+          issued_on: string;
+          due_on: string | null;
+          paid_on: string | null;
+          po_number: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          description: string;
+          amount_cents?: number;
+          status?: string;
+          issued_on?: string;
+          due_on?: string | null;
+          paid_on?: string | null;
+          po_number?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          description?: string;
+          amount_cents?: number;
+          status?: string;
+          issued_on?: string;
+          due_on?: string | null;
+          paid_on?: string | null;
+          po_number?: string | null;
+        };
+        Relationships: [];
+      };
       sponsor_campaigns: {
         Row: {
           id: string;

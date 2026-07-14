@@ -130,21 +130,29 @@ These are guardrails, not preferences.
 
 ---
 
-## Do not build billing (yet)
+## Billing: visibility yes, payment processing no
 
-There is a trap in "let's add subscriptions." Building our own billing means taking
-payments — which is *fine* and totally different from what we deleted (being
-merchant for our **own** product is normal SaaS; being merchant of record for
-**other people's** league fees was the liability). But we still should not build it:
+The distinction that matters: we built billing **visibility**, not billing
+**processing**.
 
-**Park districts and complexes pay by invoice and PO. Most of them literally cannot
-pay by card.**
+**Built (2026-07-14, live) — `/admin/billing`:** GameDay staff record what an
+org's plan is and issue invoices; the org owner sees their plan, monthly/annual
+amount, what's outstanding, and what they've paid. Billed by **invoice / PO** —
+no cards, no processor. It's the exact "track the money, never move it" posture we
+use for league fees. `billing_accounts` + `billing_invoices` (org-scoped), pure
+`summarizeBilling`, platform-staff write / org-owner read-only.
 
-For the first ~10 customers: **hand-invoice them.** Building subscription
-infrastructure for a customer count you can hold on one hand is one of the most
-common ways an early company wastes a quarter.
+**Deliberately NOT built — card/subscription processing.** Park districts and
+complexes pay by **invoice and PO**; most literally cannot pay by card. For the
+first ~10 customers we **hand-invoice** and record it here. Wiring up card
+subscriptions (which *would* be fine — being merchant for our **own** product is
+normal SaaS, unlike the league-fee merchant-of-record liability we deleted) is a
+later step, only once invoice volume actually justifies it. Building card
+infrastructure for a customer count you can hold on one hand wastes a quarter.
 
-`/admin/billing` remains a placeholder on purpose.
+Access model: **platform staff manage; the org owner (organization scope) views.**
+A venue-scoped GM does not see billing — it's an account-holder concern, not a
+per-venue one.
 
 ---
 

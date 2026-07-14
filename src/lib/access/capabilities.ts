@@ -105,6 +105,14 @@ export function canManageBilling(ctx: AccessContext | null): boolean {
   return hasPermission(ctx, "platform.billing.manage");
 }
 
+// Billing belongs to the ACCOUNT HOLDER, not day-to-day field ops. GameDay staff
+// MANAGE it; an organization-scoped owner may VIEW their own org's plan/invoices
+// read-only. A venue-scoped GM/director is deliberately excluded (their fixture
+// says "no billing") — billing is an org concern, not a per-venue one.
+export function canViewBilling(ctx: AccessContext | null): boolean {
+  return canManageBilling(ctx) || ctx?.scopeType === "organization" || isPlatformAdmin(ctx) || ctx?.scopeType === "platform";
+}
+
 export function canManageUsers(ctx: AccessContext | null): boolean {
   return hasPermission(ctx, "platform.users.manage");
 }
