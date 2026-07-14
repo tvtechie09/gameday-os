@@ -85,6 +85,7 @@ const adminNavGroups: AdminNavGroup[] = [
     label: "ENGAGEMENT",
     items: [
       { href: "/admin/sponsors", icon: HandHeart, label: "Sponsors" },
+      { href: "/admin/sponsors/campaigns", icon: HandHeart, label: "Sponsor Campaigns" },
       { href: "/admin/alerts", icon: Bell, label: "Alerts" },
       { href: "/admin/notifications", icon: Inbox, label: "Notifications" },
       { href: "/admin/volunteers", icon: Users, label: "Volunteers" },

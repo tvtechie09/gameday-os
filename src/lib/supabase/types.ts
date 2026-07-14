@@ -286,6 +286,58 @@ export type Database = {
           },
         ];
       };
+      sponsor_campaigns: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          sponsor_id: string;
+          venue_id: string | null;
+          name: string;
+          package_name: string | null;
+          starts_on: string;
+          ends_on: string;
+          contracted: Record<string, number>;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          sponsor_id: string;
+          venue_id?: string | null;
+          name: string;
+          package_name?: string | null;
+          starts_on: string;
+          ends_on: string;
+          contracted?: Record<string, number>;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          sponsor_id?: string;
+          venue_id?: string | null;
+          name?: string;
+          package_name?: string | null;
+          starts_on?: string;
+          ends_on?: string;
+          contracted?: Record<string, number>;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sponsor_campaigns_sponsor_id_fkey";
+            columns: ["sponsor_id"];
+            isOneToOne: false;
+            referencedRelation: "sponsors";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       session_officials: {
         Row: {
           id: string;

@@ -87,6 +87,9 @@ export default async function SponsorsPage({ searchParams }: SponsorsPageProps) 
             Create sponsor profiles and assign them to venues, fields, or live sessions for public field pages.
           </p>
         </div>
+        <Link href="/admin/sponsors/campaigns" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          Campaigns &amp; proof
+        </Link>
         <Link href="/admin/sponsors/report" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
           Fulfillment report
         </Link>
