@@ -4,6 +4,7 @@ import { getSessions } from "@/lib/services/sessions";
 import { getActiveAlerts } from "@/lib/services/alerts";
 import { getWorkOrders } from "@/lib/services/work-orders";
 import { venueInScope, type AccessContext } from "@/lib/access/capabilities";
+import { listGamesForVenue } from "@/lib/game-engine/game-service";
 import { computeQuickActionTargets, labelFor, type QuickActionTargets } from "@/lib/services/quick-action-targets";
 import type { Field, Venue } from "@/lib/types";
 
@@ -79,9 +80,10 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
   const fieldName = new Map(venueFields.map((field) => [field.id, field.name]));
   const now = Date.now();
 
-  const venueSessions = allSessions
-    .filter((session) => fieldIds.has(session.fieldId))
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  // First consumer of the Connected Game Engine read path: same data, served
+  // through the shared Game domain service (preloaded to keep the single
+  // parallel batch above).
+  const venueSessions = await listGamesForVenue(venue.id, { preloaded: { sessions: allSessions, fields: allFields } });
 
   const liveGames = venueSessions
     .filter((session) => session.status === "active")
