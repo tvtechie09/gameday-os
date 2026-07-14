@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { getSessionContext } from "@/lib/access/session";
 import { canDelayGame, canOpenCloseField, canSendAnnouncement, canStartGame, managesAllVenues, venueInScope, type AccessContext } from "@/lib/access/capabilities";
-import { getSession, setSessionStatus } from "@/lib/services/sessions";
 import { getFields, updateFieldStatus } from "@/lib/services/fields";
 import { getVenue } from "@/lib/services/venues";
 import { createAlert } from "@/lib/services/alerts";
+import { getGameById, recordGameStateChange } from "@/lib/game-engine/game-service";
+import { assertTransition } from "@/lib/game-engine/game-lifecycle";
+import { randomUUID } from "crypto";
 import type { FieldStatus } from "@/lib/types";
 
 export type QuickActionResult = { ok: boolean; message: string };
@@ -39,13 +41,30 @@ export async function startGameAction(sessionId: string): Promise<QuickActionRes
   if (!canStartGame(ctx)) return { ok: false, message: "You don't have permission to start games." };
   if (!sessionId) return { ok: false, message: "No game is ready to start." };
   try {
-    const session = await getSession(sessionId);
-    if (!session) return { ok: false, message: "That game no longer exists." };
-    if (!(await venueIdInScope(ctx, await venueIdForField(session.fieldId)))) return OUT_OF_SCOPE;
-    if (session.status === "active") return { ok: true, message: "Game is already live." };
-    await setSessionStatus(sessionId, "active");
+    const game = await getGameById(sessionId);
+    if (!game) return { ok: false, message: "That game no longer exists." };
+    if (!(await venueIdInScope(ctx, await venueIdForField(game.fieldId)))) return OUT_OF_SCOPE;
+    if (game.lifecycleStatus === "live") return { ok: true, message: "Game is already live." };
+    // Authorization already done above (canStartGame + venue scope), same as
+    // the scorekeeper's token+PIN authz. Verify the lifecycle transition is
+    // legal, then write through the Connected Game Engine: a game.started event
+    // + live state, with the RPC keeping the legacy session status in sync so
+    // existing surfaces are unchanged.
+    assertTransition(game.lifecycleStatus, "live");
+    await recordGameStateChange({
+      gameId: sessionId,
+      organizationId: game.organizationId ?? null,
+      sportType: game.sportType,
+      lifecycleStatus: "live",
+      eventType: "game.started",
+      actorType: "user",
+      actorId: ctx?.userId,
+      sourceType: "venue-app",
+      idempotencyKey: randomUUID(),
+      payload: { from: game.lifecycleStatus, to: "live" },
+    });
     revalidateToday();
-    return { ok: true, message: "Started " + (session.title || session.homeTeam + " vs " + session.awayTeam) + " — now live." };
+    return { ok: true, message: "Started " + (game.title || game.homeTeam + " vs " + game.awayTeam) + " — now live." };
   } catch {
     return { ok: false, message: "Could not start the game. Try again." };
   }
