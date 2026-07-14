@@ -2,9 +2,13 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { getWritableOrganizationId } from "../organization-scope";
 import { listGamesForVenue } from "@/lib/game-engine/game-service";
 import { labelFor } from "@/lib/services/quick-action-targets";
-import { getSponsor } from "@/lib/services/sponsors";
+import { getSponsor, getSponsors, getSponsorAssignments } from "@/lib/services/sponsors";
 import { getSponsorAnalyticsForSponsor } from "@/lib/services/sponsor-analytics";
 import { getVenues } from "@/lib/services/venues";
+import { getFields } from "@/lib/services/fields";
+import { getSessions } from "@/lib/services/sessions";
+import { getVenueAssets } from "@/lib/services/venue-assets";
+import { computeRevenueOpportunities, type RevenueOpportunity } from "@/lib/services/sponsor-opportunities-core";
 import {
   buildProofOfPerformance,
   isSponsorAssetType,
@@ -185,6 +189,21 @@ export async function getCampaignProof(id: string): Promise<CampaignProof | null
   });
 
   return { campaign, sponsorName: sponsor?.name ?? "Sponsor", venueName, proof };
+}
+
+// Revenue opportunities across the org: unsold field/game sponsorships, sponsors
+// with no campaign (upsell leads), and idle display surfaces. Read-only.
+export async function getRevenueOpportunities(): Promise<RevenueOpportunity[]> {
+  const [fields, sessions, assignments, sponsors, campaigns, assets] = await Promise.all([
+    getFields().catch(() => []),
+    getSessions().catch(() => []),
+    getSponsorAssignments().catch(() => []),
+    getSponsors().catch(() => []),
+    getSponsorCampaigns().catch(() => []),
+    getVenueAssets().catch(() => []),
+  ]);
+  const upcomingGames = sessions.filter((s) => s.status !== "final").map((s) => ({ id: s.id }));
+  return computeRevenueOpportunities({ fields, upcomingGames, assignments, sponsors, campaigns, assets });
 }
 
 async function loadLifecycleTimestamps(gameIds: string[]): Promise<Map<string, { startedAt: string | null; finalAt: string | null }>> {

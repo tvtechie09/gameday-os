@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSponsors } from "@/lib/services/sponsors";
 import { getVenues } from "@/lib/services/venues";
-import { getSponsorCampaigns } from "@/lib/services/sponsor-campaigns";
+import { getSponsorCampaigns, getRevenueOpportunities } from "@/lib/services/sponsor-campaigns";
 import { CampaignForm } from "./campaign-form";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +17,18 @@ function dateRange(startsOn: string, endsOn: string): string {
 
 export default async function SponsorCampaignsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
-  const [sponsors, venues, campaigns] = await Promise.all([
+  const [sponsors, venues, campaigns, opportunities] = await Promise.all([
     getSponsors().catch(() => []),
     getVenues().catch(() => []),
     getSponsorCampaigns().catch(() => []),
+    getRevenueOpportunities().catch(() => []),
   ]);
   const sponsorName = new Map(sponsors.map((s) => [s.id, s.name]));
+  const oppTone: Record<string, string> = {
+    high: "border-red-300 bg-red-50 text-red-900",
+    medium: "border-amber-300 bg-amber-50 text-amber-950",
+    low: "border-[var(--line)] bg-white text-[var(--foreground)]",
+  };
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
@@ -46,7 +52,24 @@ export default async function SponsorCampaignsPage({ searchParams }: { searchPar
         </p>
       ) : null}
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+      <section className="mt-6">
+        <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Revenue opportunities</h2>
+        {opportunities.length === 0 ? (
+          <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">Inventory looks well sold — no obvious gaps right now.</p>
+        ) : (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {opportunities.map((o) => (
+              <Link key={o.key} href={o.href} className={`rounded-xl border p-4 shadow-sm transition hover:brightness-[0.98] ${oppTone[o.severity]}`}>
+                <p className="text-3xl font-black leading-none">{o.count}</p>
+                <p className="mt-2 text-sm font-black leading-snug">{o.title}</p>
+                <p className="mt-1 text-xs font-semibold opacity-80">{o.detail}</p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-start">
         <div>
           <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">New campaign</h2>
           {sponsors.length === 0 ? (
