@@ -14,5 +14,5 @@ export default async function VenueCommandCenterAliasPage({ searchParams }: Venu
     params.set("venueId", resolvedSearchParams.venueId);
   }
 
-  redirect(`/admin/operations-center${params.size > 0 ? `?${params.toString()}` : ""}`);
+  redirect(`/admin/command-center${params.size > 0 ? `?${params.toString()}` : ""}`);
 }

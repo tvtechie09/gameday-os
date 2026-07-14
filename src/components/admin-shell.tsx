@@ -21,6 +21,7 @@ import {
   Menu,
   Plus,
   QrCode,
+  Radar,
   Radio,
   Search,
   ShieldCheck,
@@ -67,6 +68,7 @@ const adminNavGroups: AdminNavGroup[] = [
   {
     label: "VENUE OPERATIONS",
     items: [
+      { href: "/admin/command-center", icon: Radar, label: "Command Center" },
       { href: "/admin/operations-center", icon: Gauge, label: "Operations Center" },
       { href: "/admin/venues", icon: MapPin, label: "Venues" },
       { href: "/admin/fields", icon: QrCode, label: "Fields & Surfaces" },
@@ -127,6 +129,7 @@ const quickActions = [
 ];
 
 const pinnedNavItems: AdminNavItem[] = [
+  { href: "/admin/command-center", icon: Radar, label: "Command Center" },
   { href: "/admin/pilot-launch", icon: ClipboardCheck, label: "Pilot Launch" },
   { href: "/admin/operations-center", icon: Gauge, label: "Operations Center" },
   { href: "/admin/game-day", icon: Activity, label: "Game Day Center" },
