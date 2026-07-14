@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildAttentionQueue,
   buildFieldBoard,
+  buildModeChecklist,
   chicagoDateString,
   minutesBehind,
   resolveMode,
@@ -172,6 +173,86 @@ test("summarize: counts games, delays, flagged fields, and systems", () => {
   assert.equal(s.systemsOffline, 1);
   assert.equal(s.systemsTotal, 2);
   assert.equal(s.weatherRisk, "clear");
+});
+
+// ---- buildModeChecklist ----------------------------------------------------
+
+const asset = (id: string, type: string, status = "healthy"): VenueAsset =>
+  ({ id, venueId: "V1", assetName: id, assetType: type, assetCategory: type === "scoreboard" ? "scoreboards" : type === "camera" ? "video" : "audio", status } as unknown as VenueAsset);
+
+test("buildModeChecklist: pre-game readiness auto-checks clear fields, online devices, staffing, weather", () => {
+  const cl = buildModeChecklist({
+    mode: "pregame",
+    now: NOW,
+    fields: [field("F1", "F1", "open")],
+    games: [game({ id: "g1", status: "scheduled", startTime: minsAhead(60) })],
+    officials: [official("g1", "confirmed")],
+    assets: [asset("sb1", "scoreboard"), asset("cam1", "camera"), asset("spk1", "speaker")],
+    weather: { risk: "clear", reasons: [] },
+    workOrders: [],
+  });
+  assert.equal(cl.title, "Pre-game readiness");
+  const byKey = new Map(cl.items.map((i) => [i.key, i]));
+  assert.equal(byKey.get("fields_inspected")?.status, "ready");
+  assert.equal(byKey.get("scoreboards_online")?.status, "ready");
+  assert.equal(byKey.get("officials_assigned")?.status, "ready");
+  assert.equal(byKey.get("weather_reviewed")?.status, "ready");
+  assert.equal(byKey.get("gates_opened")?.status, "manual");
+  assert.ok(cl.readyCount >= 4 && cl.autoCount >= 5);
+});
+
+test("buildModeChecklist: pre-game surfaces gaps as todo (flagged field, offline scoreboard, unconfirmed official)", () => {
+  const cl = buildModeChecklist({
+    mode: "pregame",
+    now: NOW,
+    fields: [field("F1", "F1", "maintenance")],
+    games: [game({ id: "g1", status: "scheduled", startTime: minsAhead(60) })],
+    officials: [],
+    assets: [asset("sb1", "scoreboard", "offline")],
+    weather: null,
+    workOrders: [],
+  });
+  const byKey = new Map(cl.items.map((i) => [i.key, i]));
+  assert.equal(byKey.get("fields_inspected")?.status, "todo");
+  assert.equal(byKey.get("scoreboards_online")?.status, "todo");
+  assert.equal(byKey.get("officials_assigned")?.status, "todo");
+  assert.equal(byKey.get("weather_reviewed")?.status, "manual"); // no weather signal
+  assert.equal(byKey.get("cameras_online")?.status, "manual"); // none registered
+});
+
+test("buildModeChecklist: end-of-day closing marks games completed when all final", () => {
+  const cl = buildModeChecklist({
+    mode: "postgame",
+    now: NOW,
+    fields: [field("F1", "F1", "open")],
+    games: [game({ id: "g1", status: "final" }), game({ id: "g2", status: "final" })],
+    officials: [],
+    assets: [],
+    weather: null,
+    workOrders: [{ id: "w1", fieldId: "F1", title: "x", detail: null, priority: "low", status: "open", closedAt: null } as unknown as WorkOrder],
+  });
+  assert.equal(cl.title, "End-of-day closing");
+  const byKey = new Map(cl.items.map((i) => [i.key, i]));
+  assert.equal(byKey.get("games_completed")?.status, "ready");
+  assert.equal(byKey.get("maintenance_created")?.status, "ready"); // an open work order exists
+  assert.equal(byKey.get("cash_closeout")?.status, "manual");
+});
+
+test("buildModeChecklist: live ops flags schedule when a game runs behind", () => {
+  const cl = buildModeChecklist({
+    mode: "live",
+    now: NOW,
+    fields: [field("F1", "F1", "open")],
+    games: [game({ id: "g1", status: "active", lifecycleStatus: "live", startTime: minsAgo(200), endTime: minsAgo(45) })],
+    officials: [],
+    assets: [asset("sb1", "scoreboard")],
+    weather: null,
+    workOrders: [],
+  });
+  assert.equal(cl.title, "Live operations");
+  const byKey = new Map(cl.items.map((i) => [i.key, i]));
+  assert.equal(byKey.get("schedule_on_track")?.status, "todo");
+  assert.equal(byKey.get("scoreboards_live")?.status, "ready");
 });
 
 // ---- chicagoDateString -----------------------------------------------------

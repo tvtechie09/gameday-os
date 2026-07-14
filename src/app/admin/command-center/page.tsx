@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
 import { buildCommandCenter, type AttentionItem, type AttentionTier, type CommandCenterMode, type FieldBoardEntry } from "@/lib/services/command-center";
 import { LiveScore } from "@/app/fields/[fieldId]/live-score";
+import { ModeChecklistCard } from "./mode-checklist";
 
 export const dynamic = "force-dynamic";
 
@@ -151,6 +152,10 @@ export default async function CommandCenterPage() {
         <SummaryTile label="Officials open" value={s.officialsUnconfirmed} tone={s.officialsUnconfirmed > 0 ? "text-amber-700" : undefined} />
         <SummaryTile label="Systems" value={s.systemsTotal === 0 ? "OK" : `${s.systemsTotal - s.systemsOffline}/${s.systemsTotal}`} tone={s.systemsOffline > 0 ? "text-red-700" : "text-emerald-600"} />
       </section>
+
+      <div className="mt-7">
+        <ModeChecklistCard checklist={view.checklist} />
+      </div>
 
       <section className="mt-7">
         <div className="flex items-center justify-between">

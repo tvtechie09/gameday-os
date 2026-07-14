@@ -11,6 +11,7 @@ import type { Field, Session, VenueAsset } from "@/lib/types";
 import {
   buildAttentionQueue,
   buildFieldBoard,
+  buildModeChecklist,
   chicagoDateString,
   resolveMode,
   summarize,
@@ -18,6 +19,7 @@ import {
   type CommandCenterSummary,
   type AttentionItem,
   type FieldBoardEntry,
+  type ModeChecklist,
   type WeatherSnapshot,
 } from "@/lib/services/command-center-core";
 
@@ -40,6 +42,7 @@ export type CommandCenterView = {
   summary: CommandCenterSummary;
   fields: FieldBoardEntry[];
   attention: AttentionItem[];
+  checklist: ModeChecklist;
   weather: WeatherSnapshot;
 };
 
@@ -57,7 +60,17 @@ const EMPTY_SUMMARY: CommandCenterSummary = {
 export async function buildCommandCenter(ctx: AccessContext | null): Promise<CommandCenterView> {
   const venue = await resolveActingVenue(ctx);
   if (!venue) {
-    return { venueId: null, venueName: null, mode: "pregame", generatedAt: new Date().toISOString(), summary: EMPTY_SUMMARY, fields: [], attention: [], weather: null };
+    return {
+      venueId: null,
+      venueName: null,
+      mode: "pregame",
+      generatedAt: new Date().toISOString(),
+      summary: EMPTY_SUMMARY,
+      fields: [],
+      attention: [],
+      checklist: buildModeChecklist({ mode: "pregame", fields: [], games: [], officials: [], assets: [], weather: null, workOrders: [], now: Date.now() }),
+      weather: null,
+    };
   }
 
   const now = Date.now();
@@ -79,15 +92,17 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
   const weather: WeatherSnapshot = storm ? { risk: storm.risk, reasons: storm.reasons } : null;
   const venueWorkOrders = workOrders.filter((o) => fieldIds.has(o.fieldId));
   const venueAssets = assets.filter((a) => a.venueId === venue.id);
+  const mode = resolveMode(games, now);
 
   return {
     venueId: venue.id,
     venueName: venue.name,
-    mode: resolveMode(games, now),
+    mode,
     generatedAt: new Date(now).toISOString(),
     summary: summarize({ games, fields: venueFields, officials, assets: venueAssets, weather, now }),
     fields: buildFieldBoard(venueFields, games, officials, now),
     attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, weather, now }),
+    checklist: buildModeChecklist({ mode, fields: venueFields, games, officials, assets: venueAssets, weather, workOrders: venueWorkOrders, now }),
     weather,
   };
 }
