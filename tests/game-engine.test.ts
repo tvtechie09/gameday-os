@@ -97,7 +97,7 @@ test("normalizeEventInput fills defaults without clobbering provided values", ()
 const migration = readFileSync(new URL("../supabase/migrations/20260713040000_connected_game_engine.sql", import.meta.url), "utf8");
 
 test("migration enforces RLS on both new tables", () => {
-  assert.ok(migration.includes("alter table public.game_states enable row level security"));
+  assert.ok(migration.includes("alter table public.game_live_state enable row level security"));
   assert.ok(migration.includes("alter table public.game_events enable row level security"));
 });
 

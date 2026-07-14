@@ -2403,7 +2403,7 @@ export type Database = {
           },
         ];
       };
-      game_states: {
+      game_live_state: {
         Row: {
           game_id: string;
           organization_id: string | null;
@@ -2443,7 +2443,7 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "game_states_game_id_fkey";
+            foreignKeyName: "game_live_state_game_id_fkey";
             columns: ["game_id"];
             isOneToOne: true;
             referencedRelation: "sessions";

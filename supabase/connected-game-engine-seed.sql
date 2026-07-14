@@ -50,7 +50,7 @@ where seed.field_id is not null
 on conflict (id) do nothing;
 
 -- Current state + a small event history for the delayed and final games.
-insert into game_states (game_id, sport_type, score_home, score_away, state, version)
+insert into game_live_state (game_id, sport_type, score_home, score_away, state, version)
 values
   ('ce000000-0000-4000-a000-000000000003', 'baseball', 2, 1, '{"inning": 3, "half": "top", "outs": 1}'::jsonb, 3),
   ('ce000000-0000-4000-a000-000000000004', 'baseball', 6, 4, '{"inning": 6, "half": "bottom", "outs": 3}'::jsonb, 9)

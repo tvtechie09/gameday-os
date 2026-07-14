@@ -22,7 +22,7 @@ directly to whichever surface it met first, multiplying N×M connections.
    both applications use; a parallel `games` table would create the competing
    platform layer this program forbids.
 2. **Three-layer model.** Canonical identity/schedule (`sessions` + constrained
-   `lifecycle_status`), current mutable state (`game_states`, sport-extensible
+   `lifecycle_status`), current mutable state (`game_live_state`, sport-extensible
    JSONB with universal score columns and optimistic `version`), and immutable
    history (`game_events`, append-only, tenant-aware, idempotent).
 3. **Everything connects through the engine.** Devices, integrations,

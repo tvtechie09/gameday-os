@@ -21,6 +21,7 @@ Game Engine's additive tables fix.
 | `session_events` | Thin append log (`session_id`, `event_type`, `event_message`, `created_at`). Types: session_created, score_update, game_started, game_final, operations_update, scoreboard_update, resource_activated, alert_created, sponsor_clicked. | No tenant id, actor, source, payload, idempotency, or correlation. Human-readable message only; can't drive automations/AI. Check constraint drifted from TS once already (fixed 2026-07-13 migration). |
 | `session_officials` | Officials assigned to a game (name/email/phone, tokenized confirm). | Healthy; references sessions. |
 | `scoreboards` | **Orphan.** App uses `scoreboard_profiles`; RLS enabled 2026-07-13 (deny-all). | Do not build on it. Candidate for later removal (not this sprint). |
+| `game_states` (pre-existing) | **Orphan (DB drift).** 0 rows, referenced by NO code in either repo, absent from repo migration history. A baseball batting-order scoreboard prototype keyed on `profile_id` (`current_batter_id`, `batting_order_ids`, `sponsor_rotation`…). Discovered during migration review. | Name collision: the engine's current-state table is therefore named `game_live_state`. Sprint-2 cleanup: RLS + drop this orphan. |
 | `scoreboard_profiles`, `scoreboard_adapters` | Device/adapter config per field. | Device layer, not game truth. |
 | `fields`, `play_surfaces`, `venues`, `venue_zones` | Location hierarchy games attach to. | Healthy. |
 | `field_bookings` | Reservations (non-game schedule items) with conflict checks vs sessions. | Reads sessions for conflicts. |
@@ -88,7 +89,7 @@ Team: family dashboard venue cards, league hub, calendars.
 ## Recommended canonical source of truth
 
 `sessions` (extended) = **canonical Game identity + schedule**.
-New `game_states` = current mutable, sport-extensible live state (JSONB payload).
+New `game_live_state` = current mutable, sport-extensible live state (JSONB payload).
 New `game_events` = append-only, tenant-aware, idempotent event ledger.
 Existing baseball columns on `sessions` remain as a legacy projection kept in
 sync by the Game domain service until consumers migrate (Sprint 2+).

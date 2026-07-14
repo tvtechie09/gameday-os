@@ -3,8 +3,16 @@
 -- (migration safety section) before applying. Additive only: no drops, no renames.
 --
 -- Layer 1: sessions = canonical Game (extended with a constrained lifecycle).
--- Layer 2: game_states = current mutable, sport-extensible live state.
+-- Layer 2: game_live_state = current mutable, sport-extensible live state.
 -- Layer 3: game_events = append-only, tenant-aware, idempotent event ledger.
+--
+-- NOTE (migration review, 2026-07-13): a pre-existing orphan table named
+-- `game_states` was found in the DB — 0 rows, referenced by NO code in either
+-- repo, absent from repo migration history (drift; a baseball batting-order
+-- scoreboard prototype keyed on profile_id). Per this sprint's rules we do not
+-- drop/rename it here, so the engine's current-state table is deliberately
+-- named `game_live_state` to avoid the collision. Cleaning up the orphan
+-- `game_states` (RLS + drop) is a documented Sprint-2 follow-up.
 
 -- ---------------------------------------------------------------------------
 -- 1) Canonical Game: constrained lifecycle on sessions (additive column;
@@ -38,7 +46,7 @@ create unique index if not exists sessions_external_source_unique
 
 -- ---------------------------------------------------------------------------
 -- 2) Current mutable game state (one row per game; sport-extensible).
-create table if not exists public.game_states (
+create table if not exists public.game_live_state (
   game_id uuid primary key references public.sessions (id) on delete cascade,
   organization_id uuid,
   sport_type text not null default 'baseball',
@@ -55,13 +63,13 @@ create table if not exists public.game_states (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists game_states_org_idx on public.game_states (organization_id);
+create index if not exists game_live_state_org_idx on public.game_live_state (organization_id);
 
-alter table public.game_states enable row level security;
+alter table public.game_live_state enable row level security;
 -- Scores are public product surface (QR field pages, scoreboards) — match the
 -- sessions public-read posture. Writes: service role only (no policies).
-drop policy if exists game_states_public_read on public.game_states;
-create policy game_states_public_read on public.game_states
+drop policy if exists game_live_state_public_read on public.game_live_state;
+create policy game_live_state_public_read on public.game_live_state
   for select using (true);
 
 -- ---------------------------------------------------------------------------
@@ -140,28 +148,28 @@ begin
       from game_events
       where game_id = p_game_id and idempotency_key = p_idempotency_key;
     if v_existing_event is not null then
-      select version into v_version from game_states where game_id = p_game_id;
+      select version into v_version from game_live_state where game_id = p_game_id;
       return query select true, true, coalesce(v_version, 1);
       return;
     end if;
   end if;
 
   -- Upsert current state with optimistic concurrency.
-  insert into game_states (game_id, organization_id, sport_type, score_home, score_away, state, version, updated_by_actor_type, updated_by_actor_id, updated_at)
+  insert into game_live_state (game_id, organization_id, sport_type, score_home, score_away, state, version, updated_by_actor_type, updated_by_actor_id, updated_at)
   values (p_game_id, p_organization_id, p_sport_type, coalesce(p_score_home, 0), coalesce(p_score_away, 0), coalesce(p_state, '{}'::jsonb), 1, p_actor_type, p_actor_id, now())
   on conflict (game_id) do update set
-    score_home = coalesce(p_score_home, game_states.score_home),
-    score_away = coalesce(p_score_away, game_states.score_away),
-    state = game_states.state || coalesce(p_state, '{}'::jsonb),
-    version = game_states.version + 1,
+    score_home = coalesce(p_score_home, game_live_state.score_home),
+    score_away = coalesce(p_score_away, game_live_state.score_away),
+    state = game_live_state.state || coalesce(p_state, '{}'::jsonb),
+    version = game_live_state.version + 1,
     updated_by_actor_type = p_actor_type,
     updated_by_actor_id = p_actor_id,
     updated_at = now()
-  where p_expected_version is null or game_states.version = p_expected_version;
+  where p_expected_version is null or game_live_state.version = p_expected_version;
 
   if not found then
     -- Insert path always "finds"; reaching here means version conflict.
-    return query select false, false, (select version from game_states where game_id = p_game_id);
+    return query select false, false, (select version from game_live_state where game_id = p_game_id);
     return;
   end if;
 
@@ -183,7 +191,7 @@ begin
   insert into game_events (organization_id, game_id, event_type, event_version, occurred_at, actor_type, actor_id, source_type, source_id, correlation_id, causation_id, idempotency_key, payload, metadata)
   values (p_organization_id, p_game_id, p_event_type, coalesce(p_event_version, 1), coalesce(p_occurred_at, now()), coalesce(p_actor_type, 'system'), p_actor_id, coalesce(p_source_type, 'venue-app'), p_source_id, p_correlation_id, p_causation_id, p_idempotency_key, coalesce(p_payload, '{}'::jsonb), coalesce(p_metadata, '{}'::jsonb));
 
-  select version into v_version from game_states where game_id = p_game_id;
+  select version into v_version from game_live_state where game_id = p_game_id;
   return query select true, false, v_version;
 end;
 $$;

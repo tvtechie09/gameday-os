@@ -39,7 +39,7 @@ graceful degradation until the migration is applied.
 - `src/lib/game-engine/game-lifecycle.ts` (new, pure)
 - `src/lib/game-engine/game-events.ts` (new, pure)
 - `src/lib/game-engine/game-service.ts` (new — reads + controlled write path)
-- `src/lib/supabase/types.ts` (additive: game_states/game_events/RPC types)
+- `src/lib/supabase/types.ts` (additive: game_live_state/game_events/RPC types)
 - `src/lib/services/venue-operations.ts` (first read-path consumer: `/today` game list served via `listGamesForVenue`, single-batch load preserved)
 - `tests/game-engine.test.ts` (new, 13 tests)
 - `docs/reports/connected-game-engine-sprint-1.md` (this file)
@@ -48,22 +48,31 @@ graceful degradation until the migration is applied.
 
 1. **Filename:** `supabase/migrations/20260713040000_connected_game_engine.sql`
 2. **Adds:** `sessions.lifecycle_status` (text, default `'scheduled'`, CHECK on
-   12 values, backfilled from legacy status); tables `game_states`,
+   12 values, backfilled from legacy status); tables `game_live_state`,
    `game_events`; function `game_engine_apply`
-3. **RLS:** enabled on both new tables; `game_states` public SELECT (matches
+3. **RLS:** enabled on both new tables; `game_live_state` public SELECT (matches
    sessions' public QR posture — scores are public product surface);
    `game_events` NO policies (service-role only); RPC revoked from
    public/anon/authenticated
 4. **Indexes/constraints:** `game_events_idempotency_unique (game_id, idempotency_key)`;
    `game_events_game_time_idx`, `game_events_org_time_idx`, `game_events_type_idx`;
-   `game_states_org_idx`; partial unique `sessions_external_source_unique
+   `game_live_state_org_idx`; partial unique `sessions_external_source_unique
    (external_source, external_source_id)`; FK cascade from both tables to sessions
 5. **Backfill:** lifecycle_status backfilled in-migration from `game_status`/`status`.
-   No other backfill required (game_states/game_events start empty; legacy
+   No other backfill required (game_live_state/game_events start empty; legacy
    columns remain authoritative until Sprint 2 cutover)
-6. **Compatibility impact:** additive only; zero existing query changes. One
-   pre-check required: `sessions_external_source_unique` will FAIL if duplicate
-   `(external_source, external_source_id)` pairs exist. **Run before applying:**
+   **Migration-review finding (2026-07-13):** an orphan `game_states` table
+   already existed in the DB (0 rows, no code refs, DB drift — a batting-order
+   scoreboard prototype). To honor "no rename/drop of existing tables," the
+   engine's current-state table was renamed `game_states → game_live_state`.
+   Orphan `game_states` cleanup (RLS + drop) is a Sprint-2 item.
+6. **Compatibility impact:** additive only; zero existing query changes.
+   **Live pre-checks run against production (read-only, 2026-07-13):**
+   duplicate `(external_source, external_source_id)` pairs = **0** (index safe);
+   `game_events`/`lifecycle_status`/`game_engine_apply` do **not** exist
+   (no collision); `game_live_state` does not exist. One pre-check remains
+   mandatory at apply time in case new rows land between now and then —
+   `sessions_external_source_unique` will FAIL if duplicate pairs exist:
    ```sql
    select external_source, external_source_id, count(*) from sessions
    where external_source is not null and external_source_id is not null
@@ -74,7 +83,7 @@ graceful degradation until the migration is applied.
    ```sql
    drop function if exists public.game_engine_apply;
    drop table if exists public.game_events;
-   drop table if exists public.game_states;
+   drop table if exists public.game_live_state;
    alter table public.sessions drop constraint if exists sessions_lifecycle_status_check;
    alter table public.sessions drop column if exists lifecycle_status;
    drop index if exists sessions_external_source_unique;
@@ -85,9 +94,9 @@ graceful degradation until the migration is applied.
    ```sql
    select count(*) from sessions where lifecycle_status not in
      ('draft','scheduled','check_in','warmup','ready','live','delayed','suspended','postponed','cancelled','final','archived'); -- 0
-   select relrowsecurity from pg_class where relname in ('game_states','game_events'); -- t, t
+   select relrowsecurity from pg_class where relname in ('game_live_state','game_events'); -- t, t
    select count(*) from pg_policies where tablename = 'game_events'; -- 0
-   select count(*) from pg_policies where tablename = 'game_states'; -- 1
+   select count(*) from pg_policies where tablename = 'game_live_state'; -- 1
    select proname from pg_proc where proname = 'game_engine_apply'; -- 1 row
    select lifecycle_status, status, count(*) from sessions group by 1,2 order by 3 desc; -- sanity: mapping
    ```
@@ -117,7 +126,7 @@ graceful degradation until the migration is applied.
 - RPC is SECURITY DEFINER → revoked from all client roles; service-role only.
 - `organization_id` remains nullable on legacy sessions rows; engine writes
   populate it. Backfill decision open (below).
-- Dual-write window (legacy columns + game_states) is inside one RPC
+- Dual-write window (legacy columns + game_live_state) is inside one RPC
   transaction — projections cannot diverge.
 
 ## 8. Unresolved questions
@@ -131,6 +140,8 @@ graceful degradation until the migration is applied.
 
 ## 9. Recommended Sprint 2
 
+0. Clean up the orphan `game_states` table (enable RLS, then drop) — same
+   treatment the orphan `scoreboards` table got; it's DB drift with no owner.
 1. Kyle reviews + applies the migration to staging → run verification SQL →
    apply seed → verify → apply to production.
 2. Cut the scorekeeper write path (`/api/score/[token]`) over to
@@ -139,7 +150,7 @@ graceful degradation until the migration is applied.
 3. Route Today quick actions' Start/Delay through `transitionGameLifecycle`.
 4. Daktronics readings route becomes the first device adapter.
 5. Supabase Realtime channel on `game_events` inserts → live field pages.
-6. Team-app `getLinkedVenueGames` reads `game_states` for scores.
+6. Team-app `getLinkedVenueGames` reads `game_live_state` for scores.
 
 ## 10. Deployment sequence (when approved)
 

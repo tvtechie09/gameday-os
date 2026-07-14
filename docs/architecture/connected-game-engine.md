@@ -24,7 +24,7 @@ write through. Integrations connect to the Game Engine, never to each other.
 | Concern | Owner |
 | --- | --- |
 | Game identity, schedule, lifecycle | Game Engine (`sessions` extended) |
-| Current live state (per sport) | Game Engine (`game_states`) |
+| Current live state (per sport) | Game Engine (`game_live_state`) |
 | History | Game Engine (`game_events`, append-only) |
 | Location (venue/field/surface) | Venue domain (existing) |
 | Competition (tournament/league/season) | Tournament domain (existing) + team app season links (`gdt_*`) |
@@ -47,14 +47,14 @@ Organization (tenant)
 required core: stable UUID `id`; human code (derivable; `scorekeeper_token`
 already serves as a capability code); tenant `organization_id`; `sport_type`;
 competition type (`tournament_id` presence / new `competition_type` deferred —
-representable in `game_states.state.meta` until a real second value exists);
+representable in `game_live_state.state.meta` until a real second value exists);
 source system `external_source` + `external_source_id` (+ unique mapping);
 `created_at`/`updated_at`; venue via `field_id → fields.venue_id`;
 `play_surface_id`; `tournament_id`; league/season via `gdt_*_team_season_id`;
 home/away participants (free-text names + verified team-season links);
 officials via `session_officials`; schedule via `start_time`/`end_time`
 (timezone: stored UTC, venue-local presentation — venues carry region);
-sequence/round via `game_states.state.meta.round` until first real consumer.
+sequence/round via `game_live_state.state.meta.round` until first real consumer.
 **Added this sprint:** `lifecycle_status` (constrained).
 
 ## Lifecycle state machine
@@ -85,7 +85,7 @@ ready|delayed|postponed → status "scheduled"`, `live|suspended → "active"`,
 ## Game vs Game State vs Game Event
 
 1. **Game** (`sessions`): who/where/when/what sport — slowly changing.
-2. **GameState** (`game_states`): one row per game; current mutable snapshot;
+2. **GameState** (`game_live_state`): one row per game; current mutable snapshot;
    `version` (monotonic, optimistic concurrency); `score_home`/`score_away`
    promoted as first-class columns (universal across sports); everything else
    in `state jsonb` keyed by sport (`period`, `inning`, `half`, `quarter`,
@@ -122,7 +122,7 @@ path returns the existing outcome (at-least-once safe).
 ## Tenant & authorization boundaries
 
 - Every new row carries `organization_id`; RLS: service-role writes only
-  (deny anon/authenticated writes); reads: `game_states` public-read to match
+  (deny anon/authenticated writes); reads: `game_live_state` public-read to match
   the sessions public QR surface (scores are public by product design);
   `game_events` **not** public (may carry actor/device detail) — service-role
   only this sprint, selective projections later.
@@ -163,7 +163,7 @@ the ledger *is* the audit log. Sprint 2: counts/lag dashboards over
 ## Future adapter interfaces (design targets, not built)
 
 - **Device adapter:** `pushReading(gameId, reading, {actor, idempotencyKey})`
-  → engine validates lifecycle, updates `game_states`, appends `score.changed`/
+  → engine validates lifecycle, updates `game_live_state`, appends `score.changed`/
   `period.changed`. Daktronics readings route becomes the first adapter.
 - **Integration adapter:** `upsertScheduledGame(externalRef, payload)` (exists
   as Schedule Push) + `emit(event)` outbound from the ledger.
@@ -172,7 +172,7 @@ the ledger *is* the audit log. Sprint 2: counts/lag dashboards over
 
 ## Risks & open questions
 
-- Dual-write window (legacy columns + game_states) — mitigated: single write
+- Dual-write window (legacy columns + game_live_state) — mitigated: single write
   path in the domain service does both transactionally (RPC).
 - `organization_id` nullable on legacy sessions rows — backfill decision
   deferred; engine writes require it going forward.

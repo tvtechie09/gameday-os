@@ -16,7 +16,7 @@ import { normalizeEventInput, type GameEventInput, type GameEventRecord } from "
 // Connected Game Engine — shared Game domain service (Sprint 1 slice).
 //
 // Reads are served today from the canonical sessions table (the Game record);
-// game_states / game_events are consulted with graceful degradation until the
+// game_live_state / game_events are consulted with graceful degradation until the
 // 20260713040000 migration is applied (generated, not applied — see the ADR).
 // The single controlled write path validates authorization, checks lifecycle
 // legality, then applies state + event transactionally via the
@@ -35,7 +35,7 @@ export type GameStateRecord = {
   state: Record<string, unknown>;
   version: number;
   updatedAt: string;
-  // True when served from game_states; false when projected from the legacy
+  // True when served from game_live_state; false when projected from the legacy
   // baseball columns on sessions (pre-migration fallback).
   fromEngine: boolean;
 };
@@ -45,7 +45,7 @@ function isMissingEngineSchema(error: { code?: string; message?: string } | null
   return error.code === "PGRST205"
     || error.code === "42P01"
     || error.code === "42883"
-    || (error.message ?? "").includes("game_states")
+    || (error.message ?? "").includes("game_live_state")
     || (error.message ?? "").includes("game_events")
     || (error.message ?? "").includes("game_engine_apply")
     || (error.message ?? "").includes("schema cache");
@@ -109,7 +109,7 @@ export async function listGamesByTeamSeason(gdtTeamSeasonId: string): Promise<Ga
 export async function getCurrentGameState(gameId: string): Promise<GameStateRecord | null> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
-    .from("game_states")
+    .from("game_live_state")
     .select("game_id,organization_id,sport_type,score_home,score_away,state,version,updated_at")
     .eq("game_id", gameId)
     .maybeSingle();
