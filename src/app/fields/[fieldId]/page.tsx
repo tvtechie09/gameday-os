@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { LiveScore } from "./live-score";
 import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
@@ -563,9 +564,13 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                         <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Home</p>
                         <p className="mt-1 text-2xl font-black leading-tight sm:truncate">{currentSession.homeTeam}</p>
                       </div>
-                      <p className="rounded-xl bg-[var(--black-soft)] px-4 py-5 text-center text-7xl font-black leading-none text-white shadow-sm sm:min-w-36 sm:px-5" style={currentSessionBadge === "LIVE NOW" ? undefined : accentButtonStyle}>
-                        {currentSession.homeScore}-{currentSession.awayScore}
-                      </p>
+                      <LiveScore
+                        gameId={currentSession.id}
+                        initialHome={currentSession.homeScore}
+                        initialAway={currentSession.awayScore}
+                        className="rounded-xl bg-[var(--black-soft)] px-4 py-5 text-center text-7xl font-black leading-none text-white shadow-sm sm:min-w-36 sm:px-5"
+                        style={currentSessionBadge === "LIVE NOW" ? undefined : accentButtonStyle}
+                      />
                       <div className="min-w-0 rounded-lg bg-[var(--background)] p-3 sm:bg-transparent sm:p-0 sm:text-right">
                         <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Away</p>
                         <p className="mt-1 text-2xl font-black leading-tight sm:truncate">{currentSession.awayTeam}</p>
