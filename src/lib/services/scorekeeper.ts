@@ -1,5 +1,8 @@
 import { randomBytes, randomInt, timingSafeEqual } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { recordGameStateChange } from "@/lib/game-engine/game-service";
+import { lifecycleFromLegacy } from "@/lib/game-engine/game-lifecycle";
+import { scorekeeperIdempotencyKey } from "@/lib/game-engine/game-events";
 
 // Rung 1 scoring: any adult at the field can keep score through a per-game
 // link + 4-digit PIN — no account, no admin access. Updates are absolute
@@ -26,7 +29,7 @@ export type ScorekeeperSessionView = {
   state: ScorekeeperState;
 };
 
-const scorekeeperSelect = "id,title,home_team,away_team,home_score,away_score,inning,inning_half,outs,game_status,status,start_time,field_id,scorekeeper_pin,scorekeeper_seq";
+const scorekeeperSelect = "id,title,home_team,away_team,home_score,away_score,inning,inning_half,outs,game_status,status,start_time,field_id,organization_id,sport_type,scorekeeper_pin,scorekeeper_seq";
 
 function clampInt(value: unknown, min: number, max: number, fallback: number) {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -56,8 +59,35 @@ type SessionRow = {
   id: string; title: string; home_team: string; away_team: string;
   home_score: number; away_score: number; inning: number; inning_half: string;
   outs: number; game_status: string; status: string; start_time: string;
-  field_id: string; scorekeeper_pin: string | null; scorekeeper_seq: number;
+  field_id: string; organization_id: string | null; sport_type: string;
+  scorekeeper_pin: string | null; scorekeeper_seq: number;
 };
+
+// Mirror an accepted scorekeeper snapshot into the Connected Game Engine
+// (game_live_state + a score.changed event). Best-effort and idempotent
+// (keyed on token:seq) — the sessions CAS above stays the authority, so a
+// engine hiccup never affects live scoring at the field.
+async function mirrorToGameEngine(token: string, seq: number, row: SessionRow, next: ScorekeeperState) {
+  try {
+    await recordGameStateChange({
+      gameId: row.id,
+      organizationId: row.organization_id ?? null,
+      sportType: row.sport_type || "baseball",
+      scoreHome: next.home_score,
+      scoreAway: next.away_score,
+      state: { inning: next.inning, half: next.inning_half, outs: next.outs },
+      lifecycleStatus: lifecycleFromLegacy(next.game_status),
+      eventType: "score.changed",
+      actorType: "scorekeeper",
+      actorId: token.slice(0, 8),
+      sourceType: "venue-app",
+      idempotencyKey: scorekeeperIdempotencyKey(token, seq),
+      payload: { home: next.home_score, away: next.away_score, inning: next.inning, half: next.inning_half, outs: next.outs, game_status: next.game_status },
+    });
+  } catch (error) {
+    console.error("Game engine mirror failed (scoring unaffected)", error);
+  }
+}
 
 function toView(row: SessionRow, fieldName: string): ScorekeeperSessionView {
   return {
@@ -143,7 +173,10 @@ export async function applyScorekeeperState(token: string, pin: string, seq: num
       .select(scorekeeperSelect)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (updated) return toView(updated as SessionRow, fieldName);
+    if (updated) {
+      await mirrorToGameEngine(token, nextSeq, updated as SessionRow, next);
+      return toView(updated as SessionRow, fieldName);
+    }
     // A concurrent sync advanced the sequence between read and write; retry —
     // this snapshot is newer and must not be dropped.
   }

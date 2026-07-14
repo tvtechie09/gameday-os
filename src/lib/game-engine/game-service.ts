@@ -177,6 +177,63 @@ export async function listGameEvents(gameId: string, limit = 100): Promise<GameE
 
 // ---- The controlled write path ----------------------------------------------
 
+// Low-level engine write for producers that carry their OWN authorization
+// (scorekeeper token+PIN, device adapters, integration bearer tokens) — no
+// user permission check here; the caller is responsible for authz. Best-effort:
+// if the engine schema isn't present (e.g. local dev pre-migration) it returns
+// { skipped: true } so the caller's authoritative write is never affected.
+export type EngineWriteResult =
+  | { skipped: true }
+  | { accepted: boolean; replayed: boolean; newVersion: number };
+
+export async function recordGameStateChange(input: {
+  gameId: string;
+  organizationId: string | null;
+  sportType: string;
+  scoreHome?: number | null;
+  scoreAway?: number | null;
+  state?: Record<string, unknown>;
+  lifecycleStatus?: GameLifecycleStatus | null;
+  eventType: string;
+  actorType: string;
+  actorId?: string | null;
+  sourceType?: string;
+  sourceId?: string | null;
+  idempotencyKey?: string | null;
+  payload?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}): Promise<EngineWriteResult> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("game_engine_apply", {
+    p_game_id: input.gameId,
+    p_expected_version: null,
+    p_score_home: input.scoreHome ?? null,
+    p_score_away: input.scoreAway ?? null,
+    p_state: input.state ?? {},
+    p_lifecycle_status: input.lifecycleStatus ?? null,
+    p_organization_id: input.organizationId,
+    p_sport_type: input.sportType,
+    p_event_type: input.eventType,
+    p_event_version: 1,
+    p_occurred_at: new Date().toISOString(),
+    p_actor_type: input.actorType,
+    p_actor_id: input.actorId ?? null,
+    p_source_type: input.sourceType ?? "venue-app",
+    p_source_id: input.sourceId ?? null,
+    p_correlation_id: null,
+    p_causation_id: null,
+    p_idempotency_key: input.idempotencyKey ?? null,
+    p_payload: input.payload ?? {},
+    p_metadata: input.metadata ?? {},
+  });
+  if (error) {
+    if (isMissingEngineSchema(error)) return { skipped: true };
+    throw new Error(error.message);
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return { accepted: Boolean(row?.accepted), replayed: Boolean(row?.replayed), newVersion: row?.new_version ?? 1 };
+}
+
 export type TransitionResult = {
   ok: boolean;
   replayed: boolean;
