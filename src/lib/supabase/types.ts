@@ -2403,9 +2403,131 @@ export type Database = {
           },
         ];
       };
+      game_states: {
+        Row: {
+          game_id: string;
+          organization_id: string | null;
+          sport_type: string;
+          score_home: number;
+          score_away: number;
+          state: Record<string, unknown>;
+          version: number;
+          updated_by_actor_type: string | null;
+          updated_by_actor_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          game_id: string;
+          organization_id?: string | null;
+          sport_type?: string;
+          score_home?: number;
+          score_away?: number;
+          state?: Record<string, unknown>;
+          version?: number;
+          updated_by_actor_type?: string | null;
+          updated_by_actor_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          organization_id?: string | null;
+          sport_type?: string;
+          score_home?: number;
+          score_away?: number;
+          state?: Record<string, unknown>;
+          version?: number;
+          updated_by_actor_type?: string | null;
+          updated_by_actor_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_states_game_id_fkey";
+            columns: ["game_id"];
+            isOneToOne: true;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      game_events: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          game_id: string;
+          event_type: string;
+          event_version: number;
+          occurred_at: string;
+          recorded_at: string;
+          actor_type: string;
+          actor_id: string | null;
+          source_type: string;
+          source_id: string | null;
+          correlation_id: string | null;
+          causation_id: string | null;
+          idempotency_key: string | null;
+          payload: Record<string, unknown>;
+          metadata: Record<string, unknown>;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          game_id: string;
+          event_type: string;
+          event_version?: number;
+          occurred_at?: string;
+          recorded_at?: string;
+          actor_type?: string;
+          actor_id?: string | null;
+          source_type?: string;
+          source_id?: string | null;
+          correlation_id?: string | null;
+          causation_id?: string | null;
+          idempotency_key?: string | null;
+          payload?: Record<string, unknown>;
+          metadata?: Record<string, unknown>;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "game_events_game_id_fkey";
+            columns: ["game_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      game_engine_apply: {
+        Args: {
+          p_game_id: string;
+          p_expected_version: number | null;
+          p_score_home: number | null;
+          p_score_away: number | null;
+          p_state: Record<string, unknown>;
+          p_lifecycle_status: string | null;
+          p_organization_id: string | null;
+          p_sport_type: string;
+          p_event_type: string;
+          p_event_version: number;
+          p_occurred_at: string;
+          p_actor_type: string;
+          p_actor_id: string | null;
+          p_source_type: string;
+          p_source_id: string | null;
+          p_correlation_id: string | null;
+          p_causation_id: string | null;
+          p_idempotency_key: string | null;
+          p_payload: Record<string, unknown>;
+          p_metadata: Record<string, unknown>;
+        };
+        Returns: Array<{ accepted: boolean; replayed: boolean; new_version: number }>;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
