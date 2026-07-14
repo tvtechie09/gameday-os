@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getScoreboardEventTypes, hashScoreboardState, isScoreboardReadingStale, normalizeDaktronicsReadingPayload, validateDaktronicsAdapterToken, type NormalizedScoreboardState, type ScoreboardEventType } from "../daktronics-scoreboard-core.ts";
 import { PermissionDeniedError, assertActorUserId, requirePermission, safelyLogAudit } from "./identity.ts";
 import { getSupabaseAdminClient } from "../supabase/server.ts";
+import { recordGameStateChange } from "../game-engine/game-service.ts";
 import type { Json } from "../supabase/types.ts";
 
 export type ScoreboardDeviceStatus = "configured" | "connected" | "stale" | "offline" | "error" | "disabled";
@@ -166,6 +167,34 @@ export async function ingestDaktronicsReading(payload: DaktronicsReadingPayload,
     await supabase.from("scoreboard_events").insert({ current_state: state as unknown as Json, device_id: device.id, event_message: eventType.replace("scoreboard.", "Scoreboard ").replaceAll("_", " "), event_type: eventType, field_id: reading.fieldId, previous_state: previousState as unknown as Json, reading_id: reading.id, session_id: reading.sessionId, venue_id: reading.venueId });
   }
   await writeAdapterLog("Daktronics read-only reading stored.", { eventTypes, payloadHash }, "info", device.id, connectionId);
+
+  // Connected Game Engine device adapter: when the reading is attached to a
+  // game, mirror it into game_live_state + game_events (score.changed) via the
+  // shared low-level writer. Best-effort and idempotent per stored reading, so
+  // a device reading is never blocked by the engine; lifecycle is left to the
+  // venue (a scoreboard reports state, not lifecycle decisions).
+  if (reading.sessionId) {
+    try {
+      await recordGameStateChange({
+        gameId: reading.sessionId,
+        organizationId: null,
+        sportType: "baseball",
+        scoreHome: reading.homeScore,
+        scoreAway: reading.awayScore,
+        state: { inning: reading.inning, half: reading.topBottom, outs: reading.outs, balls: reading.balls, strikes: reading.strikes, period: reading.periodLabel, clock: reading.gameClock, possession: reading.possession },
+        lifecycleStatus: null,
+        eventType: "score.changed",
+        actorType: "device",
+        actorId: reading.deviceId,
+        sourceType: "scoreboard",
+        idempotencyKey: "daktronics:" + reading.id,
+        payload: { home: reading.homeScore, away: reading.awayScore, source: "daktronics" },
+      });
+    } catch (error) {
+      console.error("Game engine mirror (daktronics) failed; reading stored", error);
+    }
+  }
+
   return { duplicate: false, events: eventTypes, reading };
 }
 
