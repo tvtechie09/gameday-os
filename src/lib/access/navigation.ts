@@ -15,13 +15,14 @@ import {
   canManageUsers,
   canManageVenueSettings,
   canSendAnnouncement,
+  canViewCommandCenter,
   canViewDevTools,
   canViewOpsTasks,
   canImpersonate,
   hasPermission,
   isPlatformAdmin,
   type AccessContext,
-} from "./capabilities";
+} from "./capabilities.ts";
 
 export type NavGroupKey = "operations" | "admin";
 
@@ -42,7 +43,13 @@ export type NavGroup = {
 
 export const navItems: NavItem[] = [
   // --- Daily Operations ---
-  { key: "today", href: "/today", label: "Today's Operations", icon: "Home", group: "operations", cap: canViewOpsTasks },
+  // One "Today's Operations" slot that resolves by role. Venue operators get the
+  // Command Center; everyone else with ops tasks (coaches, scorekeepers,
+  // tournament staff, emergency coordinators) keeps the lighter /today. The caps
+  // are mutually exclusive, so exactly one of these ever renders -- a venue never
+  // sees two screens competing for the same job.
+  { key: "command-center", href: "/admin/command-center", label: "Today's Operations", icon: "Home", group: "operations", cap: canViewCommandCenter },
+  { key: "today", href: "/today", label: "Today's Operations", icon: "Home", group: "operations", cap: (ctx) => canViewOpsTasks(ctx) && !canViewCommandCenter(ctx) },
   { key: "schedule", href: "/admin/sessions", label: "Schedule & Games", icon: "CalendarDays", group: "operations", cap: canManageSchedule },
   { key: "tournaments", href: "/admin/tournaments", label: "Tournaments & Brackets", icon: "Trophy", group: "operations", cap: canManageTournaments },
   { key: "fields", href: "/admin/fields", label: "Fields", icon: "MapPin", group: "operations", cap: canManageFields },
@@ -89,6 +96,9 @@ export function getRoleHome(ctx: AccessContext | null): string {
   if (isPlatformAdmin(ctx)) {
     return "/admin";
   }
+  if (canViewCommandCenter(ctx)) {
+    return "/admin/command-center";
+  }
   return "/today";
 }
 
@@ -96,6 +106,10 @@ export function getRoleHome(ctx: AccessContext | null): string {
 // the most specific matching prefix; unlisted /admin paths fall back to the
 // admin-workspace umbrella.
 export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext | null) => boolean }> = [
+  // Must match the nav cap exactly. Without this the route falls back to
+  // canAccessAdminWorkspace, which venue_staff does not satisfy -- they would see
+  // the nav link and get bounced.
+  { prefix: "/admin/command-center", cap: canViewCommandCenter },
   { prefix: "/admin/impersonation", cap: canImpersonate },
   { prefix: "/admin/developer", cap: canViewDevTools },
   { prefix: "/admin/marketplace", cap: canViewDevTools },

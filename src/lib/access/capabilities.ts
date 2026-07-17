@@ -180,3 +180,18 @@ export function canOpenCloseField(ctx: AccessContext | null): boolean {
 export function canViewOpsTasks(ctx: AccessContext | null): boolean {
   return hasAny(ctx, ["venue.field.manage", "venue.alert.send", "game.status.update", "tournament.manage", "device.manage"]);
 }
+
+// Who runs the venue's day, and therefore gets the Command Center: its field
+// board, attention queue, officials, and work orders.
+//
+// Deliberately NARROWER than canViewOpsTasks, which `game.status.update` alone
+// satisfies -- that pulls in coaches, scorekeepers, and tournament staff, none
+// of whom should see a venue's internal queue. And deliberately not
+// canManageFields, which is `venue.manage OR device.manage` and so drops
+// venue_staff, the frontline persona that needs this screen most.
+//
+// Resolves to: venue_director, venue_staff, venue_tech_manager,
+// organization_admin, platform_admin.
+export function canViewCommandCenter(ctx: AccessContext | null): boolean {
+  return hasAny(ctx, ["venue.field.manage", "venue.manage"]);
+}
