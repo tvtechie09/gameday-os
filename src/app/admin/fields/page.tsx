@@ -94,6 +94,9 @@ export default async function FieldsPage() {
         <Link href="/admin/fields/bookings" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
           Allocation &amp; permits
         </Link>
+        <Link href="/admin/fields/reservations" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          Coach reservations
+        </Link>
         <Link href="/admin/fields/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
           New field
         </Link>
