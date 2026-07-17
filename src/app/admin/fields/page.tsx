@@ -9,6 +9,7 @@ import { getFieldPageViewCountsByField } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getFollowCountsByField } from "@/lib/services/follows";
 import { getVenues } from "@/lib/services/venues";
+import { getSessionContext } from "@/lib/access/session";
 import type { Field, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -40,10 +41,16 @@ export default async function FieldsPage() {
       return;
     }
 
+    // updateFieldStatus requires an actor: it runs assertActorUserId and then a
+    // venue-scoped requirePermission. Called without one it throws
+    // PermissionDeniedError, which the catch below swallowed -- so every
+    // open/close from this screen silently did nothing.
+    const ctx = await getSessionContext();
+
     try {
-      await updateFieldStatus(fieldId, status);
+      await updateFieldStatus(fieldId, status, ctx?.userId);
       revalidatePath("/admin/fields");
-      revalidatePath("/admin/dashboard");
+      revalidatePath("/admin/command-center");
       revalidatePath(`/fields/${fieldId}`);
     } catch (error) {
       console.error("Failed to update field status", error);

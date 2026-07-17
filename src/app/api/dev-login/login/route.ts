@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildAccessContext, isPlatformAdmin } from "@/lib/access/capabilities";
+import { buildAccessContext } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
 import { findDemoUserByKey } from "@/lib/access/demo-users";
 import {
   encodeSession,
@@ -32,8 +33,10 @@ export async function POST(request: NextRequest) {
     venueName: demoUser.venueName,
   });
 
-  const home = isPlatformAdmin(ctx) ? "/admin" : "/today";
-  const response = NextResponse.redirect(new URL(home, request.url));
+  // Was an inline copy of getRoleHome's old logic, which went stale the moment
+  // venue operators started landing on the Command Center instead of /today.
+  // Use the shared resolver so sign-in and the nav can't disagree.
+  const response = NextResponse.redirect(new URL(getRoleHome(ctx), request.url));
   response.cookies.set(sessionCookieName, encodeSession({
     userId: demoUser.id,
     email: demoUser.email,
