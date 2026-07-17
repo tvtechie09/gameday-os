@@ -163,7 +163,16 @@ export default async function CommandCenterPage() {
         <SummaryTile label="Fields flagged" value={s.fieldsNeedAttention} tone={s.fieldsNeedAttention > 0 ? "text-red-700" : undefined} />
         <SummaryTile label="Weather" value={s.weatherRisk ? s.weatherRisk : "—"} tone={s.weatherRisk === "severe" ? "text-red-700" : s.weatherRisk === "caution" ? "text-amber-700" : "text-emerald-600"} />
         <SummaryTile label="Officials open" value={s.officialsUnconfirmed} tone={s.officialsUnconfirmed > 0 ? "text-amber-700" : undefined} />
-        <SummaryTile label="Systems" value={s.systemsTotal === 0 ? "OK" : `${s.systemsTotal - s.systemsOffline}/${s.systemsTotal}`} tone={s.systemsOffline > 0 ? "text-red-700" : "text-emerald-600"} />
+        {/*
+          Green here must mean "healthy", not "not yet offline". This read a green
+          9/9 for a venue whose six manual boards had never reported once, because
+          `unknown` was quietly counted as good. Same lie deviceCheck used to tell.
+        */}
+        <SummaryTile
+          label="Systems"
+          value={s.systemsTotal === 0 ? "OK" : `${s.systemsTotal - s.systemsOffline - s.systemsUnknown}/${s.systemsTotal}`}
+          tone={s.systemsOffline > 0 ? "text-red-700" : s.systemsUnknown > 0 ? "text-amber-700" : "text-emerald-600"}
+        />
       </section>
 
       <div className="mt-7">

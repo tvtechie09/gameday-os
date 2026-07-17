@@ -55,6 +55,11 @@ export type CommandCenterSummary = {
   weatherRisk: StormRiskLevel | null;
   officialsUnconfirmed: number;
   systemsOffline: number;
+  // Registered but never heard from -- onboarding records hardware before it is
+  // installed, and a manual scoreboard never reports at all. These are NOT
+  // healthy; counting them as such is how the tile read a green 9/9 for a venue
+  // with six boards nobody had ever verified.
+  systemsUnknown: number;
   systemsTotal: number;
 };
 
@@ -337,6 +342,7 @@ export function summarize(input: {
     weatherRisk: input.weather ? input.weather.risk : null,
     officialsUnconfirmed: board.filter((e) => e.nextGame && !e.officialsConfirmed).length,
     systemsOffline: input.assets.filter((a) => a.status === "offline" || a.status === "maintenance_needed").length,
+    systemsUnknown: input.assets.filter((a) => a.status === "unknown").length,
     systemsTotal: input.assets.length,
   };
 }

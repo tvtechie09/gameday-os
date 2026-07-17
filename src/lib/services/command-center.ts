@@ -55,6 +55,7 @@ const EMPTY_SUMMARY: CommandCenterSummary = {
   weatherRisk: null,
   officialsUnconfirmed: 0,
   systemsOffline: 0,
+  systemsUnknown: 0,
   systemsTotal: 0,
 };
 

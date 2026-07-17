@@ -436,3 +436,42 @@ test("attention: a per-game override IS flagged for the game it names", () => {
   assert.equal(q.length, 1);
   assert.equal(q[0].href, "/admin/audio/ap2/edit");
 });
+
+// ---- Systems summary honesty ------------------------------------------------
+
+const summaryFor = (assets: VenueAsset[]) =>
+  summarize({ games: [], fields: [], officials: [], assets, weather: null, now: NOW });
+
+test("summary: never-reported devices are not counted as healthy systems", () => {
+  // The Systems tile renders (total - offline - unknown)/total. Counting unknown
+  // as good is how a venue with six manual boards nobody had ever verified showed
+  // a green 9/9.
+  const s = summaryFor([
+    asset("sb1", "scoreboard", "healthy"),
+    asset("sb2", "scoreboard", "unknown"),
+    asset("sb3", "scoreboard", "unknown"),
+  ]);
+  assert.equal(s.systemsTotal, 3);
+  assert.equal(s.systemsOffline, 0);
+  assert.equal(s.systemsUnknown, 2);
+  // What the tile shows: 1 of 3 actually reporting.
+  assert.equal(s.systemsTotal - s.systemsOffline - s.systemsUnknown, 1);
+});
+
+test("summary: an all-healthy fleet still reports every system green", () => {
+  const s = summaryFor([asset("sb1", "scoreboard"), asset("sb2", "scoreboard")]);
+  assert.equal(s.systemsUnknown, 0);
+  assert.equal(s.systemsTotal - s.systemsOffline - s.systemsUnknown, 2);
+});
+
+test("summary: offline and unknown are counted separately", () => {
+  // They mean different things: offline is broken, unknown is never heard from.
+  // A manual scoreboard is not broken.
+  const s = summaryFor([
+    asset("sb1", "scoreboard", "offline"),
+    asset("sb2", "scoreboard", "unknown"),
+    asset("sb3", "scoreboard", "healthy"),
+  ]);
+  assert.equal(s.systemsOffline, 1);
+  assert.equal(s.systemsUnknown, 1);
+});
