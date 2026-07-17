@@ -6,6 +6,7 @@ import { getPublicFieldScoreboardUrl, getPublicFieldUrl, getPublicScoreboardUrl 
 import { getAudioModeLabel, getAudioProfileForField, getAudioStatusClass, getAudioStatusLabel } from "@/lib/services/audio-profiles";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { fieldStatuses, getField, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { getSessionContext } from "@/lib/access/session";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
 import { getResourcesForFieldPage, getResourceTypeLabel } from "@/lib/services/resources";
 import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusClass, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
@@ -115,11 +116,15 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
 
     const status = readFieldStatus(String(formData.get("status") ?? "open"));
 
+    // Without an actor, updateFieldStatus throws PermissionDeniedError and the
+    // catch below swallows it -- the control panel looked like it worked and
+    // never changed anything. See /admin/fields for the same fix.
+    const ctx = await getSessionContext();
+
     try {
-      await updateFieldStatus(fieldId, status);
+      await updateFieldStatus(fieldId, status, ctx?.userId);
       revalidatePath(`/admin/fields/${fieldId}/control`);
-      revalidatePath("/admin/game-day");
-      revalidatePath("/admin/status-board");
+      revalidatePath("/admin/command-center");
       revalidatePath("/admin/fields");
       revalidatePath(`/fields/${fieldId}`);
     } catch (error) {
