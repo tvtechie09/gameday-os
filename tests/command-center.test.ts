@@ -5,6 +5,7 @@ import {
   buildFieldBoard,
   buildModeChecklist,
   chicagoDateString,
+  isSameVenueDay,
   minutesBehind,
   resolveMode,
   summarize,
@@ -261,4 +262,24 @@ test("chicagoDateString: renders YYYY-MM-DD in Central Time", () => {
   // 2026-07-14T02:00Z is still 2026-07-13 in Chicago (UTC-5 in July).
   assert.equal(chicagoDateString(Date.parse("2026-07-14T02:00:00.000Z")), "2026-07-13");
   assert.match(chicagoDateString(NOW), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+// ---- isSameVenueDay --------------------------------------------------------
+
+test("isSameVenueDay: an evening game stays on today's venue date", () => {
+  // 8:09pm Chicago on the 16th is already 2026-07-17 in UTC. Comparing the UTC
+  // date prefix dropped every game played under the lights off the board.
+  assert.equal(isSameVenueDay("2026-07-17T01:09:00.000Z", "2026-07-16"), true);
+  assert.equal(isSameVenueDay("2026-07-16T14:00:00.000Z", "2026-07-16"), true);
+});
+
+test("isSameVenueDay: an early-morning UTC stamp belongs to the prior venue day", () => {
+  // 2026-07-16T02:00Z is 9pm on the 15th in Chicago.
+  assert.equal(isSameVenueDay("2026-07-16T02:00:00.000Z", "2026-07-16"), false);
+  assert.equal(isSameVenueDay("2026-07-16T02:00:00.000Z", "2026-07-15"), true);
+});
+
+test("isSameVenueDay: garbage timestamps never match", () => {
+  assert.equal(isSameVenueDay("not-a-date", "2026-07-16"), false);
+  assert.equal(isSameVenueDay("", "2026-07-16"), false);
 });

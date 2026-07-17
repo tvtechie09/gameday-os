@@ -12,6 +12,7 @@ import {
   type GameLifecycleStatus,
 } from "./game-lifecycle";
 import { normalizeEventInput, type GameEventInput, type GameEventRecord } from "./game-events";
+import { isSameVenueDay } from "@/lib/services/command-center-core";
 
 // Connected Game Engine — shared Game domain service (Sprint 1 slice).
 //
@@ -64,8 +65,11 @@ export async function getGameById(gameId: string): Promise<GameRecord | null> {
   return session ? toGameRecord(session) : null;
 }
 
+// Was `iso.slice(0, 10) === date`, which compared the UTC date against a VENUE
+// (America/Chicago) date. Every game after ~7pm Chicago rolls onto the next UTC
+// day and vanished from "today" — the exact hours a complex runs under lights.
 function sameLocalDay(iso: string, date: string): boolean {
-  return iso.slice(0, 10) === date;
+  return isSameVenueDay(iso, date);
 }
 
 export async function listGamesForVenue(

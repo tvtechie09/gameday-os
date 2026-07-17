@@ -2089,6 +2089,7 @@ export type Database = {
           strikes: number;
           outs: number;
           game_status: string;
+          lifecycle_status?: string | null;
           primary_link_label: string | null;
           primary_link_url: string | null;
           secondary_link_label: string | null;
@@ -2128,6 +2129,7 @@ export type Database = {
           strikes?: number;
           outs?: number;
           game_status?: string;
+          lifecycle_status?: string | null;
           primary_link_label?: string | null;
           primary_link_url?: string | null;
           secondary_link_label?: string | null;
@@ -2167,6 +2169,7 @@ export type Database = {
           strikes?: number;
           outs?: number;
           game_status?: string;
+          lifecycle_status?: string | null;
           primary_link_label?: string | null;
           primary_link_url?: string | null;
           secondary_link_label?: string | null;

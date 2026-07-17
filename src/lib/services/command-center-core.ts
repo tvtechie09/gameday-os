@@ -68,6 +68,17 @@ export function chicagoDateString(now: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: CHICAGO, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now));
 }
 
+// Does this timestamp fall on `date` AT THE VENUE?
+//
+// Never compare iso.slice(0,10) to this — that's the UTC date, and after ~7pm
+// Chicago (midnight UTC) an evening game rolls onto the next UTC day and silently
+// disappears from "today" — precisely when a venue is running games under lights.
+export function isSameVenueDay(iso: string, date: string): boolean {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return chicagoDateString(parsed.getTime()) === date;
+}
+
 export function timeLabel(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
+import { canManagePlatform, isPlatformAdmin } from "@/lib/access/capabilities";
 import { buildCommandCenter, type AttentionItem, type AttentionTier, type CommandCenterMode, type FieldBoardEntry } from "@/lib/services/command-center";
 import { LiveScore } from "@/app/fields/[fieldId]/live-score";
 import { ModeChecklistCard } from "./mode-checklist";
+import { refreshDemoDayAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -137,9 +139,20 @@ export default async function CommandCenterPage() {
           <h1 className="mt-1 text-2xl font-black leading-tight text-[var(--foreground)] sm:text-3xl">{view.venueName}</h1>
           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{dateLabel} · Central Time · updated {generatedLabel}</p>
         </div>
-        <div className="rounded-xl border border-[var(--line)] bg-[var(--background)] px-4 py-3 sm:max-w-xs">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">{mode.label}</p>
-          <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{mode.caption}</p>
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <div className="rounded-xl border border-[var(--line)] bg-[var(--background)] px-4 py-3 sm:max-w-xs">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">{mode.label}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{mode.caption}</p>
+          </div>
+          {/* Walkthrough helper: re-times the DEMO games onto today so this board
+              shows a live Saturday. Platform staff only; demo sessions only. */}
+          {isPlatformAdmin(ctx) || canManagePlatform(ctx) ? (
+            <form action={refreshDemoDayAction}>
+              <button type="submit" className="inline-flex min-h-8 items-center rounded-lg border border-dashed border-[var(--line)] bg-transparent px-3 text-[11px] font-bold text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]">
+                ↻ Refresh demo day
+              </button>
+            </form>
+          ) : null}
         </div>
       </header>
 
