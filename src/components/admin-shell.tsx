@@ -52,6 +52,7 @@ const adminNavGroups: AdminNavGroup[] = [
     items: [
       { href: "/admin", icon: Home, label: "Overview" },
       { href: "/admin/executive", icon: ShieldCheck, label: "Executive Dashboard" },
+      { href: "/admin/impact", icon: Activity, label: "Impact & ROI" },
       { href: "/admin/dashboard", icon: LayoutDashboard, label: "Operations Dashboard" },
       { href: "/admin/game-day", icon: Activity, label: "Game Day" },
       { href: "/admin/ai", icon: Sparkles, label: "AI Assistant" },
