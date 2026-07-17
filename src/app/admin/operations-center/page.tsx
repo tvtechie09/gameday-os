@@ -476,10 +476,11 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Venue Command</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Venue Command Center</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Venue Mode</p>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Venue Mode &amp; Status</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)]">
-            The official venue-wide source of truth for status, communications, delays, weather awareness, incidents, and public impact.
+            Switch the venue between normal play, weather delay, schedule delay, closed, emergency, and maintenance.
+            For the live picture of the day, see the Command Center.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">

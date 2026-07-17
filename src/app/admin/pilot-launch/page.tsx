@@ -285,9 +285,10 @@ export default async function PilotLaunchPage({ searchParams }: PilotLaunchPageP
           <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent-strong)]">Pilot Launch</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Pilot day command center</h1>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Pilot Day Readiness</h1>
               <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)]">
-                One screen for venue readiness, QR links, public pages, resources, volunteers, sponsors, and operational shortcuts.
+                Pre-flight checks before a pilot: venue readiness, QR links, public pages, resources, volunteers, sponsors,
+                and operational shortcuts. For running the day itself, see the Command Center.
               </p>
             </div>
             <form className="grid min-w-0 gap-2 sm:min-w-80" method="get">

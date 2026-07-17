@@ -254,9 +254,10 @@ export default async function GameDayOperationsCenterPage({ searchParams }: Game
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Game day</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Operations center</h1>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Live Field Grid</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)]">
-            One command view for live fields, game status, alerts, resources, and volunteer coverage.
+            Every field across venues and tournaments at a glance, with weather awareness and volunteer coverage.
+            For the venue&rsquo;s attention queue and day checklist, see the Command Center.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
