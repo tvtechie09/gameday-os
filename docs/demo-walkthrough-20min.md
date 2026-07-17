@@ -3,8 +3,8 @@
 The founding-venue demo. Beat-by-beat, timed. The arc is one idea:
 **a chaotic Saturday, run from one screen — and we don't tax your parents.**
 
-Audience: a complex GM or ownership. Not a product tour. Do not show them
-seven nav groups; show them the day they already live.
+Audience: a complex GM or ownership. Not a product tour. Don't walk them through
+features; show them the day they already live.
 
 ---
 
@@ -36,7 +36,11 @@ just described as broken.
 
 ## 2:00 — One screen (4 min)
 
-Open the Command Center. Say nothing for a beat. Let them read it.
+Now open the laptop, signed out. Sign in and click the first thing in the
+sidebar — **Today's Operations**. That single click is the argument: signing in
+lands you on the day, not on a menu.
+
+Say nothing for a beat. Let them read it.
 
 > "This is your complex, right now."
 
@@ -135,8 +139,11 @@ Then ask for the thing:
 
 ## What not to do
 
-- Don't show the nav. Seven groups contradicts "one screen."
-- Don't demo Operations Dashboard, Status Board, *and* Command Center. Pick
-  the Command Center. The rest reads as an unfinished product.
+- **Do** open with the nav. "Today's Operations" is the first item and it *is*
+  the Command Center — one click from signing in to running the day. That's the
+  pitch, so show it rather than typing a URL.
+- Don't wander into Venue Mode & Status, Live Field Grid, or Reports. They're
+  real screens, but a tour of them reads as an unfinished product. Stay on the
+  Command Center.
 - Don't open anything you haven't loaded before they walked in.
 - Don't fill the silence after the ask.
