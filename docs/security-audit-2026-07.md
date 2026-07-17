@@ -130,3 +130,45 @@ checked against `assetSelect` first to avoid breaking the admin asset page.
 The thing that would end the company — children's data — **held**. The thing that
 could hurt someone — **the alert system** — is wide open and must be closed before
 any real venue depends on it.
+
+---
+
+## UPDATE — the critical write hole is CLOSED (2026-07-17)
+
+The anon write vector proven above is fixed and verified in production.
+
+**1. Code (cc08b3d, deployed):** the 19 write services moved off
+`getSupabaseServerClient()` (the ANON key) to `getSupabaseAdminClient()` (service
+role, server-side). The app no longer writes as `anon`, so the app's credential and
+an attacker's are no longer the same key.
+
+**2. Database lockdown (applied after the deploy went live — order mattered; doing
+it first would have broken every write in production):**
+- revoked `INSERT/UPDATE/DELETE/TRUNCATE` from `anon` on every table in `public`
+- re-granted the single legitimate public write: `INSERT ON marketing_leads`
+- dropped every wide-open `anon`/`public` write policy, so the hole can't reopen if
+  a grant is ever restored
+
+**Verified:**
+
+| Check | Result |
+|---|---|
+| Forge a fake `EVACUATE NOW` alert as anon | ❌ `permission denied for table alerts` |
+| Read scorekeeper token/PIN as anon | ❌ `permission denied` |
+| Read fan emails (`follows.email`) as anon | ❌ `permission denied` |
+| Read children/guardians (`gameday_os_state_snapshots`) as anon | ❌ `permission denied` (no grant) |
+| Public product reads (sessions, fields, alerts, live scores, sponsors) | ✅ all intact |
+| Marketing lead form insert | ✅ still works |
+| App pages (command-center, today, alerts, impact) | ✅ 200, no errors |
+
+**`anon` is now read-only**, except for submitting a marketing lead.
+
+### Still open
+- **MEDIUM:** `venue_assets.ip_address` / `serial_number` remain publicly readable.
+  Needs the same column-level grant treatment, but `venue-assets.ts` reads with the
+  anon client, so the allowed-column list must be checked against `assetSelect`
+  first.
+- `authenticated` still holds write grants. Much smaller surface (no public signup;
+  accounts are provisioned staff) and all app writes now use the service role, so
+  it can be revoked too — deferred to avoid touching the team app in the same pass.
+- `auth_leaked_password_protection` disabled; duplicate legacy read policies.
