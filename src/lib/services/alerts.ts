@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { deliverAlertToFollowers } from "@/lib/services/alert-delivery";
 import type { Database } from "@/lib/supabase/types";
 import type { Alert, AlertPriority, AlertScope, AlertType, AlertVisibility } from "@/lib/types";
@@ -74,7 +74,7 @@ function mapAlert(row: AlertRow): Alert {
 }
 
 async function getOrganizationIdForVenue(venueId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("venues")
     .select("organization_id")
@@ -182,7 +182,7 @@ export function filterAlertsForFieldPage({
 }
 
 export async function getAlerts(): Promise<Alert[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   let query = supabase
     .from("alerts")
@@ -203,7 +203,7 @@ export async function getAlerts(): Promise<Alert[]> {
 }
 
 export async function getActiveAlerts(): Promise<Alert[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   const now = new Date().toISOString();
   let query = supabase
@@ -229,7 +229,7 @@ export async function getActiveAlerts(): Promise<Alert[]> {
 }
 
 export async function getAlert(id: string): Promise<Alert | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("alerts")
     .select(alertSelect)

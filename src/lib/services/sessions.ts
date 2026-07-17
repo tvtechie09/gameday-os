@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
@@ -139,7 +139,7 @@ async function recordAutomaticStatusEvents(previousStatus: Session["status"] | n
 }
 
 async function getVenueIdForField(fieldId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("fields")
     .select("venue_id")
@@ -155,7 +155,7 @@ async function getVenueIdForField(fieldId: string) {
 }
 
 async function getOrganizationIdForField(fieldId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("fields")
     .select("organization_id")
@@ -205,7 +205,7 @@ function mapSession(row: Omit<SessionRow, "is_demo" | "scorekeeper_token" | "sco
 }
 
 export async function getSessions(): Promise<Session[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   let query = supabase
     .from("sessions")
@@ -245,7 +245,7 @@ export async function getSessions(): Promise<Session[]> {
 }
 
 export async function getSession(id: string): Promise<Session | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("sessions")
     .select(sessionSelect)
@@ -274,7 +274,7 @@ export async function getSession(id: string): Promise<Session | null> {
 }
 
 export async function getSessionsByFieldId(fieldId: string): Promise<Session[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("sessions")
     .select(sessionSelect)
@@ -303,7 +303,7 @@ export async function getSessionsByFieldId(fieldId: string): Promise<Session[]> 
 }
 
 export async function createSession(data: CreateSessionInput): Promise<Session> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getOrganizationIdForField(data.field_id);
   const { data: session, error } = await supabase
     .from("sessions")

@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { ScoreboardConnectionType, ScoreboardIntegrationMode, ScoreboardProfile, ScoreboardStatus } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
@@ -125,7 +125,7 @@ export function mapScoreboardProfile(row: ScoreboardProfileRow): ScoreboardProfi
 }
 
 export async function getScoreboardProfiles(): Promise<ScoreboardProfile[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   let query = supabase
     .from("scoreboard_profiles")
@@ -151,7 +151,7 @@ export async function getScoreboardProfiles(): Promise<ScoreboardProfile[]> {
 }
 
 export async function getScoreboardProfile(id: string): Promise<ScoreboardProfile | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("scoreboard_profiles")
     .select(scoreboardSelect)
@@ -171,7 +171,7 @@ export async function getScoreboardProfile(id: string): Promise<ScoreboardProfil
 }
 
 export async function getScoreboardProfileForField(fieldId: string): Promise<ScoreboardProfile | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("scoreboard_profiles")
     .select(scoreboardSelect)
@@ -253,7 +253,7 @@ export async function updateScoreboardProfile(id: string, data: UpdateScoreboard
 }
 
 async function getOrganizationIdForVenue(venueId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("venues")
     .select("organization_id")

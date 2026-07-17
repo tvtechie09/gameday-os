@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Notification, NotificationType } from "@/lib/types";
 import { getOrganizationDataScope } from "./organization-data-scope";
@@ -76,7 +76,7 @@ export function getNotificationTypeClass(type: NotificationType) {
 }
 
 export async function getNotifications(type?: NotificationType | "all"): Promise<Notification[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const scope = await getOrganizationDataScope();
   let query = supabase
     .from("notifications")

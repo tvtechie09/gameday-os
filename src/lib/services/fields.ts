@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Field, FieldStatus, PlaySurfaceLayoutRole } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
@@ -125,7 +125,7 @@ function mapField(row: Partial<FieldRow> & Pick<FieldRow, "id" | "venue_id" | "n
 }
 
 export async function getFields(): Promise<Field[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
 
   const runQuery = (columns: string) => {
@@ -161,7 +161,7 @@ export async function getField(id: string): Promise<Field | null> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     return null;
   }
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
 
   const runQuery = (columns: string) =>
     supabase.from("fields").select(columns).eq("id", id).maybeSingle();
@@ -180,7 +180,7 @@ export async function getField(id: string): Promise<Field | null> {
 }
 
 export async function createField(data: CreateFieldInput, actorUserId?: string | null): Promise<Field> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const actor = assertActorUserId(actorUserId);
   await requirePermission(actor, "venue.field.manage", "venue", data.venue_id);
@@ -320,7 +320,7 @@ export async function updateFieldStatus(id: string, status: FieldStatus, actorUs
 }
 
 async function getOrganizationIdForVenue(venueId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("venues")
     .select("organization_id")

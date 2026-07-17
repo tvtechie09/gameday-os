@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { ExternalSource, ExternalSourceStatus, ExternalSourceType } from "@/lib/types";
 import { getCurrentOrganizationScope } from "../organization-scope";
@@ -77,7 +77,7 @@ function mapExternalSource(row: ExternalSourceRow): ExternalSource {
 }
 
 export async function getExternalSources(): Promise<ExternalSource[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   let query = supabase
     .from("external_sources")
@@ -98,7 +98,7 @@ export async function getExternalSources(): Promise<ExternalSource[]> {
 }
 
 export async function getExternalSource(id: string): Promise<ExternalSource | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("external_sources")
     .select(externalSourceSelect)
@@ -137,7 +137,7 @@ export async function createExternalSource(data: CreateExternalSourceInput): Pro
 }
 
 async function getOrganizationIdForVenue(venueId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("venues")
     .select("organization_id")

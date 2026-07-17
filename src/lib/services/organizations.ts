@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Organization } from "@/lib/types";
 
@@ -49,7 +49,7 @@ function mapOrganization(row: Omit<OrganizationRow, "banner_url" | "primary_colo
 }
 
 export async function getOrganizations(): Promise<Organization[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("organizations")
     .select(organizationSelect)
@@ -76,7 +76,7 @@ export async function getOrganizations(): Promise<Organization[]> {
 }
 
 export async function getOrganization(id: string): Promise<Organization | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("organizations")
     .select(organizationSelect)

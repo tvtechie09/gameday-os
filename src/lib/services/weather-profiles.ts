@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { RainSensitivity, StormResponseMode, WeatherProfile, WeatherProfileStatus, WeatherSource } from "@/lib/types";
 import { getOrganizationDataScope } from "./organization-data-scope";

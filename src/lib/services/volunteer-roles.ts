@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { VolunteerRole, VolunteerRoleStatus, VolunteerRoleType } from "@/lib/types";
 import { safelyCreateNotification } from "./notifications";
@@ -74,7 +74,7 @@ export function getVolunteerRoleLabel(type: VolunteerRoleType) {
 }
 
 export async function getVolunteerRoles(): Promise<VolunteerRole[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const scope = await getOrganizationDataScope();
   const { data, error } = await supabase
     .from("volunteer_roles")
@@ -89,7 +89,7 @@ export async function getVolunteerRoles(): Promise<VolunteerRole[]> {
 }
 
 export async function getVolunteerRolesBySessionId(sessionId: string): Promise<VolunteerRole[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("volunteer_roles")
     .select(volunteerRoleSelect)

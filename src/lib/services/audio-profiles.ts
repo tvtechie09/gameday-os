@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { AudioMode, AudioProfile, AudioProfileStatus } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
@@ -101,7 +101,7 @@ function mapAudioProfile(row: AudioProfileRow): AudioProfile {
 }
 
 export async function getAudioProfiles(): Promise<AudioProfile[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   let query = supabase
     .from("audio_profiles")
@@ -127,7 +127,7 @@ export async function getAudioProfiles(): Promise<AudioProfile[]> {
 }
 
 export async function getAudioProfile(id: string): Promise<AudioProfile | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("audio_profiles")
     .select(audioProfileSelect)
@@ -214,7 +214,7 @@ export async function updateAudioProfile(id: string, data: UpdateAudioProfileInp
 }
 
 async function getOrganizationIdForVenue(venueId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("venues")
     .select("organization_id")

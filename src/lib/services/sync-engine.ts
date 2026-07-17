@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Session, SessionLinkLabel, SessionSportType, SyncJob, SyncJobStatus, SyncQueueItem, SyncQueueReviewStatus } from "@/lib/types";
 import { createSession, getSessions } from "./sessions";
@@ -194,7 +194,7 @@ export async function createSyncJobWithQueue(data: CreateSyncJobInput): Promise<
 }
 
 export async function getSyncJobs(): Promise<SyncJob[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("sync_jobs")
     .select(syncJobSelect)
@@ -208,7 +208,7 @@ export async function getSyncJobs(): Promise<SyncJob[]> {
 }
 
 export async function getSyncQueueItems(status?: SyncQueueReviewStatus | "all"): Promise<SyncQueueItem[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   let query = supabase
     .from("sync_queue")
     .select(syncQueueSelect)

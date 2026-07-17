@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { ResourceActivation, ResourceActivationStatus, ResourceActivationType } from "@/lib/types";
 import { safelyCreateNotification } from "./notifications";
@@ -95,7 +95,7 @@ export function getAttachmentOptionLabel(type: ResourceActivationType) {
 }
 
 export async function getResourceActivations(): Promise<ResourceActivation[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const scope = await getOrganizationDataScope();
   const { data, error } = await supabase
     .from("resource_activations")
@@ -110,7 +110,7 @@ export async function getResourceActivations(): Promise<ResourceActivation[]> {
 }
 
 export async function getActiveResourceActivationsForField({ fieldId, sessionId }: { fieldId: string; sessionId?: string | null }): Promise<ResourceActivation[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
   let query = supabase
     .from("resource_activations")

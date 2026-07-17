@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Venue } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
@@ -50,7 +50,7 @@ function countFieldsByVenueId(fields: Array<{ venue_id: string }>) {
 }
 
 export async function getVenues(): Promise<Venue[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   let venueQuery = supabase
     .from("venues")
@@ -86,7 +86,7 @@ export async function getVenues(): Promise<Venue[]> {
 }
 
 export async function getVenue(id: string): Promise<Venue | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("venues")
     .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
@@ -101,7 +101,7 @@ export async function getVenue(id: string): Promise<Venue | null> {
 }
 
 export async function createVenue(data: CreateVenueInput, actorUserId?: string | null): Promise<Venue> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getWritableOrganizationId();
   const actor = assertActorUserId(actorUserId);
   if (!organizationId) {

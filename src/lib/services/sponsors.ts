@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Sponsor, SponsorAssignment, SponsorAssignmentType, SponsorPlacement, SponsorPlacementLabel } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
@@ -70,7 +70,7 @@ function mapSponsorAssignment(row: SponsorAssignmentRow): SponsorAssignment {
 }
 
 export async function getSponsors(): Promise<Sponsor[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   let query = supabase.from("sponsors").select(sponsorSelect).order("created_at", { ascending: false });
 
@@ -110,7 +110,7 @@ export async function createSponsor(data: CreateSponsorInput): Promise<Sponsor> 
 }
 
 export async function getSponsor(id: string): Promise<Sponsor | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase.from("sponsors").select(sponsorSelect).eq("id", id).maybeSingle();
 
   if (error) {
@@ -152,7 +152,7 @@ export async function deleteSponsor(id: string): Promise<void> {
 }
 
 export async function getSponsorAssignments(): Promise<SponsorAssignment[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   const { data, error } = await supabase.from("sponsor_assignments").select(assignmentSelect).order("created_at", { ascending: false });
 
@@ -236,7 +236,7 @@ export async function getSponsorPlacementsForFieldPage({
   fieldId: string;
   sessionId?: string | null;
 }): Promise<SponsorPlacement[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const filters = [
     `and(assignment_type.eq.venue,venue_id.eq.${venueId})`,
     `and(assignment_type.eq.field,field_id.eq.${fieldId})`,

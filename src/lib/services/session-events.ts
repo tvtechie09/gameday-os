@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { SessionEvent, SessionEventType } from "@/lib/types";
 import { getOrganizationDataScope } from "./organization-data-scope";
@@ -97,7 +97,7 @@ export async function recordSessionEvent(input: RecordSessionEventInput): Promis
 }
 
 export async function getSessionEvents(sessionId: string): Promise<SessionEvent[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("session_events")
     .select(sessionEventSelect)
@@ -112,7 +112,7 @@ export async function getSessionEvents(sessionId: string): Promise<SessionEvent[
 }
 
 export async function getRecentSessionEvents(limit = 12): Promise<SessionEvent[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const scope = await getOrganizationDataScope();
   let query = supabase
     .from("session_events")

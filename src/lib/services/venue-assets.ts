@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { VenueAsset, VenueAssetCategory, VenueAssetIntegrationStatus, VenueAssetStatus, VenueAssetType, VenueBuilding } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 
@@ -136,7 +136,7 @@ export function getVenueAssetStatusClass(status: VenueAssetStatus) {
 }
 
 export async function getVenueBuildings(): Promise<VenueBuilding[]> {
-  const supabase = getSupabaseServerClient() as unknown as DynamicSupabase;
+  const supabase = getSupabaseAdminClient() as unknown as DynamicSupabase;
   const organizationId = await getCurrentOrganizationScope();
   const base = supabase.from("venue_buildings").select(buildingSelect);
   const { data, error } = organizationId
@@ -155,7 +155,7 @@ export async function getVenueBuildings(): Promise<VenueBuilding[]> {
 }
 
 export async function getVenueAssets(): Promise<VenueAsset[]> {
-  const supabase = getSupabaseServerClient() as unknown as DynamicSupabase;
+  const supabase = getSupabaseAdminClient() as unknown as DynamicSupabase;
   const organizationId = await getCurrentOrganizationScope();
   const base = supabase.from("venue_assets").select(assetSelect);
   const { data, error } = organizationId

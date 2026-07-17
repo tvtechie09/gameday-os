@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Resource, ResourceStatus, ResourceType } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
@@ -81,7 +81,7 @@ function mapResource(row: ResourceRow): Resource {
 }
 
 export async function getResources(): Promise<Resource[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const organizationId = await getCurrentOrganizationScope();
   let query = supabase
     .from("resources")
@@ -102,7 +102,7 @@ export async function getResources(): Promise<Resource[]> {
 }
 
 export async function getResource(id: string): Promise<Resource | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("resources")
     .select(resourceSelect)
@@ -178,7 +178,7 @@ export async function updateResource(id: string, data: UpdateResourceInput): Pro
 }
 
 async function getOrganizationIdForVenue(venueId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("venues")
     .select("organization_id")

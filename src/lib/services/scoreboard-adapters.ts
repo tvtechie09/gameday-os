@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { ScoreboardAdapter, ScoreboardAdapterStatus, ScoreboardAdapterType } from "@/lib/types";
 import { getScoreboardProfiles } from "./scoreboards";
@@ -92,7 +92,7 @@ export async function getScoreboardAdapters(): Promise<ScoreboardAdapter[]> {
 }
 
 async function readAllScoreboardAdapters(): Promise<ScoreboardAdapter[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("scoreboard_adapters")
     .select(adapterSelect)
