@@ -13,8 +13,6 @@ export type WeatherProfileResult = {
 
 function revalidateWeatherSurfaces() {
   revalidatePath("/admin/weather");
-  revalidatePath("/admin/dashboard");
-  revalidatePath("/admin/game-day");
   revalidatePath("/venues/[venueId]", "page");
   revalidatePath("/fields/[fieldId]", "page");
 }

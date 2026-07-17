@@ -49,7 +49,6 @@ export async function importScheduleAction(formData: FormData): Promise<ImportRe
       }
     }
     revalidatePath("/admin/sessions");
-    revalidatePath("/admin/dashboard");
     return { created, skipped: validated.length - created, errors: errors.slice(0, 15) };
   } catch (error) {
     return { error: publicErrorMessage(error, "Schedule import failed.") };

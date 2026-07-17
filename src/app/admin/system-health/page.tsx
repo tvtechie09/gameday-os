@@ -308,7 +308,7 @@ export default async function SystemHealthPage() {
         statusFor(fields.length > 0 && fields.every((field) => venueIds.has(field.venueId)), "Fields assigned to venue", "Every field is linked to an existing venue.", "Some fields are not linked to a valid venue.", "/admin/fields", "Review"),
         statusFor(fields.length > 0, "Fields have public pages", "Public field routes are available for configured fields.", "Add fields before sharing public pages.", "/admin/fields/new", "Add Field"),
         statusFor(fields.length > 0, "Fields have QR pages", "QR print pages are available for configured fields.", "Add fields before generating QR pages.", "/admin/fields", "Review QR"),
-        statusFor(fields.length > 0 && fields.every((field) => Boolean(field.status)), "Fields have field_status", "Every field has a status value.", "Set status for every field.", "/admin/status-board", "Open Status Board"),
+        statusFor(fields.length > 0 && fields.every((field) => Boolean(field.status)), "Fields have field_status", "Every field has a status value.", "Set status for every field.", "/admin/fields", "Open Fields"),
       ],
     },
     {

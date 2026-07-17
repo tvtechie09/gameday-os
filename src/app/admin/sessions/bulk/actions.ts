@@ -24,7 +24,6 @@ function readSessionIds(formData: FormData) {
 function revalidateSessionSurfaces() {
   revalidatePath("/admin/sessions");
   revalidatePath("/admin/sessions/bulk");
-  revalidatePath("/admin/dashboard");
   revalidatePath("/fields/[fieldId]", "page");
 }
 

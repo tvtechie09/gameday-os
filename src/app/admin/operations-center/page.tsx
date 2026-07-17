@@ -381,8 +381,8 @@ function PublicImpactPreview({ activeAlerts, delayedFields, venueStatus }: { act
         "Public Venue Page",
         "Public Field Pages",
         "Venue Display Board",
-        "Game Day Center",
-        "Status Board",
+        "Command Center",
+        "Fields",
         "Executive Dashboard",
         "Pilot Launch Dashboard",
       ].map((target) => (
@@ -487,8 +487,8 @@ export default async function OperationsCenterPage({ searchParams }: OperationsC
           <Link href="/admin/weather" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
             Weather Profiles
           </Link>
-          <Link href="/admin/status-board" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
-            Status Board
+          <Link href="/admin/fields" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white">
+            Fields
           </Link>
         </div>
       </div>

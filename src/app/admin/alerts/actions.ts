@@ -12,11 +12,8 @@ export type CreateAlertResult = {
 
 function revalidateAlertSurfaces() {
   revalidatePath("/admin/alerts");
-  revalidatePath("/admin/dashboard");
   revalidatePath("/admin/tournaments");
   revalidatePath("/admin/operations-center");
-  revalidatePath("/admin/game-day");
-  revalidatePath("/admin/status-board");
   revalidatePath("/venues/[venueId]", "page");
   revalidatePath("/fields/[fieldId]", "page");
 }

@@ -15,7 +15,6 @@ function readHealthStatus(value: FormDataEntryValue | null): ExternalSourceStatu
 function revalidateHealthSurfaces() {
   revalidatePath("/admin/integrations");
   revalidatePath("/admin/integrations/health");
-  revalidatePath("/admin/dashboard");
 }
 
 export async function updateExternalSourceHealthAction(formData: FormData) {

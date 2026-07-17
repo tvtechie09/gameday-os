@@ -26,7 +26,6 @@ export default async function EditResourcePage({ params }: EditResourcePageProps
 
     await updateResource(resourceId, parsed.data);
     revalidatePath("/admin/resources");
-    revalidatePath("/admin/dashboard");
     revalidatePath("/fields/[fieldId]", "page");
     redirect("/admin/resources");
   }

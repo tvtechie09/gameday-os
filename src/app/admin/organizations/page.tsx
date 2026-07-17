@@ -68,8 +68,8 @@ export default async function OrganizationsDashboardPage() {
           <Link href="/admin/organizations/branding" className="ui-button ui-button-secondary">
             Branding
           </Link>
-          <Link href="/admin/dashboard" className="ui-button ui-button-secondary">
-            Operations Dashboard
+          <Link href="/admin/command-center" className="ui-button ui-button-secondary">
+            Command Center
           </Link>
         </div>
       </div>

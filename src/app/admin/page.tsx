@@ -50,7 +50,7 @@ export default async function AdminDashboard() {
           <Link href={primaryAction.href} className="ui-button ui-button-primary min-h-12 bg-white text-[var(--foreground)] hover:bg-white/90">
             {primaryAction.label}
           </Link>
-          <Link href="/admin/game-day" className="ui-button min-h-12 border border-white/20 bg-white/10 text-white hover:bg-white/15">
+          <Link href="/admin/command-center" className="ui-button min-h-12 border border-white/20 bg-white/10 text-white hover:bg-white/15">
             View Game Day
           </Link>
         </div>

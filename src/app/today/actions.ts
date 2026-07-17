@@ -15,7 +15,6 @@ export type QuickActionResult = { ok: boolean; message: string };
 
 function revalidateToday() {
   revalidatePath("/today");
-  revalidatePath("/admin/dashboard");
 }
 
 // Capability grants the verb; scope grants the venue. A venue-scoped role holds

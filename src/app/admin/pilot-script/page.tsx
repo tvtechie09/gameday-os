@@ -38,7 +38,7 @@ const testSections: TestSection[] = [
     goal: "Confirm the venue command view helps staff understand the day.",
     title: "Venue Dashboard Test",
     steps: [
-      { label: "Open Pilot Launch, Game Day, and Status Board.", expected: "Active sessions, alerts, fields, and links load." },
+      { label: "Open Pilot Launch, the Command Center, and Fields.", expected: "Active sessions, alerts, fields, and links load." },
       { label: "Change a field status to delayed or open.", expected: "Dashboard and public field page reflect the change." },
       { label: "Open the public venue page.", expected: "Fields, alerts, and today's schedule are easy to scan." },
     ],

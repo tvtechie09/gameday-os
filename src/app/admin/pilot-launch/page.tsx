@@ -333,8 +333,8 @@ export default async function PilotLaunchPage({ searchParams }: PilotLaunchPageP
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <ActionLink href={publicVenueUrl} label="Open Venue Page" primary />
                 <ActionLink href="#field-pages" label="Open Field Pages" />
-                <ActionLink href="/admin/game-day" label="Open Game Day Center" />
-                <ActionLink href="/admin/status-board" label="Open Status Board" />
+                <ActionLink href="/admin/command-center" label="Open Command Center" />
+                <ActionLink href="/admin/fields" label="Open Fields" />
                 <ActionLink href="/admin/operations-center" label="Open Venue Command Center" />
                 <ActionLink href="/admin/pilot-script" label="Open Pilot Test Script" />
                 <ActionLink href="/admin/system-health" label="Open System Health" />

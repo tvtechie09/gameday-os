@@ -12,7 +12,6 @@ export type CreateResourceResult = {
 
 function revalidateResourceSurfaces() {
   revalidatePath("/admin/resources");
-  revalidatePath("/admin/dashboard");
   revalidatePath("/fields/[fieldId]", "page");
 }
 

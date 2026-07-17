@@ -59,3 +59,63 @@ test("no admin screen titles itself with another screen's route name", () => {
   }
   assert.deepEqual(offenders, [], `naming collisions:\n  ${offenders.join("\n  ")}`);
 });
+
+// Screens deleted 2026-07-17 as unreachable duplicates:
+//   /admin/dashboard    (855 lines, 1 action: field status -> /admin/fields has it)
+//   /admin/game-day     (492 lines, ZERO actions -- a read-only view of what the
+//                        Command Center and the wall display already show)
+//   /admin/status-board (319 lines, 1 action: field status, and it was broken)
+//
+// ~1,666 lines that no nav could reach. A link or revalidatePath left pointing at
+// them is either a 404 for a GM or a silent no-op, and both look like the code
+// works. Same failure shape as the rest of this codebase's bugs.
+const DELETED_ROUTES = ["/admin/dashboard", "/admin/game-day", "/admin/status-board"];
+
+test("nothing references a deleted ops screen", () => {
+  const offenders: string[] = [];
+  const roots = [new URL("../src/app/", import.meta.url).pathname, new URL("../src/lib/", import.meta.url).pathname, new URL("../src/components/", import.meta.url).pathname];
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) out.push(...walk(full));
+      else if (/\.tsx?$/.test(entry)) out.push(full);
+    }
+    return out;
+  };
+  for (const root of roots) {
+    for (const file of walk(root)) {
+      const source = readFileSync(file, "utf8");
+      for (const route of DELETED_ROUTES) {
+        // Match the route as a whole path segment, not a prefix of a live one.
+        if (new RegExp(`["'\`]${route}(["'\`/?])`).test(source)) {
+          offenders.push(`${file.split("/src/")[1]} -> ${route}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(offenders, [], `these point at deleted screens:\n  ${offenders.join("\n  ")}`);
+});
+
+test("no link is labelled for a screen that no longer exists", () => {
+  // A button reading "Status Board" that opens /admin/fields is how a codebase
+  // starts lying about itself again.
+  const dead = ["Status Board", "Game Day Center", "Operations Dashboard"];
+  const offenders: string[] = [];
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) out.push(...walk(full));
+      else if (/\.tsx?$/.test(entry)) out.push(full);
+    }
+    return out;
+  };
+  for (const file of walk(new URL("../src/app/", import.meta.url).pathname)) {
+    const source = readFileSync(file, "utf8");
+    for (const label of dead) {
+      if (source.includes(label)) offenders.push(`${file.split("/src/")[1]} -> "${label}"`);
+    }
+  }
+  assert.deepEqual(offenders, [], `stale labels:\n  ${offenders.join("\n  ")}`);
+});

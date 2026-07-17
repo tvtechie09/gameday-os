@@ -7,7 +7,6 @@ import type { ResourceActivationStatus } from "@/lib/types";
 function revalidateActivationSurfaces() {
   revalidatePath("/admin/resources/activations");
   revalidatePath("/admin/resources/dashboard");
-  revalidatePath("/admin/dashboard");
   revalidatePath("/fields/[fieldId]", "page");
 }
 

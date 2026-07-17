@@ -161,9 +161,6 @@ function readFieldIds(formData: FormData) {
 function revalidateOperationSurfaces(fieldIds: string[]) {
   revalidatePath("/admin/operations-center");
   revalidatePath("/admin/weather");
-  revalidatePath("/admin/dashboard");
-  revalidatePath("/admin/game-day");
-  revalidatePath("/admin/status-board");
   revalidatePath("/admin/pilot-launch");
   revalidatePath("/display/venue/[venueId]", "page");
   revalidatePath("/venues/[venueId]", "page");

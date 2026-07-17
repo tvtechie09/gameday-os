@@ -6,7 +6,6 @@ import type { VolunteerRoleStatus } from "@/lib/types";
 
 function revalidateVolunteerSurfaces() {
   revalidatePath("/admin/volunteers");
-  revalidatePath("/admin/dashboard");
   revalidatePath("/fields/[fieldId]", "page");
   revalidatePath("/admin/sessions/[sessionId]", "page");
 }

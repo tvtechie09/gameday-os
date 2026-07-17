@@ -12,7 +12,6 @@ export type AudioProfileResult = {
 
 function revalidateAudioSurfaces(fieldId?: string) {
   revalidatePath("/admin/audio");
-  revalidatePath("/admin/game-day");
 
   if (fieldId) {
     revalidatePath(`/admin/fields/${fieldId}/control`);

@@ -7,7 +7,6 @@ function revalidateSyncPaths() {
   revalidatePath("/admin/sync");
   revalidatePath("/admin/sync/jobs");
   revalidatePath("/admin/sync/review");
-  revalidatePath("/admin/dashboard");
   revalidatePath("/admin/sessions");
 }
 

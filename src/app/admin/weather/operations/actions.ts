@@ -81,9 +81,6 @@ function addHours(date: Date, hours: number) {
 function revalidateWeatherOperationSurfaces(fieldIds: string[]) {
   revalidatePath("/admin/weather");
   revalidatePath("/admin/weather/operations");
-  revalidatePath("/admin/dashboard");
-  revalidatePath("/admin/game-day");
-  revalidatePath("/admin/status-board");
   revalidatePath("/venues/[venueId]", "page");
   revalidatePath("/fields/[fieldId]", "page");
 

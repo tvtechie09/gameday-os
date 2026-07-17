@@ -31,7 +31,6 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
 
     await updateAlert(alertId, parsed.data);
     revalidatePath("/admin/alerts");
-    revalidatePath("/admin/dashboard");
     revalidatePath("/admin/tournaments");
     revalidatePath("/fields/[fieldId]", "page");
     redirect("/admin/alerts");

@@ -294,7 +294,7 @@ export default async function ExecutiveDashboardPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-          <Link className="ui-button ui-button-primary" href="/admin/game-day">
+          <Link className="ui-button ui-button-primary" href="/admin/command-center">
             Game Day
           </Link>
           {primaryVenueDisplayUrl ? (
@@ -302,8 +302,8 @@ export default async function ExecutiveDashboardPage() {
               Venue Display
             </Link>
           ) : null}
-          <Link className="ui-button ui-button-secondary" href="/admin/dashboard">
-            Operations Dashboard
+          <Link className="ui-button ui-button-secondary" href="/admin/command-center">
+            Command Center
           </Link>
           <Link className="ui-button ui-button-secondary" href="/admin/system-health">
             System Health
@@ -320,7 +320,7 @@ export default async function ExecutiveDashboardPage() {
       <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard href="/admin/venues" icon={BarChart3} label="Venues" note="Configured venue profiles" value={venues.length} />
         <SummaryCard href="/admin/fields" icon={Activity} label="Fields" note="Operational field inventory" value={fields.length} />
-        <SummaryCard href="/admin/game-day" icon={Radio} label="Active Games" note="Live or in-window sessions" value={activeGames.length} />
+        <SummaryCard href="/admin/command-center" icon={Radio} label="Active Games" note="Live or in-window sessions" value={activeGames.length} />
         <SummaryCard href="/admin/sessions" icon={CalendarDays} label="Games Today" note="Sessions scheduled today" value={gamesToday.length} />
         <SummaryCard href="/admin/sponsors" icon={HandHeart} label="Sponsor Impressions" note={sponsorAnalyticsAvailable ? `${totalSponsorClicks} total sponsor clicks` : "Analytics are not available in this environment"} value={sponsorAnalyticsAvailable ? totalSponsorImpressions : "—"} />
         <SummaryCard href="/admin/resources" icon={Database} label="Active Resources" note={`${activeActivations.length} live parent/operator activations`} value={activeResources.length} />

@@ -284,7 +284,6 @@ export async function importCalendarSessionsAction({
 
   revalidatePath("/admin/integrations");
   revalidatePath("/admin/sessions");
-  revalidatePath("/admin/dashboard");
   revalidatePath("/admin/sync");
   revalidatePath("/admin/sync/review");
 

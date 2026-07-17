@@ -12,8 +12,6 @@ export type ScoreboardProfileResult = {
 
 function revalidateScoreboardSurfaces(fieldId?: string) {
   revalidatePath("/admin/scoreboards");
-  revalidatePath("/admin/game-day");
-  revalidatePath("/admin/dashboard");
 
   if (fieldId) {
     revalidatePath(`/admin/fields/${fieldId}/control`);

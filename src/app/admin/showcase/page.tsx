@@ -230,8 +230,8 @@ export default async function ShowcasePage() {
   ];
 
   const previewCards = [
-    { href: "/admin/game-day", note: "Single operational view for games, alerts, resources, and volunteers.", title: "Game Day Center" },
-    { href: "/admin/status-board", note: "Venue-wide field status board for operations staff.", title: "Status Board" },
+    { href: "/admin/command-center", note: "Single operational view for games, alerts, resources, and volunteers.", title: "Command Center" },
+    { href: "/admin/fields", note: "Field status and QR codes for operations staff.", title: "Fields" },
     { href: "/admin/pilot-prep", note: "Pilot readiness checklist with links for setup, QR testing, and public experience checks.", title: "Pilot Report" },
     ...(firstVenue ? [{ href: getPublicVenueDisplayUrl(firstVenue.id), note: "TV, lobby, concession, website, or OBS venue display.", title: "Venue Display" }] : []),
     ...(firstField ? [{ href: getPublicFieldScoreboardUrl(firstField.id), note: "High-contrast scoreboard display for the selected demo field.", title: "Scoreboard Display" }] : []),
@@ -402,8 +402,8 @@ export default async function ShowcasePage() {
           <article className="ui-card p-5">
             <SectionHeader note="Fast launch buttons for a live client demo." title="Open Demo Views" />
             <div className="mt-5 grid gap-3">
-              <Link className="ui-button ui-button-primary" href="/admin/game-day">Game Day Center</Link>
-              <Link className="ui-button ui-button-secondary" href="/admin/status-board">Status Board</Link>
+              <Link className="ui-button ui-button-primary" href="/admin/command-center">Command Center</Link>
+              <Link className="ui-button ui-button-secondary" href="/admin/fields">Fields</Link>
               {demoReadyLinks.map((link) => (
                 <div className="rounded-lg border border-[var(--line)] p-3" key={`${link.label}-${link.href}`}>
                   <Link className="ui-button ui-button-secondary w-full justify-center" href={link.href}>{link.label}</Link>

@@ -50,6 +50,12 @@ export const navItems: NavItem[] = [
   // sees two screens competing for the same job.
   { key: "command-center", href: "/admin/command-center", label: "Today's Operations", icon: "Home", group: "operations", cap: canViewCommandCenter },
   { key: "today", href: "/today", label: "Today's Operations", icon: "Home", group: "operations", cap: (ctx) => canViewOpsTasks(ctx) && !canViewCommandCenter(ctx) },
+  // Venue-wide posture: normal play / weather delay / schedule delay / closed /
+  // emergency / maintenance, plus bulk field resets and venue announcements.
+  // These are decisions the Command Center deliberately does NOT make -- it shows
+  // you the day; this changes the day for the whole venue. It was orphaned, so
+  // eight real server actions were unreachable by clicking.
+  { key: "venue-mode", href: "/admin/operations-center", label: "Venue Mode & Status", icon: "Gauge", group: "operations", cap: canViewCommandCenter },
   { key: "schedule", href: "/admin/sessions", label: "Schedule & Games", icon: "CalendarDays", group: "operations", cap: canManageSchedule },
   { key: "tournaments", href: "/admin/tournaments", label: "Tournaments & Brackets", icon: "Trophy", group: "operations", cap: canManageTournaments },
   { key: "fields", href: "/admin/fields", label: "Fields", icon: "MapPin", group: "operations", cap: canManageFields },
@@ -110,6 +116,7 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   // canAccessAdminWorkspace, which venue_staff does not satisfy -- they would see
   // the nav link and get bounced.
   { prefix: "/admin/command-center", cap: canViewCommandCenter },
+  { prefix: "/admin/operations-center", cap: canViewCommandCenter },
   { prefix: "/admin/impersonation", cap: canImpersonate },
   { prefix: "/admin/developer", cap: canViewDevTools },
   { prefix: "/admin/marketplace", cap: canViewDevTools },
