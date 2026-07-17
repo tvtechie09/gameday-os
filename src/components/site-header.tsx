@@ -49,6 +49,13 @@ export function SiteHeader() {
     return null;
   }
 
+  // Unattended screens: wall-mounted display boards and scoreboards. Nobody
+  // clicks these, so nav is dead weight at the top of a TV -- and an "Admin"
+  // link on a screen hanging in a public concourse is an invitation.
+  if (pathname.startsWith("/display") || pathname.startsWith("/scoreboard")) {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-white/95 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-8">
