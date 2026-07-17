@@ -7,9 +7,11 @@ import {
 } from "@/lib/access/session-cookie";
 import { getActingContext } from "@/lib/access/session";
 
-// Venue-agnostic roles can be previewed without selecting a venue (platform
-// scope). Every other role requires a venue.
-const platformScopedRoles = new Set(["super_admin", "platform_admin", "organization_admin"]);
+// Truly platform-wide roles: previewed with no scope at all.
+const platformScopedRoles = new Set(["super_admin", "platform_admin"]);
+// Organization-scoped roles (e.g. an org president): previewed AS a specific
+// organization, so they require an organizationId instead of a venue.
+const organizationScopedRoles = new Set(["organization_admin"]);
 
 // Start a synthetic venue+role preview. No fake user is created: we store only
 // the selection ({ venueId, roleKey, startedByUserId, startedAt }) in an
@@ -29,17 +31,24 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const roleKey = String(form.get("roleKey") ?? "").trim();
   const venueId = String(form.get("venueId") ?? "").trim() || null;
+  const organizationId = String(form.get("organizationId") ?? "").trim() || null;
 
   if (!roleKey) {
     return NextResponse.redirect(new URL("/admin/impersonation?error=missing-role", request.url));
   }
 
-  if (!venueId && !platformScopedRoles.has(roleKey)) {
+  const isOrgScoped = organizationScopedRoles.has(roleKey);
+  if (isOrgScoped && !organizationId) {
+    return NextResponse.redirect(new URL("/admin/impersonation?error=missing-org", request.url));
+  }
+  if (!isOrgScoped && !venueId && !platformScopedRoles.has(roleKey)) {
     return NextResponse.redirect(new URL("/admin/impersonation?error=missing-venue", request.url));
   }
 
   const selection: ImpersonationPayload = {
-    venueId,
+    // An org-scoped preview never carries a venue.
+    venueId: isOrgScoped ? null : venueId,
+    organizationId: isOrgScoped ? organizationId : null,
     roleKey,
     startedByUserId: actingCtx.userId,
     startedAt: new Date().toISOString(),

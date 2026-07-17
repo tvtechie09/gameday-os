@@ -9,6 +9,11 @@ export type VenueOption = {
   statusLabel: string | null;
 };
 
+export type OrgOption = {
+  id: string;
+  name: string;
+};
+
 export type RoleOption = {
   key: string;
   name: string;
@@ -18,6 +23,9 @@ export type RoleOption = {
 export type RoleGroup = {
   label: string;
   venueAgnostic: boolean;
+  // Org-scoped roles (a president) preview AS a specific organization — they need
+  // an org, not a venue.
+  orgScoped: boolean;
   roles: RoleOption[];
 };
 
@@ -26,31 +34,39 @@ export type RoleGroup = {
 // synthetic-session cookie (no fake user) and redirects to /today.
 export function ImpersonationConsole({
   venues,
+  organizations,
   roleGroups,
-}: Readonly<{ venues: VenueOption[]; roleGroups: RoleGroup[] }>) {
+}: Readonly<{ venues: VenueOption[]; organizations: OrgOption[]; roleGroups: RoleGroup[] }>) {
   const [roleKey, setRoleKey] = useState("");
   const [venueId, setVenueId] = useState("");
+  const [organizationId, setOrganizationId] = useState("");
 
   const rolesByKey = useMemo(() => {
-    const map = new Map<string, { role: RoleOption; venueAgnostic: boolean }>();
+    const map = new Map<string, { role: RoleOption; venueAgnostic: boolean; orgScoped: boolean }>();
     for (const group of roleGroups) {
       for (const role of group.roles) {
-        map.set(role.key, { role, venueAgnostic: group.venueAgnostic });
+        map.set(role.key, { role, venueAgnostic: group.venueAgnostic, orgScoped: group.orgScoped });
       }
     }
     return map;
   }, [roleGroups]);
 
   const selected = roleKey ? rolesByKey.get(roleKey) : undefined;
+  const orgScoped = selected?.orgScoped ?? false;
   const venueAgnostic = selected?.venueAgnostic ?? false;
   const selectedVenue = venues.find((v) => v.id === venueId) ?? null;
+  const selectedOrg = organizations.find((o) => o.id === organizationId) ?? null;
 
-  const needsVenue = Boolean(selected) && !venueAgnostic && !venueId;
-  const canSubmit = Boolean(selected) && (venueAgnostic || Boolean(venueId));
+  const needsVenue = Boolean(selected) && !venueAgnostic && !orgScoped && !venueId;
+  const needsOrg = Boolean(selected) && orgScoped && !organizationId;
+  const canSubmit = Boolean(selected) && (orgScoped ? Boolean(organizationId) : venueAgnostic || Boolean(venueId));
 
   const cta = useMemo(() => {
     if (!selected) {
       return "Select a role to preview";
+    }
+    if (orgScoped) {
+      return selectedOrg ? `View as ${selected.role.name} of ${selectedOrg.name}` : `View as ${selected.role.name}`;
     }
     if (venueAgnostic) {
       return `View as ${selected.role.name} (platform)`;
@@ -59,37 +75,60 @@ export function ImpersonationConsole({
       return `View as ${selected.role.name} at ${selectedVenue.name}`;
     }
     return `View as ${selected.role.name}`;
-  }, [selected, venueAgnostic, selectedVenue]);
+  }, [selected, orgScoped, venueAgnostic, selectedVenue, selectedOrg]);
 
   return (
     <form action="/api/dev-login/impersonate" method="post" className="mt-6 grid gap-5">
-      <div className="grid gap-2">
-        <label htmlFor="venueId" className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
-          Venue
-        </label>
-        <select
-          id="venueId"
-          name="venueId"
-          value={venueId}
-          onChange={(event) => setVenueId(event.target.value)}
-          disabled={venueAgnostic}
-          className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-bold text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <option value="">{venueAgnostic ? "Not required for this role" : "Select a venue…"}</option>
-          {venues.map((venue) => (
-            <option key={venue.id} value={venue.id}>
-              {venue.name}
-              {venue.location ? ` — ${venue.location}` : ""}
-              {venue.statusLabel ? ` (${venue.statusLabel})` : ""}
-            </option>
-          ))}
-        </select>
-        {venueAgnostic ? (
+      {orgScoped ? (
+        <div className="grid gap-2">
+          <label htmlFor="organizationId" className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
+            Organization
+          </label>
+          <select
+            id="organizationId"
+            name="organizationId"
+            value={organizationId}
+            onChange={(event) => setOrganizationId(event.target.value)}
+            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-bold text-[var(--foreground)]"
+          >
+            <option value="">Select an organization…</option>
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id}>{org.name}</option>
+            ))}
+          </select>
           <p className="text-xs font-semibold text-[var(--muted)]">
-            This role is platform-wide and is previewed without a specific venue.
+            Preview as this organization&rsquo;s president — including orgs that use fields they don&rsquo;t own.
           </p>
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          <label htmlFor="venueId" className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
+            Venue
+          </label>
+          <select
+            id="venueId"
+            name="venueId"
+            value={venueId}
+            onChange={(event) => setVenueId(event.target.value)}
+            disabled={venueAgnostic}
+            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-bold text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">{venueAgnostic ? "Not required for this role" : "Select a venue…"}</option>
+            {venues.map((venue) => (
+              <option key={venue.id} value={venue.id}>
+                {venue.name}
+                {venue.location ? ` — ${venue.location}` : ""}
+                {venue.statusLabel ? ` (${venue.statusLabel})` : ""}
+              </option>
+            ))}
+          </select>
+          {venueAgnostic ? (
+            <p className="text-xs font-semibold text-[var(--muted)]">
+              This role is platform-wide and is previewed without a specific venue.
+            </p>
+          ) : null}
+        </div>
+      )}
 
       <div className="grid gap-2">
         <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Role</p>
@@ -107,7 +146,9 @@ export function ImpersonationConsole({
                     aria-pressed={active}
                     onClick={() => {
                       setRoleKey(role.key);
-                      if (group.venueAgnostic) setVenueId("");
+                      // Scopes are mutually exclusive; clear the one that no longer applies.
+                      if (group.venueAgnostic || group.orgScoped) setVenueId("");
+                      if (!group.orgScoped) setOrganizationId("");
                     }}
                     className={`grid gap-1 rounded-lg border p-3 text-left transition ${active ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)] bg-white hover:border-[var(--accent)]"}`}
                   >
@@ -125,6 +166,11 @@ export function ImpersonationConsole({
       {needsVenue ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900">
           Select a venue to preview this role.
+        </p>
+      ) : null}
+      {needsOrg ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900">
+          Select an organization to preview this role.
         </p>
       ) : null}
 

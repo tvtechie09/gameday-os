@@ -25,6 +25,9 @@ export type SessionPayload = {
 // fake user identity are stored here.
 export type ImpersonationPayload = {
   venueId: string | null;
+  // Set when previewing an organization-scoped role (e.g. an org president) — the
+  // preview is scoped to this org, not a venue.
+  organizationId: string | null;
   roleKey: string;
   startedByUserId: string;
   startedAt: string;
@@ -47,6 +50,7 @@ export function decodeImpersonation(value: string | undefined | null): Impersona
 
     return {
       venueId: typeof parsed.venueId === "string" && parsed.venueId.length > 0 ? parsed.venueId : null,
+      organizationId: typeof parsed.organizationId === "string" && parsed.organizationId.length > 0 ? parsed.organizationId : null,
       roleKey: parsed.roleKey,
       startedByUserId: typeof parsed.startedByUserId === "string" ? parsed.startedByUserId : "",
       startedAt: typeof parsed.startedAt === "string" ? parsed.startedAt : "",

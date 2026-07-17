@@ -8,6 +8,7 @@ import {
   type RoleGroup,
   type RoleOption,
   type VenueOption,
+  type OrgOption,
 } from "./impersonation-console";
 
 export const dynamic = "force-dynamic";
@@ -15,11 +16,18 @@ export const dynamic = "force-dynamic";
 // Grouping of role keys for the selector. Any DB role not listed here falls into
 // "Other roles". `venueAgnostic` groups are previewed at platform scope (no
 // venue required).
-const roleGroupSpec: Array<{ label: string; venueAgnostic: boolean; keys: string[] }> = [
+const roleGroupSpec: Array<{ label: string; venueAgnostic: boolean; orgScoped?: boolean; keys: string[] }> = [
   {
-    label: "Platform / tenant (no venue required)",
+    label: "Platform (no scope required)",
     venueAgnostic: true,
-    keys: ["super_admin", "platform_admin", "organization_admin"],
+    keys: ["super_admin", "platform_admin"],
+  },
+  {
+    // An org president uses fields it may not own; previewed AS a specific org.
+    label: "Organization (pick an organization)",
+    venueAgnostic: false,
+    orgScoped: true,
+    keys: ["organization_admin"],
   },
   {
     label: "Venue operations",
@@ -98,6 +106,16 @@ async function loadVenues(): Promise<VenueOption[]> {
   }
 }
 
+async function loadOrganizations(): Promise<OrgOption[]> {
+  try {
+    const supabase = getReadClient();
+    const { data } = await supabase.from("organizations").select("id,name").order("name", { ascending: true });
+    return (data ?? []).map((org) => ({ id: org.id, name: org.name }));
+  } catch {
+    return [];
+  }
+}
+
 async function loadRoleGroups(): Promise<RoleGroup[]> {
   let roles: Array<{ key: string; name: string; description: string | null }> = [];
   try {
@@ -128,7 +146,7 @@ async function loadRoleGroups(): Promise<RoleGroup[]> {
   for (const spec of roleGroupSpec) {
     const options = spec.keys.map(toOption).filter((option): option is RoleOption => option !== null);
     if (options.length > 0) {
-      grouped.push({ label: spec.label, venueAgnostic: spec.venueAgnostic, roles: options });
+      grouped.push({ label: spec.label, venueAgnostic: spec.venueAgnostic, orgScoped: spec.orgScoped ?? false, roles: options });
     }
   }
 
@@ -136,7 +154,7 @@ async function loadRoleGroups(): Promise<RoleGroup[]> {
     .filter((role) => !usedKeys.has(role.key))
     .map((role) => ({ key: role.key, name: role.name, description: role.description }));
   if (leftover.length > 0) {
-    grouped.push({ label: "Other roles", venueAgnostic: false, roles: leftover });
+    grouped.push({ label: "Other roles", venueAgnostic: false, orgScoped: false, roles: leftover });
   }
 
   return grouped;
@@ -154,14 +172,16 @@ export default async function ImpersonationPage({
   }
 
   const params = await searchParams;
-  const [venues, roleGroups] = await Promise.all([loadVenues(), loadRoleGroups()]);
+  const [venues, organizations, roleGroups] = await Promise.all([loadVenues(), loadOrganizations(), loadRoleGroups()]);
 
   const errorMessage =
     params.error === "missing-venue"
       ? "Select a venue to preview that role."
-      : params.error === "missing-role"
-        ? "Select a role to preview."
-        : null;
+      : params.error === "missing-org"
+        ? "Select an organization to preview that role."
+        : params.error === "missing-role"
+          ? "Select a role to preview."
+          : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
@@ -185,7 +205,7 @@ export default async function ImpersonationPage({
           Unable to load venues or roles. Check the Supabase connection and try again.
         </p>
       ) : (
-        <ImpersonationConsole venues={venues} roleGroups={roleGroups} />
+        <ImpersonationConsole venues={venues} organizations={organizations} roleGroups={roleGroups} />
       )}
     </div>
   );

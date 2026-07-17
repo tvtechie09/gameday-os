@@ -164,6 +164,17 @@ async function lookupVenueName(venueId: string): Promise<string | null> {
   }
 }
 
+async function lookupOrganizationName(organizationId: string): Promise<string | null> {
+  try {
+    const { getSupabaseAdminClient } = await import("@/lib/supabase/server");
+    const supabase = getSupabaseAdminClient();
+    const { data } = await supabase.from("organizations").select("name").eq("id", organizationId).maybeSingle();
+    return data?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function lookupRoleName(roleKey: string): Promise<string | null> {
   try {
     const { getSupabaseAdminClient } = await import("@/lib/supabase/server");
@@ -185,20 +196,27 @@ async function contextFromImpersonation(
 ): Promise<AccessContext> {
   const permissions = (await livePermissionsForRoleKey(selection.roleKey)) ?? permissionsForRole(selection.roleKey);
   const hasVenue = Boolean(selection.venueId);
-  const [venueName, roleName] = await Promise.all([
+  const hasOrg = Boolean(selection.organizationId);
+  const [venueName, orgName, roleName] = await Promise.all([
     hasVenue ? lookupVenueName(selection.venueId as string) : Promise.resolve(null),
+    hasOrg ? lookupOrganizationName(selection.organizationId as string) : Promise.resolve(null),
     lookupRoleName(selection.roleKey),
   ]);
+
+  // Scope precedence: an org-scoped preview (a president) is neither venue nor
+  // platform — it is that specific organization.
+  const scopeType = hasOrg ? "organization" : hasVenue ? "venue" : "platform";
+  const scopeId = hasOrg ? (selection.organizationId as string) : hasVenue ? (selection.venueId as string) : "platform";
 
   const context = buildAccessContext({
     userId: base.userId,
     email: base.email,
     displayName: roleName ?? selection.roleKey,
     roleKey: selection.roleKey,
-    scopeType: hasVenue ? "venue" : "platform",
-    scopeId: hasVenue ? (selection.venueId as string) : "platform",
+    scopeType,
+    scopeId,
     venueId: hasVenue ? selection.venueId : null,
-    venueName,
+    venueName: hasOrg ? orgName : venueName,
     permissions,
     isImpersonating: true,
   });
