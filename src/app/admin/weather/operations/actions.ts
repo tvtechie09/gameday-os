@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAlert } from "@/lib/services/alerts";
 import { updateFieldStatus } from "@/lib/services/fields";
+import { getSessionContext } from "@/lib/access/session";
 import type { AlertPriority, AlertType, FieldStatus } from "@/lib/types";
 
 export type WeatherOperationType = "normal" | "rain_delay" | "lightning_delay" | "heat_delay" | "field_closure" | "field_reopened" | "all_clear";
@@ -141,7 +142,8 @@ export async function createWeatherOperationAction(formData: FormData): Promise<
   const fieldStatus = config.fieldStatus;
 
   if (fieldStatus && affectedFieldIds.length > 0) {
-    await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, fieldStatus)));
+    const ctxWx = await getSessionContext();
+    await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, fieldStatus, ctxWx?.userId)));
   }
 
   revalidateWeatherOperationSurfaces(affectedFieldIds);

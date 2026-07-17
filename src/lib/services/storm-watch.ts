@@ -95,7 +95,13 @@ export type StormResponseSummary = {
 // the field hold or the public alert.
 export async function executeStormResponse(
   assessment: StormAssessment,
-  options: { severe: boolean; source: "manual" | "automatic" }
+  // actorUserId is REQUIRED, not optional. updateFieldStatus runs a venue-scoped
+  // requirePermission; when this was omitted every field hold threw and the
+  // catch below reported it as "not held", so fieldsHeld was always 0 while the
+  // alert still went out -- the response looked like it worked. Making it
+  // required means a caller that forgets fails the typecheck instead of failing
+  // silently in a storm. Automatic callers pass automationActorUserId.
+  options: { severe: boolean; source: "manual" | "automatic"; actorUserId: string }
 ): Promise<StormResponseSummary> {
   const severe = options.severe;
   const draft = buildStormAlertDraft({ ...assessment, risk: severe ? "severe" : "caution" });
@@ -106,7 +112,14 @@ export async function executeStormResponse(
   if (severe) {
     const fields = await getFields().catch(() => []);
     for (const field of fields.filter((item) => item.venueId === assessment.venueId)) {
-      const ok = await updateFieldStatus(field.id, "delayed").then(() => true).catch(() => false);
+      const ok = await updateFieldStatus(field.id, "delayed", options.actorUserId)
+        .then(() => true)
+        .catch((error) => {
+          // A field we could not hold during a severe storm is the loudest thing
+          // this system can fail at -- never let it pass unlogged.
+          console.error(`Storm response failed to hold field ${field.id} at venue ${assessment.venueId}`, error);
+          return false;
+        });
       if (ok) fieldsHeld += 1;
     }
   }

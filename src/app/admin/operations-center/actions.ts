@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { clearActiveOperationsAlerts, createAlert, hasRecentAllClearAlert, updateAlertLifecycle } from "@/lib/services/alerts";
 import { updateFieldStatus } from "@/lib/services/fields";
+import { getSessionContext } from "@/lib/access/session";
 import { safelyCreateNotification } from "@/lib/services/notifications";
 import type { AlertPriority, AlertType, FieldStatus } from "@/lib/types";
 
@@ -290,7 +291,8 @@ export async function createVenueStatusAction(formData: FormData): Promise<void>
     await clearActiveOperationsAlerts(venueId);
 
     if (affectedFieldIds.length > 0) {
-      await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, "open")));
+      const ctxOpen = await getSessionContext();
+      await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctxOpen?.userId)));
     }
 
     const historyTitle = operationType === "all_clear" ? "All Clear" : "Normal Operations";
@@ -321,7 +323,8 @@ export async function createVenueStatusAction(formData: FormData): Promise<void>
   const fieldStatus = config.fieldStatus;
 
   if (fieldStatus && affectedFieldIds.length > 0) {
-    await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, fieldStatus)));
+    const ctxStatus = await getSessionContext();
+    await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, fieldStatus, ctxStatus?.userId)));
   }
 
   revalidateOperationSurfaces(affectedFieldIds);
@@ -383,7 +386,8 @@ export async function createDelayUpdateAction(formData: FormData): Promise<void>
     venue_id: venueId,
   });
 
-  await updateFieldStatus(fieldId, isOnTime ? "open" : isClosed ? "closed" : "delayed");
+  const ctxSet = await getSessionContext();
+  await updateFieldStatus(fieldId, isOnTime ? "open" : isClosed ? "closed" : "delayed", ctxSet?.userId);
   revalidateOperationSurfaces([fieldId]);
 }
 
@@ -391,7 +395,8 @@ export async function resetAllFieldDelaysAction(formData: FormData): Promise<voi
   const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
   const venueId = String(formData.get("venue_id") ?? "").trim();
 
-  await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open")));
+  const ctxReset = await getSessionContext();
+  await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctxReset?.userId)));
   if (venueId) {
     await notifyOperationsEvent({
       message: "All fields reset to on time.",
@@ -407,7 +412,8 @@ export async function resetSelectedFieldDelayAction(formData: FormData): Promise
 
   if (!fieldId) return;
 
-  await updateFieldStatus(fieldId, "open");
+  const ctxSel = await getSessionContext();
+  await updateFieldStatus(fieldId, "open", ctxSel?.userId);
   revalidateOperationSurfaces([fieldId]);
 }
 
@@ -415,7 +421,8 @@ export async function reopenAllClosedFieldsAction(formData: FormData): Promise<v
   const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
   const venueId = String(formData.get("venue_id") ?? "").trim();
 
-  await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open")));
+  const ctxReopen = await getSessionContext();
+  await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctxReopen?.userId)));
   if (venueId) {
     await notifyOperationsEvent({
       message: "Closed fields reopened.",

@@ -37,7 +37,10 @@ export default async function StormWatchPage() {
     }
     const current = await assessStormRisk(venueId);
     if (!current) return;
-    await executeStormResponse(current, { severe: severity === "severe", source: "manual" });
+    // A human clicked this, so the field holds attribute to them -- not to the
+    // automation account. The scope check above already proved they may act here.
+    if (!ctx?.userId) return;
+    await executeStormResponse(current, { severe: severity === "severe", source: "manual", actorUserId: ctx.userId });
     revalidatePath("/admin/alerts/storm");
     revalidatePath("/admin/alerts");
   }

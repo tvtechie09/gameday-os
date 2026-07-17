@@ -7,6 +7,7 @@ import { getCurrentOrganizationScope } from "@/lib/organization-scope";
 import { getActiveAlerts, getAlertLabel, getAlertTone, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getFieldPageViewDashboardCounts } from "@/lib/services/field-page-views";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { getSessionContext } from "@/lib/access/session";
 import { getFollowDashboardCounts } from "@/lib/services/follows";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
 import { getResources } from "@/lib/services/resources";
@@ -280,7 +281,8 @@ export default async function VenueOperationsDashboard({ searchParams }: Dashboa
     }
 
     try {
-      await updateFieldStatus(fieldId, status);
+      const ctx = await getSessionContext();
+      await updateFieldStatus(fieldId, status, ctx?.userId);
       revalidatePath("/admin/dashboard");
       revalidatePath("/admin/fields");
       revalidatePath(`/fields/${fieldId}`);

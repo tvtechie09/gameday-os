@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getPublicFieldUrl } from "@/lib/public-url";
 import { filterAlertsForFieldPage, getActiveAlerts } from "@/lib/services/alerts";
 import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { getSessionContext } from "@/lib/access/session";
 import { getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getVenues } from "@/lib/services/venues";
@@ -141,7 +142,8 @@ export default async function StatusBoardPage() {
     }
 
     try {
-      await updateFieldStatus(fieldId, status);
+      const ctx = await getSessionContext();
+      await updateFieldStatus(fieldId, status, ctx?.userId);
       revalidatePath("/admin/status-board");
       revalidatePath("/admin/dashboard");
       revalidatePath("/admin/fields");

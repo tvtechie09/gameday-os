@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getWeatherProfiles } from "@/lib/services/weather-profiles";
 import { assessStormRisk, executeStormResponse } from "@/lib/services/storm-watch";
+import { automationActorUserId } from "@/lib/access/automation-actor";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +46,15 @@ export async function GET(request: Request) {
       results.push({ venueId: profile.venueId, risk: assessment.risk, acted: false, reason: "not severe" });
       continue;
     }
-    const summary = await executeStormResponse(assessment, { severe: true, source: "automatic" });
-    results.push({ venueId: profile.venueId, risk: "severe", acted: true, reason: "held " + summary.fieldsHeld + " fields, texted " + summary.umpiresTexted + " umpires" });
+    const summary = await executeStormResponse(assessment, { severe: true, source: "automatic", actorUserId: automationActorUserId });
+    // "acted" used to be hardcoded true, so a run that held zero fields still
+    // reported success. Report what actually happened.
+    results.push({
+      venueId: profile.venueId,
+      risk: "severe",
+      acted: summary.fieldsHeld > 0 || summary.alertSent,
+      reason: "held " + summary.fieldsHeld + " fields, texted " + summary.umpiresTexted + " umpires",
+    });
   }
 
   return NextResponse.json({ ok: true, checked: profiles.length, results }, { headers: { "cache-control": "no-store" } });
