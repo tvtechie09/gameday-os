@@ -5,6 +5,7 @@ import {
   buildFieldBoard,
   buildModeChecklist,
   chicagoDateString,
+  UPCOMING_WINDOW_MIN,
   isSameVenueDay,
   minutesBehind,
   resolveMode,
@@ -13,7 +14,7 @@ import {
 import type { GameRecord } from "../src/lib/game-engine/game-service.ts";
 import type { SessionOfficial } from "../src/lib/services/officials.ts";
 import type { WorkOrder } from "../src/lib/services/work-orders.ts";
-import type { Field, VenueAsset } from "../src/lib/types.ts";
+import type { AudioProfile, Field, VenueAsset } from "../src/lib/types.ts";
 
 const NOW = Date.parse("2026-07-14T18:00:00.000Z");
 const minsAgo = (m: number) => new Date(NOW - m * 60_000).toISOString();
@@ -125,7 +126,7 @@ test("buildAttentionQueue: prioritizes urgent, then soon, then info", () => {
   const workOrders: WorkOrder[] = [{ id: "w1", fieldId: "F1", title: "Low water", detail: "Stand 2", priority: "low", status: "open", closedAt: null } as unknown as WorkOrder];
   const weather = { risk: "severe" as const, reasons: ["Lightning: Storm risk reported"] };
 
-  const queue = buildAttentionQueue({ fields, games, officials: [], workOrders, assets, weather, now: NOW });
+  const queue = buildAttentionQueue({ fields, games, officials: [], workOrders, assets, audioProfiles: [], weather, now: NOW });
 
   // Sorted: all urgent items precede soon, which precede info.
   const tiers = queue.map((i) => i.tier);
@@ -146,10 +147,10 @@ test("buildAttentionQueue: prioritizes urgent, then soon, then info", () => {
 });
 
 test("buildAttentionQueue: caution weather is soon, not urgent; clear venue is empty", () => {
-  const caution = buildAttentionQueue({ fields: [field("F1", "F1")], games: [], officials: [], workOrders: [], assets: [], weather: { risk: "caution", reasons: ["Wind 32 mph"] }, now: NOW });
+  const caution = buildAttentionQueue({ fields: [field("F1", "F1")], games: [], officials: [], workOrders: [], assets: [], audioProfiles: [], weather: { risk: "caution", reasons: ["Wind 32 mph"] }, now: NOW });
   assert.equal(caution.find((i) => i.id === "weather")?.tier, "soon");
 
-  const clear = buildAttentionQueue({ fields: [field("F1", "F1")], games: [], officials: [], workOrders: [], assets: [], weather: { risk: "clear", reasons: [] }, now: NOW });
+  const clear = buildAttentionQueue({ fields: [field("F1", "F1")], games: [], officials: [], workOrders: [], assets: [], audioProfiles: [], weather: { risk: "clear", reasons: [] }, now: NOW });
   assert.equal(clear.length, 0);
 });
 
@@ -352,4 +353,86 @@ test("buildModeChecklist: a fully healthy fleet is still green", () => {
   const board = cl.items.find((i) => i.key === "scoreboards_live");
   assert.equal(board?.status, "ready");
   assert.match(board?.detail ?? "", /2 online/);
+});
+
+// ---- Audio in the attention queue -------------------------------------------
+
+const audio = (over: Partial<AudioProfile> = {}): AudioProfile =>
+  ({
+    id: "ap1", venueId: "V1", fieldId: "F1", sessionId: null,
+    audioMode: "venue_pa", speakerType: null, provider: null,
+    status: "offline", notes: null, createdAt: "", updatedAt: "",
+    ...over,
+  } as AudioProfile);
+
+const audioQueue = (over: { games?: GameRecord[]; audioProfiles?: AudioProfile[] } = {}) =>
+  buildAttentionQueue({
+    fields: [field("F1", "Field 3", "open")],
+    games: over.games ?? [],
+    officials: [], workOrders: [], assets: [],
+    audioProfiles: over.audioProfiles ?? [audio()],
+    weather: null,
+    now: NOW,
+  }).filter((i) => i.id.startsWith("audio:"));
+
+test("attention: offline audio on a field with a live game is flagged", () => {
+  const q = audioQueue({ games: [game({ id: "g1", fieldId: "F1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })] });
+  assert.equal(q.length, 1);
+  assert.equal(q[0].tier, "soon");
+  assert.match(q[0].title, /Audio is offline on Field 3/);
+  // The reason a GM cares is not the music -- it's that they cannot announce.
+  assert.match(q[0].why, /weather hold/i);
+});
+
+test("attention: offline audio on a field with NO games stays quiet", () => {
+  // A dead PA on an empty field at 7am is not a GM's problem. A queue that cries
+  // about it stops being read, which costs us the items that matter.
+  assert.deepEqual(audioQueue({ games: [] }), []);
+});
+
+test("attention: a game far in the future doesn't warrant it yet", () => {
+  const q = audioQueue({ games: [game({ id: "g1", fieldId: "F1", status: "scheduled", lifecycleStatus: "scheduled", startTime: minsAhead(UPCOMING_WINDOW_MIN + 30) })] });
+  assert.deepEqual(q, []);
+});
+
+test("attention: a game starting inside the window is flagged with its time", () => {
+  const q = audioQueue({ games: [game({ id: "g1", fieldId: "F1", status: "scheduled", lifecycleStatus: "scheduled", startTime: minsAhead(45) })] });
+  assert.equal(q.length, 1);
+  assert.match(q[0].why, /starts at .* and has no working audio/);
+});
+
+test("attention: audio_mode 'none' is never flagged offline", () => {
+  // That field has no sound by design; "offline" there means nothing.
+  const q = audioQueue({
+    games: [game({ id: "g1", fieldId: "F1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })],
+    audioProfiles: [audio({ audioMode: "none" })],
+  });
+  assert.deepEqual(q, []);
+});
+
+test("attention: a healthy profile is never flagged", () => {
+  const q = audioQueue({
+    games: [game({ id: "g1", fieldId: "F1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })],
+    audioProfiles: [audio({ status: "active" })],
+  });
+  assert.deepEqual(q, []);
+});
+
+test("attention: a per-game override only speaks for its own game", () => {
+  // The override names g2, but g1 is what's playing -- g1 uses the field default,
+  // so the override's offline status says nothing about the game on the field.
+  const q = audioQueue({
+    games: [game({ id: "g1", fieldId: "F1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })],
+    audioProfiles: [audio({ id: "ap2", sessionId: "g2" })],
+  });
+  assert.deepEqual(q, []);
+});
+
+test("attention: a per-game override IS flagged for the game it names", () => {
+  const q = audioQueue({
+    games: [game({ id: "g2", fieldId: "F1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })],
+    audioProfiles: [audio({ id: "ap2", sessionId: "g2" })],
+  });
+  assert.equal(q.length, 1);
+  assert.equal(q[0].href, "/admin/audio/ap2/edit");
 });

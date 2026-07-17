@@ -5,9 +5,10 @@ import { getSessions } from "@/lib/services/sessions";
 import { getOfficialsForSessions, type SessionOfficial } from "@/lib/services/officials";
 import { getWorkOrders, type WorkOrder } from "@/lib/services/work-orders";
 import { getVenueAssets } from "@/lib/services/venue-assets";
+import { getAudioProfiles } from "@/lib/services/audio-profiles";
 import { assessStormRisk } from "@/lib/services/storm-watch";
 import type { AccessContext } from "@/lib/access/capabilities";
-import type { Field, Session, VenueAsset } from "@/lib/types";
+import type { AudioProfile, Field, Session, VenueAsset } from "@/lib/types";
 import {
   buildAttentionQueue,
   buildFieldBoard,
@@ -76,12 +77,13 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
   const now = Date.now();
   const today = chicagoDateString(now);
 
-  const [allSessions, allFields, workOrders, assets, storm] = await Promise.all([
+  const [allSessions, allFields, workOrders, assets, storm, audioProfiles] = await Promise.all([
     getSessions().catch(() => [] as Session[]),
     getFields().catch(() => [] as Field[]),
     getWorkOrders().catch(() => [] as WorkOrder[]),
     getVenueAssets().catch(() => [] as VenueAsset[]),
     assessStormRisk(venue.id).catch(() => null),
+    getAudioProfiles().catch(() => [] as AudioProfile[]),
   ]);
 
   const venueFields = allFields.filter((f) => f.venueId === venue.id);
@@ -92,6 +94,7 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
   const weather: WeatherSnapshot = storm ? { risk: storm.risk, reasons: storm.reasons } : null;
   const venueWorkOrders = workOrders.filter((o) => fieldIds.has(o.fieldId));
   const venueAssets = assets.filter((a) => a.venueId === venue.id);
+  const venueAudioProfiles = audioProfiles.filter((p) => p.venueId === venue.id);
   const mode = resolveMode(games, now);
 
   return {
@@ -101,7 +104,7 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
     generatedAt: new Date(now).toISOString(),
     summary: summarize({ games, fields: venueFields, officials, assets: venueAssets, weather, now }),
     fields: buildFieldBoard(venueFields, games, officials, now),
-    attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, weather, now }),
+    attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, audioProfiles: venueAudioProfiles, weather, now }),
     checklist: buildModeChecklist({ mode, fields: venueFields, games, officials, assets: venueAssets, weather, workOrders: venueWorkOrders, now }),
     weather,
   };

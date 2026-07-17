@@ -22,6 +22,7 @@ type SearchParams = {
   boards?: string;
   cameras?: string;
   audio?: string;
+  audioprofiles?: string;
   league?: string;
   demo?: string;
   plan?: string;
@@ -57,6 +58,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
             {Number(sp.boards ?? 0) > 0 ? ` · ${sp.boards} scoreboard${sp.boards === "1" ? "" : "s"}` : ""}
             {Number(sp.cameras ?? 0) > 0 ? ` · ${sp.cameras} camera${sp.cameras === "1" ? "" : "s"}` : ""}
             {Number(sp.audio ?? 0) > 0 ? " · PA" : ""}
+            {Number(sp.audioprofiles ?? 0) > 0 ? ` · ${sp.audioprofiles} field audio default${sp.audioprofiles === "1" ? "" : "s"}` : ""}
             {sp.plan === "1" ? " · plan recorded" : ""}
           </p>
           {Number(sp.boards ?? 0) > 0 || Number(sp.cameras ?? 0) > 0 ? (

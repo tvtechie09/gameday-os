@@ -51,6 +51,7 @@ export type ProvisionResult = {
   scoreboardCount: number;
   cameraCount: number;
   audioCount: number;
+  audioProfileCount: number;
   leagueRequestId: string | null;
   planApplied: boolean;
   isDemo: boolean;
@@ -79,6 +80,7 @@ async function unwind(orgId: string, venueId: string | null): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const dynamic = supabase as unknown as DynamicProvisioningSupabase;
   if (venueId) {
+    await dynamic.from("audio_profiles").delete().eq("venue_id", venueId);
     await dynamic.from("venue_assets").delete().eq("venue_id", venueId);
     await supabase.from("resources").delete().eq("venue_id", venueId);
     await supabase.from("play_surfaces").delete().eq("venue_id", venueId);
@@ -253,8 +255,7 @@ export async function provisionVenue(input: ProvisionInput, ctx: AccessContext |
   }
 
   if (input.technology.audio) {
-    // PA is venue-wide. Note this does NOT write audio_profiles -- that table does
-    // not exist, though src/lib/services/audio-profiles.ts still queries it.
+    // The PA hardware itself is venue-wide.
     deviceRows.push({
       organization_id: org.id,
       venue_id: venue.id,
@@ -278,6 +279,35 @@ export async function provisionVenue(input: ProvisionInput, ctx: AccessContext |
       cameraCount = created.filter((a) => a.asset_type === "camera").length;
       audioCount = created.filter((a) => a.asset_type === "speaker").length;
     }
+  }
+
+  // Audio POLICY, not hardware: if the venue told sales they run a house PA, that
+  // is every playable field's default -- "when a game is played here, sound comes
+  // from the venue PA". Without this the table would sit empty waiting for someone
+  // to fill it in by hand, which is how audio_profiles ended up looking present
+  // and doing nothing in the first place.
+  //
+  // Same targets as scoreboards: games are played on the split halves, so that is
+  // where a profile belongs. status "not_configured" because nobody has verified
+  // a speaker yet -- claiming "active" here would be the lie deviceCheck used to
+  // tell.
+  let audioProfileCount = 0;
+  if (input.technology.audio) {
+    const audioTargets = plannedChildren.length > 0 ? allFields.filter((f) => f.planned.parentIndex !== null) : allFields;
+    const dynamic = supabase as unknown as DynamicProvisioningSupabase;
+    const { data, error } = await dynamic
+      .from("audio_profiles")
+      .insert(audioTargets.map((f) => ({
+        organization_id: org.id,
+        venue_id: venue.id,
+        field_id: f.id,
+        session_id: null, // the field DEFAULT; per-game overrides come later
+        audio_mode: "venue_pa",
+        status: "not_configured",
+        notes: "Created at onboarding — venue reported a house PA. Verify the speaker, then mark configured.",
+      })))
+      .select("id");
+    if (!error) audioProfileCount = (data ?? []).length;
   }
 
   // --- League intent ---------------------------------------------------------
@@ -337,6 +367,7 @@ export async function provisionVenue(input: ProvisionInput, ctx: AccessContext |
     scoreboardCount,
     cameraCount,
     audioCount,
+    audioProfileCount,
     leagueRequestId,
     planApplied,
     isDemo: input.isDemo,

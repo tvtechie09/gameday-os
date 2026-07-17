@@ -81,6 +81,7 @@ export async function provisionVenueAction(formData: FormData): Promise<void> {
     + "&boards=" + String(result.scoreboardCount)
     + "&cameras=" + String(result.cameraCount)
     + "&audio=" + String(result.audioCount)
+    + "&audioprofiles=" + String(result.audioProfileCount)
     + "&league=" + (result.leagueRequestId ? "1" : "0")
     + "&demo=" + (result.isDemo ? "1" : "0")
     + "&plan=" + (result.planApplied ? "1" : "0")

@@ -2,7 +2,7 @@ import type { GameRecord } from "@/lib/game-engine/game-service";
 import type { SessionOfficial } from "@/lib/services/officials";
 import type { WorkOrder } from "@/lib/services/work-orders";
 import type { StormRiskLevel } from "@/lib/services/storm-assessment";
-import type { Field, VenueAsset } from "@/lib/types";
+import type { AudioProfile, Field, VenueAsset } from "@/lib/types";
 
 // Pure core of the GameDay Command Center — mode resolution, delay math, field
 // board, attention queue, and summary. Type-only imports keep this dependency-
@@ -165,9 +165,17 @@ export type AttentionInputs = {
   officials: SessionOfficial[];
   workOrders: WorkOrder[];
   assets: VenueAsset[];
+  // Field-level audio POLICY (where sound comes from on this field), distinct
+  // from the speaker hardware in `assets`. A field default has sessionId null; a
+  // per-game override names the session.
+  audioProfiles: AudioProfile[];
   weather: WeatherSnapshot;
   now: number;
 };
+
+// How far ahead a game still counts as "coming up" for readiness warnings. Past
+// this, a broken PA is tomorrow's problem and does not belong in today's queue.
+export const UPCOMING_WINDOW_MIN = 120;
 
 // The prioritized work queue — the heart of the Command Center. Turns raw
 // signals into "what happened / why it matters / what to do", ranked.
@@ -206,6 +214,52 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
       action: "Dispatch a technician or check the connection.",
       href: "/admin/assets",
       fieldName: asset.physicalLocation ?? null,
+    });
+  }
+
+  // Audio that's down on a field where a game is actually happening.
+  //
+  // The discipline here is when NOT to fire. A dead PA on an empty field at 7am
+  // is not a GM's problem, and a queue that cries about it stops being read --
+  // which costs us the items that matter. So: only fields with a game live now or
+  // starting inside the window, and never audio_mode "none" (that field has no
+  // sound by design; "offline" there is meaningless).
+  //
+  // Deliberately "soon", not "urgent": urgent is for lightning and dead systems.
+  // But it isn't cosmetic either -- a venue that can't make announcements can't
+  // announce a weather hold, which is exactly when it matters most.
+  for (const profile of input.audioProfiles) {
+    if (profile.status !== "offline" || profile.audioMode === "none") continue;
+
+    const gamesHere = input.games.filter((g) => g.fieldId === profile.fieldId);
+    // A per-game override only speaks for its own game; a field default speaks
+    // for any game on the field.
+    const relevant = profile.sessionId
+      ? gamesHere.filter((g) => g.id === profile.sessionId)
+      : gamesHere;
+
+    const live = relevant.find((g) => g.lifecycleStatus === "live");
+    const upcoming = relevant
+      .filter((g) => g.lifecycleStatus === "scheduled")
+      .filter((g) => {
+        const startsIn = (Date.parse(g.startTime) - input.now) / 60_000;
+        return startsIn >= 0 && startsIn <= UPCOMING_WINDOW_MIN;
+      })
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+
+    const game = live ?? upcoming;
+    if (!game) continue;
+
+    items.push({
+      id: `audio:${profile.id}`,
+      tier: "soon",
+      title: `Audio is offline on ${fieldName.get(profile.fieldId) ?? "a field"}`,
+      why: live
+        ? `${gameLabel(live)} is playing there now — no announcements, including a weather hold.`
+        : `${gameLabel(upcoming!)} starts at ${timeLabel(upcoming!.startTime)} and has no working audio.`,
+      action: "Check the speaker or switch this field to a backup audio mode.",
+      href: `/admin/audio/${profile.id}/edit`,
+      fieldName: fieldName.get(profile.fieldId) ?? null,
     });
   }
 
