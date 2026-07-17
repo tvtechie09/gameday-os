@@ -283,3 +283,73 @@ test("isSameVenueDay: garbage timestamps never match", () => {
   assert.equal(isSameVenueDay("not-a-date", "2026-07-16"), false);
   assert.equal(isSameVenueDay("", "2026-07-16"), false);
 });
+
+// ---- deviceCheck honesty ----------------------------------------------------
+
+// Onboarding registers hardware BEFORE it is installed (status "unknown"). The
+// checklist used to count unknown as online, so a freshly provisioned venue would
+// have reported "31 online" for boards not yet hung on a wall -- green that reads
+// exactly like success while meaning nothing.
+test("buildModeChecklist: registered-but-never-reporting devices are not 'online'", () => {
+  const cl = buildModeChecklist({
+    mode: "live",
+    now: NOW,
+    fields: [field("F1", "F1", "open")],
+    games: [game({ id: "g1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })],
+    officials: [],
+    assets: [asset("sb1", "scoreboard", "unknown"), asset("sb2", "scoreboard", "unknown")],
+    weather: null,
+    workOrders: [],
+  });
+  const board = cl.items.find((i) => i.key === "scoreboards_live");
+  assert.equal(board?.status, "manual");
+  assert.match(board?.detail ?? "", /2 registered, none reporting yet/);
+});
+
+test("buildModeChecklist: a partly-reporting fleet is not green", () => {
+  const cl = buildModeChecklist({
+    mode: "live",
+    now: NOW,
+    fields: [field("F1", "F1", "open")],
+    games: [game({ id: "g1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })],
+    officials: [],
+    assets: [asset("sb1", "scoreboard", "healthy"), asset("sb2", "scoreboard", "unknown")],
+    weather: null,
+    workOrders: [],
+  });
+  const board = cl.items.find((i) => i.key === "scoreboards_live");
+  assert.equal(board?.status, "todo");
+  assert.match(board?.detail ?? "", /1 of 2 reporting/);
+});
+
+test("buildModeChecklist: an offline board still outranks an unknown one", () => {
+  const cl = buildModeChecklist({
+    mode: "live",
+    now: NOW,
+    fields: [field("F1", "F1", "open")],
+    games: [game({ id: "g1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })],
+    officials: [],
+    assets: [asset("sb1", "scoreboard", "offline"), asset("sb2", "scoreboard", "unknown")],
+    weather: null,
+    workOrders: [],
+  });
+  const board = cl.items.find((i) => i.key === "scoreboards_live");
+  assert.equal(board?.status, "todo");
+  assert.match(board?.detail ?? "", /need attention/);
+});
+
+test("buildModeChecklist: a fully healthy fleet is still green", () => {
+  const cl = buildModeChecklist({
+    mode: "live",
+    now: NOW,
+    fields: [field("F1", "F1", "open")],
+    games: [game({ id: "g1", status: "active", lifecycleStatus: "live", startTime: minsAgo(20), endTime: minsAhead(70) })],
+    officials: [],
+    assets: [asset("sb1", "scoreboard"), asset("sb2", "scoreboard")],
+    weather: null,
+    workOrders: [],
+  });
+  const board = cl.items.find((i) => i.key === "scoreboards_live");
+  assert.equal(board?.status, "ready");
+  assert.match(board?.detail ?? "", /2 online/);
+});

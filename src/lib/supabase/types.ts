@@ -6,6 +6,7 @@ export type Database = {
       organizations: {
         Row: {
           id: string;
+          is_demo?: boolean;
           name: string;
           slug: string;
           logo_url: string | null;
@@ -18,6 +19,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          is_demo?: boolean;
           name: string;
           slug: string;
           logo_url?: string | null;
@@ -30,6 +32,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          is_demo?: boolean;
           name?: string;
           slug?: string;
           logo_url?: string | null;
@@ -1172,6 +1175,7 @@ export type Database = {
       venues: {
         Row: {
           id: string;
+          is_demo?: boolean;
           organization_id: string | null;
           name: string;
           description: string | null;
@@ -1191,6 +1195,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          is_demo?: boolean;
           organization_id?: string | null;
           name: string;
           description?: string | null;
@@ -1210,6 +1215,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          is_demo?: boolean;
           organization_id?: string | null;
           name?: string;
           description?: string | null;
@@ -1232,6 +1238,7 @@ export type Database = {
       fields: {
         Row: {
           id: string;
+          is_demo?: boolean;
           organization_id: string | null;
           venue_id: string;
           zone_id: string | null;
@@ -1240,6 +1247,7 @@ export type Database = {
           sport_type: string;
           surface_code: string | null;
           layout_role: string;
+          layout_type: string | null;
           map_label: string | null;
           map_x: number | null;
           map_y: number | null;
@@ -1252,6 +1260,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          is_demo?: boolean;
           organization_id?: string | null;
           venue_id: string;
           zone_id?: string | null;
@@ -1260,6 +1269,7 @@ export type Database = {
           sport_type: string;
           surface_code?: string | null;
           layout_role?: string;
+          layout_type?: string | null;
           map_label?: string | null;
           map_x?: number | null;
           map_y?: number | null;
@@ -1272,6 +1282,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          is_demo?: boolean;
           organization_id?: string | null;
           venue_id?: string;
           zone_id?: string | null;
@@ -1280,6 +1291,7 @@ export type Database = {
           sport_type?: string;
           surface_code?: string | null;
           layout_role?: string;
+          layout_type?: string | null;
           map_label?: string | null;
           map_x?: number | null;
           map_y?: number | null;

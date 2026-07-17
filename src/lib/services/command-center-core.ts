@@ -306,9 +306,18 @@ function deviceCheck(key: string, label: string, assets: VenueAsset[], match: (a
   const group = assets.filter(match);
   if (group.length === 0) return item(key, label, "None registered — verify manually", "manual");
   const down = group.filter((a) => a.status === "offline" || a.status === "maintenance_needed");
-  return down.length === 0
-    ? item(key, label, `${group.length} online`, "ready")
-    : item(key, label, `${down.length} of ${group.length} need attention`, "todo");
+  if (down.length > 0) return item(key, label, `${down.length} of ${group.length} need attention`, "todo");
+
+  // "unknown" means we have never heard from the device — onboarding registers
+  // hardware before it is installed, so a freshly provisioned venue is full of
+  // them. Reporting those as "online" would turn this checklist into a lie that
+  // reads exactly like success: a GM would see green for boards not yet on a wall.
+  const reporting = group.filter((a) => a.status === "healthy");
+  if (reporting.length === 0) return item(key, label, `${group.length} registered, none reporting yet`, "manual");
+  if (reporting.length < group.length) {
+    return item(key, label, `${reporting.length} of ${group.length} reporting`, "todo");
+  }
+  return item(key, label, `${group.length} online`, "ready");
 }
 
 const isAudio = (a: VenueAsset) => a.assetCategory === "audio" || a.assetType === "speaker" || a.assetType === "audio_zone";
