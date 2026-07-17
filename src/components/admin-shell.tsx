@@ -69,6 +69,7 @@ const adminNavGroups: AdminNavGroup[] = [
     label: "VENUE OPERATIONS",
     items: [
       { href: "/admin/command-center", icon: Radar, label: "Command Center" },
+      { href: "/admin/onboarding", icon: Plus, label: "Onboard a Venue" },
       { href: "/admin/operations-center", icon: Gauge, label: "Operations Center" },
       { href: "/admin/venues", icon: MapPin, label: "Venues" },
       { href: "/admin/fields", icon: QrCode, label: "Fields & Surfaces" },
