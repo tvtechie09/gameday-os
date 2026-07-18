@@ -141,6 +141,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
             <label className="grid gap-1"><span className={labelText}>Sport</span>
               <select name="sport_type" defaultValue="baseball" className={`${field} bg-white font-bold`}>
                 <option value="baseball">Baseball</option><option value="softball">Softball</option><option value="soccer">Soccer</option>
+                <option value="volleyball">Volleyball</option><option value="basketball">Basketball</option>
                 <option value="football">Football</option><option value="lacrosse">Lacrosse</option><option value="other">Other</option>
               </select>
             </label>
@@ -156,6 +157,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
           </label>
           <p className="text-xs text-[var(--muted)]">
             Use <code className="font-mono">{"{n}"}</code> for the number — &ldquo;Field {"{n}"}&rdquo; makes Field 1, Field 2, &hellip;
+            For court sports use &ldquo;Court {"{n}"}&rdquo;; for soccer, &ldquo;Pitch {"{n}"}&rdquo; works too.
             Splitting a field creates Field 1A / 1B / 1C alongside it, so a big diamond can run three 8U games at once.
             Each half gets its own page, QR code, and schedule.
           </p>

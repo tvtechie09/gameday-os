@@ -7,6 +7,7 @@ import {
   planFields,
   slugify,
   summarizeProvision,
+  surfaceTypeForSport,
   tierForFieldCount,
   validateProvisionInput,
   type ProvisionInput,
@@ -193,4 +194,14 @@ test("summary reports teams only for an organization", () => {
   assert.equal(summarizeProvision(input({ accountType: "organization", league })).teamsInvited, 12);
   // Same league data on a complex is not an org -- don't promise team invites.
   assert.equal(summarizeProvision(input({ accountType: "complex", league })).teamsInvited, 0);
+});
+
+test("surfaceTypeForSport: court sports get courts; the rest keep the flagship's 'field'", () => {
+  assert.equal(surfaceTypeForSport("volleyball"), "court");
+  assert.equal(surfaceTypeForSport("basketball"), "court");
+  // Baseball stays 'field' on purpose — Crossroads' real surfaces are all
+  // 'field', and introducing 'diamond' now would split the vocabulary.
+  assert.equal(surfaceTypeForSport("baseball"), "field");
+  assert.equal(surfaceTypeForSport("soccer"), "field");
+  assert.equal(surfaceTypeForSport(null), "field");
 });

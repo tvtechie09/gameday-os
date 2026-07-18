@@ -14,6 +14,26 @@ export const LATE_ATTENTION_THRESHOLD_MIN = 20;
 // A live game with a known scheduled end is "running late" only once it overruns.
 export const DEFAULT_GAME_MINUTES = 90;
 
+// Typical slot length by sport, used ONLY when a game has no scheduled end —
+// a real end_time always wins. These are scheduling heuristics, not rules:
+// clockless sports (volleyball, baseball) can't be timed exactly, but a
+// tournament director still plans courts in ~60-minute waves, and "running
+// behind" has to be measured against SOMETHING. Baseball stays at the original
+// 90 so the flagship demo's math doesn't shift.
+const SPORT_GAME_MINUTES: Record<string, number> = {
+  baseball: DEFAULT_GAME_MINUTES,
+  softball: DEFAULT_GAME_MINUTES,
+  soccer: 75,
+  football: 120,
+  lacrosse: 75,
+  basketball: 75,
+  volleyball: 60,
+};
+
+export function defaultGameMinutes(sportType: string | null | undefined): number {
+  return SPORT_GAME_MINUTES[sportType ?? ""] ?? DEFAULT_GAME_MINUTES;
+}
+
 const CHICAGO = "America/Chicago";
 
 export type CommandCenterMode = "pregame" | "live" | "postgame";
@@ -105,7 +125,7 @@ export function minutesBehind(game: GameRecord, now: number): number {
   const start = new Date(game.startTime).getTime();
   if (Number.isNaN(start)) return 0;
   if (isLive(game)) {
-    const end = game.endTime ? new Date(game.endTime).getTime() : start + DEFAULT_GAME_MINUTES * 60_000;
+    const end = game.endTime ? new Date(game.endTime).getTime() : start + defaultGameMinutes(game.sportType) * 60_000;
     if (Number.isNaN(end)) return 0;
     return Math.max(0, Math.round((now - end) / 60_000));
   }

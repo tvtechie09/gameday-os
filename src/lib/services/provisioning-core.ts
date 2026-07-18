@@ -148,6 +148,13 @@ export function buildFieldNames(count: number, pattern: string): string[] {
   );
 }
 
+// Court sports get a 'court' play surface; everything else keeps the flagship's
+// 'field' convention (Crossroads' baseball surfaces are all 'field', so we don't
+// introduce 'diamond' and split the data model's vocabulary).
+export function surfaceTypeForSport(sportType: string | null | undefined): "field" | "court" {
+  return sportType === "volleyball" || sportType === "basketball" ? "court" : "field";
+}
+
 // --- The field plan ----------------------------------------------------------
 
 // One row per field we will create. Children carry the parent's INDEX rather than

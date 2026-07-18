@@ -4,6 +4,7 @@ import { upsertBillingPlan } from "@/lib/services/billing";
 import {
   planFields,
   slugify,
+  surfaceTypeForSport,
   validateProvisionInput,
   type PlannedField,
   type ProvisionInput,
@@ -194,7 +195,7 @@ export async function provisionVenue(input: ProvisionInput, ctx: AccessContext |
       name: f.name,
       surface_code: f.planned.surfaceCode,
       sport_types: [input.sportType || "baseball"],
-      surface_type: "field",
+      surface_type: surfaceTypeForSport(input.sportType),
       layout_role: f.planned.layoutRole,
       status: "open",
       sort_order: i,

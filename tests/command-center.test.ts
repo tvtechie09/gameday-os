@@ -5,6 +5,7 @@ import {
   buildFieldBoard,
   buildModeChecklist,
   chicagoDateString,
+  defaultGameMinutes,
   UPCOMING_WINDOW_MIN,
   isSameVenueDay,
   minutesBehind,
@@ -474,4 +475,34 @@ test("summary: offline and unknown are counted separately", () => {
   ]);
   assert.equal(s.systemsOffline, 1);
   assert.equal(s.systemsUnknown, 1);
+});
+
+// ---- Per-sport game durations -----------------------------------------------
+
+// minutesBehind's fallback duration was a baseball assumption (90 min) applied to
+// every sport. A volleyball tournament plans courts in ~60-minute waves; judging
+// it by baseball's clock hides a court running 25 minutes hot. A scheduled
+// end_time always wins — the sport default only fills the gap.
+test("defaultGameMinutes: per-sport, with 90 as the unknown-sport fallback", () => {
+  assert.equal(defaultGameMinutes("baseball"), 90);
+  assert.equal(defaultGameMinutes("volleyball"), 60);
+  assert.equal(defaultGameMinutes("soccer"), 75);
+  assert.equal(defaultGameMinutes("football"), 120);
+  assert.equal(defaultGameMinutes("quidditch"), 90);
+  assert.equal(defaultGameMinutes(null), 90);
+});
+
+test("minutesBehind: a clockless volleyball match runs behind on volleyball time", () => {
+  // Live for 70 minutes, no scheduled end. Volleyball slot = 60 -> 10 behind.
+  const vb = game({ status: "active", lifecycleStatus: "live", sportType: "volleyball", startTime: minsAgo(70), endTime: null });
+  assert.equal(minutesBehind(vb, NOW), 10);
+  // The identical game on baseball's 90-minute clock is still fine.
+  const bb = game({ status: "active", lifecycleStatus: "live", sportType: "baseball", startTime: minsAgo(70), endTime: null });
+  assert.equal(minutesBehind(bb, NOW), 0);
+});
+
+test("minutesBehind: a real scheduled end always beats the sport default", () => {
+  // Volleyball with a 90-minute booked slot, 70 minutes in -> not behind.
+  const vb = game({ status: "active", lifecycleStatus: "live", sportType: "volleyball", startTime: minsAgo(70), endTime: minsAhead(20) });
+  assert.equal(minutesBehind(vb, NOW), 0);
 });
