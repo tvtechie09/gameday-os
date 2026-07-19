@@ -7,6 +7,7 @@ import { getAudioModeLabel, getAudioProfileForField, getAudioStatusClass, getAud
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
 import { fieldStatuses, getField, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
 import { getSessionContext } from "@/lib/access/session";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getResourceActivations, getActivationLabel } from "@/lib/services/resource-activations";
 import { getResourcesForFieldPage, getResourceTypeLabel } from "@/lib/services/resources";
 import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusClass, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
@@ -174,8 +175,11 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
   }
 
   const field = await getField(fieldId);
+  // Object-level authorization: only control a field whose venue is in scope, so
+  // a venue-scoped admin can't view (or act on) another venue's field by URL.
+  const { venues: scopedVenues } = await getScopedVenuesAndFields();
 
-  if (!field) {
+  if (!field || !scopedVenues.some((venue) => venue.id === field.venueId)) {
     return (
       <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <Link href="/admin/fields" className="text-sm font-bold text-[var(--accent-strong)]">Back to fields</Link>

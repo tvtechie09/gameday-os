@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { getPublicFieldUrl, getPublicScoreboardUrl } from "@/lib/public-url";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel } from "@/lib/services/alerts";
 import { getAudioModeLabel, getAudioProfileForField, getAudioStatusLabel } from "@/lib/services/audio-profiles";
+import { notFound } from "next/navigation";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getField } from "@/lib/services/fields";
 import { getIdentityTeams, getIdentityTeamSessionLinks } from "@/lib/services/identity-platform";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
@@ -92,6 +94,13 @@ export default async function SessionCommandCenterPage({ params }: CommandCenter
         </div>
       </section>
     );
+  }
+
+  // Object-level authorization: only open the command center for a session whose
+  // field is in scope, so a venue-scoped admin can't reach another venue's game.
+  const { fields: scopedFields } = await getScopedVenuesAndFields();
+  if (!scopedFields.some((f) => f.id === session.fieldId)) {
+    notFound();
   }
 
   const field = await getField(session.fieldId).catch((error: unknown) => {

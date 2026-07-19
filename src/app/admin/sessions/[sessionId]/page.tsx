@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getSessionContext } from "@/lib/access/session";
+import { venueInScope } from "@/lib/access/capabilities";
 import { publicErrorMessage } from "@/lib/public-error";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { getPublicAppUrl, getPublicScoreboardUrl } from "@/lib/public-url";
@@ -63,6 +66,11 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
     }
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load session dashboard.");
+  }
+
+  // Object-level authorization: don't expose another venue's session by URL.
+  if (session && venue && !venueInScope(await getSessionContext(), venue)) {
+    notFound();
   }
 
   if (errorMessage) {

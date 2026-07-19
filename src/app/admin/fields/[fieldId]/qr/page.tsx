@@ -1,9 +1,12 @@
+import { notFound } from "next/navigation";
 import { FieldQrCode } from "@/components/field-qr-code";
 import { publicErrorMessage } from "@/lib/public-error";
 import { PrintDownloadButton } from "@/components/print-download-button";
 import { getPublicFieldUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getField } from "@/lib/services/fields";
 import { getVenue } from "@/lib/services/venues";
+import { getSessionContext } from "@/lib/access/session";
+import { venueInScope } from "@/lib/access/capabilities";
 import type { Field, Venue } from "@/lib/types";
 
 type FieldQrPageProps = {
@@ -27,6 +30,11 @@ export default async function FieldQrPage({ params }: FieldQrPageProps) {
     venue = field ? await getVenue(field.venueId) : null;
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load QR page.");
+  }
+
+  // Object-level authorization: don't expose another venue's field QR by URL.
+  if (field && venue && !venueInScope(await getSessionContext(), venue)) {
+    notFound();
   }
 
   return (
