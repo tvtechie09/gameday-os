@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CloudSun } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getWeatherProfiles, getWeatherSourceLabel, getWeatherStatusClass, getWeatherStatusLabel } from "@/lib/services/weather-profiles";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +15,11 @@ function formatUpdatedAt(value: string) {
 }
 
 export default async function WeatherProfilesPage() {
-  const [profiles, venues] = await Promise.all([getWeatherProfiles(), getVenues()]);
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
+  const [allProfiles, scoped] = await Promise.all([getWeatherProfiles(), getScopedVenuesAndFields()]);
+  const venuesById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+  // Isolate to the caller's venues: drop profiles for venues out of scope so a
+  // venue-scoped admin never sees (or gets counts for) another venue's data.
+  const profiles = allProfiles.filter((profile) => venuesById.has(profile.venueId));
   const monitoringCount = profiles.filter((profile) => profile.status === "monitoring").length;
 
   return (

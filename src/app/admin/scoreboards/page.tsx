@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { getPublicFieldScoreboardUrl } from "@/lib/public-url";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getResources } from "@/lib/services/resources";
 import {
   getScoreboardConnectionTypeLabel,
@@ -10,7 +10,6 @@ import {
   getScoreboardStatusClass,
   getScoreboardStatusLabel,
 } from "@/lib/services/scoreboards";
-import { getVenues } from "@/lib/services/venues";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +21,12 @@ function formatUpdatedAt(value: string) {
 }
 
 export default async function ScoreboardsPage() {
-  const [profiles, venues, fields, resources] = await Promise.all([getScoreboardProfiles(), getVenues(), getFields(), getResources()]);
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
-  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  const [allProfiles, scoped, resources] = await Promise.all([getScoreboardProfiles(), getScopedVenuesAndFields(), getResources()]);
+  const venuesById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+  const fieldsById = new Map(scoped.fields.map((field) => [field.id, field]));
   const resourcesById = new Map(resources.map((resource) => [resource.id, resource]));
+  // Isolate to the caller's venues (no-op for platform/org admins).
+  const profiles = allProfiles.filter((profile) => venuesById.has(profile.venueId));
   const configuredCount = profiles.filter((profile) => profile.scoreboardStatus !== "not_configured").length;
 
   return (

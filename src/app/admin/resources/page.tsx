@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getResources, getResourceStatusLabel, getResourceTypeLabel } from "@/lib/services/resources";
-import { getVenues } from "@/lib/services/venues";
 
 export const dynamic = "force-dynamic";
 
@@ -41,9 +40,11 @@ function assignmentLabel({
 }
 
 export default async function ResourcesPage() {
-  const [resources, venues, fields] = await Promise.all([getResources(), getVenues(), getFields()]);
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
-  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  const [allResources, scoped] = await Promise.all([getResources(), getScopedVenuesAndFields()]);
+  const venuesById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+  const fieldsById = new Map(scoped.fields.map((field) => [field.id, field]));
+  // Isolate to the caller's venues (no-op for platform/org admins, who scope to all).
+  const resources = allResources.filter((resource) => venuesById.has(resource.venueId));
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">

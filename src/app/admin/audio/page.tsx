@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { getAudioModeLabel, getAudioProfiles, getAudioStatusClass, getAudioStatusLabel } from "@/lib/services/audio-profiles";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
-import { getVenues } from "@/lib/services/venues";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +14,11 @@ function formatUpdatedAt(value: string) {
 }
 
 export default async function AudioProfilesPage() {
-  const [profiles, venues, fields, sessions] = await Promise.all([getAudioProfiles(), getVenues(), getFields(), getSessions()]);
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
-  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  const [allProfiles, scoped, sessions] = await Promise.all([getAudioProfiles(), getScopedVenuesAndFields(), getSessions()]);
+  const venuesById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+  const fieldsById = new Map(scoped.fields.map((field) => [field.id, field]));
+  // Isolate to the caller's venues (no-op for platform/org admins).
+  const profiles = allProfiles.filter((profile) => venuesById.has(profile.venueId));
   const sessionsById = new Map(sessions.map((session) => [session.id, session]));
   const activeCount = profiles.filter((profile) => profile.status === "active").length;
 

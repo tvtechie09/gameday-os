@@ -1,6 +1,5 @@
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
-import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoleLabel, getVolunteerRoles } from "@/lib/services/volunteer-roles";
 import { VolunteerStatusButton } from "./status-button";
 
@@ -34,9 +33,11 @@ function statusClass(status: string) {
 }
 
 export default async function VolunteersPage() {
-  const [roles, venues, fields, sessions] = await Promise.all([getVolunteerRoles(), getVenues(), getFields(), getSessions()]);
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
-  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  const [allRoles, scoped, sessions] = await Promise.all([getVolunteerRoles(), getScopedVenuesAndFields(), getSessions()]);
+  const venuesById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+  const fieldsById = new Map(scoped.fields.map((field) => [field.id, field]));
+  // Isolate to the caller's venues (no-op for platform/org admins).
+  const roles = allRoles.filter((role) => venuesById.has(role.venueId));
   const sessionsById = new Map(sessions.map((session) => [session.id, session]));
 
   return (

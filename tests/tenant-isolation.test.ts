@@ -41,7 +41,6 @@ const ALLOWLIST = new Set<string>([
   "app/admin/assets/page.tsx",
   "app/admin/audio/[audioProfileId]/edit/page.tsx",
   "app/admin/audio/new/page.tsx",
-  "app/admin/audio/page.tsx",
   "app/admin/fields/[fieldId]/edit/page.tsx",
   "app/admin/fields/bookings/page.tsx",
   "app/admin/fields/new/page.tsx",
@@ -54,12 +53,10 @@ const ALLOWLIST = new Set<string>([
   "app/admin/resources/[resourceId]/edit/page.tsx",
   "app/admin/resources/activations/page.tsx",
   "app/admin/resources/new/page.tsx",
-  "app/admin/resources/page.tsx",
   "app/admin/scoreboards/[scoreboardId]/edit/page.tsx",
   "app/admin/scoreboards/adapters/page.tsx",
   "app/admin/scoreboards/display/page.tsx",
   "app/admin/scoreboards/new/page.tsx",
-  "app/admin/scoreboards/page.tsx",
   "app/admin/sessions/[sessionId]/edit/page.tsx",
   "app/admin/sessions/bulk/page.tsx",
   "app/admin/sessions/new/page.tsx",
@@ -68,10 +65,8 @@ const ALLOWLIST = new Set<string>([
   "app/admin/sponsors/page.tsx",
   "app/admin/sync/review/page.tsx",
   "app/admin/tournaments/page.tsx",
-  "app/admin/volunteers/page.tsx",
   "app/admin/weather/[weatherProfileId]/edit/page.tsx",
   "app/admin/weather/new/page.tsx",
-  "app/admin/weather/page.tsx",
 ]);
 
 function sourceFiles(dir: string): string[] {
