@@ -56,8 +56,9 @@ export async function POST(request: NextRequest) {
 
   // Previewed roles rarely have admin access; land on Today's Operations so the
   // no-access guard is never hit immediately after starting.
+  const impersonationCookie = await encodeImpersonation(selection);
   const response = NextResponse.redirect(new URL("/today", request.url));
-  response.cookies.set(impersonationCookieName, encodeImpersonation(selection), {
+  response.cookies.set(impersonationCookieName, impersonationCookie, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

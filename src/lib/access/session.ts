@@ -368,7 +368,7 @@ async function resolveIdentityForAuthUser(authUser: {
 // impersonated (effective) session can never authorize its own continuation.
 export async function resolveBaseSession(): Promise<ResolvedSession> {
   if (isDevLoginEnabled()) {
-    const payload = decodeSession(await readCookie(sessionCookieName));
+    const payload = await decodeSession(await readCookie(sessionCookieName));
     if (payload) {
       return { kind: "active", context: await contextFromPayload(payload, false) };
     }
@@ -401,7 +401,7 @@ export async function resolveSession(): Promise<ResolvedSession> {
     return base;
   }
 
-  const selection = decodeImpersonation(await readCookie(impersonationCookieName));
+  const selection = await decodeImpersonation(await readCookie(impersonationCookieName));
   if (!selection) {
     return base;
   }

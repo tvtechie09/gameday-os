@@ -36,8 +36,7 @@ export async function POST(request: NextRequest) {
   // Was an inline copy of getRoleHome's old logic, which went stale the moment
   // venue operators started landing on the Command Center instead of /today.
   // Use the shared resolver so sign-in and the nav can't disagree.
-  const response = NextResponse.redirect(new URL(getRoleHome(ctx), request.url));
-  response.cookies.set(sessionCookieName, encodeSession({
+  const sessionCookie = await encodeSession({
     userId: demoUser.id,
     email: demoUser.email,
     displayName: demoUser.displayName,
@@ -46,7 +45,9 @@ export async function POST(request: NextRequest) {
     scopeId: demoUser.scopeId,
     venueId: null,
     venueName: demoUser.venueName,
-  }), { httpOnly: true, sameSite: "lax", path: "/" });
+  });
+  const response = NextResponse.redirect(new URL(getRoleHome(ctx), request.url));
+  response.cookies.set(sessionCookieName, sessionCookie, { httpOnly: true, sameSite: "lax", path: "/" });
   // Starting a fresh session ends any prior impersonation.
   response.cookies.delete(impersonatorCookieName);
   response.cookies.delete(impersonationCookieName);

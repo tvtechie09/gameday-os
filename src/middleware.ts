@@ -71,7 +71,7 @@ export async function middleware(request: NextRequest) {
 
   // Dev-login break-glass: a valid signed session cookie satisfies the wall
   // (dev/staging only).
-  const devPayload = devLogin ? decodeSession(request.cookies.get(sessionCookieName)?.value) : null;
+  const devPayload = devLogin ? await decodeSession(request.cookies.get(sessionCookieName)?.value) : null;
 
   // Real auth: verify the Supabase user server-side.
   let authedUser: { id: string } | null = null;
