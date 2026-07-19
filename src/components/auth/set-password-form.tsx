@@ -1,26 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabaseAuthBrowserClient } from "@/lib/supabase/auth-browser";
 
-// Password form for invited/recovering users who already hold a session from
-// the emailed link. On success we do a full navigation so the server
-// re-resolves the session and routes to the role home.
+// Password form for invited/recovering users arriving from an emailed link.
+// Session detection happens client-side because GoTrue can deliver the link
+// result either as a ?code= (exchanged by /auth/callback) or as #access_token
+// hash tokens, which never reach the server. The browser client's
+// detectSessionInUrl handles the hash form on creation; we just wait for it.
 export function SetPasswordForm({ hasSession }: Readonly<{ hasSession: boolean }>) {
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [checking, setChecking] = useState(!hasSession);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (!hasSession) {
+  useEffect(() => {
+    const supabase = getSupabaseAuthBrowserClient();
+    if (!supabase) {
+      setChecking(false);
+      return;
+    }
+
+    let cancelled = false;
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!cancelled && session?.user) {
+        setSessionEmail(session.user.email ?? "");
+        setChecking(false);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data.session?.user) {
+        setSessionEmail(data.session.user.email ?? "");
+      }
+    });
+
+    // Give detectSessionInUrl a moment to process hash tokens before we
+    // declare the link dead.
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setChecking(false);
+    }, 2500);
+
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  const ready = hasSession || Boolean(sessionEmail);
+
+  if (!ready && checking) {
+    return <p className="text-sm font-bold text-[var(--muted)]">Checking your invite link…</p>;
+  }
+
+  if (!ready) {
     return (
-      <Link
-        href="/login"
-        className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white transition hover:bg-black"
-      >
-        Go to sign in
-      </Link>
+      <div className="flex flex-col gap-4">
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+          This link has expired or was already used. Ask your admin to send a new invite, or sign in if you already have a password.
+        </p>
+        <Link
+          href="/login"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white transition hover:bg-black"
+        >
+          Go to sign in
+        </Link>
+      </div>
     );
   }
 
@@ -57,6 +106,11 @@ export function SetPasswordForm({ hasSession }: Readonly<{ hasSession: boolean }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      {sessionEmail ? (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
+          Setting a password for {sessionEmail}.
+        </p>
+      ) : null}
       {error ? (
         <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
           {error}

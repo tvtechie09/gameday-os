@@ -15,9 +15,7 @@ export default async function SetPasswordPage() {
         <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">GameDay OS</p>
         <h1 className="mt-2 text-3xl font-black leading-tight text-[var(--foreground)]">Set your password</h1>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-          {authUser?.email
-            ? `Choose a password for ${authUser.email}. You'll use it to sign in from now on.`
-            : "This link has expired or was already used. Ask your admin to send a new invite, or sign in if you already have a password."}
+          Choose the password you&apos;ll use to sign in to GameDay OS from now on.
         </p>
       </div>
 
