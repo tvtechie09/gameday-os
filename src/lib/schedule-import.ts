@@ -76,11 +76,15 @@ function parseStart(date: string, time: string, defaultDate: string) {
 
 export function validateScheduleRows(
   rows: ScheduleCsvRow[],
-  fields: Array<{ id: string; name: string }>,
-  options: { defaultDate: string; gameMinutes?: number }
+  fields: Array<{ id: string; name: string; venueId?: string }>,
+  options: { defaultDate: string; gameMinutes?: number; venueId?: string }
 ): ValidatedScheduleRow[] {
   const gameMinutes = options.gameMinutes ?? 90;
-  const fieldByName = new Map(fields.map((field) => [field.name.trim().toLowerCase(), field.id]));
+  // Field names ("Field 1") repeat across venues, so name->id MUST be scoped to the
+  // target venue. Without this, an import silently lands games on another venue's
+  // identically-named field. When a venueId is given, only that venue's fields match.
+  const scoped = options.venueId ? fields.filter((field) => field.venueId === options.venueId) : fields;
+  const fieldByName = new Map(scoped.map((field) => [field.name.trim().toLowerCase(), field.id]));
   return rows.map((row) => {
     const errors: string[] = [];
     const fieldId = fieldByName.get(row.fieldName.trim().toLowerCase()) ?? "";

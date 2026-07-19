@@ -5,7 +5,8 @@ import Link from "next/link";
 import { parseScheduleCsv, validateScheduleRows } from "@/lib/schedule-import";
 import { importScheduleAction, type ImportResult } from "./actions";
 
-export function ScheduleImportTool({ fields }: { fields: Array<{ id: string; name: string }> }) {
+export function ScheduleImportTool({ fields, venues }: { fields: Array<{ id: string; name: string; venueId: string }>; venues: Array<{ id: string; name: string }> }) {
+  const [venueId, setVenueId] = useState(venues[0]?.id ?? "");
   const [csv, setCsv] = useState("");
   const [defaultDate, setDefaultDate] = useState(new Date().toISOString().slice(0, 10));
   const [gameMinutes, setGameMinutes] = useState(90);
@@ -14,8 +15,10 @@ export function ScheduleImportTool({ fields }: { fields: Array<{ id: string; nam
 
   const parsed = useMemo(() => parseScheduleCsv(csv), [csv]);
   const validated = useMemo(
-    () => validateScheduleRows(parsed.rows, fields, { defaultDate, gameMinutes }),
-    [parsed.rows, fields, defaultDate, gameMinutes]
+    // Scope name->field matching to the chosen venue so identically-named fields
+    // ("Field 1") across venues can't be mismatched.
+    () => validateScheduleRows(parsed.rows, fields, { defaultDate, gameMinutes, venueId }),
+    [parsed.rows, fields, defaultDate, gameMinutes, venueId]
   );
   const ready = validated.filter((row) => !row.errors.length);
   const failed = validated.filter((row) => row.errors.length);
@@ -25,6 +28,7 @@ export function ScheduleImportTool({ fields }: { fields: Array<{ id: string; nam
     formData.set("rows", JSON.stringify(parsed.rows));
     formData.set("default_date", defaultDate);
     formData.set("game_minutes", String(gameMinutes));
+    formData.set("venue_id", venueId);
     startTransition(async () => {
       setResult(await importScheduleAction(formData));
     });
@@ -33,7 +37,20 @@ export function ScheduleImportTool({ fields }: { fields: Array<{ id: string; nam
   return (
     <div className="grid gap-6">
       <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-        <h2 className="text-lg font-black">1. Paste your schedule CSV</h2>
+        <h2 className="text-lg font-black">1. Which venue is this schedule for?</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">Field names are matched inside this venue, so a &ldquo;Field 1&rdquo; here can never collide with another venue&rsquo;s.</p>
+        <select
+          className="mt-3 min-h-11 w-full max-w-md rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold outline-none focus:border-[var(--accent)]"
+          onChange={(event) => { setVenueId(event.target.value); setResult(null); }}
+          value={venueId}
+        >
+          {venues.length === 0 ? <option value="">No venues found</option> : null}
+          {venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}
+        </select>
+      </section>
+
+      <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+        <h2 className="text-lg font-black">2. Paste your schedule CSV</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
           Works with exports from tournament and league tools. Recognized columns: date, time, field, home, away, title, sport. Field names must match your fields in GameDay OS.
         </p>
@@ -59,7 +76,7 @@ export function ScheduleImportTool({ fields }: { fields: Array<{ id: string; nam
 
       {validated.length ? (
         <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-          <h2 className="text-lg font-black">2. Review {validated.length} game{validated.length === 1 ? "" : "s"}</h2>
+          <h2 className="text-lg font-black">3. Review {validated.length} game{validated.length === 1 ? "" : "s"}</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">{ready.length} ready · {failed.length} need attention</p>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-sm">

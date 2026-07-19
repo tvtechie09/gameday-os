@@ -35,3 +35,27 @@ test("date column overrides the default date", () => {
   assert.equal(validated[0].errors.length, 0);
   assert.equal(new Date(validated[0].startTime).getUTCDate(), new Date("2026-08-01 1:00 PM").getUTCDate());
 });
+
+test("field name -> id is scoped to the target venue (no cross-venue leak)", () => {
+  // "Field 1" exists at two venues. An import for venue A must map to A's field,
+  // never B's — otherwise games silently land on the wrong venue.
+  const twoVenues = [
+    { id: "a-f1", name: "Field 1", venueId: "venueA" },
+    { id: "b-f1", name: "Field 1", venueId: "venueB" },
+  ];
+  const rows = [{ rowNumber: 2, date: "2026-07-18", time: "9:00 AM", fieldName: "Field 1", homeTeam: "Home", awayTeam: "Away", title: "", sport: "" }];
+
+  const a = validateScheduleRows(rows, twoVenues, { defaultDate: "", venueId: "venueA" });
+  assert.equal(a[0].fieldId, "a-f1");
+  assert.deepEqual(a[0].errors, []);
+
+  const b = validateScheduleRows(rows, twoVenues, { defaultDate: "", venueId: "venueB" });
+  assert.equal(b[0].fieldId, "b-f1");
+
+  // No venue scope + a colliding name is ambiguous — must not silently pick one as valid
+  // across venues. (Here both share the name; the map would keep the last, which is the
+  // exact bug. Scoping is required, so callers must pass venueId.)
+  const wrongVenue = validateScheduleRows(rows, twoVenues, { defaultDate: "", venueId: "venueC" });
+  assert.equal(wrongVenue[0].fieldId, "");
+  assert.match(wrongVenue[0].errors.join(" "), /Unknown field/);
+});

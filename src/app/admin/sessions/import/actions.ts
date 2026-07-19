@@ -18,13 +18,17 @@ export async function importScheduleAction(formData: FormData): Promise<ImportRe
     const rowsRaw = String(formData.get("rows") ?? "[]");
     const defaultDate = String(formData.get("default_date") ?? "");
     const gameMinutes = Number(formData.get("game_minutes") ?? 90) || 90;
+    const venueId = String(formData.get("venue_id") ?? "").trim();
+    if (!venueId) return { error: "Pick the venue this schedule belongs to." };
     const rows = JSON.parse(rowsRaw) as ScheduleCsvRow[];
     if (!Array.isArray(rows) || !rows.length) return { error: "Nothing to import." };
     if (rows.length > 300) return { error: "Import at most 300 games at a time." };
 
-    // Re-validate server side against real fields; never trust client mapping.
-    const fields = await getFields();
-    const validated = validateScheduleRows(rows, fields, { defaultDate, gameMinutes });
+    // Re-validate server side against real fields; never trust client mapping. Field
+    // names repeat across venues, so scope the match to the chosen venue — otherwise a
+    // schedule could silently land on another venue's identically-named field.
+    const fields = (await getFields()).map((field) => ({ id: field.id, name: field.name, venueId: field.venueId }));
+    const validated = validateScheduleRows(rows, fields, { defaultDate, gameMinutes, venueId });
     const ready = validated.filter((row) => !row.errors.length);
     const failed = validated.filter((row) => row.errors.length);
 
