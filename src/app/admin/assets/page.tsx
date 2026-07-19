@@ -8,8 +8,7 @@ import {
   getVenueAssetTypeLabel,
   getVenueBuildings,
 } from "@/lib/services/venue-assets";
-import { getFields } from "@/lib/services/fields";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import type { VenueAsset } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +39,7 @@ function getIssueTone(asset: VenueAsset) {
 }
 
 export default async function AssetRegistryPage() {
-  const [assets, buildings, venues, fields] = await Promise.all([
+  const [allAssets, buildings, scoped] = await Promise.all([
     getVenueAssets().catch((error: unknown) => {
       console.error("Failed to load venue assets", error);
       return [];
@@ -49,15 +48,15 @@ export default async function AssetRegistryPage() {
       console.error("Failed to load venue buildings", error);
       return [];
     }),
-    getVenues().catch((error: unknown) => {
-      console.error("Failed to load venues for assets", error);
-      return [];
-    }),
-    getFields().catch((error: unknown) => {
-      console.error("Failed to load fields for assets", error);
-      return [];
+    getScopedVenuesAndFields().catch((error: unknown) => {
+      console.error("Failed to load venues/fields for assets", error);
+      return { venues: [], fields: [] };
     }),
   ]);
+  const { venues, fields } = scoped;
+  // Isolate to the caller's venues (no-op for platform/org admins).
+  const venueIds = new Set(venues.map((venue) => venue.id));
+  const assets = allAssets.filter((asset) => venueIds.has(asset.venueId));
   const healthyAssets = assets.filter((asset) => asset.status === "healthy");
   const offlineAssets = assets.filter((asset) => asset.status === "offline");
   const maintenanceAssets = assets.filter((asset) => asset.status === "maintenance_needed");

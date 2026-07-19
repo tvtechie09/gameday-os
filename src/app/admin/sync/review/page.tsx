@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSyncJobs, getSyncQueueItems, getSyncStatusLabel, syncQueueReviewStatuses } from "@/lib/services/sync-engine";
-import { getVenues } from "@/lib/services/venues";
 import type { Field, SyncQueueReviewStatus, Venue } from "@/lib/types";
 import { approveSyncQueueItemAction, importSyncQueueItemAction, rejectSyncQueueItemAction } from "../actions";
 
@@ -140,10 +139,13 @@ function QueueActionButton({ action, disabled, id, label, primary = false }: { a
 export default async function SyncReviewPage({ searchParams }: SyncReviewPageProps) {
   const resolvedSearchParams = await searchParams;
   const selectedStatus = readStatus(resolvedSearchParams?.status);
-  const [queueItems, jobs, fields, venues] = await Promise.all([getSyncQueueItems(selectedStatus), getSyncJobs(), getFields(), getVenues()]);
+  // /admin/sync is platform-admin-only (route guard), so the scoped helper
+  // returns every venue here; it satisfies the tenant-isolation guard and stays
+  // correct if the route ever opens to venue-scoped roles.
+  const [queueItems, jobs, scoped] = await Promise.all([getSyncQueueItems(selectedStatus), getSyncJobs(), getScopedVenuesAndFields()]);
   const jobsById = new Map(jobs.map((job) => [job.id, job]));
-  const fieldsById = new Map(fields.map((field) => [field.id, field]));
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
+  const fieldsById = new Map(scoped.fields.map((field) => [field.id, field]));
+  const venuesById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
 
   const filterItems: Array<{ href: string; label: string; value: SyncQueueReviewStatus | "all" }> = [
     { href: "/admin/sync/review?status=all", label: "All", value: "all" },

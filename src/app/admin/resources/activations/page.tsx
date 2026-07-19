@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getActivationLabel, getResourceActivations } from "@/lib/services/resource-activations";
 import { getSessions } from "@/lib/services/sessions";
-import { getVenues } from "@/lib/services/venues";
 import { ActivationStatusButton, AssignActivationButton } from "./status-button";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +14,11 @@ function formatDateTime(value: string) {
 }
 
 export default async function ResourceActivationsPage() {
-  const [activations, venues, fields, sessions] = await Promise.all([getResourceActivations(), getVenues(), getFields(), getSessions()]);
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
-  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  const [allActivations, scoped, sessions] = await Promise.all([getResourceActivations(), getScopedVenuesAndFields(), getSessions()]);
+  const venuesById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+  const fieldsById = new Map(scoped.fields.map((field) => [field.id, field]));
+  // Isolate to the caller's venues (no-op for platform/org admins).
+  const activations = allActivations.filter((activation) => venuesById.has(activation.venueId));
   const sessionsById = new Map(sessions.map((session) => [session.id, session]));
   const activeSessionByFieldId = new Map(sessions.filter((session) => session.status === "active" || session.gameStatus === "active").map((session) => [session.fieldId, session]));
 

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { publicErrorMessage } from "@/lib/public-error";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
-import { getVenues } from "@/lib/services/venues";
 import type { Field, Session, Venue } from "@/lib/types";
 import { BulkSessionTools } from "./bulk-session-tools";
 
@@ -15,7 +14,12 @@ export default async function BulkSessionsPage() {
   let errorMessage: string | null = null;
 
   try {
-    [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
+    const [scoped, allSessions] = await Promise.all([getScopedVenuesAndFields(), getSessions()]);
+    venues = scoped.venues;
+    fields = scoped.fields;
+    // Bulk tools can move/delete sessions -- confine them to in-scope fields.
+    const fieldIds = new Set(fields.map((field) => field.id));
+    sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load bulk session tools.");
   }
