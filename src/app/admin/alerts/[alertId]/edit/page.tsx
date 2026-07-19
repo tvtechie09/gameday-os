@@ -2,9 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { alertPriorities, alertScopes, alertTypes, alertVisibilities, getAlert, getAlertPriorityLabel, getAlertScopeLabel, updateAlert } from "@/lib/services/alerts";
-import { getFields } from "@/lib/services/fields";
 import { getTournaments } from "@/lib/services/tournaments";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { readAlertFormData } from "../../form-utils";
 
 type EditAlertPageProps = {
@@ -19,7 +18,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EditAlertPage({ params }: EditAlertPageProps) {
   const { alertId } = await params;
-  const [alert, venues, fields, tournaments] = await Promise.all([getAlert(alertId), getVenues(), getFields(), getTournaments()]);
+  const [alert, scoped, tournaments] = await Promise.all([getAlert(alertId), getScopedVenuesAndFields(), getTournaments()]);
+  const { venues, fields } = scoped;
 
   async function updateAlertAction(formData: FormData) {
     "use server";
@@ -36,7 +36,12 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
     redirect("/admin/alerts");
   }
 
-  if (!alert) {
+  // Object-level authorization: a venue-scoped admin may only edit alerts for a
+  // venue in scope. Out-of-scope (or another tenant's) alerts read as not-found
+  // so the edit form -- and its venue picker -- never expose or rewrite them.
+  // Global/tournament alerts (no venueId) are not venue-owned; leave those to the
+  // not-found-on-missing check only.
+  if (!alert || (alert.venueId && !scoped.venues.some((venue) => venue.id === alert.venueId))) {
     return (
       <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <Link href="/admin/alerts" className="text-sm font-bold text-[var(--accent-strong)]">Back to alerts</Link>

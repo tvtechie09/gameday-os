@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSession, updateSession } from "@/lib/services/sessions";
 import { getTournaments } from "@/lib/services/tournaments";
 import type { SessionLinkLabel, SessionSportType } from "@/lib/types";
@@ -31,7 +31,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EditSessionPage({ params }: EditSessionPageProps) {
   const { sessionId } = await params;
-  const [session, fields, tournaments] = await Promise.all([getSession(sessionId), getFields(), getTournaments()]);
+  const [session, scoped, tournaments] = await Promise.all([getSession(sessionId), getScopedVenuesAndFields(), getTournaments()]);
+  const fields = scoped.fields;
 
   async function updateSessionAction(formData: FormData) {
     "use server";
@@ -73,7 +74,8 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
     redirect("/admin/sessions");
   }
 
-  if (!session) {
+  // Object-level authorization: only edit sessions whose field is in scope.
+  if (!session || !scoped.fields.some((field) => field.id === session.fieldId)) {
     return (
       <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <Link href="/admin/sessions" className="text-sm font-bold text-[var(--accent-strong)]">

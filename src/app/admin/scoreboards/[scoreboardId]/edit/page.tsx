@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPublicFieldScoreboardUrl } from "@/lib/public-url";
-import { getFields } from "@/lib/services/fields";
 import { getResources } from "@/lib/services/resources";
 import { getScoreboardProfile } from "@/lib/services/scoreboards";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { ScoreboardForm } from "../../scoreboard-form";
 
 type EditScoreboardProfilePageProps = {
@@ -17,9 +16,11 @@ export const dynamic = "force-dynamic";
 
 export default async function EditScoreboardProfilePage({ params }: EditScoreboardProfilePageProps) {
   const { scoreboardId } = await params;
-  const [profile, venues, fields, resources] = await Promise.all([getScoreboardProfile(scoreboardId), getVenues(), getFields(), getResources()]);
+  const [profile, scoped, resources] = await Promise.all([getScoreboardProfile(scoreboardId), getScopedVenuesAndFields(), getResources()]);
+  const { venues, fields } = scoped;
 
-  if (!profile) {
+  // Object-level authorization: only edit scoreboard profiles for an in-scope venue.
+  if (!profile || !scoped.venues.some((venue) => venue.id === profile.venueId)) {
     notFound();
   }
 

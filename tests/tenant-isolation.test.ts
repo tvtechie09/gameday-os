@@ -35,30 +35,23 @@ const RAW_LOADER = /\bgetVenues\(|\bgetFields\(/;
 // Admin files that still load venues/fields WITHOUT a scope guard. Debt to burn
 // down -- shrink only, never add.
 const ALLOWLIST = new Set<string>([
-  "app/admin/alerts/[alertId]/edit/page.tsx",
   "app/admin/alerts/page.tsx",
   "app/admin/assets/page.tsx",
-  "app/admin/audio/[audioProfileId]/edit/page.tsx",
-  "app/admin/fields/[fieldId]/edit/page.tsx",
   "app/admin/fields/bookings/page.tsx",
   "app/admin/fields/reservations/page.tsx",
   "app/admin/fields/work-orders/page.tsx",
   "app/admin/import/page.tsx",
   "app/admin/integrations/daktronics/page.tsx",
   "app/admin/integrations/page.tsx",
-  "app/admin/resources/[resourceId]/edit/page.tsx",
   "app/admin/resources/activations/page.tsx",
-  "app/admin/scoreboards/[scoreboardId]/edit/page.tsx",
   "app/admin/scoreboards/adapters/page.tsx",
   "app/admin/scoreboards/display/page.tsx",
-  "app/admin/sessions/[sessionId]/edit/page.tsx",
   "app/admin/sessions/bulk/page.tsx",
   "app/admin/sponsors/[sponsorId]/page.tsx",
   "app/admin/sponsors/campaigns/page.tsx",
   "app/admin/sponsors/page.tsx",
   "app/admin/sync/review/page.tsx",
   "app/admin/tournaments/page.tsx",
-  "app/admin/weather/[weatherProfileId]/edit/page.tsx",
 ]);
 
 function sourceFiles(dir: string): string[] {

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAudioProfile } from "@/lib/services/audio-profiles";
-import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { AudioProfileForm } from "../../audio-profile-form";
 
 type EditAudioProfilePageProps = {
@@ -16,9 +15,11 @@ export const dynamic = "force-dynamic";
 
 export default async function EditAudioProfilePage({ params }: EditAudioProfilePageProps) {
   const { audioProfileId } = await params;
-  const [profile, venues, fields, sessions] = await Promise.all([getAudioProfile(audioProfileId), getVenues(), getFields(), getSessions()]);
+  const [profile, scoped, sessions] = await Promise.all([getAudioProfile(audioProfileId), getScopedVenuesAndFields(), getSessions()]);
+  const { venues, fields } = scoped;
 
-  if (!profile) {
+  // Object-level authorization: only edit audio profiles for an in-scope venue.
+  if (!profile || !scoped.venues.some((venue) => venue.id === profile.venueId)) {
     notFound();
   }
 

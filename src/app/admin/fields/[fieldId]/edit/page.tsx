@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { fieldStatuses, getField, getFieldStatusLabel, readFieldStatus, updateField } from "@/lib/services/fields";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 
 type EditFieldPageProps = {
   params: Promise<{ fieldId: string }>;
@@ -21,7 +21,8 @@ function readOptionalCoordinate(formData: FormData, key: string) {
 
 export default async function EditFieldPage({ params }: EditFieldPageProps) {
   const { fieldId } = await params;
-  const [field, venues] = await Promise.all([getField(fieldId), getVenues()]);
+  const [field, scoped] = await Promise.all([getField(fieldId), getScopedVenuesAndFields()]);
+  const venues = scoped.venues;
 
   async function updateFieldAction(formData: FormData) {
     "use server";
@@ -53,7 +54,10 @@ export default async function EditFieldPage({ params }: EditFieldPageProps) {
     redirect("/admin/fields");
   }
 
-  if (!field) {
+  // Object-level authorization: only edit fields for an in-scope venue, so a
+  // venue-scoped admin can't view or (via the scoped picker) reassign another
+  // venue's field by guessing its URL.
+  if (!field || !scoped.venues.some((venue) => venue.id === field.venueId)) {
     return (
       <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <Link href="/admin/fields" className="text-sm font-bold text-[var(--accent-strong)]">

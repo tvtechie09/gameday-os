@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getWeatherProfile } from "@/lib/services/weather-profiles";
 import { WeatherProfileForm } from "../../weather-profile-form";
 
@@ -14,9 +14,11 @@ export const dynamic = "force-dynamic";
 
 export default async function EditWeatherProfilePage({ params }: EditWeatherProfilePageProps) {
   const { weatherProfileId } = await params;
-  const [profile, venues] = await Promise.all([getWeatherProfile(weatherProfileId), getVenues()]);
+  const [profile, scoped] = await Promise.all([getWeatherProfile(weatherProfileId), getScopedVenuesAndFields()]);
+  const venues = scoped.venues;
 
-  if (!profile) {
+  // Object-level authorization: only edit weather profiles for an in-scope venue.
+  if (!profile || !scoped.venues.some((venue) => venue.id === profile.venueId)) {
     notFound();
   }
 

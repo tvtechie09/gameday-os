@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getFields } from "@/lib/services/fields";
 import { getResource, getResourceStatusLabel, getResourceTypeLabel, resourceStatuses, resourceTypes, updateResource } from "@/lib/services/resources";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { readResourceFormData } from "../../form-utils";
 
 type EditResourcePageProps = {
@@ -14,7 +13,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EditResourcePage({ params }: EditResourcePageProps) {
   const { resourceId } = await params;
-  const [resource, venues, fields] = await Promise.all([getResource(resourceId), getVenues(), getFields()]);
+  const [resource, scoped] = await Promise.all([getResource(resourceId), getScopedVenuesAndFields()]);
+  const { venues, fields } = scoped;
 
   async function updateResourceAction(formData: FormData) {
     "use server";
@@ -30,7 +30,8 @@ export default async function EditResourcePage({ params }: EditResourcePageProps
     redirect("/admin/resources");
   }
 
-  if (!resource) {
+  // Object-level authorization: only edit resources for an in-scope venue.
+  if (!resource || !scoped.venues.some((venue) => venue.id === resource.venueId)) {
     return (
       <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <Link href="/admin/resources" className="text-sm font-bold text-[var(--accent-strong)]">Back to resources</Link>
