@@ -2,7 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createExternalSource, externalSourceStatuses, externalSourceTypes, getExternalSourceStatusLabel, getExternalSourceTypeLabel } from "@/lib/services/external-sources";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import type { ExternalSourceStatus, ExternalSourceType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ function readSourceStatus(value: FormDataEntryValue | null): ExternalSourceStatu
 }
 
 export default async function NewIntegrationSourcePage() {
-  const venues = await getVenues();
+  const { venues } = await getScopedVenuesAndFields();
 
   async function createExternalSourceAction(formData: FormData) {
     "use server";

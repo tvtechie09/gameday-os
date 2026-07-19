@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { AudioProfileForm } from "../audio-profile-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewAudioProfilePage() {
-  const [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
+  const [scoped, sessions] = await Promise.all([getScopedVenuesAndFields(), getSessions()]);
+  const { venues, fields } = scoped;
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

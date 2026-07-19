@@ -1,6 +1,6 @@
 import { FieldForm } from "./field-form";
 import { publicErrorMessage } from "@/lib/public-error";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import type { Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export default async function NewFieldPage() {
   let errorMessage: string | null = null;
 
   try {
-    venues = await getVenues();
+    venues = (await getScopedVenuesAndFields()).venues;
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load venues.");
   }

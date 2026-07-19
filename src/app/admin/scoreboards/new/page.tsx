@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { getFields } from "@/lib/services/fields";
 import { getResources } from "@/lib/services/resources";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { ScoreboardForm } from "../scoreboard-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewScoreboardProfilePage() {
-  const [venues, fields, resources] = await Promise.all([getVenues(), getFields(), getResources()]);
+  const [scoped, resources] = await Promise.all([getScopedVenuesAndFields(), getResources()]);
+  const { venues, fields } = scoped;
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

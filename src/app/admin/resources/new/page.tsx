@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { getFields } from "@/lib/services/fields";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { ResourceForm } from "./resource-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewResourcePage() {
-  const [venues, fields] = await Promise.all([getVenues(), getFields()]);
+  const { venues, fields } = await getScopedVenuesAndFields();
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

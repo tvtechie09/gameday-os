@@ -1,8 +1,7 @@
 import { SessionForm } from "./session-form";
 import { publicErrorMessage } from "@/lib/public-error";
-import { getFields } from "@/lib/services/fields";
 import { getTournaments } from "@/lib/services/tournaments";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import type { Field, Tournament, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +13,10 @@ export default async function NewSessionPage() {
   let errorMessage: string | null = null;
 
   try {
-    [venues, fields, tournaments] = await Promise.all([getVenues(), getFields(), getTournaments()]);
+    const [scoped, allTournaments] = await Promise.all([getScopedVenuesAndFields(), getTournaments()]);
+    venues = scoped.venues;
+    fields = scoped.fields;
+    tournaments = allTournaments;
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load venues and fields.");
   }

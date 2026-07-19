@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getFields } from "@/lib/services/fields";
 import { getTournaments } from "@/lib/services/tournaments";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { AlertForm } from "./alert-form";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +13,8 @@ type NewAlertPageProps = {
 
 export default async function NewAlertPage({ searchParams }: NewAlertPageProps) {
   const resolvedSearchParams = await searchParams;
-  const [venues, fields, tournaments] = await Promise.all([getVenues(), getFields(), getTournaments()]);
+  const [scoped, tournaments] = await Promise.all([getScopedVenuesAndFields(), getTournaments()]);
+  const { venues, fields } = scoped;
   const isWeatherDelay = resolvedSearchParams?.weather_delay === "true";
 
   return (
