@@ -16,6 +16,7 @@ import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytic
 import { FieldPageViewTracker } from "./field-page-view-tracker";
 import { FollowButtons } from "./follow-buttons";
 import { ResourceActivationForm } from "./resource-activation-form";
+import { VolunteerRoleForm } from "./volunteer-role-form";
 
 type FieldPageProps = {
   params: Promise<{
@@ -784,6 +785,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 <div className="mt-5 grid gap-4">
                   <CommunityLinks links={communityLinks} />
                   <ResourceActivationForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
+                  {currentSession ? <VolunteerRoleForm fieldId={fieldId} sessionId={currentSession.id} venueId={venue.id} /> : null}
                   <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} />
                 </div>
               </details>
