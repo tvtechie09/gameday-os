@@ -19,12 +19,18 @@ export function SetPasswordForm({ hasSession }: Readonly<{ hasSession: boolean }
 
   useEffect(() => {
     const supabase = getSupabaseAuthBrowserClient();
+    let cancelled = false;
+
     if (!supabase) {
-      setChecking(false);
-      return;
+      const bail = window.setTimeout(() => {
+        if (!cancelled) setChecking(false);
+      }, 0);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(bail);
+      };
     }
 
-    let cancelled = false;
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!cancelled && session?.user) {
         setSessionEmail(session.user.email ?? "");
