@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSponsor, updateSponsor } from "@/lib/services/sponsors";
-import { getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
+import { assertOrganizationInScope, getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
 
 type EditSponsorPageProps = {
   params: Promise<{ sponsorId: string }>;
@@ -28,6 +28,14 @@ export default async function EditSponsorPage({ params }: EditSponsorPageProps) 
     if (!name) {
       return;
     }
+
+    // Re-check on the write path (not just the rendered guard above): reject an
+    // update to a sponsor outside the caller's org.
+    const current = await getSponsor(sponsorId);
+    if (!current) {
+      return;
+    }
+    await assertOrganizationInScope(current.organizationId);
 
     await updateSponsor(sponsorId, {
       name,

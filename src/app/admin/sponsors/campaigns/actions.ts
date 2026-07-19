@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createSponsorCampaign, deleteSponsorCampaign } from "@/lib/services/sponsor-campaigns";
+import { createSponsorCampaign, deleteSponsorCampaign, getSponsorCampaign } from "@/lib/services/sponsor-campaigns";
+import { getSponsor } from "@/lib/services/sponsors";
+import { assertOrganizationInScope } from "@/lib/access/scoped-venue-data";
 import { SPONSOR_ASSET_TYPES } from "@/lib/services/sponsor-fulfillment-core";
 
 export async function createCampaignAction(formData: FormData): Promise<void> {
@@ -16,6 +18,13 @@ export async function createCampaignAction(formData: FormData): Promise<void> {
   if (!sponsorId || !name || !startsOn || !endsOn) {
     redirect("/admin/sponsors/campaigns?error=missing");
   }
+
+  // Don't let a venue-scoped admin build a campaign around another org's sponsor.
+  const sponsor = await getSponsor(sponsorId);
+  if (!sponsor) {
+    redirect("/admin/sponsors/campaigns?error=missing");
+  }
+  await assertOrganizationInScope(sponsor.organizationId);
 
   const contracted: Record<string, number> = {};
   for (const assetType of SPONSOR_ASSET_TYPES) {
@@ -39,8 +48,12 @@ export async function createCampaignAction(formData: FormData): Promise<void> {
 export async function deleteCampaignAction(formData: FormData): Promise<void> {
   const id = String(formData.get("campaign_id") ?? "").trim();
   if (id) {
-    await deleteSponsorCampaign(id);
-    revalidatePath("/admin/sponsors/campaigns");
+    const campaign = await getSponsorCampaign(id);
+    if (campaign) {
+      await assertOrganizationInScope(campaign.organizationId);
+      await deleteSponsorCampaign(id);
+      revalidatePath("/admin/sponsors/campaigns");
+    }
   }
   redirect("/admin/sponsors/campaigns");
 }

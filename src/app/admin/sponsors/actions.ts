@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createSponsorAssignment, deleteSponsor, deleteSponsorAssignment } from "@/lib/services/sponsors";
+import { createSponsorAssignment, deleteSponsor, deleteSponsorAssignment, getSponsor } from "@/lib/services/sponsors";
+import { assertOrganizationInScope } from "@/lib/access/scoped-venue-data";
 import type { SponsorAssignment, SponsorAssignmentType, SponsorPlacementLabel } from "@/lib/types";
 
 export type CreateSponsorAssignmentResult = {
@@ -31,6 +32,13 @@ export async function createSponsorAssignmentAction(formData: FormData): Promise
   }
 
   try {
+    // Don't let a venue-scoped admin assign another org's sponsor.
+    const sponsor = await getSponsor(sponsorId);
+    if (!sponsor) {
+      return { error: "Sponsor not found." };
+    }
+    await assertOrganizationInScope(sponsor.organizationId);
+
     const typedAssignmentType = assignmentType as SponsorAssignmentType;
     const venueId = typedAssignmentType === "venue" ? targetId : null;
     const fieldId = typedAssignmentType === "field" ? targetId : null;
@@ -57,6 +65,11 @@ export async function createSponsorAssignmentAction(formData: FormData): Promise
 
 export async function deleteSponsorAction(sponsorId: string): Promise<{ error?: string }> {
   try {
+    const sponsor = await getSponsor(sponsorId);
+    if (!sponsor) {
+      return {};
+    }
+    await assertOrganizationInScope(sponsor.organizationId);
     await deleteSponsor(sponsorId);
     revalidatePath("/admin/sponsors");
     revalidatePath("/fields/[fieldId]", "page");

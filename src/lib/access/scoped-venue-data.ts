@@ -32,3 +32,24 @@ export async function getScopedOrganizationIds(): Promise<Set<string> | null> {
   const venues = (await getVenues()).filter((venue) => venueInScope(ctx, venue));
   return new Set(venues.map((venue) => venue.organizationId).filter((id): id is string => Boolean(id)));
 }
+
+export class OrganizationScopeError extends Error {
+  constructor() {
+    super("You are not authorized to act on this organization's data.");
+    this.name = "OrganizationScopeError";
+  }
+}
+
+// Write-side guard for ORG-scoped mutations (sponsors, campaigns): throw unless
+// the caller can reach the target org. Call it in the server action BEFORE the
+// write, after loading the target's organizationId. A null/absent org id is an
+// unowned entity and is allowed; platform/org admins (null scope) pass.
+export async function assertOrganizationInScope(organizationId: string | null | undefined): Promise<void> {
+  if (!organizationId) {
+    return;
+  }
+  const scopedOrgIds = await getScopedOrganizationIds();
+  if (scopedOrgIds && !scopedOrgIds.has(organizationId)) {
+    throw new OrganizationScopeError();
+  }
+}
