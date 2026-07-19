@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { IntegrationFrameworkConsole } from "./integration-framework-console";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage() {
-  const venues = await getVenues();
+  const { venues } = await getScopedVenuesAndFields();
 
   return (
     <main className="px-4 py-6 sm:px-6 lg:px-8">

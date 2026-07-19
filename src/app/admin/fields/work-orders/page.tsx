@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { publicErrorMessage } from "@/lib/public-error";
-import { getFields } from "@/lib/services/fields";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getWorkOrders, type WorkOrder } from "@/lib/services/work-orders";
 import { setWorkOrderStatusAction } from "./actions";
 import { WorkOrderForm } from "./work-order-form";
@@ -51,11 +50,13 @@ export default async function WorkOrdersPage() {
   const fieldNameById = new Map<string, string>();
 
   try {
-    const [venues, fields, workOrders] = await Promise.all([getVenues(), getFields(), getWorkOrders()]);
-    const venueById = new Map(venues.map((venue) => [venue.id, venue]));
-    fieldOptions = fields.map((field) => ({ id: field.id, name: field.name, venueName: venueById.get(field.venueId)?.name ?? "Venue" }));
-    for (const field of fields) fieldNameById.set(field.id, field.name);
-    orders = workOrders;
+    const [scoped, workOrders] = await Promise.all([getScopedVenuesAndFields(), getWorkOrders()]);
+    const venueById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+    fieldOptions = scoped.fields.map((field) => ({ id: field.id, name: field.name, venueName: venueById.get(field.venueId)?.name ?? "Venue" }));
+    for (const field of scoped.fields) fieldNameById.set(field.id, field.name);
+    // Confine work orders to in-scope fields.
+    const fieldIds = new Set(scoped.fields.map((field) => field.id));
+    orders = workOrders.filter((order) => fieldIds.has(order.fieldId));
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load work orders.");
   }

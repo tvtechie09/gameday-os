@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { publicErrorMessage } from "@/lib/public-error";
-import { getFields } from "@/lib/services/fields";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getUpcomingBookings, type FieldBooking } from "@/lib/services/bookings";
 import { cancelBookingAction } from "./actions";
 import { BookingForm } from "./booking-form";
@@ -21,11 +20,13 @@ export default async function FieldBookingsPage() {
   const fieldNameById = new Map<string, string>();
 
   try {
-    const [venues, fields, upcoming] = await Promise.all([getVenues(), getFields(), getUpcomingBookings()]);
-    const venueById = new Map(venues.map((venue) => [venue.id, venue]));
-    fieldOptions = fields.map((field) => ({ id: field.id, name: field.name, venueName: venueById.get(field.venueId)?.name ?? "Venue" }));
-    for (const field of fields) fieldNameById.set(field.id, field.name);
-    bookings = upcoming;
+    const [scoped, upcoming] = await Promise.all([getScopedVenuesAndFields(), getUpcomingBookings()]);
+    const venueById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+    fieldOptions = scoped.fields.map((field) => ({ id: field.id, name: field.name, venueName: venueById.get(field.venueId)?.name ?? "Venue" }));
+    for (const field of scoped.fields) fieldNameById.set(field.id, field.name);
+    // Confine bookings to in-scope fields.
+    const fieldIds = new Set(scoped.fields.map((field) => field.id));
+    bookings = upcoming.filter((booking) => fieldIds.has(booking.fieldId));
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load field bookings.");
   }

@@ -36,14 +36,6 @@ const RAW_LOADER = /\bgetVenues\(|\bgetFields\(/;
 // down -- shrink only, never add.
 const ALLOWLIST = new Set<string>([
   "app/admin/alerts/page.tsx",
-  "app/admin/fields/bookings/page.tsx",
-  "app/admin/fields/reservations/page.tsx",
-  "app/admin/fields/work-orders/page.tsx",
-  "app/admin/import/page.tsx",
-  "app/admin/integrations/daktronics/page.tsx",
-  "app/admin/integrations/page.tsx",
-  "app/admin/scoreboards/adapters/page.tsx",
-  "app/admin/scoreboards/display/page.tsx",
   "app/admin/sponsors/[sponsorId]/page.tsx",
   "app/admin/sponsors/campaigns/page.tsx",
   "app/admin/sponsors/page.tsx",

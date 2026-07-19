@@ -1,7 +1,6 @@
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { publicErrorMessage } from "@/lib/public-error";
 import { getSessions } from "@/lib/services/sessions";
-import { getVenues } from "@/lib/services/venues";
 import type { Field, Session, Venue } from "@/lib/types";
 import { ImportWizard } from "./import-wizard";
 
@@ -14,7 +13,11 @@ export default async function ImportPage() {
   let errorMessage: string | null = null;
 
   try {
-    [venues, fields, sessions] = await Promise.all([getVenues(), getFields(), getSessions()]);
+    const [scoped, allSessions] = await Promise.all([getScopedVenuesAndFields(), getSessions()]);
+    venues = scoped.venues;
+    fields = scoped.fields;
+    const fieldIds = new Set(fields.map((field) => field.id));
+    sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load import data.");
   }

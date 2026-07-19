@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
 import { canManageFields, isPlatformAdmin } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { listGrants, loadGrantBoard, type BlockGrant } from "@/lib/services/field-reservations";
 import { timeLabel } from "@/lib/services/field-reservations-core";
 import type { Field } from "@/lib/types";
@@ -33,8 +33,15 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
   if (!ctx || (!isPlatformAdmin(ctx) && !canManageFields(ctx))) redirect(getRoleHome(ctx));
 
   const sp = await searchParams;
-  const [fields, grants] = await Promise.all([getFields().catch(() => [] as Field[]), listGrants().catch(() => [] as BlockGrant[])]);
+  const [scoped, allGrants] = await Promise.all([
+    getScopedVenuesAndFields().catch(() => ({ venues: [], fields: [] as Field[] })),
+    listGrants().catch(() => [] as BlockGrant[]),
+  ]);
+  const fields = scoped.fields;
   const fieldName = new Map(fields.map((f) => [f.id, f.name]));
+  // Confine grants (and thus the loaded grant board) to in-scope fields.
+  const fieldIds = new Set(fields.map((f) => f.id));
+  const grants = allGrants.filter((g) => fieldIds.has(g.fieldId));
 
   const selectedId = sp.grant && grants.some((g) => g.id === sp.grant) ? sp.grant : grants[0]?.id;
   // Next two weeks of slots for the selected block ("now" is captured in the service).

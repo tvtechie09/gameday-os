@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { getPublicAppUrl } from "@/lib/public-url";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
-import { getVenues } from "@/lib/services/venues";
 import { ScoreboardDisplayControls } from "./scoreboard-display-controls";
 
 type ScoreboardDisplayControlsPageProps = {
@@ -16,7 +15,10 @@ type ScoreboardDisplayControlsPageProps = {
 export const dynamic = "force-dynamic";
 
 export default async function ScoreboardDisplayControlsPage({ searchParams }: ScoreboardDisplayControlsPageProps) {
-  const [venues, fields, sessions, params] = await Promise.all([getVenues(), getFields(), getSessions(), searchParams]);
+  const [scoped, allSessions, params] = await Promise.all([getScopedVenuesAndFields(), getSessions(), searchParams]);
+  const { venues, fields } = scoped;
+  const fieldIds = new Set(fields.map((field) => field.id));
+  const sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

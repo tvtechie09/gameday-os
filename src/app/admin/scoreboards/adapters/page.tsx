@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import {
   getScoreboardAdapters,
   getScoreboardAdapterStatusClass,
@@ -9,7 +9,6 @@ import {
   scoreboardAdapterTypes,
 } from "@/lib/services/scoreboard-adapters";
 import { getScoreboardProfiles } from "@/lib/services/scoreboards";
-import { getVenues } from "@/lib/services/venues";
 import { createScoreboardAdapterFormAction } from "./actions";
 import { AdapterTestButton } from "./adapter-test-button";
 
@@ -27,15 +26,22 @@ function formatSyncTime(value: string | null) {
 }
 
 export default async function ScoreboardAdaptersPage() {
-  const [adapters, profiles, venues, fields] = await Promise.all([
+  const [allAdapters, allProfiles, scoped] = await Promise.all([
     getScoreboardAdapters(),
     getScoreboardProfiles(),
-    getVenues(),
-    getFields(),
+    getScopedVenuesAndFields(),
   ]);
+  const venueIds = new Set(scoped.venues.map((venue) => venue.id));
+  const profiles = allProfiles.filter((profile) => venueIds.has(profile.venueId));
+  const allProfilesById = new Map(allProfiles.map((profile) => [profile.id, profile]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
-  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  const venuesById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
+  const fieldsById = new Map(scoped.fields.map((field) => [field.id, field]));
+  // Show adapters bound to an in-scope profile; keep unlinked adapters visible.
+  const adapters = allAdapters.filter((adapter) => {
+    const profile = allProfilesById.get(adapter.scoreboardId);
+    return !profile || venueIds.has(profile.venueId);
+  });
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">

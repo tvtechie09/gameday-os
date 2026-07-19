@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { createScoreboardDevice, getLatestScoreboardReadings, getScoreboardAdapterLogs, getScoreboardDevices, type ScoreboardConnectionType } from "@/lib/services/daktronics-scoreboard";
-import { getFields } from "@/lib/services/fields";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 
 export const dynamic = "force-dynamic";
 
@@ -46,14 +45,17 @@ export default async function DaktronicsIntegrationPage() {
     revalidatePath("/admin/integrations/daktronics");
   }
 
-  const [venues, fields, devices, latest, logs] = await Promise.all([
-    getVenues().catch((error) => { console.error("Failed to load venues for Daktronics", error); return []; }),
-    getFields().catch((error) => { console.error("Failed to load fields for Daktronics", error); return []; }),
+  const [scoped, allDevices, latest, logs] = await Promise.all([
+    getScopedVenuesAndFields().catch((error) => { console.error("Failed to load venues/fields for Daktronics", error); return { venues: [], fields: [] }; }),
     actorUserId ? getScoreboardDevices(actorUserId).catch((error) => { console.error("Failed to load scoreboard devices", error); return []; }) : Promise.resolve([]),
     getLatestScoreboardReadings().catch((error) => { console.error("Failed to load latest scoreboard readings", error); return []; }),
     actorUserId ? getScoreboardAdapterLogs(actorUserId).catch((error) => { console.error("Failed to load scoreboard adapter logs", error); return []; }) : Promise.resolve([]),
   ]);
 
+  const { venues, fields } = scoped;
+  const venueIds = new Set(venues.map((venue) => venue.id));
+  // Confine devices to in-scope venues.
+  const devices = allDevices.filter((device) => venueIds.has(device.venueId));
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
   const latestByDeviceId = new Map(latest.map((item) => [item.device.id, item]));
