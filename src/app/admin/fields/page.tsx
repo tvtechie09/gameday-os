@@ -6,9 +6,9 @@ import { EmptyState } from "@/components/empty-state";
 import { FieldQrCode } from "@/components/field-qr-code";
 import { getPublicAppUrl, getPublicFieldUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getFieldPageViewCountsByField } from "@/lib/services/field-page-views";
-import { fieldStatuses, getFields, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { fieldStatuses, getFieldStatusClass, getFieldStatusLabel, readFieldStatus, updateFieldStatus } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getFollowCountsByField } from "@/lib/services/follows";
-import { getVenues } from "@/lib/services/venues";
 import { getSessionContext } from "@/lib/access/session";
 import type { Field, Venue } from "@/lib/types";
 
@@ -66,9 +66,9 @@ export default async function FieldsPage() {
   const publicUrlIsLocalhost = publicAppUrlPointsToLocalhost();
 
   try {
-    const [fieldResults, venueResults, viewCounts, followCounts] = await Promise.all([getFields(), getVenues(), getFieldPageViewCountsByField(), getFollowCountsByField()]);
-    fields = fieldResults;
-    venues = venueResults;
+    const [scoped, viewCounts, followCounts] = await Promise.all([getScopedVenuesAndFields(), getFieldPageViewCountsByField(), getFollowCountsByField()]);
+    fields = scoped.fields;
+    venues = scoped.venues;
     fieldViewCounts = new Map(viewCounts.map((summary) => [summary.fieldId, summary.views]));
     fieldFollowCounts = new Map(followCounts.map((summary) => [summary.fieldId, summary.follows]));
   } catch (error) {

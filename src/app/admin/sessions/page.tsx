@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { publicErrorMessage } from "@/lib/public-error";
 import { EmptyState } from "@/components/empty-state";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
 import { getTournaments } from "@/lib/services/tournaments";
-import { getVenues } from "@/lib/services/venues";
 import type { Field, Session, Tournament, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +50,11 @@ export default async function SessionsPage() {
   let errorMessage: string | null = null;
 
   try {
-    [venues, fields, sessions, tournaments] = await Promise.all([getVenues(), getFields(), getSessions(), getTournaments()]);
+    const [scoped, allSessions, allTournaments] = await Promise.all([getScopedVenuesAndFields(), getSessions(), getTournaments()]);
+    venues = scoped.venues;
+    fields = scoped.fields;
+    sessions = allSessions;
+    tournaments = allTournaments;
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load sessions.");
   }
