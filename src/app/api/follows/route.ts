@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createFollow } from "@/lib/services/follows";
 import type { FollowType } from "@/lib/types";
 import { ApiRequestError, parseJsonObject, readBoundedString } from "@/lib/api-request";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 type FollowPayload = {
   fieldId?: unknown;
@@ -19,6 +20,13 @@ function readFollowType(value: unknown): FollowType {
 }
 
 export async function POST(request: Request) {
+  // Public, unauthenticated write: throttle floods per source IP. Generous
+  // because a whole venue crowd follows from one shared WiFi IP.
+  const limit = rateLimit(`follow:${clientIp(request)}`, 60, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: "Too many requests. Please slow down and try again shortly." }, { status: 429, headers: { "Retry-After": String(limit.retryAfter) } });
+  }
+
   try {
     const payload = await parseJsonObject<FollowPayload>(request);
     const fieldId = readBoundedString(payload.fieldId, 128);

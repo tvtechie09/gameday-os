@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createVolunteerRoleRequest, volunteerRoleTypes } from "@/lib/services/volunteer-roles";
 import type { VolunteerRoleType } from "@/lib/types";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 type VolunteerRolePayload = {
   venueId?: unknown;
@@ -19,6 +20,11 @@ function readString(value: unknown) {
 }
 
 export async function POST(request: Request) {
+  const limit = rateLimit(`volunteer:${clientIp(request)}`, 15, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: "Too many requests. Please slow down and try again shortly." }, { status: 429, headers: { "Retry-After": String(limit.retryAfter) } });
+  }
+
   try {
     const payload = await request.json() as VolunteerRolePayload;
     const venueId = readString(payload.venueId);

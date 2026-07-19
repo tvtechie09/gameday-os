@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createResourceActivationRequest, resourceActivationTypes } from "@/lib/services/resource-activations";
 import type { ResourceActivationType } from "@/lib/types";
 import { ApiRequestError, parseJsonObject, readBoundedString, readEmail, readHttpUrl } from "@/lib/api-request";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 type ActivationPayload = {
   venueId?: unknown;
@@ -20,6 +21,11 @@ function readString(value: unknown) {
 }
 
 export async function POST(request: Request) {
+  const limit = rateLimit(`activation:${clientIp(request)}`, 15, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: "Too many requests. Please slow down and try again shortly." }, { status: 429, headers: { "Retry-After": String(limit.retryAfter) } });
+  }
+
   try {
     const payload = await parseJsonObject<ActivationPayload>(request);
     const venueId = readBoundedString(payload.venueId, 128);

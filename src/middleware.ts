@@ -40,6 +40,7 @@ const PUBLIC_CONTENT_PREFIXES = [
   "/api/follows",
   "/api/field-page-views",
   "/api/resource-activations",
+  "/api/volunteer-roles",
   "/api/sponsor-analytics/",
   "/api/integrations/daktronics/readings",
   "/api/integrations/schedule",
