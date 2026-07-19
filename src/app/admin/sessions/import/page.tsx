@@ -1,5 +1,4 @@
-import { getFields } from "@/lib/services/fields";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { publicErrorMessage } from "@/lib/public-error";
 import { ScheduleImportTool } from "./import-tool";
 
@@ -10,9 +9,9 @@ export default async function ScheduleImportPage() {
   let venues: Array<{ id: string; name: string }> = [];
   let errorMessage: string | null = null;
   try {
-    const [allFields, allVenues] = await Promise.all([getFields(), getVenues()]);
-    fields = allFields.map((field) => ({ id: field.id, name: field.name, venueId: field.venueId }));
-    venues = allVenues.map((venue) => ({ id: venue.id, name: venue.name }));
+    const scoped = await getScopedVenuesAndFields();
+    fields = scoped.fields.map((field) => ({ id: field.id, name: field.name, venueId: field.venueId }));
+    venues = scoped.venues.map((venue) => ({ id: venue.id, name: venue.name }));
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load fields for import.");
   }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { publicErrorMessage } from "@/lib/public-error";
 import { getTeamDivisions } from "./actions";
 import { ScheduleGeneratorTool } from "./generator-tool";
@@ -11,10 +11,15 @@ export default async function ScheduleGeneratorPage() {
   let errorMessage: string | null = null;
   let divisions: Awaited<ReturnType<typeof getTeamDivisions>> = [];
   try {
-    [fields, divisions] = await Promise.all([
-      getFields().then((items) => items.map((field) => ({ id: field.id, name: field.name }))),
-      getTeamDivisions()
-    ]);
+    const [scoped, loadedDivisions] = await Promise.all([getScopedVenuesAndFields(), getTeamDivisions()]);
+    const venueNames = new Map(scoped.venues.map((venue) => [venue.id, venue.name]));
+    // With one venue in scope the venue name is noise; with several, an
+    // unlabeled "Field 1" is a wrong-venue schedule waiting to happen.
+    fields = scoped.fields.map((field) => ({
+      id: field.id,
+      name: scoped.venues.length > 1 ? `${field.name} — ${venueNames.get(field.venueId) ?? "Unassigned"}` : field.name,
+    }));
+    divisions = loadedDivisions;
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load fields for the generator.");
   }

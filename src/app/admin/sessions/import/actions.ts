@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { validateScheduleRows, type ScheduleCsvRow } from "@/lib/schedule-import";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { createSession } from "@/lib/services/sessions";
 import { publicErrorMessage } from "@/lib/public-error";
 
@@ -26,8 +26,12 @@ export async function importScheduleAction(formData: FormData): Promise<ImportRe
 
     // Re-validate server side against real fields; never trust client mapping. Field
     // names repeat across venues, so scope the match to the chosen venue — otherwise a
-    // schedule could silently land on another venue's identically-named field.
-    const fields = (await getFields()).map((field) => ({ id: field.id, name: field.name, venueId: field.venueId }));
+    // schedule could silently land on another venue's identically-named field. The
+    // venue itself must also be in the caller's scope (venue-scoped GMs can't import
+    // into someone else's venue).
+    const scoped = await getScopedVenuesAndFields();
+    if (!scoped.venues.some((venue) => venue.id === venueId)) return { error: "That venue is not in your scope." };
+    const fields = scoped.fields.map((field) => ({ id: field.id, name: field.name, venueId: field.venueId }));
     const validated = validateScheduleRows(rows, fields, { defaultDate, gameMinutes, venueId });
     const ready = validated.filter((row) => !row.errors.length);
     const failed = validated.filter((row) => row.errors.length);

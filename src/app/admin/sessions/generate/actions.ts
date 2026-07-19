@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { scheduleRoundRobin, type RoundRobinTeam } from "@/lib/round-robin";
 import { createSession } from "@/lib/services/sessions";
-import { getFields } from "@/lib/services/fields";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { publicErrorMessage } from "@/lib/public-error";
 
 export type DivisionOption = {
@@ -54,8 +54,11 @@ export async function generateScheduleAction(formData: FormData): Promise<Genera
     if (!fieldIds.length) return { error: "Pick at least one field." };
     if (!dates.length) return { error: "Pick at least one date." };
 
-    const allFields = await getFields();
-    const fields = allFields.filter((field) => fieldIds.includes(field.id)).map((field) => ({ id: field.id, name: field.name }));
+    // Scope-enforced server side: a venue-scoped GM must not be able to land
+    // games on another venue's fields, even with a crafted request.
+    const { fields: scopedFields } = await getScopedVenuesAndFields();
+    const fields = scopedFields.filter((field) => fieldIds.includes(field.id)).map((field) => ({ id: field.id, name: field.name }));
+    if (fields.length !== fieldIds.length) return { error: "One or more of those fields are not in your venue." };
     if (!fields.length) return { error: "Those fields were not found." };
 
     const { matches, unscheduled } = scheduleRoundRobin(cleanTeams, fields, dates, { startTime, endTime, gameMinutes });
