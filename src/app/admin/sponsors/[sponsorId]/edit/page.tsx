@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSponsor, updateSponsor } from "@/lib/services/sponsors";
+import { getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
 
 type EditSponsorPageProps = {
   params: Promise<{ sponsorId: string }>;
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function EditSponsorPage({ params }: EditSponsorPageProps) {
   const { sponsorId } = await params;
   const sponsor = await getSponsor(sponsorId);
+  const scopedOrgIds = await getScopedOrganizationIds();
 
   async function updateSponsorAction(formData: FormData) {
     "use server";
@@ -39,7 +41,8 @@ export default async function EditSponsorPage({ params }: EditSponsorPageProps) 
     redirect("/admin/sponsors");
   }
 
-  if (!sponsor) {
+  // Object-level authorization: only edit sponsors within the caller's org.
+  if (!sponsor || (scopedOrgIds && sponsor.organizationId && !scopedOrgIds.has(sponsor.organizationId))) {
     return (
       <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <Link href="/admin/sponsors" className="text-sm font-bold text-[var(--accent-strong)]">

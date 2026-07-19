@@ -16,3 +16,19 @@ export async function getScopedVenuesAndFields(): Promise<{ venues: Venue[]; fie
   const venueIds = new Set(venues.map((venue) => venue.id));
   return { venues, fields: allFields.filter((field) => venueIds.has(field.venueId)) };
 }
+
+// Organization ids the caller can reach, or `null` for NO restriction.
+// managesAllVenues (platform/org admins) → null (every org, including orgs that
+// own no venues — e.g. a sponsor-only org). A venue-scoped role → the org(s) of
+// their own venue(s). Use it to object-level-guard ORG-scoped entities
+// (sponsors, tournaments) whose by-id loaders don't filter by org — otherwise a
+// venue GM (who holds sponsor.manage / venue.manage) can open another org's
+// sponsor or tournament by URL. Guard shape: `if (orgIds && !orgIds.has(x))`.
+export async function getScopedOrganizationIds(): Promise<Set<string> | null> {
+  const ctx = await getSessionContext();
+  if (managesAllVenues(ctx)) {
+    return null;
+  }
+  const venues = (await getVenues()).filter((venue) => venueInScope(ctx, venue));
+  return new Set(venues.map((venue) => venue.organizationId).filter((id): id is string => Boolean(id)));
+}

@@ -5,6 +5,7 @@ import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAnalyticsForSponsor, readSponsorAnalyticsRange, sponsorAnalyticsRanges } from "@/lib/services/sponsor-analytics";
 import { getSponsor, getSponsorAssignments } from "@/lib/services/sponsors";
+import { getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
 import { getVenues } from "@/lib/services/venues";
 import type { Field, Session, SponsorAssignment, Venue } from "@/lib/types";
 
@@ -46,6 +47,13 @@ export default async function SponsorDetailPage({ params, searchParams }: Sponso
   ]);
 
   if (!sponsor) {
+    notFound();
+  }
+
+  // Object-level authorization: a venue-scoped admin (venue_director holds
+  // sponsor.manage) must not open another org's sponsor by URL.
+  const scopedOrgIds = await getScopedOrganizationIds();
+  if (scopedOrgIds && sponsor.organizationId && !scopedOrgIds.has(sponsor.organizationId)) {
     notFound();
   }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCampaignProof } from "@/lib/services/sponsor-campaigns";
+import { getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
 import { deleteCampaignAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,9 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const result = await getCampaignProof(id);
   if (!result) notFound();
+  // Object-level authorization: only view campaigns within the caller's org.
+  const scopedOrgIds = await getScopedOrganizationIds();
+  if (scopedOrgIds && result.campaign.organizationId && !scopedOrgIds.has(result.campaign.organizationId)) notFound();
   const { campaign, sponsorName, venueName, proof } = result;
   const rateTone = proof.deliveryRate >= 0.95 ? "text-emerald-600" : proof.deliveryRate >= 0.75 ? "text-amber-700" : "text-red-700";
 

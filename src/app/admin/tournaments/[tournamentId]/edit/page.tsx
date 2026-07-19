@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getTournament, updateTournament } from "@/lib/services/tournaments";
+import { getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
 
 type EditTournamentPageProps = {
   params: Promise<{ tournamentId: string }>;
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function EditTournamentPage({ params }: EditTournamentPageProps) {
   const { tournamentId } = await params;
   const tournament = await getTournament(tournamentId);
+  const scopedOrgIds = await getScopedOrganizationIds();
 
   async function updateTournamentAction(formData: FormData) {
     "use server";
@@ -47,7 +49,8 @@ export default async function EditTournamentPage({ params }: EditTournamentPageP
     redirect("/admin/tournaments");
   }
 
-  if (!tournament) {
+  // Object-level authorization: only edit tournaments within the caller's org.
+  if (!tournament || (scopedOrgIds && tournament.organizationId && !scopedOrgIds.has(tournament.organizationId))) {
     return (
       <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <Link href="/admin/tournaments" className="text-sm font-bold text-[var(--accent-strong)]">
