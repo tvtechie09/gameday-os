@@ -53,3 +53,20 @@ export async function assertOrganizationInScope(organizationId: string | null | 
     throw new OrganizationScopeError();
   }
 }
+
+// Write-side guard for VENUE-scoped mutations: throw unless the target venue is
+// in the caller's scope. Call it in the server action BEFORE the write. A
+// null/absent venue id is allowed; platform/org admins (managesAllVenues) pass.
+export async function assertVenueInScope(venueId: string | null | undefined): Promise<void> {
+  if (!venueId) {
+    return;
+  }
+  const ctx = await getSessionContext();
+  if (managesAllVenues(ctx)) {
+    return;
+  }
+  const venues = (await getVenues()).filter((venue) => venueInScope(ctx, venue));
+  if (!venues.some((venue) => venue.id === venueId)) {
+    throw new OrganizationScopeError();
+  }
+}

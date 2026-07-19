@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { alertPriorities, alertScopes, alertTypes, alertVisibilities, getAlert, getAlertPriorityLabel, getAlertScopeLabel, updateAlert } from "@/lib/services/alerts";
 import { getTournaments } from "@/lib/services/tournaments";
-import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
+import { assertOrganizationInScope, assertVenueInScope, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { readAlertFormData } from "../../form-utils";
 
 type EditAlertPageProps = {
@@ -28,6 +28,19 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
     if ("error" in parsed) {
       return;
     }
+
+    // Re-check on the write path: the caller must be able to act on the existing
+    // alert AND may not move it to a venue outside their scope.
+    const current = await getAlert(alertId);
+    if (!current) {
+      return;
+    }
+    if (current.alertScope === "venue" || current.alertScope === "field") {
+      await assertVenueInScope(current.venueId);
+    } else {
+      await assertOrganizationInScope(current.organizationId);
+    }
+    await assertVenueInScope(parsed.data.venue_id);
 
     await updateAlert(alertId, parsed.data);
     revalidatePath("/admin/alerts");
