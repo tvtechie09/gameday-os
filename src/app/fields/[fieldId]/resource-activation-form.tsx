@@ -5,15 +5,19 @@ import { useRouter } from "next/navigation";
 import type { ResourceActivationType } from "@/lib/types";
 
 type ContributionOption = {
+  id: string;
   defaultName: string;
   label: string;
   type: ResourceActivationType;
 };
 
+// `type` is the DB enum and is legitimately "other" for more than one option, so
+// selection + React keys use the unique `id` instead — otherwise the two "other"
+// options collide (duplicate key) and both buttons highlight together.
 const options: ContributionOption[] = [
-  { defaultName: "Livestream", label: "Share a Livestream Link", type: "livestream_link" },
-  { defaultName: "Photos", label: "Share Photos Link", type: "other" },
-  { defaultName: "Team Updates", label: "Share Team Updates Link", type: "other" },
+  { id: "livestream", defaultName: "Livestream", label: "Share a Livestream Link", type: "livestream_link" },
+  { id: "photos", defaultName: "Photos", label: "Share Photos Link", type: "other" },
+  { id: "team_updates", defaultName: "Team Updates", label: "Share Team Updates Link", type: "other" },
 ];
 
 export function ResourceActivationForm({
@@ -76,8 +80,8 @@ export function ResourceActivationForm({
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {options.map((option) => (
           <button
-            className={selected?.type === option.type ? "min-h-12 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-black text-white" : "min-h-12 rounded-lg border border-[var(--line)] bg-white px-4 py-3 text-sm font-black"}
-            key={option.type}
+            className={selected?.id === option.id ? "min-h-12 rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-black text-white" : "min-h-12 rounded-lg border border-[var(--line)] bg-white px-4 py-3 text-sm font-black"}
+            key={option.id}
             onClick={() => {
               setSelected(option);
               setMessage(null);
