@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createSponsorAssignment, deleteSponsor, deleteSponsorAssignment, getSponsor } from "@/lib/services/sponsors";
+import { createSponsorAssignment, deleteSponsor, deleteSponsorAssignment, getSponsor, getSponsorAssignments } from "@/lib/services/sponsors";
 import { assertOrganizationInScope } from "@/lib/access/scoped-venue-data";
 import type { SponsorAssignment, SponsorAssignmentType, SponsorPlacementLabel } from "@/lib/types";
 
@@ -83,6 +83,14 @@ export async function deleteSponsorAction(sponsorId: string): Promise<{ error?: 
 
 export async function deleteSponsorAssignmentAction(assignmentId: string): Promise<{ error?: string }> {
   try {
+    // Resolve the assignment -> its sponsor -> org, and reject a cross-org delete
+    // (assignments carry no org of their own; the sponsor is the org owner).
+    const assignment = (await getSponsorAssignments()).find((item) => item.id === assignmentId);
+    if (!assignment) {
+      return {};
+    }
+    const sponsor = await getSponsor(assignment.sponsorId);
+    await assertOrganizationInScope(sponsor?.organizationId);
     await deleteSponsorAssignment(assignmentId);
     revalidatePath("/admin/sponsors");
     revalidatePath("/fields/[fieldId]", "page");
