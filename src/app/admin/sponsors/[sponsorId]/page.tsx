@@ -1,12 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAnalyticsForSponsor, readSponsorAnalyticsRange, sponsorAnalyticsRanges } from "@/lib/services/sponsor-analytics";
 import { getSponsor, getSponsorAssignments } from "@/lib/services/sponsors";
-import { getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import type { Field, Session, SponsorAssignment, Venue } from "@/lib/types";
 
 type SponsorDetailPageProps = {
@@ -37,14 +35,14 @@ function getTargetName(assignment: SponsorAssignment, venues: Venue[], fields: F
 export default async function SponsorDetailPage({ params, searchParams }: SponsorDetailPageProps) {
   const [{ sponsorId }, resolvedSearchParams] = await Promise.all([params, searchParams]);
   const analyticsRange = readSponsorAnalyticsRange(resolvedSearchParams?.range);
-  const [sponsor, allAssignments, venues, fields, sessions, analytics] = await Promise.all([
+  const [sponsor, allAssignments, scoped, sessions, analytics] = await Promise.all([
     getSponsor(sponsorId),
     getSponsorAssignments(),
-    getVenues(),
-    getFields(),
+    getScopedVenuesAndFields(),
     getSessions(),
     getSponsorAnalyticsForSponsor(sponsorId, analyticsRange),
   ]);
+  const { venues, fields } = scoped;
 
   if (!sponsor) {
     notFound();

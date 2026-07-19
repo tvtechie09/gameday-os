@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { alertTypes, getAlertLabel, getAlertPriorityLabel, getAlertScopeLabel, getAlertTone, getAlerts, isAlertActive, isAlertExpired, sortAlertsForDisplay } from "@/lib/services/alerts";
-import { getFields } from "@/lib/services/fields";
+import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getTournaments } from "@/lib/services/tournaments";
-import { getVenues } from "@/lib/services/venues";
 import { clearAlertAction, clearAllActiveOperationsAlertsAction, expireAlertAction, hideAlertFromPublicAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -27,10 +26,21 @@ function formatDateTime(value: string) {
 
 export default async function AlertsPage({ searchParams }: AlertsPageProps) {
   const filters = await searchParams;
-  const [alerts, venues, fields, tournaments] = await Promise.all([getAlerts(), getVenues(), getFields(), getTournaments()]);
+  const [allAlerts, scoped, allTournaments, scopedOrgIds] = await Promise.all([getAlerts(), getScopedVenuesAndFields(), getTournaments(), getScopedOrganizationIds()]);
+  const venues = scoped.venues;
+  const fields = scoped.fields;
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  const venueIds = new Set(venues.map((venue) => venue.id));
+  const inOrgScope = (organizationId: string | null | undefined) => !scopedOrgIds || !organizationId || scopedOrgIds.has(organizationId);
+  // Isolate: venue/field-scoped alerts gate on the venue; global/tournament
+  // alerts (no owning venue) gate on the org. Platform/org admins (null scope)
+  // see everything.
+  const tournaments = allTournaments.filter((tournament) => inOrgScope(tournament.organizationId));
   const tournamentsById = new Map(tournaments.map((tournament) => [tournament.id, tournament]));
+  const alerts = allAlerts.filter((alert) =>
+    alert.alertScope === "venue" || alert.alertScope === "field" ? venueIds.has(alert.venueId) : inOrgScope(alert.organizationId),
+  );
   const visibleAlerts = sortAlertsForDisplay(alerts.filter((alert) => {
     if (filters?.venue_id && alert.venueId !== filters.venue_id) return false;
     if (filters?.field_id && alert.fieldId !== filters.field_id) return false;

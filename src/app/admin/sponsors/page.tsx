@@ -2,11 +2,10 @@ import Link from "next/link";
 import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
 import { EmptyState } from "@/components/empty-state";
-import { getFields } from "@/lib/services/fields";
+import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAnalytics, readSponsorAnalyticsRange, sponsorAnalyticsRanges } from "@/lib/services/sponsor-analytics";
 import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
-import { getVenues } from "@/lib/services/venues";
 import type { Field, Session, Sponsor, SponsorAnalyticsSummary, SponsorAssignment, Venue } from "@/lib/types";
 import { DeleteButton } from "./delete-button";
 import { SponsorAssignmentForm } from "./sponsor-assignment-form";
@@ -54,13 +53,21 @@ export default async function SponsorsPage({ searchParams }: SponsorsPageProps) 
   let errorMessage: string | null = null;
 
   try {
-    [sponsors, assignments, venues, fields, sessions] = await Promise.all([
+    const [allSponsors, allAssignments, scoped, allSessions, scopedOrgIds] = await Promise.all([
       getSponsors(),
       getSponsorAssignments(),
-      getVenues(),
-      getFields(),
+      getScopedVenuesAndFields(),
       getSessions(),
+      getScopedOrganizationIds(),
     ]);
+    venues = scoped.venues;
+    fields = scoped.fields;
+    sessions = allSessions;
+    // Isolate to the caller's orgs (null scope = platform/org admin = all; a
+    // sponsor with no org is unowned/global and stays visible).
+    sponsors = scopedOrgIds ? allSponsors.filter((sponsor) => !sponsor.organizationId || scopedOrgIds.has(sponsor.organizationId)) : allSponsors;
+    const sponsorIds = new Set(sponsors.map((sponsor) => sponsor.id));
+    assignments = allAssignments.filter((assignment) => sponsorIds.has(assignment.sponsorId));
     analytics = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), analyticsRange);
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load sponsors.");

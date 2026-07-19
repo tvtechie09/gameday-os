@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSponsors } from "@/lib/services/sponsors";
-import { getVenues } from "@/lib/services/venues";
+import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSponsorCampaigns, getRevenueOpportunities } from "@/lib/services/sponsor-campaigns";
 import { CampaignForm } from "./campaign-form";
 
@@ -17,12 +17,17 @@ function dateRange(startsOn: string, endsOn: string): string {
 
 export default async function SponsorCampaignsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
-  const [sponsors, venues, campaigns, opportunities] = await Promise.all([
+  const [allSponsors, scoped, allCampaigns, opportunities, scopedOrgIds] = await Promise.all([
     getSponsors().catch(() => []),
-    getVenues().catch(() => []),
+    getScopedVenuesAndFields().catch(() => ({ venues: [], fields: [] })),
     getSponsorCampaigns().catch(() => []),
     getRevenueOpportunities().catch(() => []),
+    getScopedOrganizationIds().catch(() => null),
   ]);
+  const venues = scoped.venues;
+  // Isolate sponsors + campaigns to the caller's orgs (null scope = all).
+  const sponsors = scopedOrgIds ? allSponsors.filter((s) => !s.organizationId || scopedOrgIds.has(s.organizationId)) : allSponsors;
+  const campaigns = scopedOrgIds ? allCampaigns.filter((c) => !c.organizationId || scopedOrgIds.has(c.organizationId)) : allCampaigns;
   const sponsorName = new Map(sponsors.map((s) => [s.id, s.name]));
   const oppTone: Record<string, string> = {
     high: "border-red-300 bg-red-50 text-red-900",

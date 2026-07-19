@@ -35,11 +35,6 @@ const RAW_LOADER = /\bgetVenues\(|\bgetFields\(/;
 // Admin files that still load venues/fields WITHOUT a scope guard. Debt to burn
 // down -- shrink only, never add.
 const ALLOWLIST = new Set<string>([
-  "app/admin/alerts/page.tsx",
-  "app/admin/sponsors/[sponsorId]/page.tsx",
-  "app/admin/sponsors/campaigns/page.tsx",
-  "app/admin/sponsors/page.tsx",
-  "app/admin/tournaments/page.tsx",
 ]);
 
 function sourceFiles(dir: string): string[] {

@@ -3,10 +3,9 @@ import { publicErrorMessage } from "@/lib/public-error";
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { getActiveAlerts, getAlertLabel, getAlertTone } from "@/lib/services/alerts";
-import { getFields } from "@/lib/services/fields";
+import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
 import { getTournaments } from "@/lib/services/tournaments";
-import { getVenues } from "@/lib/services/venues";
 import type { Alert, Field, Session, Tournament, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +42,15 @@ export default async function TournamentsPage() {
   let errorMessage: string | null = null;
 
   try {
-    [tournaments, sessions, fields, venues, activeAlerts] = await Promise.all([getTournaments(), getSessions(), getFields(), getVenues(), getActiveAlerts()]);
+    const [allTournaments, allSessions, scoped, alerts, scopedOrgIds] = await Promise.all([getTournaments(), getSessions(), getScopedVenuesAndFields(), getActiveAlerts(), getScopedOrganizationIds()]);
+    venues = scoped.venues;
+    fields = scoped.fields;
+    activeAlerts = alerts;
+    // Isolate to the caller's orgs; confine sessions to in-scope fields so the
+    // per-tournament metrics count only this caller's venues/fields.
+    tournaments = scopedOrgIds ? allTournaments.filter((tournament) => !tournament.organizationId || scopedOrgIds.has(tournament.organizationId)) : allTournaments;
+    const fieldIds = new Set(scoped.fields.map((field) => field.id));
+    sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load tournaments.");
   }
