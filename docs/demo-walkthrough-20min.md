@@ -21,6 +21,27 @@ features; show them the day they already live.
 
 If the refresh button isn't there, you're not signed in as platform staff.
 
+### Demoing on production to a prospect (read once)
+
+Dev-login is off in production by design, so:
+
+- **Sign in with your real super_admin account** (kmcgraw@nurve.us), not the
+  "Platform Admin" demo user. Your account is platform staff, so you still get
+  the ↻ Refresh demo day button and land on the Command Center.
+- **Refresh demo day the morning of** — the demo games are dated rows; without a
+  refresh the day shows "pre-game / no games today." Verified: one click flips it
+  to Live operations (games live + behind).
+- **Two security must-dos before you show the live app to anyone:** confirm
+  `NEXT_PUBLIC_ENABLE_DEV_LOGIN` is unset in Vercel prod, and rotate the exposed
+  Supabase/OpenWeather keys (`docs/secrets-rotation-runbook.md`). Don't demo on an
+  unrotated key.
+- **The family experience needs no login** — pull the public field page, wall
+  display (`/display/venue/...`), and a scoreboard up on your phone. For a
+  family-heavy audience that's the strongest 30 seconds you have: "this is what a
+  parent sees, no app to download, no account."
+- Weather panel: live on prod (OpenWeather key is set), shows "missing key" only
+  on local dev — so it demos correctly on production.
+
 ---
 
 ## 0:00 — The Saturday they already know (2 min)
