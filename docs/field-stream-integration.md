@@ -29,6 +29,32 @@ That's capital- and ops-heavy and a trap for a solo founder + AI. Instead:
 This is dead-on with the existing product principles (built-in vs. 3rd-party choice
 on every module; co-pilot not autopilot; families never pay *us*).
 
+## When the stream is gatekept (paid subscription, DRM)
+
+If the stream is paywalled or DRM'd — USSSALive/Skoresheet, Pixellot/NFHS — we do
+**NOT** embed, scrape, or re-host it. That violates their terms, is a copyright/DMCA
+problem, and is a reputational landmine for a kids'-sports company. Never
+circumvent a paywall. We integrate at a different layer:
+
+- **Deep-link, don't embed.** The field page carries the live score + a compliant
+  "Watch live on [provider] →" button. We route fans to the video; we don't host
+  it. No ToS issue — we send them traffic — and OUR page is the better hub because
+  it has what their stream page lacks: the other fields, delays, weather, sponsors.
+- **Game state, not video.** The value we surface is the score/inning/live status
+  (from scorekeeping/scoreboard integration), rendered next to the watch link.
+- **Partnership, not workaround.** Pixellot/NFHS *want* distribution (more eyeballs
+  = more subs), so "your stream deep-linked + score-synced on our field pages" can
+  be a BD conversation. Verify each provider's embed/partner terms at integration.
+
+**The deciding discovery question: "Do you control the stream, or does the camera
+vendor?"** They control it (their YouTube/OBS/Pixellot embed token) → we embed.
+Vendor gatekeeps it → we deep-link. Either way, our core value (ops, alerts,
+sponsors, reservations, hours) never depends on the video. A gatekept stream isn't
+a wall to break through — it's a signal that layer is already handled; we coexist.
+
+Field-page logic: `if streamSource is embeddable -> embed; else -> "watch live"
+deep-link`.
+
 ## Model
 
 - **field.streamSource** — a provider-ready integration on the field, right next to
