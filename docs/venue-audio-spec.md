@@ -112,6 +112,43 @@ when authorized, obeys priority, and reports health. Flow:
 The parent never manually pairs or picks the right field — a QR scan hands them one
 door that locks when their game ends.
 
+## What the Field Audio Endpoint physically is
+
+**No off-the-shelf box does all of this** — consumer cast receivers (WiiM, Apple
+TV, Sonos) accept AirPlay/BT + have line-out but have zero authorization and no
+priority ducking; commercial paging DSPs (Q-SYS, AtlasIED, Bogen, Barix) do
+priority/ducking + have APIs but don't accept a parent's phone and are pro-AV
+priced. The value (only-this-parent-this-field-this-game, safety always wins) lives
+in the gap, which is software — so the endpoint must be **programmable**, not
+purchased.
+
+**The device = a small SBC appliance we build:** Raspberry Pi 4 / Pi Zero 2 W class
++ an audio-output HAT (line-out to the amp) + our agent. Transports via mature
+open-source: Bluetooth sink (bluez), AirPlay (shairport-sync), Spotify Connect
+(librespot). Our agent does what nobody sells: open/close the BT pairing window per
+authorization, run the **local priority mixer** (PipeWire ducks/cuts the parent
+stream for announcements — instant, on-box, no cloud round-trip), play TTS/clips,
+report health, take OTA. BOM ~$60–150; the cost is firmware + fleet, not parts. It
+registers as a new device *type* in `venue_assets`/`deviceCheck`.
+
+**Two practical wins:** (1) **PoE** — one Ethernet run from the press-box switch
+gives the endpoint power + a wired control link, no field power/WiFi needed for the
+box. (2) **Bluetooth last-hop sidesteps bad field WiFi** — if the parent's phone
+pairs to the endpoint over BT (in the software-managed window), the phone never
+touches venue WiFi; the audio hop is local radio (parent's in the dugout, in
+range), and only the endpoint's wired control channel needs the network.
+
+**Two-tier (Pro Services decides per site survey):**
+- Target market → install **our SBC appliance**.
+- Big venues with existing pro paging (Q-SYS/AtlasIED) → **integrate with their DSP
+  API** instead; our software becomes a control source. Less hardware, cheaper for them.
+
+**Build path:** prototype the full loop on a Pi 4 + HiFiBerry DAC (authorize →
+accept AirPlay/BT → duck for announcement) — a weekend, the OSS pieces are mature.
+Productize later: smaller board, PoE HAT, outdoor-rated enclosure (fields = temp +
+moisture), OTA fleet mgmt. The productization is the real work, not the demo. The
+device is the moat *because* it can't be bought off a shelf.
+
 ## Pro Services offering (installed integration, a real revenue line)
 
 Pure-software competitors (scorebug/streaming apps) can't touch this.
