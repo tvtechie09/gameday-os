@@ -78,6 +78,61 @@ announcement/safety authority that outranks any entertainment token.
 - **Phase 3 — entertainment routing.** Time-boxed cast tokens for the current game's
   parent to stream their own walk-up music, ducked by announcements.
 
+## Two constraints that decide the architecture
+
+1. **iOS won't let an app capture another app's audio.** If the parent plays their
+   walk-up music in Ballpark DJ / Spotify, our app **cannot** grab and relay it. The
+   only audio exit is the phone's OS-level output (Bluetooth/AirPlay/cast). So to let
+   parents keep their own DJ app, **we control at the speaker end, not the phone.**
+2. **Native casting (AirPlay/Chromecast) has no access control** — it broadcasts to
+   the whole LAN; discovery is not permission.
+
+Both force the intelligence into a device at the field — not the phone, not purely
+the cloud. That device is the product.
+
+## How a parent connects
+
+The Field Audio Endpoint (per field, wired to the amp line-in) accepts audio only
+when authorized, obeys priority, and reports health. Flow:
+
+1. Parent scans the **Field 6 QR** in the app → we verify they hold the current
+   game's DJ authorization → we tell the endpoint "accept this parent until the game
+   ends."
+2. The endpoint opens its input to **only them, only for that window.** Key move:
+   **software manages the pairing lifecycle**, which rescues Bluetooth — the endpoint
+   advertises a BT pairing *only* during the window and auto-forgets after. Bluetooth
+   en masse fails because *humans* manage pairing; when *our software* opens/closes
+   the window per field per game, the rotating-users and every-field-visible problems
+   vanish.
+3. Parent plays their own music → outputs to Field 6.
+4. Safety/announcement arrives → the **endpoint** ducks/cuts locally and takes over
+   (endpoint owns the mix, so priority is instant, no cloud round-trip). Token
+   expires → endpoint stops accepting.
+
+The parent never manually pairs or picks the right field — a QR scan hands them one
+door that locks when their game ends.
+
+## Pro Services offering (installed integration, a real revenue line)
+
+Pure-software competitors (scorebug/streaming apps) can't touch this.
+- **Site survey** — amp type, speaker wiring, field WiFi (often the real blocker),
+  press-box rack vs. per-field boxes.
+- **Endpoint install** — the Field Audio Endpoint per field, on the venue network,
+  registered to the venue.
+- **Config** — map endpoints→fields, set the priority ladder, set which roles grant DJ.
+- **Monitoring** — the endpoint is a new device *type* in the model we already have
+  (`venue_assets` + `deviceCheck` + `audio_profiles`); it surfaces in the attention
+  queue when dark, like scoreboards/cameras today.
+- **Revenue:** hardware margin + install fee + software tier. Fits "venue pays."
+
+## "Field DJ" is a per-game authorization (we already have the engine)
+
+It is the **same shape as a field reservation** — a time-boxed claim on a field
+resource, where the resource is "the field's audio channel." Venue manager (or
+coach) designates the DJ for a game; the parent claims/scans to activate; scoped to
+that game, revocable; safety/announcements always outrank it. Reuses the existing
+role + reservations model, not a new access system.
+
 ## Honest caveats
 
 - Needs networked audio endpoints per field — a small venue-side capital/install
