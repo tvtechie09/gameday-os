@@ -33,6 +33,19 @@ export async function getScopedOrganizationIds(): Promise<Set<string> | null> {
   return new Set(venues.map((venue) => venue.organizationId).filter((id): id is string => Boolean(id)));
 }
 
+// Write-side guard for FIELD-scoped mutations (work orders / issues): throw
+// unless the field belongs to a venue in the caller's scope. Same shape as
+// assertVenueInScope, for the many actions that only carry a fieldId.
+export async function assertFieldInScope(fieldId: string | null | undefined): Promise<void> {
+  if (!fieldId) {
+    return;
+  }
+  const { fields } = await getScopedVenuesAndFields();
+  if (!fields.some((field) => field.id === fieldId)) {
+    throw new OrganizationScopeError();
+  }
+}
+
 export class OrganizationScopeError extends Error {
   constructor() {
     super("You are not authorized to act on this organization's data.");

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { publicErrorMessage } from "@/lib/public-error";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getWorkOrders, type WorkOrder } from "@/lib/services/work-orders";
-import { setWorkOrderStatusAction } from "./actions";
+import { issueLifecycle, issueStageLabel, orderIssues, rollupIssues } from "@/lib/services/work-order-core";
+import { acknowledgeWorkOrderAction, assignWorkOrderAction, resolveWorkOrderAction, setWorkOrderStatusAction } from "./actions";
 import { WorkOrderForm } from "./work-order-form";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,78 @@ const PRIORITY_CLASSES: Record<string, string> = {
 
 function formatCreatedAt(value: string) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+// Accountability row: who owns it, whether anyone has confirmed they're on it,
+// and when it's due. This is the part a computed attention queue can't express —
+// without it, an issue can sit in the queue all day with nobody knowing if it's
+// been picked up.
+function LifecycleControls({ order, now }: { order: WorkOrder; now: number }) {
+  const life = issueLifecycle(order, now);
+  if (life.stage === "resolved") {
+    return order.resolutionNotes ? <p className="mt-2 text-xs text-[var(--muted)]">Resolved: {order.resolutionNotes}</p> : null;
+  }
+
+  return (
+    <div className="mt-3 grid gap-2 border-t border-[var(--line)] pt-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-bold uppercase tracking-[0.1em] text-[var(--muted)]">{issueStageLabel(life.stage)}</span>
+        {order.assignedRole ? <span className="rounded-md bg-[var(--background)] px-2 py-0.5 font-bold">{order.assignedRole}</span> : null}
+        {life.unowned ? <span className="rounded-md bg-amber-50 px-2 py-0.5 font-bold text-amber-800">Nobody assigned</span> : null}
+        {life.unacknowledged ? <span className="rounded-md bg-amber-50 px-2 py-0.5 font-bold text-amber-800">Not acknowledged</span> : null}
+        {life.isOverdue ? <span className="rounded-md bg-red-50 px-2 py-0.5 font-bold text-red-800">Overdue {Math.abs(life.minutesUntilDue ?? 0)} min</span> : null}
+        {!life.isOverdue && life.minutesUntilDue !== null ? (
+          <span className="text-[var(--muted)]">Due in {life.minutesUntilDue} min</span>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2">
+        <form action={assignWorkOrderAction} className="flex flex-wrap items-end gap-2">
+          <input name="id" type="hidden" value={order.id} />
+          <label className="grid gap-1">
+            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">Assign to</span>
+            <input
+              className="min-h-9 w-36 rounded-lg border border-[var(--line)] px-2 text-xs font-semibold"
+              defaultValue={order.assignedRole ?? ""}
+              name="assigned_role"
+              placeholder="grounds crew"
+            />
+          </label>
+          <label className="grid gap-1">
+            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">Due</span>
+            <input className="min-h-9 rounded-lg border border-[var(--line)] px-2 text-xs font-semibold" name="due_at" type="datetime-local" />
+          </label>
+          <button className="min-h-9 rounded-lg border border-[var(--line)] px-3 text-xs font-bold" type="submit">
+            Save
+          </button>
+        </form>
+
+        {!order.acknowledgedAt ? (
+          <form action={acknowledgeWorkOrderAction}>
+            <input name="id" type="hidden" value={order.id} />
+            <button className="min-h-9 rounded-lg bg-[var(--black-soft)] px-3 text-xs font-bold text-white" type="submit">
+              I&apos;m on it
+            </button>
+          </form>
+        ) : null}
+
+        <form action={resolveWorkOrderAction} className="flex flex-wrap items-end gap-2">
+          <input name="id" type="hidden" value={order.id} />
+          <label className="grid gap-1">
+            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">Resolution</span>
+            <input
+              className="min-h-9 w-44 rounded-lg border border-[var(--line)] px-2 text-xs font-semibold"
+              name="resolution_notes"
+              placeholder="what fixed it"
+            />
+          </label>
+          <button className="min-h-9 rounded-lg border border-[var(--line)] px-3 text-xs font-bold" type="submit">
+            Resolve
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 function StatusActions({ order }: { order: WorkOrder }) {
@@ -43,26 +116,47 @@ function StatusActions({ order }: { order: WorkOrder }) {
   );
 }
 
-export default async function WorkOrdersPage() {
-  let errorMessage: string | null = null;
-  let orders: WorkOrder[] = [];
-  let fieldOptions: Array<{ id: string; name: string; venueName: string }> = [];
+// Load + derive outside the component. The lifecycle math needs the current
+// time, and reading the clock in a component body is impure (same reason
+// buildCommandCenter timestamps inside the service, not the page).
+async function loadIssueBoard() {
+  const now = Date.now();
   const fieldNameById = new Map<string, string>();
-
   try {
     const [scoped, workOrders] = await Promise.all([getScopedVenuesAndFields(), getWorkOrders()]);
     const venueById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
-    fieldOptions = scoped.fields.map((field) => ({ id: field.id, name: field.name, venueName: venueById.get(field.venueId)?.name ?? "Venue" }));
+    const fieldOptions = scoped.fields.map((field) => ({ id: field.id, name: field.name, venueName: venueById.get(field.venueId)?.name ?? "Venue" }));
     for (const field of scoped.fields) fieldNameById.set(field.id, field.name);
     // Confine work orders to in-scope fields.
     const fieldIds = new Set(scoped.fields.map((field) => field.id));
-    orders = workOrders.filter((order) => fieldIds.has(order.fieldId));
-  } catch (error) {
-    errorMessage = publicErrorMessage(error, "Unable to load work orders.");
-  }
+    const orders = workOrders.filter((order) => fieldIds.has(order.fieldId));
 
-  const openOrders = orders.filter((order) => order.status !== "done");
-  const doneOrders = orders.filter((order) => order.status === "done").slice(0, 20);
+    return {
+      errorMessage: null as string | null,
+      now,
+      fieldOptions,
+      fieldNameById,
+      // Ranked by what most needs a decision (overdue, then priority, then
+      // unowned) rather than newest-first, so the forgotten item rises.
+      openOrders: orderIssues(orders.filter((order) => order.status !== "done"), now),
+      doneOrders: orders.filter((order) => order.status === "done").slice(0, 20),
+      rollup: rollupIssues(orders, now),
+    };
+  } catch (error) {
+    return {
+      errorMessage: publicErrorMessage(error, "Unable to load work orders."),
+      now,
+      fieldOptions: [] as Array<{ id: string; name: string; venueName: string }>,
+      fieldNameById,
+      openOrders: [] as WorkOrder[],
+      doneOrders: [] as WorkOrder[],
+      rollup: rollupIssues([], now),
+    };
+  }
+}
+
+export default async function WorkOrdersPage() {
+  const { errorMessage, now, fieldOptions, fieldNameById, openOrders, doneOrders, rollup } = await loadIssueBoard();
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -87,7 +181,13 @@ export default async function WorkOrdersPage() {
           <WorkOrderForm fields={fieldOptions} />
 
           <section className="rounded-lg border border-[var(--line)] bg-white p-5">
-            <h2 className="text-lg font-black">Open ({openOrders.length})</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-black">Open ({openOrders.length})</h2>
+              <p className="text-xs font-bold text-[var(--muted)]">
+                {rollup.unowned} unassigned · {rollup.acknowledged + rollup.inProgress} being worked
+                {rollup.overdue > 0 ? <span className="text-red-700"> · {rollup.overdue} overdue</span> : null}
+              </p>
+            </div>
             {openOrders.length === 0 ? (
               <p className="mt-3 text-sm text-[var(--muted)]">Nothing open. Fields are in good shape.</p>
             ) : (
@@ -113,6 +213,7 @@ export default async function WorkOrdersPage() {
                       </div>
                       <StatusActions order={order} />
                     </div>
+                    <LifecycleControls now={now} order={order} />
                   </article>
                 ))}
               </div>
@@ -124,11 +225,18 @@ export default async function WorkOrdersPage() {
               <h2 className="text-lg font-black">Recently completed</h2>
               <ul className="mt-3 grid gap-2 text-sm">
                 {doneOrders.map((order) => (
-                  <li key={order.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] pb-2 last:border-0">
-                    <span>
-                      <span className="font-bold">{fieldNameById.get(order.fieldId) ?? "Field"}</span> — {order.title}
-                    </span>
-                    <StatusActions order={order} />
+                  <li key={order.id} className="border-b border-[var(--line)] pb-2 last:border-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span>
+                        <span className="font-bold">{fieldNameById.get(order.fieldId) ?? "Field"}</span> — {order.title}
+                      </span>
+                      <StatusActions order={order} />
+                    </div>
+                    {/* Show HOW it was closed — an unexplained "done" is unauditable,
+                        which is the whole reason resolution notes exist. */}
+                    {order.resolutionNotes ? (
+                      <p className="mt-1 text-xs text-[var(--muted)]">Resolved: {order.resolutionNotes}</p>
+                    ) : null}
                   </li>
                 ))}
               </ul>

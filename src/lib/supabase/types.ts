@@ -255,6 +255,15 @@ export type Database = {
           created_at: string;
           updated_at: string;
           closed_at: string | null;
+          assigned_role?: string | null;
+          assigned_to_user_id?: string | null;
+          acknowledged_at?: string | null;
+          acknowledged_by?: string | null;
+          due_at?: string | null;
+          resolution_notes?: string | null;
+          source?: string;
+          game_id?: string | null;
+          asset_id?: string | null;
         };
         Insert: {
           id?: string;
@@ -267,6 +276,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           closed_at?: string | null;
+          assigned_role?: string | null;
+          assigned_to_user_id?: string | null;
+          acknowledged_at?: string | null;
+          acknowledged_by?: string | null;
+          due_at?: string | null;
+          resolution_notes?: string | null;
+          source?: string;
+          game_id?: string | null;
+          asset_id?: string | null;
         };
         Update: {
           id?: string;
@@ -278,6 +296,15 @@ export type Database = {
           reported_by?: string | null;
           updated_at?: string;
           closed_at?: string | null;
+          assigned_role?: string | null;
+          assigned_to_user_id?: string | null;
+          acknowledged_at?: string | null;
+          acknowledged_by?: string | null;
+          due_at?: string | null;
+          resolution_notes?: string | null;
+          source?: string;
+          game_id?: string | null;
+          asset_id?: string | null;
         };
         Relationships: [
           {
