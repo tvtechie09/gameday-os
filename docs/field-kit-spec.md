@@ -19,6 +19,40 @@ committed — parts pricing moves and every site is different.
 - **Everything registers as a device** in `venue_assets` / `deviceCheck` — so a dark
   endpoint shows up in the Command Center attention queue, like scoreboards/cameras.
 
+## Edge device architecture: custom vs. off-the-shelf, by role
+
+Don't think "the audio Pi" — think **a GameDay OS edge device that plays a role.**
+The rule: **build custom only where there's a control plane to own; otherwise use
+off-the-shelf.**
+
+| Role | Hardware | Custom? | Why |
+|---|---|---|---|
+| **Audio Endpoint** | Pi + audio HAT + our agent | **Yes** | The value *is* the control plane (authorize who / when / priority); nothing off-the-shelf does it |
+| **Signage Player** | Off-the-shelf player, or a Pi in kiosk mode | **No** | Just renders our web display; commodity |
+| **Scoreboard Bridge** | Pi / serial-to-IP adapter | Light | Reads an existing controller into GameDay OS |
+
+**Digital signage is not a custom build.** Our displays are already web apps
+(`/display/venue/[venueId]`, scoreboard, field pages — with offline resilience via
+`display-sw.js`). Signage = something that renders that URL on a screen and stays up:
+
+- **Recommended for 24/7:** a **Chromebox** (Google kiosk management is excellent,
+  zero-build) or a commercial signage player (BrightSign). **Avoid consumer sticks**
+  (Fire TV / Chromecast) for always-on — they sleep, show ads, and auto-update at bad
+  times.
+- **Optional:** a Pi in kiosk mode (full-screen Chromium on the display URL) — worth
+  it only to reuse one fleet system if you're already running Pi endpoints for audio.
+
+**The unification is the management layer, not the hardware.** Pick the cheapest
+reliable hardware per role, but manage them together: one fleet platform (Balena)
+for the devices we install (OTA updates, remote terminal, health), and **every
+device — custom Pi or off-the-shelf player — registers in `venue_assets` /
+`deviceCheck`**, so a dead speaker and a dark screen both surface in the Command
+Center attention queue.
+
+**Rule of thumb:** reserve the custom Pi + agent for **audio** (where the control
+plane earns it). Everything else is off-the-shelf hardware rendering software we
+already own. See `venue-audio-spec.md` for the audio control-plane detail.
+
 ## The three tiers (aligned with the subscription tiers)
 
 | Tier | What it adds | Unlocks |
