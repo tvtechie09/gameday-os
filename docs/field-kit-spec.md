@@ -53,6 +53,26 @@ Center attention queue.
 plane earns it). Everything else is off-the-shelf hardware rendering software we
 already own. See `venue-audio-spec.md` for the audio control-plane detail.
 
+## Recommended off-the-shelf gear (deploy this before anything custom)
+
+You can stand up ~80% of the platform with off-the-shelf gear + printed signs —
+**zero custom hardware.** Do this first; go custom (the audio endpoint) only when a
+venue commits to real multi-field audio.
+
+| Need | Recommended off-the-shelf | Note |
+|---|---|---|
+| **Family experience** | Printed weatherproof **QR field signs** (~$40/field) | Zero electronics; best value/cost. Deploy day one. |
+| **Network / field WiFi** | **Ubiquiti UniFi** — gateway + PoE switch + outdoor APs | Integrator-standard, cloud-managed. The foundation everything needs; field WiFi is the dealbreaker. |
+| **Displays / signage** | **Chromebox** in kiosk mode (or the venue's smart-TV browser) | Renders our web display; reliable 24/7, zero build. Avoid Fire TV / Chromecast for always-on. |
+| **Audio (stopgap only)** | A **WiiM** per zone (AirPlay/API + line-out) | Lets you demo "push an announcement from the Command Center." Has NO auth / priority / rotating-DJ control — that's why we go custom. Not the product. |
+| **Streaming** | **BYO** — phone + tripod + YouTube, or a consumer AI cam (XbotGo-class) | We surface the URL; we never buy or build the camera. |
+| **Scoreboard** | **Software first** — pull game state from their scorekeeping app (GameChanger/iScore) | Try the integration before a hardware bridge. |
+
+**The point:** QR signs + a UniFi network + a Chromebox display + BYO streaming +
+software scorekeeping = a fully-deployed GameDay OS venue with **no custom hardware**
+— enough to validate the platform and the deployment motion before spending a dollar
+on a custom build.
+
 ## The three tiers (aligned with the subscription tiers)
 
 | Tier | What it adds | Unlocks |
