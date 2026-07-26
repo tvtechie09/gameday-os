@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
 import { canManagePlatform, isPlatformAdmin } from "@/lib/access/capabilities";
-import { buildCommandCenter, type AttentionItem, type AttentionTier, type CommandCenterMode, type FieldBoardEntry } from "@/lib/services/command-center";
+import { buildCommandCenter, type AttentionItem, type AttentionTier, type CommandCenterMode, type FieldBoardEntry, type SchedulePulse } from "@/lib/services/command-center";
 import { LiveScore } from "@/app/fields/[fieldId]/live-score";
 import { ModeChecklistCard } from "./mode-checklist";
 import { refreshDemoDayAction } from "./actions";
@@ -27,6 +27,80 @@ const fieldStatusMeta: Record<string, { dot: string; ring: string; label: string
   closed: { dot: "bg-red-500", ring: "border-red-300", label: "Closed" },
   maintenance: { dot: "bg-red-500", ring: "border-red-300", label: "Maintenance" },
 };
+
+// Venue-wide schedule health. Hidden once nothing is in play or pending — at
+// that point "are we on schedule" has no meaning and the tiles would be noise.
+function SchedulePulseCard({ pulse }: { pulse: SchedulePulse }) {
+  if (pulse.tracked === 0) return null;
+  const bands: Array<{ label: string; value: number; tone?: string }> = [
+    { label: "On time", value: pulse.onTime, tone: "text-emerald-600" },
+    { label: "1–10 min", value: pulse.late1to10 },
+    { label: "11–20 min", value: pulse.late11to20, tone: pulse.late11to20 > 0 ? "text-amber-700" : undefined },
+    { label: "20+ min", value: pulse.late20plus, tone: pulse.late20plus > 0 ? "text-red-700" : undefined },
+  ];
+
+  return (
+    <section className="mt-7 rounded-xl border border-[var(--line)] bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Schedule Pulse</h2>
+        <p className="text-xs font-bold text-[var(--muted)]">
+          {pulse.tracked} game{pulse.tracked === 1 ? "" : "s"} in play or pending · avg {pulse.averageDelayMin} min behind
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {bands.map((band) => (
+          <div key={band.label} className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-3">
+            <p className={`text-2xl font-black leading-none tabular-nums ${band.tone ?? ""}`}>{band.value}</p>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">{band.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {pulse.worstFields.length > 0 ? (
+        <p className="mt-4 text-sm font-semibold text-[var(--muted)]">
+          Worst hit:{" "}
+          {pulse.worstFields.map((f, i) => (
+            <span key={f.fieldName}>
+              {i > 0 ? " · " : ""}
+              <b className="text-[var(--foreground)]">{f.fieldName}</b> {f.minutesBehind} min
+            </span>
+          ))}
+          {pulse.recoveryMinutes > 0 ? <> · back on schedule in ~{pulse.recoveryMinutes} min if nothing changes</> : null}
+        </p>
+      ) : null}
+
+      {pulse.downstreamImpacts.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">Projected knock-on (estimate)</p>
+          <ul className="mt-2 grid gap-1.5">
+            {pulse.downstreamImpacts.map((impact) => (
+              <li key={impact.fieldName + impact.nextGameLabel} className="text-sm font-semibold">
+                <b>{impact.fieldName}</b> · {impact.nextGameLabel}:{" "}
+                <span className="text-[var(--muted)] line-through">{impact.scheduledStartLabel}</span>{" "}
+                <span className="text-amber-700">{impact.projectedStartLabel}</span>{" "}
+                <span className="text-xs text-[var(--muted)]">({impact.minutesLate} min late)</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {pulse.curfewRisks.length > 0 ? (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-red-800">Curfew risk (estimate)</p>
+          <ul className="mt-1.5 grid gap-1">
+            {pulse.curfewRisks.map((risk) => (
+              <li key={risk.fieldName + risk.gameLabel} className="text-sm font-bold text-red-900">
+                {risk.fieldName} · {risk.gameLabel} projected {risk.projectedFinishLabel} — {risk.minutesPastClose} min past close
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 function SummaryTile({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
   return (
@@ -174,6 +248,8 @@ export default async function CommandCenterPage() {
           tone={s.systemsOffline > 0 ? "text-red-700" : s.systemsUnknown > 0 ? "text-amber-700" : "text-emerald-600"}
         />
       </section>
+
+      <SchedulePulseCard pulse={view.pulse} />
 
       <div className="mt-7">
         <ModeChecklistCard checklist={view.checklist} />

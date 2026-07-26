@@ -4,13 +4,16 @@ import {
   buildAttentionQueue,
   buildFieldBoard,
   buildModeChecklist,
+  buildSchedulePulse,
   chicagoDateString,
   defaultGameMinutes,
+  DOWNSTREAM_IMPACT_THRESHOLD_MIN,
   UPCOMING_WINDOW_MIN,
   isSameVenueDay,
   minutesBehind,
   resolveMode,
   summarize,
+  timeLabel,
 } from "../src/lib/services/command-center-core.ts";
 import type { GameRecord } from "../src/lib/game-engine/game-service.ts";
 import type { SessionOfficial } from "../src/lib/services/officials.ts";
@@ -505,4 +508,116 @@ test("minutesBehind: a real scheduled end always beats the sport default", () =>
   // Volleyball with a 90-minute booked slot, 70 minutes in -> not behind.
   const vb = game({ status: "active", lifecycleStatus: "live", sportType: "volleyball", startTime: minsAgo(70), endTime: minsAhead(20) });
   assert.equal(minutesBehind(vb, NOW), 0);
+});
+
+// ---- schedule pulse --------------------------------------------------------
+
+test("schedulePulse: buckets delays and averages across tracked games", () => {
+  const games = [
+    game({ id: "on", fieldId: "F1", status: "scheduled", startTime: minsAhead(30) }), // on time
+    game({ id: "a", fieldId: "F2", status: "scheduled", startTime: minsAgo(5) }), // 5 late
+    game({ id: "b", fieldId: "F3", status: "scheduled", startTime: minsAgo(15) }), // 15 late
+    game({ id: "c", fieldId: "F4", status: "scheduled", startTime: minsAgo(40) }), // 40 late
+  ];
+  const fields = [field("F1", "Field 1"), field("F2", "Field 2"), field("F3", "Field 3"), field("F4", "Field 4")];
+  const pulse = buildSchedulePulse({ fields, games, now: NOW });
+
+  assert.equal(pulse.tracked, 4);
+  assert.equal(pulse.onTime, 1);
+  assert.equal(pulse.late1to10, 1);
+  assert.equal(pulse.late11to20, 1);
+  assert.equal(pulse.late20plus, 1);
+  assert.equal(pulse.worstDelayMin, 40);
+  assert.equal(pulse.recoveryMinutes, 40);
+  // (0 + 5 + 15 + 40) / 4 = 15
+  assert.equal(pulse.averageDelayMin, 15);
+});
+
+test("schedulePulse: final games are not tracked (a recovered day stops looking broken)", () => {
+  const games = [
+    game({ id: "done", fieldId: "F1", status: "final", startTime: minsAgo(300), endTime: minsAgo(200) }),
+    game({ id: "next", fieldId: "F1", status: "scheduled", startTime: minsAhead(30) }),
+  ];
+  const pulse = buildSchedulePulse({ fields: [field("F1", "Field 1")], games, now: NOW });
+  assert.equal(pulse.tracked, 1);
+  assert.equal(pulse.onTime, 1);
+  assert.equal(pulse.worstDelayMin, 0);
+});
+
+test("schedulePulse: worst fields ranked, only delayed ones, capped at 3", () => {
+  const fields = [field("F1", "Field 1"), field("F2", "Field 2"), field("F3", "Field 3"), field("F4", "Field 4")];
+  const games = [
+    game({ id: "g1", fieldId: "F1", status: "scheduled", startTime: minsAgo(10) }),
+    game({ id: "g2", fieldId: "F2", status: "scheduled", startTime: minsAgo(50) }),
+    game({ id: "g3", fieldId: "F3", status: "scheduled", startTime: minsAgo(25) }),
+    game({ id: "g4", fieldId: "F4", status: "scheduled", startTime: minsAhead(60) }), // on time
+  ];
+  const pulse = buildSchedulePulse({ fields, games, now: NOW });
+  assert.deepEqual(
+    pulse.worstFields.map((f) => f.fieldName),
+    ["Field 2", "Field 3", "Field 1"],
+  );
+  assert.equal(pulse.worstFields.length, 3);
+  assert.ok(!pulse.worstFields.some((f) => f.fieldName === "Field 4"));
+});
+
+test("schedulePulse: downstream impact projects the next game's start, only past the threshold", () => {
+  const fields = [field("F1", "Field 1"), field("F2", "Field 2")];
+  const games = [
+    // F1: 30 behind with a next game -> impact
+    game({ id: "cur1", fieldId: "F1", status: "active", lifecycleStatus: "live", startTime: minsAgo(120), endTime: minsAgo(30) }),
+    game({ id: "nxt1", fieldId: "F1", status: "scheduled", startTime: minsAhead(15), title: "Cubs vs Sox" }),
+    // F2: only 5 behind -> under threshold, no impact
+    game({ id: "cur2", fieldId: "F2", status: "active", lifecycleStatus: "live", startTime: minsAgo(95), endTime: minsAgo(5) }),
+    game({ id: "nxt2", fieldId: "F2", status: "scheduled", startTime: minsAhead(20) }),
+  ];
+  const pulse = buildSchedulePulse({ fields, games, now: NOW });
+
+  assert.equal(pulse.downstreamImpacts.length, 1);
+  const impact = pulse.downstreamImpacts[0];
+  assert.equal(impact.fieldName, "Field 1");
+  assert.equal(impact.nextGameLabel, "Cubs vs Sox");
+  assert.equal(impact.minutesLate, 30);
+  // scheduled 15 min out, pushed 30 -> 45 min out
+  assert.equal(impact.scheduledStartLabel, timeLabel(minsAhead(15)));
+  assert.equal(impact.projectedStartLabel, timeLabel(minsAhead(45)));
+  assert.ok(DOWNSTREAM_IMPACT_THRESHOLD_MIN > 5);
+});
+
+test("schedulePulse: no curfew time given -> no invented curfew risk", () => {
+  const games = [game({ id: "late", fieldId: "F1", status: "scheduled", startTime: minsAgo(90) })];
+  const pulse = buildSchedulePulse({ fields: [field("F1", "Field 1")], games, now: NOW });
+  assert.deepEqual(pulse.curfewRisks, []);
+});
+
+test("schedulePulse: curfew risk when the carried delay pushes the last game past close", () => {
+  const fields = [field("F1", "Field 1")];
+  const games = [
+    game({
+      id: "last",
+      fieldId: "F1",
+      status: "active",
+      lifecycleStatus: "live",
+      startTime: minsAgo(120),
+      endTime: minsAgo(60), // 60 min behind
+      title: "Nightcap",
+    }),
+  ];
+  // Closes 30 min from now; the game's slot already ended 60 ago, +60 delay -> finishes ~now, fine.
+  // Push close earlier than the projected finish to trigger the risk.
+  const closeSoon = new Date(NOW - 30 * 60_000).toISOString();
+  const pulse = buildSchedulePulse({ fields, games, now: NOW, venueCloseIso: closeSoon });
+  assert.equal(pulse.curfewRisks.length, 1);
+  assert.equal(pulse.curfewRisks[0].fieldName, "Field 1");
+  assert.equal(pulse.curfewRisks[0].gameLabel, "Nightcap");
+  assert.equal(pulse.curfewRisks[0].minutesPastClose, 30);
+});
+
+test("schedulePulse: empty day is all zeros, no NaN", () => {
+  const pulse = buildSchedulePulse({ fields: [field("F1", "Field 1")], games: [], now: NOW });
+  assert.equal(pulse.tracked, 0);
+  assert.equal(pulse.averageDelayMin, 0);
+  assert.equal(pulse.recoveryMinutes, 0);
+  assert.deepEqual(pulse.worstFields, []);
+  assert.deepEqual(pulse.downstreamImpacts, []);
 });

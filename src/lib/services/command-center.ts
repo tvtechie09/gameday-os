@@ -13,6 +13,7 @@ import {
   buildAttentionQueue,
   buildFieldBoard,
   buildModeChecklist,
+  buildSchedulePulse,
   chicagoDateString,
   resolveMode,
   summarize,
@@ -21,6 +22,7 @@ import {
   type AttentionItem,
   type FieldBoardEntry,
   type ModeChecklist,
+  type SchedulePulse,
   type WeatherSnapshot,
 } from "@/lib/services/command-center-core";
 
@@ -41,10 +43,25 @@ export type CommandCenterView = {
   mode: CommandCenterMode;
   generatedAt: string;
   summary: CommandCenterSummary;
+  pulse: SchedulePulse;
   fields: FieldBoardEntry[];
   attention: AttentionItem[];
   checklist: ModeChecklist;
   weather: WeatherSnapshot;
+};
+
+const EMPTY_PULSE: SchedulePulse = {
+  tracked: 0,
+  onTime: 0,
+  late1to10: 0,
+  late11to20: 0,
+  late20plus: 0,
+  averageDelayMin: 0,
+  worstDelayMin: 0,
+  worstFields: [],
+  downstreamImpacts: [],
+  recoveryMinutes: 0,
+  curfewRisks: [],
 };
 
 const EMPTY_SUMMARY: CommandCenterSummary = {
@@ -68,6 +85,7 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
       mode: "pregame",
       generatedAt: new Date().toISOString(),
       summary: EMPTY_SUMMARY,
+      pulse: EMPTY_PULSE,
       fields: [],
       attention: [],
       checklist: buildModeChecklist({ mode: "pregame", fields: [], games: [], officials: [], assets: [], weather: null, workOrders: [], now: Date.now() }),
@@ -104,6 +122,9 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
     mode,
     generatedAt: new Date(now).toISOString(),
     summary: summarize({ games, fields: venueFields, officials, assets: venueAssets, weather, now }),
+    // No venue closing time is modeled yet, so curfew risk stays empty rather
+    // than guessing a close hour.
+    pulse: buildSchedulePulse({ fields: venueFields, games, now }),
     fields: buildFieldBoard(venueFields, games, officials, now),
     attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, audioProfiles: venueAudioProfiles, weather, now }),
     checklist: buildModeChecklist({ mode, fields: venueFields, games, officials, assets: venueAssets, weather, workOrders: venueWorkOrders, now }),

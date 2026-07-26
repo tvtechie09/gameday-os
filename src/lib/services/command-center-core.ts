@@ -148,12 +148,20 @@ function hasConfirmedOfficial(gameId: string, officials: SessionOfficial[]): boo
   return officials.some((o) => o.sessionId === gameId && o.status === "confirmed");
 }
 
+// Which game owns a field right now, and which is queued behind it. Shared by
+// the field board and the schedule pulse so both can never disagree about what
+// "current" means.
+function fieldSlot(field: Field, games: GameRecord[], now: number): { games: GameRecord[]; current: GameRecord | undefined; next: GameRecord | undefined } {
+  const fieldGames = games.filter((g) => g.fieldId === field.id).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const current = fieldGames.find(isLive)
+    ?? fieldGames.find((g) => g.status === "scheduled" && now >= new Date(g.startTime).getTime());
+  const next = fieldGames.find((g) => g.status === "scheduled" && (!current || g.id !== current.id) && new Date(g.startTime).getTime() > now);
+  return { games: fieldGames, current, next };
+}
+
 export function buildFieldBoard(fields: Field[], games: GameRecord[], officials: SessionOfficial[], now: number): FieldBoardEntry[] {
   return fields.map((field) => {
-    const fieldGames = games.filter((g) => g.fieldId === field.id).sort((a, b) => a.startTime.localeCompare(b.startTime));
-    const current = fieldGames.find(isLive)
-      ?? fieldGames.find((g) => g.status === "scheduled" && now >= new Date(g.startTime).getTime());
-    const next = fieldGames.find((g) => g.status === "scheduled" && (!current || g.id !== current.id) && new Date(g.startTime).getTime() > now);
+    const { current, next } = fieldSlot(field, games, now);
 
     const behind = current ? minutesBehind(current, now) : 0;
     let recommendedAction: string | null = null;
@@ -364,6 +372,131 @@ export function summarize(input: {
     systemsOffline: input.assets.filter((a) => a.status === "offline" || a.status === "maintenance_needed").length,
     systemsUnknown: input.assets.filter((a) => a.status === "unknown").length,
     systemsTotal: input.assets.length,
+  };
+}
+
+// ---- Schedule pulse ---------------------------------------------------------
+//
+// Venue-wide schedule HEALTH — how the day as a whole is holding up, as opposed
+// to the per-field detail on the board. Answers a tournament director's actual
+// question: "are we still going to finish on time, and which field is hurting us?"
+//
+// Scope: games still in play or pending (live + scheduled). A game that already
+// went final can't be recovered, so folding its delay in here would keep a
+// recovered afternoon looking broken all evening.
+
+// A delay only counts as a "downstream impact" once it will visibly push the
+// next game's start. Matches the field board's recommendedAction threshold so
+// the two surfaces never disagree.
+export const DOWNSTREAM_IMPACT_THRESHOLD_MIN = 10;
+
+export type SchedulePulse = {
+  tracked: number; // games this pulse covers (live + scheduled)
+  onTime: number;
+  late1to10: number;
+  late11to20: number;
+  late20plus: number;
+  averageDelayMin: number; // mean across ALL tracked games, on-time ones included
+  worstDelayMin: number;
+  worstFields: Array<{ fieldName: string; minutesBehind: number }>;
+  downstreamImpacts: Array<{
+    fieldName: string;
+    nextGameLabel: string;
+    scheduledStartLabel: string;
+    projectedStartLabel: string;
+    minutesLate: number;
+  }>;
+  // If nothing changes, the venue's worst field is this far behind — the
+  // headline "how long to get whole again" number.
+  recoveryMinutes: number;
+  curfewRisks: Array<{ fieldName: string; gameLabel: string; projectedFinishLabel: string; minutesPastClose: number }>;
+};
+
+export type SchedulePulseInput = {
+  fields: Field[];
+  games: GameRecord[];
+  now: number;
+  // Venue closing / curfew time for the operating day. Omit it and we report NO
+  // curfew risk rather than inventing a closing time.
+  venueCloseIso?: string | null;
+};
+
+export function buildSchedulePulse(input: SchedulePulseInput): SchedulePulse {
+  const { fields, games, now } = input;
+  const tracked = games.filter((g) => isLive(g) || g.status === "scheduled");
+  const delays = tracked.map((g) => minutesBehind(g, now));
+
+  const onTime = delays.filter((d) => d === 0).length;
+  const late1to10 = delays.filter((d) => d >= 1 && d <= 10).length;
+  const late11to20 = delays.filter((d) => d >= 11 && d <= 20).length;
+  const late20plus = delays.filter((d) => d > 20).length;
+  const totalDelay = delays.reduce((sum, d) => sum + d, 0);
+  const worstDelayMin = delays.reduce((max, d) => Math.max(max, d), 0);
+
+  // Worst-hit fields: the largest current delay on each field, biggest first.
+  const worstFields = fields
+    .map((field) => {
+      const { current } = fieldSlot(field, games, now);
+      return { fieldName: field.name, minutesBehind: current ? minutesBehind(current, now) : 0 };
+    })
+    .filter((entry) => entry.minutesBehind > 0)
+    .sort((a, b) => b.minutesBehind - a.minutesBehind)
+    .slice(0, 3);
+
+  // Where a delay is about to land on the next game in that field's queue.
+  const downstreamImpacts: SchedulePulse["downstreamImpacts"] = [];
+  const curfewRisks: SchedulePulse["curfewRisks"] = [];
+  const closeAt = input.venueCloseIso ? new Date(input.venueCloseIso).getTime() : NaN;
+
+  for (const field of fields) {
+    const { games: fieldGames, current, next } = fieldSlot(field, games, now);
+    const behind = current ? minutesBehind(current, now) : 0;
+
+    if (current && next && behind >= DOWNSTREAM_IMPACT_THRESHOLD_MIN) {
+      const projected = new Date(new Date(next.startTime).getTime() + behind * 60_000);
+      downstreamImpacts.push({
+        fieldName: field.name,
+        nextGameLabel: gameLabel(next),
+        scheduledStartLabel: timeLabel(next.startTime),
+        projectedStartLabel: timeLabel(projected.toISOString()),
+        minutesLate: behind,
+      });
+    }
+
+    // Curfew: assume today's delay carries forward unchanged to this field's
+    // last remaining game. A projection, not a promise — labelled as such in the UI.
+    if (!Number.isNaN(closeAt) && behind > 0) {
+      const remaining = fieldGames.filter((g) => isLive(g) || g.status === "scheduled");
+      const last = remaining[remaining.length - 1];
+      if (last) {
+        const scheduledEnd = last.endTime
+          ? new Date(last.endTime).getTime()
+          : new Date(last.startTime).getTime() + defaultGameMinutes(last.sportType) * 60_000;
+        const projectedFinish = scheduledEnd + behind * 60_000;
+        if (!Number.isNaN(scheduledEnd) && projectedFinish > closeAt) {
+          curfewRisks.push({
+            fieldName: field.name,
+            gameLabel: gameLabel(last),
+            projectedFinishLabel: timeLabel(new Date(projectedFinish).toISOString()),
+            minutesPastClose: Math.round((projectedFinish - closeAt) / 60_000),
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    tracked: tracked.length,
+    onTime,
+    late1to10,
+    late11to20,
+    late20plus,
+    averageDelayMin: tracked.length ? Math.round(totalDelay / tracked.length) : 0,
+    worstDelayMin,
+    worstFields,
+    downstreamImpacts: downstreamImpacts.sort((a, b) => b.minutesLate - a.minutesLate),
+    recoveryMinutes: worstDelayMin,
+    curfewRisks: curfewRisks.sort((a, b) => b.minutesPastClose - a.minutesPastClose),
   };
 }
 
