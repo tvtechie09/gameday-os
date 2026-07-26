@@ -78,6 +78,29 @@ registration at scale, season rollover (Continuity), Ops Assistant, the treasure
 console. Charge **per team per season**, or a few dollars **per registered player**.
 Small, predictable, scales with their size.
 
+### 4. Founding Venue Program (the first three)
+
+Set 2026-07-25. Structure (client asset: `gamedayos-sales/founding-offer.html`):
+
+- **Founding season free.** Run the whole first (fall) season on us; the locked rate
+  begins the following season. Removes upfront money-risk — a board can say yes to a
+  free pilot far more easily than to paying for unproven software.
+- **Founding rate: $250/mo, locked for life** (calibrated up for larger complexes),
+  vs. the $500+/mo Single-park list — a real discount they keep for as long as they
+  stay a customer. Symbolic revenue on purpose (3 venues); the point is references,
+  feedback, commitment, and a paid anchor from day one — NOT a free pilot that
+  ghosts and makes the first real sale harder.
+- **One-time waived:** onboarding setup + the Venue Technology Assessment (a $1,500+
+  value). Hardware, if ever relevant, is at-cost (we don't eat it, don't mark it up).
+- Billed by PO (first PO is $0 — the free season). Cohort capped at 3 (see
+  [[gameday-gtm-pacing]]).
+
+**Why paid-but-generous, not free:** a paying founding partner is a real reference
+and stays; a free one is a favor that evaporates and anchors "why do I pay?" for the
+next prospect. Waive the one-time + the first season (remove risk); charge a locked,
+board-friendly recurring rate (create commitment + validate paid). The
+lose-it-if-you-leave lock is the retention hook.
+
 ---
 
 ## What is free — forever
