@@ -92,6 +92,24 @@ on a custom build.
 | Outdoor Cat6, conduit, mounts, misc | The install itself | $200–600 |
 | **Venue core subtotal** | (varies hugely by existing network + field distances) | **~$700–1,800** |
 
+### UniFi network — recommended parts (the concrete build)
+
+Ubiquiti UniFi is the recommended stack: one cloud dashboard, PoE, mesh, and remotely
+manageable (complements Balena for our own devices). Sized by field count. Prices are
+anchors — UniFi pricing moves.
+
+| Item | UniFi model | ~Price | Notes |
+|---|---|---|---|
+| Gateway + controller | **Cloud Gateway Ultra** (UCG-Ultra) | ~$129 | Routes + runs the UniFi controller (one cloud dashboard). Step up to a **Dream Machine** (UDM / UDM-Pro, ~$380–480) for larger / rack sites. |
+| PoE switch | **USW-16-PoE** (16-port, 8 PoE) | ~$199 | Powers the APs + field endpoints. **USW-Lite-8-PoE** (~$109) for ≤3 fields; **USW-24-PoE** (~$379) for 8+. |
+| Outdoor AP ×1–3 | **U6-Mesh** (outdoor, WiFi 6) | ~$179 ea | Field WiFi coverage; PoE-powered. Use **U6-LR** or a directional antenna for distant fields. |
+| Point-to-point *(optional)* | **UniFi Building Bridge (UBB)** pair | ~$300/pair | Links a detached press box / far building without trenching fiber. |
+| Cabling | Outdoor-rated Cat6 + conduit + mounts | ~$200–500 | Labor is the real cost; PoE = one cable per device. |
+
+**Sized builds (hardware only):** small (≤3 fields) ≈ UCG-Ultra + Lite-8-PoE + 1 AP ≈
+**~$420** + cabling; mid (4–8 fields) ≈ UCG-Ultra + 16-PoE + 2–3 APs ≈ **~$870–1,050**
++ cabling.
+
 ### Per-field module — ×N fields
 | Item | Purpose | Anchor |
 |---|---|---|
