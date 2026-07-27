@@ -12,8 +12,13 @@ features; show them the day they already live.
 
 1. Sign in as Platform Admin, open **/admin/command-center**.
 2. Click **↻ Refresh demo day**. This re-times the demo games onto today —
-   finals behind you, games live now, games still to come. Only touches
-   sessions flagged `is_demo`.
+   finals behind you, games live now, games still to come — and it also makes the
+   day *demoable*: it seeds two open work orders (the 6:00 hand-off) and windows
+   the sponsor campaign onto today (the 12:00 report). Only touches sessions
+   flagged `is_demo`; the venue is derived from those, never named.
+   - **Refresh mid-morning to late afternoon, not at dawn.** The day is centered
+     on "now", so refreshing at 6am puts games at midnight. Refreshing an hour
+     before they arrive gives you a plausible game day.
 3. Confirm the header reads **Live operations** and the summary shows games
    **behind**. If it says a quiet mode, refresh again — you want the day hot.
 4. Have `/admin/impact`, `/admin/sponsors/campaigns`, and
@@ -91,8 +96,9 @@ The line to land:
 
 > "This is the difference between finding out at 2:40 and finding out at 2:05."
 
-Then hand one off. On a work order: put a name in **Assign to**, set a **Due**, and
-show the **I'm on it** button.
+Then hand one off. Open **Fields → Work orders** (`/admin/fields/work-orders`) — the
+refresh seeded two open ones, so there's always something to assign. Put a name in
+**Assign to**, set a **Due**, and show the **I'm on it** button.
 
 > "A dashboard tells you something's wrong. This tells you who has it, and whether
 > they've actually picked it up. Nobody has to remember to ask."
