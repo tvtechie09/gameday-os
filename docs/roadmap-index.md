@@ -30,6 +30,11 @@ The physical layer — from off-the-shelf signage to the custom audio control pl
 - [pro-services-blueprint.md](pro-services-blueprint.md) — the services arm operating
   model (assessment → onboarding → install → managed; founder-led → kit → installer channel).
 
+## Partnerships
+- [partnerships.md](partnerships.md) — the posture (**a partner can be an integration,
+  never a dependency**), the ~100-venue leverage trigger, the Zoom deferral with its
+  rejected pieces and reasons, and the 4-question screen for the next pitch.
+
 ## Commercial & go-to-market
 How it's priced, demoed, and sold.
 
