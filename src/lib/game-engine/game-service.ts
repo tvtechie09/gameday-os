@@ -147,6 +147,35 @@ export async function getCurrentGameState(gameId: string): Promise<GameStateReco
   };
 }
 
+// ACTUAL start/finish times for many games at once, straight from the event
+// ledger. `sessions.start_time` is the SCHEDULED slot; this is when the game
+// really began and ended — the difference is the whole point of an end-of-day
+// report. Degrades to an empty map pre-migration so callers fall back to
+// session status instead of throwing.
+export async function getGameLifecycleTimestamps(
+  gameIds: string[],
+): Promise<Map<string, { startedAt: string | null; finalAt: string | null }>> {
+  const out = new Map<string, { startedAt: string | null; finalAt: string | null }>();
+  if (!gameIds.length) return out;
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("game_events")
+    .select("game_id,event_type,occurred_at")
+    .in("game_id", gameIds)
+    .in("event_type", ["game.started", "game.completed"])
+    .order("occurred_at", { ascending: true });
+  if (error || !data) return out;
+  for (const row of data as Array<{ game_id: string; event_type: string; occurred_at: string }>) {
+    const marks = out.get(row.game_id) ?? { startedAt: null, finalAt: null };
+    // First start wins (a resumed game keeps its original first pitch); last
+    // completion wins (a corrected final overwrites).
+    if (row.event_type === "game.started" && !marks.startedAt) marks.startedAt = row.occurred_at;
+    if (row.event_type === "game.completed") marks.finalAt = row.occurred_at;
+    out.set(row.game_id, marks);
+  }
+  return out;
+}
+
 export async function listGameEvents(gameId: string, limit = 100): Promise<GameEventRecord[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase

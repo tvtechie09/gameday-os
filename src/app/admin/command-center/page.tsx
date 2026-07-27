@@ -258,7 +258,10 @@ export default async function CommandCenterPage() {
       <section className="mt-7">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Attention Queue</h2>
-          <Link href="/admin/operations-center" className="text-xs font-black text-[var(--accent-strong)]">Venue controls →</Link>
+          <span className="flex flex-wrap items-center gap-3">
+            <Link href="/admin/command-center/end-of-day" className="text-xs font-black text-[var(--accent-strong)]">Day report →</Link>
+            <Link href="/admin/operations-center" className="text-xs font-black text-[var(--accent-strong)]">Venue controls →</Link>
+          </span>
         </div>
         {view.attention.length === 0 ? (
           <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">All clear — nothing needs attention right now.</p>

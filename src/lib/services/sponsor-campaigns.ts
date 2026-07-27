@@ -1,6 +1,6 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { getWritableOrganizationId } from "../organization-scope";
-import { listGamesForVenue } from "@/lib/game-engine/game-service";
+import { getGameLifecycleTimestamps, listGamesForVenue } from "@/lib/game-engine/game-service";
 import { labelFor } from "@/lib/services/quick-action-targets";
 import { getSponsor, getSponsors, getSponsorAssignments } from "@/lib/services/sponsors";
 import { getSponsorAnalyticsForSponsor } from "@/lib/services/sponsor-analytics";
@@ -166,7 +166,7 @@ export async function getCampaignProof(id: string): Promise<CampaignProof | null
 
   // Prefer engine ledger timestamps for the delivery proof; fall back to the
   // session's own status/times for games that predate the engine.
-  const ledger = await loadLifecycleTimestamps(covered.map((g) => g.id));
+  const ledger = await getGameLifecycleTimestamps(covered.map((g) => g.id));
   const games: CoveredGame[] = covered.map((g) => {
     const marks = ledger.get(g.id);
     const reachedStarted = g.status === "active" || g.status === "final";
@@ -206,23 +206,3 @@ export async function getRevenueOpportunities(): Promise<RevenueOpportunity[]> {
   return computeRevenueOpportunities({ fields, upcomingGames, assignments, sponsors, campaigns, assets });
 }
 
-async function loadLifecycleTimestamps(gameIds: string[]): Promise<Map<string, { startedAt: string | null; finalAt: string | null }>> {
-  const out = new Map<string, { startedAt: string | null; finalAt: string | null }>();
-  if (!gameIds.length) return out;
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("game_events")
-    .select("game_id,event_type,occurred_at")
-    .in("game_id", gameIds)
-    .in("event_type", ["game.started", "game.completed"])
-    .order("occurred_at", { ascending: true });
-  // game_events may not exist pre-migration, or be empty — degrade to fallback.
-  if (error || !data) return out;
-  for (const row of data as Array<{ game_id: string; event_type: string; occurred_at: string }>) {
-    const marks = out.get(row.game_id) ?? { startedAt: null, finalAt: null };
-    if (row.event_type === "game.started" && !marks.startedAt) marks.startedAt = row.occurred_at;
-    if (row.event_type === "game.completed") marks.finalAt = row.occurred_at;
-    out.set(row.game_id, marks);
-  }
-  return out;
-}
