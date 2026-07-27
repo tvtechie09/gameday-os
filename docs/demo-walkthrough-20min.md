@@ -16,8 +16,11 @@ features; show them the day they already live.
    sessions flagged `is_demo`.
 3. Confirm the header reads **Live operations** and the summary shows games
    **behind**. If it says a quiet mode, refresh again — you want the day hot.
-4. Have `/admin/impact` and `/admin/sponsors/campaigns` open in tabs. Don't
-   navigate to them cold in front of the room.
+4. Have `/admin/impact`, `/admin/sponsors/campaigns`, and
+   `/admin/command-center/end-of-day` open in tabs. Don't navigate to them cold in
+   front of the room.
+5. Glance at **Schedule Pulse** on the Command Center. If the knock-on list is
+   empty the day isn't hot enough — refresh again. That list is the 10:00 beat.
 
 If the refresh button isn't there, you're not signed in as platform staff.
 
@@ -88,7 +91,37 @@ The line to land:
 
 > "This is the difference between finding out at 2:40 and finding out at 2:05."
 
-## 10:00 — Sponsor proof (4 min)
+Then hand one off. On a work order: put a name in **Assign to**, set a **Due**, and
+show the **I'm on it** button.
+
+> "A dashboard tells you something's wrong. This tells you who has it, and whether
+> they've actually picked it up. Nobody has to remember to ask."
+
+Say the quiet part: an unassigned item shows **Nobody assigned**, and one past its
+due time goes **Overdue** — so the thing that normally gets forgotten is the thing
+that rises to the top.
+
+## 10:00 — What "behind" actually costs (2 min)
+
+Scroll to **Schedule Pulse**. The tiles already said two games are behind; this beat
+is about what that does to the rest of the day. For a tournament director it *is*
+the job.
+
+Point at the bands first — most on time, a couple 20+ — then the knock-on:
+
+> "Field 2 is 35 minutes behind. Your 6:21 on that field is really a 6:56. Nobody
+> has done that arithmetic yet, and by 8 o'clock it's somebody's kid standing
+> around in the parking lot."
+
+Then the honesty line, and don't skip it:
+
+> "It says *estimate*, because it is one. We're not going to dress a projection up
+> as a promise."
+
+If they run tournaments, add: worst-hit fields are ranked, so "which field do I
+move a game off" answers itself.
+
+## 12:00 — Sponsor proof (4 min)
 
 Go to **/admin/sponsors/campaigns**. Show the fulfillment report.
 
@@ -104,7 +137,23 @@ Note the delivery rate only counts what was **contracted** — bonus plays don't
 inflate it. Say that out loud. Anyone who has sold sponsorship knows why that
 matters, and it buys you credibility for the next four minutes.
 
-## 14:00 — We don't tax your parents (3 min)
+Two more lines, both about trust rather than features.
+
+**Make-good.** If the campaign came up short, the report says so at the top, in
+placements:
+
+> "When you under-deliver, this tells *you* before the sponsor finds it. You walk
+> into the renewal saying 'we owe you forty placements, here's how we're making it
+> right.' That's the conversation that renews. The other one doesn't."
+
+**Verified vs modeled.** Point at the label:
+
+> "It separates what we counted from what we modeled. The game is proven — that's
+> the actual record. The rotation count is derived from the rate you configured.
+> Anyone who's ever been handed an inflated sponsorship report will trust that line
+> more, not less."
+
+## 16:00 — We don't tax your parents (2 min)
 
 This is the moment that separates us from everyone else in their inbox.
 
@@ -120,12 +169,25 @@ Then the model, in one breath:
 
 Expect a pause. Let it sit. This is where they lean in.
 
-## 17:00 — The ask (3 min)
+## 18:00 — Monday morning, then the ask (2 min)
 
-Open **/admin/impact**. Show the pilot ROI view — hours recovered, games kept
-on schedule.
+Open **/admin/command-center/end-of-day**. This is the close, and it's the piece a
+GM keeps.
 
-Then ask for the thing:
+> "Sunday night, this is already written."
+
+Point at three things and stop: what got played, what **never got a final**, and
+what **carries into tomorrow** — open issues with a name on them, fields still
+flagged, boards that never reported.
+
+> "That's what you forward to your board Monday morning. You didn't write it. It
+> wrote itself out of the games you already played."
+
+If they ask about the start-time numbers, that's a gift — it's the honesty beat
+again: games with no recorded first pitch are excluded and *say so*, rather than
+padding the report with an on-time day that never happened.
+
+Then (optionally open **/admin/impact** for hours recovered) ask for the thing:
 
 > "I want three founding venues for the fall season. You'd be one of them.
 > That means a real season, real games, and you tell us what's wrong while
@@ -150,6 +212,14 @@ Then ask for the thing:
 **"What does it cost?"**
 > `docs/pricing-and-packaging.md`. Founding venues get founding pricing, and
 > you'll bill by PO — no card, no portal.
+
+**"How do I know these numbers are real?"**
+> The best question they can ask. "Three of them are counted, one is modeled, and
+> the report tells you which is which. Game times come from the game record.
+> Impressions are counted page events. Placement counts are the games times the
+> rate you set — so we call that modeled, not verified. And anything we couldn't
+> measure gets excluded and flagged, not filled in." Nobody else in their inbox
+> talks like that.
 
 **"Is our data safe? These are kids."**
 > Do not wing this. Kids' and guardians' records are locked down —
