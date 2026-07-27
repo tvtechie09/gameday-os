@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCampaignProof } from "@/lib/services/sponsor-campaigns";
+import { BASIS_EXPLANATION, BASIS_LABEL } from "@/lib/services/sponsor-fulfillment-core";
 import { getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
 import { deleteCampaignAction } from "../actions";
 
@@ -66,6 +67,35 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
         <Metric label="Clicks · CTR" value={`${proof.clicks} · ${pct(proof.ctr)}`} />
       </section>
 
+      {/* Make-good: lead with what's owed rather than waiting for the sponsor to
+          audit you. A venue that volunteers the shortfall keeps the renewal. */}
+      {proof.makeGood.totalShortfall > 0 ? (
+        <section
+          className={`mt-5 rounded-xl border p-4 ${
+            proof.makeGood.required ? "border-amber-300 bg-amber-50" : "border-[var(--line)] bg-white"
+          }`}
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className={`text-xs font-black uppercase tracking-[0.12em] ${proof.makeGood.required ? "text-amber-900" : "text-[var(--muted)]"}`}>
+              {proof.makeGood.required ? "Make-good owed" : "Under-delivery (within tolerance)"}
+            </p>
+            <p className={`text-sm font-black ${proof.makeGood.required ? "text-amber-900" : "text-[var(--muted)]"}`}>
+              {proof.makeGood.totalShortfall} placement{proof.makeGood.totalShortfall === 1 ? "" : "s"} short
+            </p>
+          </div>
+          <p className={`mt-2 text-sm font-semibold leading-6 ${proof.makeGood.required ? "text-amber-900" : "text-[var(--muted)]"}`}>
+            {proof.makeGood.recommendation}
+          </p>
+          <ul className="mt-2 grid gap-1">
+            {proof.makeGood.lines.map((line) => (
+              <li key={line.assetType} className="text-xs font-bold text-[var(--foreground)]">
+                {line.label}: {line.delivered} of {line.contracted} — <span className="text-red-700">{line.shortfall} short</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section className="mt-7">
         <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Delivery by asset</h2>
         <div className="mt-3 overflow-x-auto rounded-xl border border-[var(--line)]">
@@ -75,18 +105,22 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
                 <th className="px-4 py-2">Asset</th>
                 <th className="px-4 py-2 text-right">Contracted</th>
                 <th className="px-4 py-2 text-right">Delivered</th>
+                <th className="px-4 py-2 text-right">Short</th>
                 <th className="px-4 py-2 text-right">Rate</th>
               </tr>
             </thead>
             <tbody>
               {proof.lines.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-4 text-sm font-semibold text-[var(--muted)]">No contracted assets on this campaign.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-4 text-sm font-semibold text-[var(--muted)]">No contracted assets on this campaign.</td></tr>
               ) : (
                 proof.lines.map((line) => (
                   <tr key={line.assetType} className="border-t border-[var(--line)]">
                     <td className="px-4 py-2 font-bold text-[var(--foreground)]">{line.label}{line.contracted === 0 ? <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black uppercase text-emerald-700">bonus</span> : null}</td>
                     <td className="px-4 py-2 text-right font-semibold">{line.contracted || "—"}</td>
                     <td className="px-4 py-2 text-right font-black">{line.delivered}</td>
+                    <td className={`px-4 py-2 text-right font-bold ${line.underDelivered ? "text-red-700" : "text-[var(--muted)]"}`}>
+                      {line.contracted === 0 ? "—" : line.shortfall || "0"}
+                    </td>
                     <td className={`px-4 py-2 text-right font-black ${line.contracted === 0 ? "text-emerald-600" : line.deliveryRate >= 0.95 ? "text-emerald-600" : line.deliveryRate >= 0.75 ? "text-amber-700" : "text-red-700"}`}>
                       {line.contracted === 0 ? "—" : pct(line.deliveryRate)}
                     </td>
@@ -99,6 +133,10 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
         <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
           Fulfillment is automatic: each covered game delivers its sponsor assets as it reaches <strong>live</strong> and{" "}
           <strong>final</strong> in the Connected Game Engine. Delivery timestamps below come from the game record itself.
+        </p>
+        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+          <strong>{BASIS_LABEL[proof.basis.placements]}</strong> placement counts — {BASIS_EXPLANATION[proof.basis.placements]}{" "}
+          Game milestones and impressions/clicks are <strong>{BASIS_LABEL.verified.toLowerCase()}</strong>: {BASIS_EXPLANATION.verified.toLowerCase()}
         </p>
       </section>
 

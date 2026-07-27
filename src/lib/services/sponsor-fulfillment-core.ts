@@ -71,12 +71,47 @@ export function fulfillmentForGame(game: CoveredGame): AssetDelivery[] {
   return deliveries;
 }
 
+// What a number in this report actually rests on. A sponsor conversation lives
+// or dies on this distinction, so we never present a modeled figure as a
+// counted one.
+export type MetricBasis = "verified" | "modeled";
+
+export const BASIS_LABEL: Record<MetricBasis, string> = {
+  verified: "Verified",
+  modeled: "Modeled",
+};
+
+export const BASIS_EXPLANATION: Record<MetricBasis, string> = {
+  verified: "Counted directly from the game record or from tracked page events.",
+  modeled:
+    "A verified game milestone multiplied by this asset's configured per-game rate. The game is proven; the placement count is derived from it — we don't claim to have watched every rotation.",
+};
+
+// Under-delivery inside this margin isn't worth a make-good conversation
+// (rounding on a 300-placement package). A POLICY DEFAULT, not a law — the exact
+// shortfall is always reported regardless, so the venue can decide.
+export const MAKE_GOOD_TOLERANCE = 0.98;
+
 export type ProofLine = {
   assetType: SponsorAssetType;
   label: string;
   contracted: number;
   delivered: number;
   deliveryRate: number; // 0..1 (or >1 when over-delivered); 1 when nothing contracted
+  // Contracted-but-undelivered placements. Always exact; 0 for bonus lines
+  // (nothing was sold, so nothing can be owed).
+  shortfall: number;
+  underDelivered: boolean;
+  // Placement counts are modeled (verified milestone x configured rate).
+  basis: MetricBasis;
+};
+
+// What the venue owes this sponsor if the campaign fell short of what was sold.
+export type MakeGood = {
+  required: boolean;
+  totalShortfall: number;
+  lines: Array<{ assetType: SponsorAssetType; label: string; contracted: number; delivered: number; shortfall: number }>;
+  recommendation: string;
 };
 
 export type ProofOfPerformance = {
@@ -90,6 +125,13 @@ export type ProofOfPerformance = {
   impressions: number;
   clicks: number;
   ctr: number; // 0..1
+  makeGood: MakeGood;
+  // Per-figure provenance for the report footer / column headers.
+  basis: {
+    placements: MetricBasis; // contracted vs delivered counts
+    games: MetricBasis; // games covered / connected
+    digital: MetricBasis; // impressions / clicks
+  };
 };
 
 export type ProofInput = {
@@ -128,7 +170,19 @@ export function buildProofOfPerformance(input: ProofInput): ProofOfPerformance {
     .map((assetType) => {
       const contracted = input.contracted[assetType] ?? 0;
       const delivered = deliveredByAsset.get(assetType) ?? 0;
-      return { assetType, label: SPONSOR_ASSET_CATALOG[assetType].label, contracted, delivered, deliveryRate: rate(delivered, contracted) };
+      // Only contracted inventory can be owed — a bonus placement nobody bought
+      // can't be "short".
+      const shortfall = contracted > 0 ? Math.max(0, contracted - delivered) : 0;
+      return {
+        assetType,
+        label: SPONSOR_ASSET_CATALOG[assetType].label,
+        contracted,
+        delivered,
+        deliveryRate: rate(delivered, contracted),
+        shortfall,
+        underDelivered: shortfall > 0,
+        basis: "modeled" as MetricBasis,
+      };
     });
 
   const contractedTotal = lines.reduce((sum, l) => sum + l.contracted, 0);
@@ -145,11 +199,31 @@ export function buildProofOfPerformance(input: ProofInput): ProofOfPerformance {
 
   const impressions = input.impressions ?? 0;
   const clicks = input.clicks ?? 0;
+  const deliveryRate = contractedTotal > 0 ? Math.min(1, deliveredTotalContracted / contractedTotal) : 1;
+
+  // Make-good: what's still owed against what was sold. Reported exactly, with
+  // the tolerance deciding only whether we RECOMMEND the conversation.
+  const shortLines = lines
+    .filter((line) => line.shortfall > 0)
+    .map((line) => ({ assetType: line.assetType, label: line.label, contracted: line.contracted, delivered: line.delivered, shortfall: line.shortfall }));
+  const totalShortfall = shortLines.reduce((sum, line) => sum + line.shortfall, 0);
+  const required = totalShortfall > 0 && deliveryRate < MAKE_GOOD_TOLERANCE;
+
+  const makeGood: MakeGood = {
+    required,
+    totalShortfall,
+    lines: shortLines,
+    recommendation: required
+      ? `Delivered ${Math.round(deliveryRate * 100)}% of contracted inventory. Offer ${totalShortfall} make-good placement${totalShortfall === 1 ? "" : "s"} (or a credit) before renewal — lead with it rather than waiting to be asked.`
+      : totalShortfall > 0
+        ? `Delivered ${Math.round(deliveryRate * 100)}% of contracted inventory — ${totalShortfall} placement${totalShortfall === 1 ? "" : "s"} short, inside the ${Math.round((1 - MAKE_GOOD_TOLERANCE) * 100)}% tolerance. No make-good recommended; disclose it if asked.`
+        : "Delivered in full against everything contracted. Nothing owed.",
+  };
 
   return {
     contractedTotal,
     deliveredTotal,
-    deliveryRate: contractedTotal > 0 ? Math.min(1, deliveredTotalContracted / contractedTotal) : 1,
+    deliveryRate,
     gamesCovered: input.games.length,
     gamesConnected: input.games.filter((g) => g.startedAt).length,
     lines,
@@ -157,5 +231,7 @@ export function buildProofOfPerformance(input: ProofInput): ProofOfPerformance {
     impressions,
     clicks,
     ctr: impressions > 0 ? clicks / impressions : 0,
+    makeGood,
+    basis: { placements: "modeled", games: "verified", digital: "verified" },
   };
 }

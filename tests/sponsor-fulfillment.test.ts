@@ -98,3 +98,75 @@ test("package templates only reference real asset types", () => {
     }
   }
 });
+
+// ---- make-good + metric basis ----------------------------------------------
+
+test("make-good: recommended when delivery falls outside tolerance, with exact shortfall", () => {
+  // Contract 10 scoreboard rotations; one game started -> 2 delivered.
+  const proof = buildProofOfPerformance({
+    contracted: { scoreboard_logo: 10 },
+    games: [startedFinal("g1")],
+  });
+
+  const line = proof.lines.find((l) => l.assetType === "scoreboard_logo")!;
+  assert.equal(line.contracted, 10);
+  assert.equal(line.delivered, 2);
+  assert.equal(line.shortfall, 8);
+  assert.equal(line.underDelivered, true);
+
+  assert.equal(proof.makeGood.required, true);
+  assert.equal(proof.makeGood.totalShortfall, 8);
+  assert.equal(proof.makeGood.lines.length, 1);
+  assert.match(proof.makeGood.recommendation, /8 make-good placements/);
+});
+
+test("make-good: full delivery owes nothing", () => {
+  const proof = buildProofOfPerformance({
+    contracted: { pregame_announcement: 1 },
+    games: [startedFinal("g1")],
+  });
+  const line = proof.lines.find((l) => l.assetType === "pregame_announcement")!;
+  assert.equal(line.shortfall, 0);
+  assert.equal(line.underDelivered, false);
+  assert.equal(proof.makeGood.required, false);
+  assert.equal(proof.makeGood.totalShortfall, 0);
+  assert.match(proof.makeGood.recommendation, /Nothing owed/);
+});
+
+test("make-good: a tiny shortfall inside tolerance is disclosed but not recommended", () => {
+  // 100 contracted, 99 delivered = 99% -> inside the 98% tolerance.
+  const games = Array.from({ length: 99 }, (_, i) => startedOnly("g" + i));
+  const proof = buildProofOfPerformance({ contracted: { pregame_announcement: 100 }, games });
+
+  assert.equal(proof.makeGood.totalShortfall, 1); // exact shortfall still reported
+  assert.equal(proof.makeGood.required, false); // but no make-good recommended
+  assert.match(proof.makeGood.recommendation, /inside the 2% tolerance/);
+});
+
+test("make-good: bonus (uncontracted) placements can never be owed", () => {
+  // field_signage delivered but never sold -> contracted 0, shortfall 0.
+  const proof = buildProofOfPerformance({ contracted: {}, games: [startedFinal("g1")] });
+  for (const line of proof.lines) {
+    assert.equal(line.contracted, 0);
+    assert.equal(line.shortfall, 0, `${line.assetType} should not be owed`);
+  }
+  assert.equal(proof.makeGood.required, false);
+  assert.equal(proof.makeGood.totalShortfall, 0);
+});
+
+test("basis: placement counts are MODELED, games and digital are VERIFIED", () => {
+  const proof = buildProofOfPerformance({
+    contracted: { scoreboard_logo: 2 },
+    games: [startedFinal("g1")],
+    impressions: 500,
+    clicks: 10,
+  });
+  // Placements are a verified milestone x a configured per-game rate — not observed.
+  assert.equal(proof.basis.placements, "modeled");
+  for (const line of proof.lines) {
+    assert.equal(line.basis, "modeled");
+  }
+  // Game milestones and tracked page events are counted facts.
+  assert.equal(proof.basis.games, "verified");
+  assert.equal(proof.basis.digital, "verified");
+});
