@@ -186,6 +186,12 @@ Point at three things and stop: what got played, what **never got a final**, and
 what **carries into tomorrow** — open issues with a name on them, fields still
 flagged, boards that never reported.
 
+**Use the callback.** The issue you assigned at 6:00 is sitting right there in Open
+issues, now with the owner's name on it instead of "nobody assigned":
+
+> "That's the one you handed off twenty minutes ago. You didn't file it anywhere.
+> It followed the work."
+
 > "That's what you forward to your board Monday morning. You didn't write it. It
 > wrote itself out of the games you already played."
 
