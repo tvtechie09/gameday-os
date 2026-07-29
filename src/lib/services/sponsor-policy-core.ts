@@ -106,6 +106,38 @@ export function evaluateSponsorPlacement(input: {
   };
 }
 
+// A delivery report for a sponsor whose category is currently suppressed on
+// public surfaces.
+//
+// Deliberately a CURRENT-STATE warning, not a recalculation. Delivery is counted
+// from game milestones, and we do not store policy history — so we cannot know
+// which of those milestones happened while the category was prohibited. Silently
+// adjusting the numbers would be inventing a figure; presenting them as clean
+// would be billing a sponsor for impressions families never saw. Naming the
+// uncertainty is the only honest option.
+export type DeliverySuppressionWarning =
+  | { suppressed: false }
+  | { suppressed: true; categoryLabel: string; headline: string; detail: string };
+
+export function describeDeliverySuppression(input: {
+  category: string | null | undefined;
+  prohibited: readonly SponsorCategoryKey[];
+}): DeliverySuppressionWarning {
+  if (!isCategoryProhibited(input.category, input.prohibited)) {
+    return { suppressed: false };
+  }
+  const categoryLabel = sponsorCategoryLabel(input.category);
+  return {
+    suppressed: true,
+    categoryLabel,
+    headline: `This sponsor is currently hidden from public surfaces (${categoryLabel})`,
+    detail:
+      "Your advertising policy prohibits this category, so these placements are suppressed on field pages, scoreboards, and the venue display. "
+      + "The delivery figures below are counted from game milestones and are not adjusted for suppression — they may overstate what families actually saw. "
+      + "Review before invoicing this campaign.",
+  };
+}
+
 // An override is a real decision, not a checkbox — policies do have legitimate
 // exceptions (a brewery backing the adult league), but the door requires intent
 // and leaves a trail. A blank reason is not intent.

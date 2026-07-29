@@ -36,7 +36,7 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
   // Object-level authorization: only view campaigns within the caller's org.
   const scopedOrgIds = await getScopedOrganizationIds();
   if (scopedOrgIds && result.campaign.organizationId && !scopedOrgIds.has(result.campaign.organizationId)) notFound();
-  const { campaign, sponsorName, venueName, proof } = result;
+  const { campaign, sponsorName, venueName, proof, suppression } = result;
   const rateTone = proof.deliveryRate >= 0.95 ? "text-emerald-600" : proof.deliveryRate >= 0.75 ? "text-amber-700" : "text-red-700";
 
   return (
@@ -57,6 +57,18 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
           {campaign.packageName ? ` · ${campaign.packageName}` : ""} · {venueName ?? "All venues"} · {dateRange(campaign.startsOn, campaign.endsOn)}
         </p>
       </header>
+
+      {/* Above the metrics on purpose: this changes how every figure below should
+          be read, so it cannot sit under them where an invoicer might miss it. */}
+      {suppression.suppressed ? (
+        <div className="mt-5 rounded-lg border border-red-300 bg-red-50 p-4">
+          <p className="text-sm font-black text-red-900">{suppression.headline}</p>
+          <p className="mt-2 text-sm leading-6 text-red-900">{suppression.detail}</p>
+          <Link href="/admin/sponsors/policy" className="mt-2 inline-block text-sm font-bold text-red-900 underline">
+            Review advertising policy
+          </Link>
+        </div>
+      ) : null}
 
       <section className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <Metric label="Delivery rate" value={pct(proof.deliveryRate)} tone={rateTone} />

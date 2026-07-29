@@ -16,6 +16,8 @@ import {
   type ProofOfPerformance,
   type SponsorAssetType,
 } from "@/lib/services/sponsor-fulfillment-core";
+import { getProhibitedCategories, getProhibitedCategoriesForVenue } from "./sponsor-policy.ts";
+import { describeDeliverySuppression, type DeliverySuppressionWarning } from "./sponsor-policy-core.ts";
 
 // Revenue Engine — sponsor campaigns (IO). CRUD for sold campaigns plus the
 // Proof-of-Performance read that assembles the games a campaign covers, their
@@ -143,6 +145,9 @@ export type CampaignProof = {
   sponsorName: string;
   venueName: string | null;
   proof: ProofOfPerformance;
+  // Set when this sponsor's category is currently suppressed on public surfaces,
+  // so the report can say the delivery figures may overstate what families saw.
+  suppression: DeliverySuppressionWarning;
 };
 
 // Assemble the campaign's covered games + lifecycle proof + digital impressions,
@@ -188,7 +193,14 @@ export async function getCampaignProof(id: string): Promise<CampaignProof | null
     clicks: analytics?.clicks ?? 0,
   });
 
-  return { campaign, sponsorName: sponsor?.name ?? "Sponsor", venueName, proof };
+  // The governing policy is the campaign's venue when it has one, otherwise the
+  // owning org — the same rule the public render filter uses.
+  const policy = campaign.venueId
+    ? await getProhibitedCategoriesForVenue(campaign.venueId)
+    : await getProhibitedCategories(campaign.organizationId);
+  const suppression = describeDeliverySuppression({ category: sponsor?.category, prohibited: policy.categories });
+
+  return { campaign, sponsorName: sponsor?.name ?? "Sponsor", venueName, proof, suppression };
 }
 
 // Revenue opportunities across the org: unsold field/game sponsorships, sponsors

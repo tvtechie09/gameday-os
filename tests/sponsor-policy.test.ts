@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { RECOMMENDED_PROHIBITED_CATEGORIES } from "../src/lib/services/sponsor-category-core.ts";
 import {
+  describeDeliverySuppression,
   effectiveProhibitedCategories,
   evaluateSponsorPlacement,
   filterProhibitedPlacements,
@@ -130,4 +131,27 @@ test("filterProhibitedPlacements preserves order and does not mutate its input",
   const result = filterProhibitedPlacements(all, ["gambling"]);
   assert.deepEqual(result.visible.map((p) => p.id), ["a", "c"]);
   assert.equal(all.length, 3);
+});
+
+test("describeDeliverySuppression stays quiet for an allowed sponsor", () => {
+  const w = describeDeliverySuppression({ category: "bank_financial", prohibited: RECOMMENDED_PROHIBITED_CATEGORIES });
+  assert.equal(w.suppressed, false);
+});
+
+test("describeDeliverySuppression warns without silently adjusting the numbers", () => {
+  // We do not store policy history, so we cannot know which milestones happened
+  // while the category was prohibited. Naming that is honest; quietly changing
+  // the delivered count would be inventing a figure.
+  const w = describeDeliverySuppression({ category: "gambling", prohibited: ["gambling"] });
+  assert.equal(w.suppressed, true);
+  if (!w.suppressed) return;
+  assert.equal(w.categoryLabel, "Gambling / Sports Betting");
+  assert.match(w.headline, /hidden from public surfaces/);
+  assert.match(w.detail, /not adjusted/);
+  assert.match(w.detail, /overstate/);
+  assert.match(w.detail, /before invoicing/);
+});
+
+test("describeDeliverySuppression never warns on an uncategorized sponsor", () => {
+  assert.equal(describeDeliverySuppression({ category: null, prohibited: RECOMMENDED_PROHIBITED_CATEGORIES }).suppressed, false);
 });
