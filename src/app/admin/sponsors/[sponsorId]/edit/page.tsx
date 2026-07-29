@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSponsor, updateSponsor } from "@/lib/services/sponsors";
 import { assertOrganizationInScope, getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
+import { SponsorCategorySelect } from "@/components/admin/sponsor-category-select";
 
 type EditSponsorPageProps = {
   params: Promise<{ sponsorId: string }>;
@@ -42,6 +43,7 @@ export default async function EditSponsorPage({ params }: EditSponsorPageProps) 
       logo_url: readOptionalText(formData, "logo_url"),
       website_url: readOptionalText(formData, "website_url"),
       description: readOptionalText(formData, "description"),
+      category: readOptionalText(formData, "category"),
     });
 
     revalidatePath("/admin/sponsors");
@@ -88,6 +90,7 @@ export default async function EditSponsorPage({ params }: EditSponsorPageProps) 
             <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={sponsor.websiteUrl ?? ""} name="website_url" type="url" />
           </label>
         </div>
+        <SponsorCategorySelect defaultValue={sponsor.category} />
         <label className="grid gap-2">
           <span className="text-sm font-bold">Description</span>
           <textarea className="min-h-28 rounded-lg border border-[var(--line)] bg-white px-3 py-3 text-base" defaultValue={sponsor.description} name="description" />

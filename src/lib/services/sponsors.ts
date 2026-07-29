@@ -2,6 +2,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Sponsor, SponsorAssignment, SponsorAssignmentType, SponsorPlacement, SponsorPlacementLabel } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
+import { isSponsorCategory } from "./sponsor-category-core.ts";
 
 type SponsorRow = Database["public"]["Tables"]["sponsors"]["Row"];
 type SponsorAssignmentRow = Database["public"]["Tables"]["sponsor_assignments"]["Row"];
@@ -11,6 +12,7 @@ export type CreateSponsorInput = {
   logo_url?: string | null;
   website_url?: string | null;
   description?: string | null;
+  category?: string | null;
 };
 
 export type UpdateSponsorInput = CreateSponsorInput;
@@ -24,7 +26,7 @@ export type CreateSponsorAssignmentInput = {
   placement_label: SponsorPlacementLabel;
 };
 
-const sponsorSelect = "id,organization_id,name,logo_url,website_url,description,created_at,updated_at";
+const sponsorSelect = "id,organization_id,name,logo_url,website_url,description,category,created_at,updated_at";
 const assignmentSelect = "id,sponsor_id,assignment_type,venue_id,field_id,session_id,placement_label,created_at,updated_at";
 const validAssignmentTypes = ["venue", "field", "session"] as const;
 const validPlacementLabels = ["Presented By", "Field Sponsor", "Game Sponsor", "Featured Sponsor"] as const;
@@ -32,6 +34,14 @@ const validPlacementLabels = ["Presented By", "Field Sponsor", "Game Sponsor", "
 function readOptionalText(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+// An unrecognized category is stored as null rather than as-is: the whole point
+// of the fixed vocabulary is that categories can be compared to each other, and a
+// stray value would silently never match a conflict or policy check.
+function readCategory(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return isSponsorCategory(trimmed) ? trimmed : null;
 }
 
 function readAssignmentType(value: string): SponsorAssignmentType {
@@ -42,6 +52,10 @@ function readPlacementLabel(value: string): SponsorPlacementLabel {
   return validPlacementLabels.find((label) => label === value) ?? "Featured Sponsor";
 }
 
+// website_url is NOT NULL with a '' default on this table, so "no website" is
+// stored as the empty string and read back as null. Writing null instead would
+// violate the constraint — which is how sponsor creation used to fail whenever
+// the website field was left blank.
 function mapSponsor(row: SponsorRow): Sponsor {
   return {
     id: row.id,
@@ -50,6 +64,7 @@ function mapSponsor(row: SponsorRow): Sponsor {
     logoUrl: readOptionalText(row.logo_url),
     websiteUrl: readOptionalText(row.website_url),
     description: row.description ?? "",
+    category: row.category ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -96,8 +111,9 @@ export async function createSponsor(data: CreateSponsorInput): Promise<Sponsor> 
       organization_id: organizationId,
       name: data.name,
       logo_url: readOptionalText(data.logo_url),
-      website_url: readOptionalText(data.website_url),
+      website_url: readOptionalText(data.website_url) ?? "",
       description: readOptionalText(data.description),
+      category: readCategory(data.category),
     })
     .select(sponsorSelect)
     .single();
@@ -127,8 +143,9 @@ export async function updateSponsor(id: string, data: UpdateSponsorInput): Promi
     .update({
       name: data.name,
       logo_url: readOptionalText(data.logo_url),
-      website_url: readOptionalText(data.website_url),
+      website_url: readOptionalText(data.website_url) ?? "",
       description: readOptionalText(data.description),
+      category: readCategory(data.category),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

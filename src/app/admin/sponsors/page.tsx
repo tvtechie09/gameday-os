@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/empty-state";
 import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAnalytics, readSponsorAnalyticsRange, sponsorAnalyticsRanges } from "@/lib/services/sponsor-analytics";
+import { isRestrictedCategory, sponsorCategoryLabel } from "@/lib/services/sponsor-category-core";
 import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
 import type { Field, Session, Sponsor, SponsorAnalyticsSummary, SponsorAssignment, Venue } from "@/lib/types";
 import { DeleteButton } from "./delete-button";
@@ -193,6 +194,17 @@ export default async function SponsorsPage({ searchParams }: SponsorsPageProps) 
                       )}
                       <div className="min-w-0">
                         <h3 className="truncate text-lg font-black">{sponsor.name}</h3>
+                        {sponsor.category ? (
+                          <span
+                            className={
+                              isRestrictedCategory(sponsor.category)
+                                ? "mt-1 inline-block rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-900"
+                                : "mt-1 inline-block rounded-full border border-[var(--line)] bg-[var(--panel)] px-2 py-0.5 text-xs font-bold text-[var(--muted)]"
+                            }
+                          >
+                            {sponsorCategoryLabel(sponsor.category)}
+                          </span>
+                        ) : null}
                         {sponsor.websiteUrl ? (
                           <a className="mt-1 block truncate text-sm font-bold text-[var(--accent-strong)]" href={sponsor.websiteUrl} rel="noreferrer" target="_blank">
                             Website

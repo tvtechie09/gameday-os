@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { SponsorCategorySelect } from "@/components/admin/sponsor-category-select";
 import { createSponsorAction } from "./actions";
 
 type Message = {
@@ -93,6 +94,8 @@ export function SponsorForm() {
           />
         </label>
       </div>
+
+      <SponsorCategorySelect disabled={isSaving} />
 
       <label className="grid gap-2">
         <span className="text-sm font-bold">Description</span>

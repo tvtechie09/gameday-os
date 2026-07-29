@@ -2329,6 +2329,7 @@ export type Database = {
           logo_url: string | null;
           website_url: string | null;
           description: string | null;
+          category?: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -2339,6 +2340,7 @@ export type Database = {
           logo_url?: string | null;
           website_url?: string | null;
           description?: string | null;
+          category?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2349,6 +2351,7 @@ export type Database = {
           logo_url?: string | null;
           website_url?: string | null;
           description?: string | null;
+          category?: string | null;
           created_at?: string;
           updated_at?: string;
         };

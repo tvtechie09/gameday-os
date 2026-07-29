@@ -285,6 +285,10 @@ export interface Sponsor {
   logoUrl: string | null;
   websiteUrl: string | null;
   description: string;
+  // A SponsorCategoryKey, or null when unset. Kept as string so this shared type
+  // stays dependency-free; validate with isSponsorCategory from
+  // services/sponsor-category-core.
+  category?: string | null;
   createdAt: string;
   updatedAt: string;
 }

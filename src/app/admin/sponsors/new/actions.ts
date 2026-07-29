@@ -27,6 +27,7 @@ export async function createSponsorAction(formData: FormData): Promise<CreateSpo
       logo_url: readOptionalText(formData, "logo_url"),
       website_url: readOptionalText(formData, "website_url"),
       description: readOptionalText(formData, "description"),
+      category: readOptionalText(formData, "category"),
     });
 
     revalidatePath("/admin/sponsors");
