@@ -13,12 +13,13 @@ import { getResourcesForFieldPage, getResourceTypeLabel } from "@/lib/services/r
 import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusClass, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
 import { getSessionEvents, getSessionEventTypeLabel } from "@/lib/services/session-events";
 import { getSession, getSessionsByFieldId, updateSessionGameState } from "@/lib/services/sessions";
-import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
+import { getSponsorPlacementsWithPolicy } from "@/lib/services/sponsors";
 import { getVenue } from "@/lib/services/venues";
 import { getVolunteerRoleLabel, getVolunteerRoles } from "@/lib/services/volunteer-roles";
 import type { Alert, ResourceActivation, Session, SessionEvent, SponsorPlacement, VolunteerRole } from "@/lib/types";
 import { ActivationStatusButton } from "../../../resources/activations/status-button";
 import { VolunteerStatusButton } from "../../../volunteers/status-button";
+import { sponsorCategoryLabel } from "@/lib/services/sponsor-category-core";
 
 type FieldControlPageProps = {
   params: Promise<{
@@ -204,14 +205,18 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
   const nextSession = sessions.filter(isUpcomingSession).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0] ?? null;
   const currentSession = activeSession ?? nextSession;
   const isControllingNextSession = Boolean(!activeSession && nextSession && currentSession?.id === nextSession.id);
-  const [sponsorPlacements, timelineEvents] = await Promise.all([
-    getSponsorPlacementsForFieldPage({
+  const [sponsorPolicyResult, timelineEvents] = await Promise.all([
+    getSponsorPlacementsWithPolicy({
       fieldId,
       sessionId: currentSession?.id,
       venueId: field.venueId,
     }),
     currentSession ? getSessionEvents(currentSession.id) : Promise.resolve<SessionEvent[]>([]),
   ]);
+  // Suppressed placements are shown here rather than silently dropped — a GM who
+  // sold a sponsorship needs to know why it isn't appearing.
+  const sponsorPlacements = sponsorPolicyResult.visible;
+  const suppressedPlacements = sponsorPolicyResult.suppressed;
   const fieldAlerts = filterAlertsForFieldPage({
     alerts: activeAlerts,
     fieldId,
@@ -501,6 +506,23 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
                 {placement.sponsor.websiteUrl ? <p className="mt-1 break-all text-sm font-semibold text-[var(--muted)]">{placement.sponsor.websiteUrl}</p> : null}
               </article>
             )) : <p className="rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No active sponsor placements.</p>}
+            {suppressedPlacements.length > 0 ? (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+                <p className="text-sm font-black text-amber-950">
+                  {suppressedPlacements.length} placement{suppressedPlacements.length === 1 ? "" : "s"} hidden by your advertising policy
+                </p>
+                <ul className="mt-2 grid gap-1">
+                  {suppressedPlacements.map((placement: SponsorPlacement) => (
+                    <li className="text-sm text-amber-950" key={placement.id}>
+                      {placement.sponsor.name} — {sponsorCategoryLabel(placement.sponsor.category)}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-amber-900">
+                  These are not shown on public field pages or scoreboards. Change the policy under Sponsors → Advertising policy.
+                </p>
+              </div>
+            ) : null}
           </div>
         </section>
       </section>

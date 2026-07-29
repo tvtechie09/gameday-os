@@ -12,6 +12,9 @@ import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
 import type { Alert, Field, Organization, Resource, Session, Sponsor, SponsorAssignment, Venue } from "@/lib/types";
+import { RECOMMENDED_PROHIBITED_CATEGORIES, type SponsorCategoryKey } from "@/lib/services/sponsor-category-core";
+import { getProhibitedCategories } from "@/lib/services/sponsor-policy";
+import { filterProhibitedPlacements } from "@/lib/services/sponsor-policy-core";
 
 type PublicVenuePageProps = {
   params: Promise<{
@@ -234,11 +237,14 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
   let sponsorAssignments: SponsorAssignment[] = [];
   let resources: Resource[] = [];
   let errorMessage: string | null = null;
+  // Starts at the recommended default so a failed load fails toward protection
+  // rather than toward publishing whatever is on file.
+  let prohibitedCategories: readonly SponsorCategoryKey[] = RECOMMENDED_PROHIBITED_CATEGORIES;
 
   try {
     venue = await getVenue(venueId);
     if (venue) {
-      const [organizationResult, allFields, allSessions, activeAlerts, allAlertResults, allSponsors, allSponsorAssignments, allResources] = await Promise.all([
+      const [organizationResult, allFields, allSessions, activeAlerts, allAlertResults, allSponsors, allSponsorAssignments, allResources, advertisingPolicy] = await Promise.all([
         venue.organizationId ? getOrganization(venue.organizationId) : Promise.resolve(null),
         getFields(),
         getSessions(),
@@ -247,8 +253,10 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
         getSponsors(),
         getSponsorAssignments(),
         getResources(),
+        getProhibitedCategories(venue.organizationId),
       ]);
       organization = organizationResult;
+      prohibitedCategories = advertisingPolicy.categories;
       fields = allFields.filter((field) => field.venueId === venueId);
       const fieldIds = new Set(fields.map((field) => field.id));
       sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
@@ -292,13 +300,11 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
   }));
   const scheduleGroups = groupTodaySchedule(fields, sessions, now);
   const todaySessionCount = scheduleGroups.reduce((total, group) => total + group.timeGroups.reduce((count, timeGroup) => count + timeGroup.sessions.length, 0), 0);
-  const sponsorCards = getVenueSponsorCards({
-    assignments: sponsorAssignments,
-    fields,
-    sessions,
-    sponsors,
-    venueId,
-  });
+  // Render-time enforcement of the venue's advertising policy on a public page.
+  const sponsorCards = filterProhibitedPlacements(
+    getVenueSponsorCards({ assignments: sponsorAssignments, fields, sessions, sponsors, venueId }),
+    prohibitedCategories,
+  ).visible;
   const resourceTypes = [...new Map(resources.map((resource) => [resource.resourceType, resource])).values()];
   const weatherAlerts = alerts.filter((alert) => alert.alertType === "weather" || alert.alertType === "delay");
   const otherAlerts = alerts.filter((alert) => alert.alertType !== "weather" && alert.alertType !== "delay");

@@ -57,6 +57,34 @@ export function isCategoryProhibited(category: string | null | undefined, prohib
   return prohibited.includes(category);
 }
 
+// The render-time gate — the one that actually protects families. Entry-point
+// checks are convenience; a record can slip in before a policy changes, or an
+// override can be recorded and later regretted, and this is what still stands
+// between that record and a public field page.
+//
+// Returns BOTH halves on purpose. If suppressed placements simply vanished, a GM
+// would have no way to understand why a sponsor they sold isn't showing, and
+// nothing would stop us billing for impressions we never served.
+export type PolicyFilterResult<T> = { visible: T[]; suppressed: T[] };
+
+export function filterProhibitedPlacements<T extends { sponsor: { category?: string | null } }>(
+  placements: readonly T[],
+  prohibited: readonly SponsorCategoryKey[],
+): PolicyFilterResult<T> {
+  const visible: T[] = [];
+  const suppressed: T[] = [];
+
+  for (const placement of placements) {
+    if (isCategoryProhibited(placement.sponsor.category, prohibited)) {
+      suppressed.push(placement);
+    } else {
+      visible.push(placement);
+    }
+  }
+
+  return { visible, suppressed };
+}
+
 export type PolicyDecision =
   | { blocked: false }
   | { blocked: true; category: SponsorCategoryKey; categoryLabel: string; message: string };

@@ -3,6 +3,8 @@ import type { Database } from "@/lib/supabase/types";
 import type { Sponsor, SponsorAssignment, SponsorAssignmentType, SponsorPlacement, SponsorPlacementLabel } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 import { isSponsorCategory } from "./sponsor-category-core.ts";
+import { getProhibitedCategoriesForVenue } from "./sponsor-policy.ts";
+import { filterProhibitedPlacements } from "./sponsor-policy-core.ts";
 
 type SponsorRow = Database["public"]["Tables"]["sponsors"]["Row"];
 type SponsorAssignmentRow = Database["public"]["Tables"]["sponsor_assignments"]["Row"];
@@ -244,7 +246,20 @@ export async function deleteSponsorAssignment(id: string): Promise<void> {
   }
 }
 
-export async function getSponsorPlacementsForFieldPage({
+// The public surfaces call this. It returns ONLY what the venue's advertising
+// policy allows — the safe result is the default result, so a new caller cannot
+// leak a prohibited sponsor onto a family-facing page by forgetting a step.
+// Use getSponsorPlacementsWithPolicy when you also need what was suppressed.
+export async function getSponsorPlacementsForFieldPage(args: {
+  venueId: string;
+  fieldId: string;
+  sessionId?: string | null;
+}): Promise<SponsorPlacement[]> {
+  const { visible } = await getSponsorPlacementsWithPolicy(args);
+  return visible;
+}
+
+export async function getSponsorPlacementsWithPolicy({
   venueId,
   fieldId,
   sessionId,
@@ -252,7 +267,7 @@ export async function getSponsorPlacementsForFieldPage({
   venueId: string;
   fieldId: string;
   sessionId?: string | null;
-}): Promise<SponsorPlacement[]> {
+}): Promise<{ visible: SponsorPlacement[]; suppressed: SponsorPlacement[] }> {
   const supabase = getSupabaseAdminClient();
   const filters = [
     `and(assignment_type.eq.venue,venue_id.eq.${venueId})`,
@@ -276,7 +291,7 @@ export async function getSponsorPlacementsForFieldPage({
   const sponsorIds = [...new Set((assignments ?? []).map((assignment) => assignment.sponsor_id))];
 
   if (sponsorIds.length === 0) {
-    return [];
+    return { visible: [], suppressed: [] };
   }
 
   const { data: sponsors, error: sponsorError } = await supabase.from("sponsors").select(sponsorSelect).in("id", sponsorIds);
@@ -287,8 +302,11 @@ export async function getSponsorPlacementsForFieldPage({
 
   const sponsorsById = new Map((sponsors ?? []).map((sponsor) => [sponsor.id, mapSponsor(sponsor)]));
 
-  return (assignments ?? []).flatMap((assignment) => {
+  const placements = (assignments ?? []).flatMap((assignment) => {
     const sponsor = sponsorsById.get(assignment.sponsor_id);
     return sponsor ? [{ ...mapSponsorAssignment(assignment), sponsor }] : [];
   });
+
+  const policy = await getProhibitedCategoriesForVenue(venueId);
+  return filterProhibitedPlacements(placements, policy.categories);
 }

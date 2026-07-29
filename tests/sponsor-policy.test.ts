@@ -4,6 +4,7 @@ import { RECOMMENDED_PROHIBITED_CATEGORIES } from "../src/lib/services/sponsor-c
 import {
   effectiveProhibitedCategories,
   evaluateSponsorPlacement,
+  filterProhibitedPlacements,
   isCategoryProhibited,
   MIN_OVERRIDE_REASON_LENGTH,
   readOverrideReason,
@@ -86,4 +87,47 @@ test("override requires a real reason, not a blank or a shrug", () => {
   assert.equal(readOverrideReason("ok"), null);
   assert.equal(readOverrideReason("y".repeat(MIN_OVERRIDE_REASON_LENGTH - 1)), null);
   assert.equal(readOverrideReason("  Adult league only, per board vote 6/12.  "), "Adult league only, per board vote 6/12.");
+});
+
+// --- Phase 3: the render filter, the gate closest to the output ---
+
+const placement = (id: string, category: string | null) => ({ id, sponsor: { id, name: id, category } });
+
+test("filterProhibitedPlacements splits rather than silently dropping", () => {
+  // Returning both halves is what lets the admin view explain a missing sponsor
+  // instead of leaving a GM confused about why what they sold isn't showing.
+  const result = filterProhibitedPlacements(
+    [placement("bank", "bank_financial"), placement("casino", "gambling"), placement("unset", null)],
+    ["gambling"],
+  );
+  assert.deepEqual(result.visible.map((p) => p.id), ["bank", "unset"]);
+  assert.deepEqual(result.suppressed.map((p) => p.id), ["casino"]);
+});
+
+test("filterProhibitedPlacements suppresses a record that predates the policy", () => {
+  // The whole reason this gate exists: the placement was created and approved
+  // before the category was prohibited. Entry-point checks cannot catch it.
+  const result = filterProhibitedPlacements([placement("brewery", "alcohol")], RECOMMENDED_PROHIBITED_CATEGORIES);
+  assert.equal(result.visible.length, 0);
+  assert.equal(result.suppressed.length, 1);
+});
+
+test("filterProhibitedPlacements never suppresses uncategorized sponsors", () => {
+  const result = filterProhibitedPlacements([placement("a", null), placement("b", "mystery")], RECOMMENDED_PROHIBITED_CATEGORIES);
+  assert.equal(result.visible.length, 2);
+  assert.equal(result.suppressed.length, 0);
+});
+
+test("filterProhibitedPlacements with an empty policy shows everything", () => {
+  const all = [placement("casino", "gambling"), placement("bank", "bank_financial")];
+  const result = filterProhibitedPlacements(all, []);
+  assert.equal(result.visible.length, 2);
+  assert.equal(result.suppressed.length, 0);
+});
+
+test("filterProhibitedPlacements preserves order and does not mutate its input", () => {
+  const all = [placement("a", "bank_financial"), placement("b", "gambling"), placement("c", "retail")];
+  const result = filterProhibitedPlacements(all, ["gambling"]);
+  assert.deepEqual(result.visible.map((p) => p.id), ["a", "c"]);
+  assert.equal(all.length, 3);
 });

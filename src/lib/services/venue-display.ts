@@ -5,6 +5,8 @@ import { getOrganization } from "./organizations";
 import { getSessions } from "./sessions";
 import { getSponsorAssignments, getSponsors } from "./sponsors";
 import { getVenue } from "./venues";
+import { getProhibitedCategories } from "./sponsor-policy.ts";
+import { filterProhibitedPlacements } from "./sponsor-policy-core.ts";
 
 export type VenueDisplaySponsor = {
   assignment: SponsorAssignment;
@@ -108,13 +110,14 @@ export async function getVenueDisplayPayload(venueId: string): Promise<VenueDisp
     };
   }
 
-  const [organization, allFields, allSessions, activeAlerts, sponsors, sponsorAssignments] = await Promise.all([
+  const [organization, allFields, allSessions, activeAlerts, sponsors, sponsorAssignments, advertisingPolicy] = await Promise.all([
     venue.organizationId ? getOrganization(venue.organizationId) : Promise.resolve(null),
     getFields(),
     getSessions(),
     getActiveAlerts(),
     getSponsors(),
     getSponsorAssignments(),
+    getProhibitedCategories(venue.organizationId),
   ]);
   const now = new Date();
   const fields = allFields
@@ -160,13 +163,12 @@ export async function getVenueDisplayPayload(venueId: string): Promise<VenueDisp
       field,
       sessions: todaySessions.filter((session) => session.fieldId === field.id),
     })).filter((group) => group.sessions.length > 0),
-    sponsors: getVenueSponsors({
-      assignments: sponsorAssignments,
-      fields,
-      sessions,
-      sponsors,
-      venueId,
-    }),
+    // Render-time enforcement of the venue's advertising policy. This board hangs
+    // in a public concourse, so it gets the same gate as the field page.
+    sponsors: filterProhibitedPlacements(
+      getVenueSponsors({ assignments: sponsorAssignments, fields, sessions, sponsors, venueId }),
+      advertisingPolicy.categories,
+    ).visible,
     venue,
   };
 }

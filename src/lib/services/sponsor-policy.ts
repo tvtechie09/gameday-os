@@ -38,6 +38,28 @@ export async function getProhibitedCategories(organizationId: string | null | un
   return effectiveProhibitedCategories(data?.prohibited_sponsor_categories);
 }
 
+// The governing policy for a public surface is the policy of the org that owns
+// the PROPERTY, not the org that owns the sponsor — it is the venue's rule about
+// who may appear on its grounds.
+export async function getProhibitedCategoriesForVenue(venueId: string | null | undefined): Promise<EffectivePolicy> {
+  if (!venueId) {
+    return effectiveProhibitedCategories(null);
+  }
+
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase.from("venues").select("organization_id").eq("id", venueId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return await getProhibitedCategories(data?.organization_id);
+  } catch (error) {
+    // Fail toward the recommended default rather than toward "show everything".
+    // A failed lookup must not be the reason a gambling ad reaches a family; it
+    // also must not blank every sponsor a venue has been paid for.
+    console.error("Failed to resolve advertising policy; falling back to the recommended default", error);
+    return effectiveProhibitedCategories(null);
+  }
+}
+
 export async function setProhibitedCategories(organizationId: string, categories: SponsorCategoryKey[]): Promise<void> {
   const supabase = getSupabaseAdminClient();
   // Always writes an array, never null — saving is what turns "never configured"
