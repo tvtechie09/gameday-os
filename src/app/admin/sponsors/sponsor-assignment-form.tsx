@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import type { Field, Session, Sponsor, SponsorAssignmentType, Venue } from "@/lib/types";
-import { createSponsorAssignmentAction } from "./actions";
+import { SponsorPolicyOverride } from "@/components/admin/sponsor-policy-override";
+import { createSponsorAssignmentAction, type CreateSponsorAssignmentResult } from "./actions";
 
 type Message = {
   kind: "success" | "error";
@@ -41,6 +42,7 @@ export function SponsorAssignmentForm({
   const [assignmentType, setAssignmentType] = useState<SponsorAssignmentType>("venue");
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
+  const [policyBlocked, setPolicyBlocked] = useState(false);
   const targets = useMemo(() => getTargets(assignmentType, venues, fields, sessions), [assignmentType, fields, sessions, venues]);
   const canSubmit = sponsors.length > 0 && targets.length > 0 && !isSaving;
 
@@ -54,16 +56,19 @@ export function SponsorAssignmentForm({
     setIsSaving(true);
     setMessage(null);
 
-    const result = await createSponsorAssignmentAction(new FormData(event.currentTarget)).catch((error: unknown) => {
-      console.error("Failed to create sponsor assignment", error);
-      return {
-        error: error instanceof Error ? error.message : "Unable to create sponsor assignment.",
-      };
-    });
+    const result: CreateSponsorAssignmentResult = await createSponsorAssignmentAction(new FormData(event.currentTarget)).catch(
+      (error: unknown) => {
+        console.error("Failed to create sponsor assignment", error);
+        return {
+          error: error instanceof Error ? error.message : "Unable to create sponsor assignment.",
+        };
+      },
+    );
 
     if (result.error) {
       console.error("Failed to create sponsor assignment", result.error);
       setMessage({ kind: "error", text: result.error });
+      setPolicyBlocked(Boolean(result.policyBlocked));
       setIsSaving(false);
       return;
     }
@@ -160,6 +165,8 @@ export function SponsorAssignmentForm({
           </select>
         </label>
       </div>
+
+      {policyBlocked ? <SponsorPolicyOverride disabled={isSaving} /> : null}
 
       <div className="flex justify-end border-t border-[var(--line)] pt-4">
         <button

@@ -26,5 +26,8 @@ export async function getCurrentOrganizationScope(): Promise<string | null> {
 
 export async function getWritableOrganizationId(): Promise<string | null> {
   const { getDefaultOrganizationId } = await import("@/lib/services/organizations");
-  return getCurrentOrganizationScope() ?? getDefaultOrganizationId();
+  // The await matters: an un-awaited call returns a Promise, which is never
+  // null, so `??` always short-circuited and the default-org fallback never
+  // fired. Every write by an all-orgs admin landed with a null organization_id.
+  return (await getCurrentOrganizationScope()) ?? (await getDefaultOrganizationId());
 }

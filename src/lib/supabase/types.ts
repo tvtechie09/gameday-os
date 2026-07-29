@@ -15,6 +15,7 @@ export type Database = {
           secondary_color: string | null;
           website_url: string | null;
           description: string | null;
+          prohibited_sponsor_categories?: Json | null;
           created_at: string;
         };
         Insert: {
@@ -28,6 +29,7 @@ export type Database = {
           secondary_color?: string | null;
           website_url?: string | null;
           description?: string | null;
+          prohibited_sponsor_categories?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -41,6 +43,7 @@ export type Database = {
           secondary_color?: string | null;
           website_url?: string | null;
           description?: string | null;
+          prohibited_sponsor_categories?: Json | null;
           created_at?: string;
         };
         Relationships: [];

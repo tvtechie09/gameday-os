@@ -3,11 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { createSponsorAssignment, deleteSponsor, deleteSponsorAssignment, getSponsor, getSponsorAssignments } from "@/lib/services/sponsors";
 import { assertOrganizationInScope } from "@/lib/access/scoped-venue-data";
+import { checkSponsorPolicyGate } from "@/lib/services/sponsor-policy";
 import type { SponsorAssignment, SponsorAssignmentType, SponsorPlacementLabel } from "@/lib/types";
 
 export type CreateSponsorAssignmentResult = {
   assignment?: SponsorAssignment;
   error?: string;
+  // Distinguishes a policy block from an ordinary validation error, so the form
+  // can reveal the override field only when an override is actually the remedy.
+  policyBlocked?: boolean;
 };
 
 const validAssignmentTypes = ["venue", "field", "session"] as const;
@@ -38,6 +42,17 @@ export async function createSponsorAssignmentAction(formData: FormData): Promise
       return { error: "Sponsor not found." };
     }
     await assertOrganizationInScope(sponsor.organizationId);
+
+    // The venue's own advertising policy. Blocked by default — an override needs
+    // an explicit reason and is written to the audit log before the placement is.
+    const gate = await checkSponsorPolicyGate({
+      sponsor,
+      overrideReason: String(formData.get("policy_override_reason") ?? ""),
+      resourceType: "sponsor_assignment",
+    });
+    if (!gate.allowed) {
+      return { error: gate.message, policyBlocked: true };
+    }
 
     const typedAssignmentType = assignmentType as SponsorAssignmentType;
     const venueId = typedAssignmentType === "venue" ? targetId : null;

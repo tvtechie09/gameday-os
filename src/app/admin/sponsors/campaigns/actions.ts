@@ -6,6 +6,7 @@ import { createSponsorCampaign, deleteSponsorCampaign, getSponsorCampaign } from
 import { getSponsor } from "@/lib/services/sponsors";
 import { assertOrganizationInScope } from "@/lib/access/scoped-venue-data";
 import { SPONSOR_ASSET_TYPES } from "@/lib/services/sponsor-fulfillment-core";
+import { checkSponsorPolicyGate } from "@/lib/services/sponsor-policy";
 
 export async function createCampaignAction(formData: FormData): Promise<void> {
   const sponsorId = String(formData.get("sponsor_id") ?? "").trim();
@@ -25,6 +26,17 @@ export async function createCampaignAction(formData: FormData): Promise<void> {
     redirect("/admin/sponsors/campaigns?error=missing");
   }
   await assertOrganizationInScope(sponsor.organizationId);
+
+  // The venue's own advertising policy. Blocked by default — an override needs an
+  // explicit reason and is written to the audit log before the campaign is.
+  const gate = await checkSponsorPolicyGate({
+    sponsor,
+    overrideReason: String(formData.get("policy_override_reason") ?? ""),
+    resourceType: "sponsor_campaign",
+  });
+  if (!gate.allowed) {
+    redirect(`/admin/sponsors/campaigns?policy=blocked&error=${encodeURIComponent(gate.message)}`);
+  }
 
   const contracted: Record<string, number> = {};
   for (const assetType of SPONSOR_ASSET_TYPES) {

@@ -15,8 +15,8 @@ function dateRange(startsOn: string, endsOn: string): string {
   return startsOn === endsOn ? fmt(startsOn) : `${fmt(startsOn)} – ${fmt(endsOn)}`;
 }
 
-export default async function SponsorCampaignsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function SponsorCampaignsPage({ searchParams }: { searchParams: Promise<{ error?: string; policy?: string }> }) {
+  const { error, policy } = await searchParams;
   const [allSponsors, scoped, allCampaigns, opportunities, scopedOrgIds] = await Promise.all([
     getSponsors().catch(() => []),
     getScopedVenuesAndFields().catch(() => ({ venues: [], fields: [] })),
@@ -84,7 +84,7 @@ export default async function SponsorCampaignsPage({ searchParams }: { searchPar
             </p>
           ) : (
             <div className="mt-3">
-              <CampaignForm sponsors={sponsors} venues={venues} today={todayInChicago()} />
+              <CampaignForm sponsors={sponsors} venues={venues} today={todayInChicago()} policyBlocked={policy === "blocked"} />
             </div>
           )}
         </div>

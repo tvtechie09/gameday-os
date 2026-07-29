@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { createCampaignAction } from "./actions";
 import { PACKAGE_TEMPLATES, SPONSOR_ASSET_CATALOG, SPONSOR_ASSET_TYPES, type SponsorAssetType } from "@/lib/services/sponsor-fulfillment-core";
+import { SponsorPolicyOverride } from "@/components/admin/sponsor-policy-override";
 
 type Option = { id: string; name: string };
 
 const emptyQuantities = (): Record<SponsorAssetType, number> =>
   SPONSOR_ASSET_TYPES.reduce((acc, t) => ({ ...acc, [t]: 0 }), {} as Record<SponsorAssetType, number>);
 
-export function CampaignForm({ sponsors, venues, today }: { sponsors: Option[]; venues: Option[]; today: string }) {
+export function CampaignForm({ sponsors, venues, today, policyBlocked }: { sponsors: Option[]; venues: Option[]; today: string; policyBlocked?: boolean }) {
   const [quantities, setQuantities] = useState<Record<SponsorAssetType, number>>(emptyQuantities);
   const [packageName, setPackageName] = useState("");
 
@@ -89,6 +90,8 @@ export function CampaignForm({ sponsors, venues, today }: { sponsors: Option[]; 
           ))}
         </div>
       </div>
+
+      {policyBlocked ? <SponsorPolicyOverride /> : null}
 
       <button type="submit" className="min-h-12 rounded-lg bg-[var(--accent)] px-5 text-sm font-black text-white">
         Create campaign
