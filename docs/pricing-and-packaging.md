@@ -48,16 +48,16 @@ leave.
 
 Tiered by **field count** (the honest unit of both size and value):
 
-| Tier | Size | Includes |
-|---|---|---|
-| Single park | 1–4 fields | Command Center, public field pages, alerts |
-| Complex | 5–12 fields | + officials, work orders, bookings/permits, storm response |
-| Flagship | 13+ fields | + systems health, device integrations, multi-field ops |
-| District | multi-venue | + cross-venue reporting |
+| Tier | Size | List (anchor to test) | Includes |
+|---|---|---|---|
+| Single park | 1–4 fields | $500/mo | Command Center, public field pages, alerts |
+| Complex | 5–12 fields | $1,000/mo | + officials, work orders, bookings/permits, storm response |
+| Flagship | 13+ fields | $2,000/mo | + systems health, device integrations, multi-field ops |
+| District | multi-venue | TBD, not priced yet | + cross-venue reporting |
 
-**Anchor to test: $500–$2,500/month per complex.** Price against what they already
-spend — staff hours, AV/scoreboard service contracts, and the cost of a blown
-Saturday. Validate with a real GM before committing.
+Price against what they already spend — staff hours, AV/scoreboard service
+contracts, and the cost of a blown Saturday. Validate with a real GM before
+committing; these are anchors, not commitments.
 
 ### 2. Revenue Engine — the line that sells itself
 
@@ -85,11 +85,21 @@ Set 2026-07-25. Structure (client asset: `gamedayos-sales/founding-offer.html`):
 - **Founding season free.** Run the whole first (fall) season on us; the locked rate
   begins the following season. Removes upfront money-risk — a board can say yes to a
   free pilot far more easily than to paying for unproven software.
-- **Founding rate: $250/mo, locked for life** (calibrated up for larger complexes),
-  vs. the $500+/mo Single-park list — a real discount they keep for as long as they
-  stay a customer. Symbolic revenue on purpose (3 venues); the point is references,
-  feedback, commitment, and a paid anchor from day one — NOT a free pilot that
-  ghosts and makes the first real sale harder.
+- **Founding rate: set 2026-07-29.** Half of list, locked for life, tiered by the
+  same field-count bands as list price — a real discount they keep for as long as
+  they stay a customer:
+
+  | Tier | Fields | List | **Founding, locked for life** |
+  |---|---|---|---|
+  | Single park | 1–4 | $500/mo | **$250/mo** |
+  | Complex | 5–12 | $1,000/mo | **$500/mo** |
+  | Flagship | 13+ | $2,000/mo | **$1,000/mo** |
+
+  Symbolic revenue on purpose (3 venues); the point is references, feedback,
+  commitment, and a paid anchor from day one — NOT a free pilot that ghosts and
+  makes the first real sale harder. District tier isn't priced yet (see table
+  above) — if a founding prospect is multi-venue, price it manually before
+  quoting rather than guessing a number here.
 - **One-time waived:** onboarding setup + the Venue Technology Assessment (a $1,500+
   value). Hardware, if ever relevant, is at-cost (we don't eat it, don't mark it up).
 - Billed by PO (first PO is $0 — the free season). Cohort capped at 3 (see
