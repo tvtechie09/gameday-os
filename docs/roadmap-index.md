@@ -17,6 +17,10 @@ Future features, each a build-ready-ish spec with phasing and open questions.
   running-early/late; tokened lightweight identity.
 - [field-stream-integration.md](field-stream-integration.md) — bring-your-own field
   stream on the field page (orchestrate, don't broadcast; deep-link gatekept streams).
+- [sponsor-category-exclusivity.md](sponsor-category-exclusivity.md) — "we're the only
+  bank here": sponsor categories + campaign exclusivity with conflict detection. A
+  revenue feature (premium tier) that doubles as a guardrail; `sponsors.category` also
+  unlocks prohibited-category policy enforcement for public entities. Prospect-driven.
 
 ## Edge device program (hardware + Pro Services)
 The physical layer — from off-the-shelf signage to the custom audio control plane.
