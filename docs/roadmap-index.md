@@ -19,8 +19,13 @@ Future features, each a build-ready-ish spec with phasing and open questions.
   stream on the field page (orchestrate, don't broadcast; deep-link gatekept streams).
 - [sponsor-category-exclusivity.md](sponsor-category-exclusivity.md) — "we're the only
   bank here": sponsor categories + campaign exclusivity with conflict detection. A
-  revenue feature (premium tier) that doubles as a guardrail; `sponsors.category` also
-  unlocks prohibited-category policy enforcement for public entities. Prospect-driven.
+  revenue feature (premium tier) that doubles as a guardrail. Prospect-driven.
+- [sponsor-prohibited-categories.md](sponsor-prohibited-categories.md) — enforce a
+  venue's advertising policy (no alcohol/gambling/political near youth). Blocks by
+  default with a logged override, and filters at RENDER so families never see it.
+  Procurement-grade answer for public entities. Prospect-driven.
+  - **Both sponsor specs share `sponsors.category` — build that once (Phase 1) and it
+    serves exclusivity *and* policy enforcement.**
 
 ## Edge device program (hardware + Pro Services)
 The physical layer — from off-the-shelf signage to the custom audio control plane.
