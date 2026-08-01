@@ -104,6 +104,9 @@ export const navItems: NavItem[] = [
   { key: "marketplace", href: "/admin/marketplace", label: "Automation Marketplace", icon: "Sparkles", group: "admin", cap: canViewDevTools },
   { key: "developer", href: "/admin/developer", label: "Developer & API", icon: "Database", group: "admin", cap: canViewDevTools },
   { key: "impersonation", href: "/admin/impersonation", label: "Impersonation", icon: "ShieldCheck", group: "admin", cap: canImpersonate },
+  // Your own account (2FA). Every signed-in user gets this -- it only ever acts
+  // on the caller's own Supabase user, so there's no capability to gate on.
+  { key: "account", href: "/admin/account", label: "Your Account", icon: "ShieldCheck", group: "admin", cap: (ctx) => Boolean(ctx) },
   { key: "feedback", href: "/admin/feedback", label: "Send Feedback", icon: "Bell", group: "admin", cap: canAccessAdminWorkspace },
 ];
 
@@ -175,6 +178,7 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   { prefix: "/admin/alerts", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/notifications", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/sponsors", cap: (ctx) => hasPermission(ctx, "sponsor.manage") },
+  { prefix: "/admin/account", cap: (ctx) => Boolean(ctx) },
   { prefix: "/admin/feedback", cap: canAccessAdminWorkspace },
 ];
 

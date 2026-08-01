@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getSupabaseAuthBrowserClient } from "@/lib/supabase/auth-browser";
+import { isPlausibleTotpCode, needsMfaChallenge } from "@/lib/access/mfa-core";
 
 // Email/password sign-in form. On success we do a full navigation so the server
 // re-resolves the session (cookies are now set) and routes to the role home.
@@ -14,6 +15,14 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Set only after a password sign-in that Supabase says needs a second factor.
+  const [mfaFactorId, setMfaFactorId] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+
+  function goToDestination() {
+    // Full navigation so server components pick up the new session cookies.
+    window.location.assign(next && next.startsWith("/") ? next : "/");
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,8 +43,108 @@ export function LoginForm({
       return;
     }
 
-    // Full navigation so server components pick up the new session cookies.
-    window.location.assign(next && next.startsWith("/") ? next : "/");
+    // Only users who actually enrolled a factor are challenged; Supabase's AAL
+    // model decides that per-user, so there's no separate "is this an admin"
+    // gate to keep in sync.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (needsMfaChallenge(aal?.currentLevel ?? null, aal?.nextLevel ?? null)) {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const verified = factors?.totp?.find((factor) => factor.status === "verified");
+      if (verified) {
+        setMfaFactorId(verified.id);
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    goToDestination();
+  }
+
+  async function onSubmitMfa(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    if (!isPlausibleTotpCode(mfaCode)) {
+      setError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
+    setSubmitting(true);
+
+    const supabase = getSupabaseAuthBrowserClient();
+    if (!supabase) {
+      setError("Authentication is not configured for this environment.");
+      setSubmitting(false);
+      return;
+    }
+
+    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+    if (challengeError) {
+      setError(challengeError.message);
+      setSubmitting(false);
+      return;
+    }
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: mfaFactorId,
+      challengeId: challenge.id,
+      code: mfaCode.trim(),
+    });
+    if (verifyError) {
+      setError(verifyError.message);
+      setSubmitting(false);
+      return;
+    }
+
+    goToDestination();
+  }
+
+  if (mfaFactorId) {
+    return (
+      <form onSubmit={onSubmitMfa} className="flex flex-col gap-4">
+        {error ? (
+          <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+            {error}
+          </p>
+        ) : null}
+
+        <p className="text-sm leading-6 text-[var(--muted)]">
+          Two-factor authentication is enabled on this account. Enter the 6-digit code from your authenticator app.
+        </p>
+
+        <label className="flex flex-col gap-1 text-sm font-bold text-[var(--foreground)]">
+          Authentication code
+          <input
+            inputMode="numeric"
+            maxLength={6}
+            autoFocus
+            required
+            value={mfaCode}
+            onChange={(event) => setMfaCode(event.target.value)}
+            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-semibold outline-none transition focus:border-[var(--accent)]"
+            placeholder="123456"
+          />
+        </label>
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="min-h-11 rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {submitting ? "Verifying…" : "Verify"}
+        </button>
+
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => {
+            setMfaFactorId("");
+            setMfaCode("");
+            setError(null);
+          }}
+          className="text-xs font-bold text-emerald-700 underline underline-offset-2"
+        >
+          Cancel, sign in as someone else
+        </button>
+      </form>
+    );
   }
 
   return (
