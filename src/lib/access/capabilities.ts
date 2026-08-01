@@ -80,12 +80,19 @@ function slugifyName(value: string): string {
 }
 
 export function managesAllVenues(ctx: AccessContext | null): boolean {
-  return isPlatformAdmin(ctx) || ctx?.scopeType === "platform" || ctx?.scopeType === "organization";
+  return isPlatformAdmin(ctx) || ctx?.scopeType === "platform";
 }
 
-export function venueInScope(ctx: AccessContext | null, venue: { id: string; name: string }): boolean {
+// Org scope alone does NOT mean "manages every venue" -- Phase A split owning
+// orgs (Manhattan Junior High, which owns venues) from using orgs (Illinois
+// Celtics, which owns none and only holds field-block grants elsewhere). An
+// org-scoped ctx manages exactly the venues IT OWNS (venue.organizationId ===
+// ctx.scopeId) -- zero for a using org, which is correct: it gets the
+// reservations console, not venue management.
+export function venueInScope(ctx: AccessContext | null, venue: { id: string; name: string; organizationId?: string | null }): boolean {
   if (!ctx) return false;
   if (managesAllVenues(ctx)) return true;
+  if (ctx.scopeType === "organization") return Boolean(ctx.scopeId) && venue.organizationId === ctx.scopeId;
   if (ctx.scopeType !== "venue") return false;
   if (ctx.venueId && ctx.venueId === venue.id) return true;
   if (ctx.scopeId === venue.id) return true;
@@ -194,4 +201,11 @@ export function canViewOpsTasks(ctx: AccessContext | null): boolean {
 // organization_admin, platform_admin.
 export function canViewCommandCenter(ctx: AccessContext | null): boolean {
   return hasAny(ctx, ["venue.field.manage", "venue.manage"]);
+}
+
+// The using-org (or owning-org) president persona from Phase A/B -- lands on
+// the org console, not /today (which is venue-shaped and has nothing to show
+// an org-scoped ctx, since ctx.venueId is null for it).
+export function isOrgScoped(ctx: AccessContext | null): boolean {
+  return ctx?.scopeType === "organization";
 }

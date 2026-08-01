@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  deriveCoachRoster,
   expandGrantSlots,
   resolveSlotStates,
   isClaimableSlot,
   timeLabel,
+  type ClaimForRoster,
   type ClaimLite,
   type GrantRecurrence,
 } from "../src/lib/services/field-reservations-core.ts";
@@ -161,4 +163,55 @@ test("isClaimableSlot: accepts an exact slot boundary, rejects an off-grid time"
 
 test("timeLabel renders venue-local", () => {
   assert.equal(timeLabel("2026-07-21T23:00:00.000Z"), "6:00 PM");
+});
+
+// ---- Coaches roster (derived, no coach table exists) ------------------------
+
+const rosterClaim = (over: Partial<ClaimForRoster> = {}): ClaimForRoster => ({
+  claimedByName: "Jamie Rivera",
+  claimedByEmail: "jamie@example.com",
+  startsAt: "2026-07-21T23:00:00.000Z",
+  status: "confirmed",
+  ...over,
+});
+
+test("deriveCoachRoster groups repeat claims by the same coach into one row", () => {
+  const roster = deriveCoachRoster([
+    rosterClaim({ startsAt: "2026-07-21T23:00:00.000Z" }),
+    rosterClaim({ startsAt: "2026-07-28T23:00:00.000Z" }),
+  ]);
+  assert.equal(roster.length, 1);
+  assert.equal(roster[0].activeClaimCount, 2);
+  assert.equal(roster[0].lastClaimAt, "2026-07-28T23:00:00.000Z");
+});
+
+test("deriveCoachRoster treats the same name with a different email as a different coach", () => {
+  // A coincidence in names shouldn't conflate two different people.
+  const roster = deriveCoachRoster([
+    rosterClaim({ claimedByEmail: "jamie@example.com" }),
+    rosterClaim({ claimedByEmail: "jamie.other@example.com" }),
+  ]);
+  assert.equal(roster.length, 2);
+});
+
+test("deriveCoachRoster counts only confirmed/requested as active, not cancelled or denied", () => {
+  const roster = deriveCoachRoster([
+    rosterClaim({ status: "confirmed" }),
+    rosterClaim({ status: "cancelled", startsAt: "2026-07-28T23:00:00.000Z" }),
+    rosterClaim({ status: "denied", startsAt: "2026-08-04T23:00:00.000Z" }),
+  ]);
+  assert.equal(roster.length, 1);
+  assert.equal(roster[0].activeClaimCount, 1);
+  // lastClaimAt still reflects the most recent claim regardless of status --
+  // a coach who was just denied a slot is still a coach who was just active.
+  assert.equal(roster[0].lastClaimAt, "2026-08-04T23:00:00.000Z");
+});
+
+test("deriveCoachRoster skips a blank name and sorts most-recent-first", () => {
+  const roster = deriveCoachRoster([
+    rosterClaim({ claimedByName: "  ", startsAt: "2026-09-01T23:00:00.000Z" }),
+    rosterClaim({ claimedByName: "Alex Chen", claimedByEmail: "alex@example.com", startsAt: "2026-07-01T23:00:00.000Z" }),
+    rosterClaim({ claimedByName: "Jamie Rivera", startsAt: "2026-08-01T23:00:00.000Z" }),
+  ]);
+  assert.deepEqual(roster.map((r) => r.name), ["Jamie Rivera", "Alex Chen"]);
 });

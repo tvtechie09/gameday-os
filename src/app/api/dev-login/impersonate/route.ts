@@ -55,9 +55,12 @@ export async function POST(request: NextRequest) {
   };
 
   // Previewed roles rarely have admin access; land on Today's Operations so the
-  // no-access guard is never hit immediately after starting.
+  // no-access guard is never hit immediately after starting. An org-scoped
+  // preview (a president) is an exception -- /today is venue-shaped and has
+  // nothing to show it (ctx.venueId is always null for org scope); it lands on
+  // the org console instead.
   const impersonationCookie = await encodeImpersonation(selection);
-  const response = NextResponse.redirect(new URL("/today", request.url));
+  const response = NextResponse.redirect(new URL(isOrgScoped ? "/org" : "/today", request.url));
   response.cookies.set(impersonationCookieName, impersonationCookie, {
     httpOnly: true,
     sameSite: "lax",

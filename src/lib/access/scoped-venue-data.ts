@@ -18,19 +18,27 @@ export async function getScopedVenuesAndFields(): Promise<{ venues: Venue[]; fie
 }
 
 // Organization ids the caller can reach, or `null` for NO restriction.
-// managesAllVenues (platform/org admins) → null (every org, including orgs that
-// own no venues — e.g. a sponsor-only org). A venue-scoped role → the org(s) of
-// their own venue(s). Use it to object-level-guard ORG-scoped entities
-// (sponsors, tournaments) whose by-id loaders don't filter by org — otherwise a
-// venue GM (who holds sponsor.manage / venue.manage) can open another org's
-// sponsor or tournament by URL. Guard shape: `if (orgIds && !orgIds.has(x))`.
+// managesAllVenues (platform admins) → null. A venue-scoped role → the org(s)
+// of their own venue(s). An org-scoped role → its own org, PLUS any venues it
+// owns (an owning org like Manhattan Junior High owns venues; a using org like
+// Illinois Celtics owns none but must still reach its own sponsors, campaigns,
+// and settings by its own id -- without this line a using org's president
+// would be locked out of their own organization's records). Use it to
+// object-level-guard ORG-scoped entities (sponsors, tournaments) whose by-id
+// loaders don't filter by org — otherwise a venue GM (who holds
+// sponsor.manage / venue.manage) can open another org's sponsor or tournament
+// by URL. Guard shape: `if (orgIds && !orgIds.has(x))`.
 export async function getScopedOrganizationIds(): Promise<Set<string> | null> {
   const ctx = await getSessionContext();
   if (managesAllVenues(ctx)) {
     return null;
   }
   const venues = (await getVenues()).filter((venue) => venueInScope(ctx, venue));
-  return new Set(venues.map((venue) => venue.organizationId).filter((id): id is string => Boolean(id)));
+  const ids = new Set(venues.map((venue) => venue.organizationId).filter((id): id is string => Boolean(id)));
+  if (ctx?.scopeType === "organization" && ctx.scopeId) {
+    ids.add(ctx.scopeId);
+  }
+  return ids;
 }
 
 // Write-side guard for FIELD-scoped mutations (work orders / issues): throw

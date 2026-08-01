@@ -37,6 +37,47 @@ export type ClaimLite = {
   claimedByUserId: string | null;
 };
 
+// --- Org-president coaches roster --------------------------------------------
+// "Coaches roster" is not a stored entity anywhere in this app -- there is no
+// coach table. It's derived from who has actually claimed slots on the org's
+// grants: a claim's name/email IS the coach identity we have. Grouped and
+// sorted here (pure) so it's testable without touching Supabase.
+
+export type ClaimForRoster = {
+  claimedByName: string;
+  claimedByEmail: string | null;
+  startsAt: string;
+  status: "confirmed" | "requested" | "denied" | "cancelled";
+};
+
+export type CoachRosterEntry = {
+  name: string;
+  email: string | null;
+  activeClaimCount: number; // confirmed + requested, i.e. still holds a slot
+  lastClaimAt: string; // most recent startsAt across all their claims, any status
+};
+
+// Grouped by (name, email) so the same name with two different emails is two
+// rows, not silently merged into one -- a coincidence in names shouldn't
+// conflate two different people.
+export function deriveCoachRoster(claims: ClaimForRoster[]): CoachRosterEntry[] {
+  const byKey = new Map<string, CoachRosterEntry>();
+  for (const claim of claims) {
+    const name = claim.claimedByName.trim();
+    if (!name) continue;
+    const key = name.toLowerCase() + "|" + (claim.claimedByEmail ?? "").toLowerCase();
+    const existing = byKey.get(key);
+    const isActive = claim.status === "confirmed" || claim.status === "requested";
+    if (existing) {
+      existing.activeClaimCount += isActive ? 1 : 0;
+      if (claim.startsAt > existing.lastClaimAt) existing.lastClaimAt = claim.startsAt;
+    } else {
+      byKey.set(key, { name, email: claim.claimedByEmail, activeClaimCount: isActive ? 1 : 0, lastClaimAt: claim.startsAt });
+    }
+  }
+  return [...byKey.values()].sort((a, b) => b.lastClaimAt.localeCompare(a.lastClaimAt));
+}
+
 export type SlotState =
   | { kind: "past" }
   | { kind: "open" }

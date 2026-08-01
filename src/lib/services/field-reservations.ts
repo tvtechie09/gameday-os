@@ -1,5 +1,6 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { canManageFields, isPlatformAdmin, type AccessContext } from "@/lib/access/capabilities";
+import { assertFieldInScope } from "@/lib/access/scoped-venue-data";
 import {
   expandGrantSlots,
   isClaimableSlot,
@@ -130,6 +131,15 @@ export async function getGrant(id: string): Promise<BlockGrant | null> {
   return data ? mapGrant(data) : null;
 }
 
+// Read-only slice for the org-president console: the blocks THIS org has been
+// granted, wherever they sit (the granting venue is often not owned by this
+// org at all -- that's the whole point of a using org).
+export async function listGrantsForOrganization(organizationId: string): Promise<BlockGrant[]> {
+  const { data, error } = await db().from("field_block_grants").select(GRANT_COLS).eq("grantee_organization_id", organizationId).order("created_at", { ascending: false });
+  if (error) throw new Error(error.message ?? "Could not load grants.");
+  return (data ?? []).map(mapGrant);
+}
+
 export type CreateGrantInput = {
   fieldId: string;
   granteeName: string;
@@ -191,6 +201,20 @@ export async function listClaimsForGrant(grantId: string): Promise<SlotClaim[]> 
   const { data, error } = await db().from("field_slot_claims").select(CLAIM_COLS).eq("grant_id", grantId).order("starts_at", { ascending: true });
   if (error) throw new Error(error.message ?? "Could not load claims.");
   return (data ?? []).map(mapClaim);
+}
+
+export async function getClaim(id: string): Promise<SlotClaim | null> {
+  const { data, error } = await db().from("field_slot_claims").select(CLAIM_COLS).eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message ?? "Could not load the claim.");
+  return data ? mapClaim(data) : null;
+}
+
+// Every claim across every one of this org's grants -- the raw material for
+// the coaches roster and for "which of our reservations are upcoming."
+export async function listClaimsForOrganization(organizationId: string): Promise<SlotClaim[]> {
+  const grants = await listGrantsForOrganization(organizationId);
+  const claimLists = await Promise.all(grants.map((grant) => listClaimsForGrant(grant.id)));
+  return claimLists.flat();
 }
 
 // Grant + every slot it offers in a window, each resolved for the viewer. The
@@ -277,10 +301,40 @@ export async function claimSlot(input: ClaimSlotInput): Promise<ClaimResult> {
   return { ok: true, claim: mapClaim(data!), mode: grant.claimMode };
 }
 
-// League-head override: cancel a claim (bump a coach). No permission check on the
-// claimant -- that's the point of an override.
+async function assertCanCancelClaim(claim: SlotClaim, ctx: AccessContext | null): Promise<void> {
+  if (isPlatformAdmin(ctx)) return;
+
+  // Venue-staff override ("bump a coach"), but only for a field this caller
+  // actually manages. canManageFields is a bare permission bit
+  // (venue.manage/device.manage) -- organization_admin carries it regardless
+  // of whether the org owns any venue, so it must be paired with
+  // assertFieldInScope (venue-ownership aware) rather than trusted alone. If
+  // it fails, fall through instead of rejecting outright: an org-scoped ctx
+  // with venue.manage but no owned venue is exactly the using-org case, and
+  // it may still be allowed below via its own grant.
+  if (canManageFields(ctx)) {
+    try {
+      await assertFieldInScope(claim.fieldId);
+      return;
+    } catch {
+      // not this caller's venue -- try the org-grant path below
+    }
+  }
+
+  // The organization whose grant this claim belongs to, withdrawing its own
+  // reservation. Anyone else -- including a different using-org -- is refused.
+  if (ctx?.scopeType === "organization" && ctx.scopeId) {
+    const grant = await getGrant(claim.grantId);
+    if (grant?.granteeOrganizationId === ctx.scopeId) return;
+  }
+
+  throw new Error("You do not have permission to cancel this reservation.");
+}
+
 export async function cancelClaim(id: string, ctx: AccessContext | null): Promise<void> {
-  assertStaff(ctx);
+  const claim = await getClaim(id);
+  if (!claim) throw new Error("That reservation no longer exists.");
+  await assertCanCancelClaim(claim, ctx);
   const { error } = await db().from("field_slot_claims").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message ?? "Could not cancel the claim.");
 }

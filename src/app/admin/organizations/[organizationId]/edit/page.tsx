@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { isPlatformAdmin } from "@/lib/access/capabilities";
+import { getSessionContext } from "@/lib/access/session";
+import { assertOrganizationInScope, getScopedOrganizationIds } from "@/lib/access/scoped-venue-data";
 import { getOrganization, updateOrganization } from "@/lib/services/organizations";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +32,11 @@ async function updateOrganizationAction(formData: FormData) {
     throw new Error("Organization name and slug are required.");
   }
 
+  // Write-side guard: was completely missing before -- any authenticated
+  // session could edit any organization's branding by URL, regardless of
+  // scope. Throws OrganizationScopeError if the caller can't reach this org.
+  await assertOrganizationInScope(id);
+
   await updateOrganization(id, {
     banner_url: String(formData.get("banner_url") ?? "").trim() || null,
     description: String(formData.get("description") ?? "").trim() || null,
@@ -40,14 +48,19 @@ async function updateOrganizationAction(formData: FormData) {
     website_url: String(formData.get("website_url") ?? "").trim() || null,
   });
 
-  redirect("/admin/organizations");
+  const actingCtx = await getSessionContext();
+  redirect(isPlatformAdmin(actingCtx) ? "/admin/organizations" : "/org/settings");
 }
 
 export default async function EditOrganizationPage({ params }: EditOrganizationPageProps) {
   const { organizationId } = await params;
   const organization = await getOrganization(organizationId);
+  const scopedOrgIds = await getScopedOrganizationIds();
 
-  if (!organization) {
+  // Read-side guard, same object-level-authorization shape used everywhere
+  // else in this app: a scoped caller who can't reach this org gets 404, not
+  // a view of another organization's branding form.
+  if (!organization || (scopedOrgIds && !scopedOrgIds.has(organization.id))) {
     notFound();
   }
 

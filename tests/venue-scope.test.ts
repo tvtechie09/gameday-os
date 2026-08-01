@@ -30,3 +30,18 @@ test("null context is denied", () => {
   assert.equal(venueInScope(null, wintrust), false);
   assert.equal(managesAllVenues(null), false);
 });
+
+test("org scope does NOT manage all venues -- it manages only venues it owns", () => {
+  // Manhattan Junior High: an OWNING org, owns wintrust in this scenario.
+  const owner = buildAccessContext({ ...base, roleKey: "organization_admin", scopeType: "organization", scopeId: "org-manhattan" });
+  assert.equal(managesAllVenues(owner), false);
+  assert.equal(venueInScope(owner, { ...wintrust, organizationId: "org-manhattan" }), true);
+  assert.equal(venueInScope(owner, { ...crossroads, organizationId: "org-other" }), false);
+});
+
+test("a using org (owns no venue) sees none in venue scope -- it gets reservations instead", () => {
+  // Illinois Celtics: uses fields elsewhere, owns nothing.
+  const usingOrg = buildAccessContext({ ...base, roleKey: "organization_admin", scopeType: "organization", scopeId: "org-celtics" });
+  assert.equal(venueInScope(usingOrg, { ...wintrust, organizationId: "org-manhattan" }), false);
+  assert.equal(venueInScope(usingOrg, { ...crossroads, organizationId: null }), false);
+});
