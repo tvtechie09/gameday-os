@@ -108,6 +108,10 @@ export type ProvisionInput = {
   address?: string;
   city?: string;
   state?: string;
+  // IANA zone the venue operates in. Omitted means Central, matching the column
+  // default — but every venue outside Central MUST set it here: the operating
+  // day, delay math, and slot windows are all computed in this zone.
+  timezone?: string;
   fieldCount: number;
   fieldNamePattern: string; // e.g. "Field {n}" or "Diamond {n}"
   // 0 = fields are not divisible. 2–4 = each field splits into that many

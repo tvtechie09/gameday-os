@@ -4,7 +4,8 @@ import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getWorkOrders, type WorkOrder } from "@/lib/services/work-orders";
 import { getVenueAssets } from "@/lib/services/venue-assets";
-import { chicagoDateString } from "@/lib/services/command-center-core";
+import { venueDateString } from "@/lib/services/command-center-core";
+import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
 import { buildEndOfDayReport, type EndOfDayReport } from "@/lib/services/end-of-day-core";
 import type { AccessContext } from "@/lib/access/capabilities";
 import type { Field, Session, VenueAsset } from "@/lib/types";
@@ -16,11 +17,14 @@ export * from "@/lib/services/end-of-day-core";
 
 export async function buildEndOfDay(ctx: AccessContext | null, dateOverride?: string): Promise<EndOfDayReport> {
   const now = Date.now();
-  const date = dateOverride || chicagoDateString(now);
+  // Resolve the venue FIRST: "today" is a venue-local date, so it cannot be
+  // computed until we know which clock the venue runs on.
   const venue = await resolveActingVenue(ctx);
+  const timeZone = venue?.timezone ?? DEFAULT_VENUE_TIMEZONE;
+  const date = dateOverride || venueDateString(now, timeZone);
 
   if (!venue) {
-    return buildEndOfDayReport({ venueName: null, date, games: [], fields: [], workOrders: [], assets: [], now });
+    return buildEndOfDayReport({ venueName: null, date, timeZone, games: [], fields: [], workOrders: [], assets: [], now });
   }
 
   const [allSessions, allFields, workOrders, assets] = await Promise.all([
@@ -32,7 +36,7 @@ export async function buildEndOfDay(ctx: AccessContext | null, dateOverride?: st
 
   const venueFields = allFields.filter((field) => field.venueId === venue.id);
   const fieldIds = new Set(venueFields.map((field) => field.id));
-  const games = await listGamesForVenue(venue.id, { date, preloaded: { sessions: allSessions, fields: allFields } });
+  const games = await listGamesForVenue(venue.id, { date, timeZone, preloaded: { sessions: allSessions, fields: allFields } });
 
   // ACTUAL first-pitch/final times. If the ledger has nothing (pre-engine data),
   // the core reports those games as unmeasured rather than assuming on time.
@@ -41,6 +45,7 @@ export async function buildEndOfDay(ctx: AccessContext | null, dateOverride?: st
   return buildEndOfDayReport({
     venueName: venue.name,
     date,
+    timeZone,
     games,
     fields: venueFields,
     workOrders: workOrders.filter((order) => fieldIds.has(order.fieldId)),

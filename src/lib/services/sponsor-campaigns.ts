@@ -9,6 +9,8 @@ import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getVenueAssets } from "@/lib/services/venue-assets";
 import { computeRevenueOpportunities, type RevenueOpportunity } from "@/lib/services/sponsor-opportunities-core";
+import { venueDateString } from "@/lib/services/command-center-core";
+import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
 import {
   buildProofOfPerformance,
   isSponsorAssetType,
@@ -144,6 +146,9 @@ export type CampaignProof = {
   campaign: SponsorCampaign;
   sponsorName: string;
   venueName: string | null;
+  // The campaign venue's zone, so the proof page dates and timestamps read on
+  // the venue's clock. Org-wide campaigns (no venue) fall back to Central.
+  timeZone: string;
   proof: ProofOfPerformance;
   // Set when this sponsor's category is currently suppressed on public surfaces,
   // so the report can say the delivery figures may overstate what families saw.
@@ -160,12 +165,18 @@ export async function getCampaignProof(id: string): Promise<CampaignProof | null
     getSponsor(campaign.sponsorId).catch(() => null),
     getVenues().catch(() => []),
   ]);
-  const venueName = campaign.venueId ? venues.find((v) => v.id === campaign.venueId)?.name ?? null : null;
+  const venue = campaign.venueId ? venues.find((v) => v.id === campaign.venueId) ?? null : null;
+  const venueName = venue?.name ?? null;
+  const timeZone = venue?.timezone ?? DEFAULT_VENUE_TIMEZONE;
 
   // Games the campaign covers: at its venue, starting within the date window.
   const venueGames = campaign.venueId ? await listGamesForVenue(campaign.venueId).catch(() => []) : [];
   const covered = venueGames.filter((g) => {
-    const day = g.startTime.slice(0, 10);
+    // The VENUE's calendar day, not the UTC one. `slice(0, 10)` pushed every
+    // evening game onto the next day and could bill a sponsor for a game that
+    // fell outside their window — the same boundary bug isSameVenueDay exists
+    // to prevent.
+    const day = venueDateString(Date.parse(g.startTime), timeZone);
     return day >= campaign.startsOn && day <= campaign.endsOn;
   });
 
@@ -200,7 +211,7 @@ export async function getCampaignProof(id: string): Promise<CampaignProof | null
     : await getProhibitedCategories(campaign.organizationId);
   const suppression = describeDeliverySuppression({ category: sponsor?.category, prohibited: policy.categories });
 
-  return { campaign, sponsorName: sponsor?.name ?? "Sponsor", venueName, proof, suppression };
+  return { campaign, sponsorName: sponsor?.name ?? "Sponsor", venueName, timeZone, proof, suppression };
 }
 
 // Revenue opportunities across the org: unsold field/game sponsorships, sponsors

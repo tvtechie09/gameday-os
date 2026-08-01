@@ -1,15 +1,22 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Venue } from "@/lib/types";
+import { DEFAULT_VENUE_TIMEZONE, normalizeVenueTimezone } from "@/lib/venue-timezone";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 
 type VenueRow = Database["public"]["Tables"]["venues"]["Row"];
 
+const VENUE_COLS =
+  "id,organization_id,name,description,address,city,state,timezone,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at";
+
 export type CreateVenueInput = {
   name: string;
   description: string;
   address: string;
+  // Omitted means Central, matching the column default — existing callers that
+  // never asked about timezones keep provisioning Chicagoland venues.
+  timezone?: string | null;
   logo_url?: string | null;
   banner_url?: string | null;
   map_image_url?: string | null;
@@ -29,6 +36,9 @@ function mapVenue(row: VenueRow): Venue {
     address: row.address ?? "",
     city: row.city ?? undefined,
     state: row.state ?? undefined,
+    // Normalize at the boundary so nothing downstream has to defend against a
+    // null (pre-migration read) or a typo'd zone name.
+    timezone: normalizeVenueTimezone(row.timezone),
     parkingNote: row.parking_note ?? "",
     fieldCount: 0,
     status: row.status === "Live" ? "Live" : "Draft",
@@ -54,7 +64,7 @@ export async function getVenues(): Promise<Venue[]> {
   const organizationId = await getCurrentOrganizationScope();
   let venueQuery = supabase
     .from("venues")
-    .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
+    .select(VENUE_COLS)
     .order("created_at", { ascending: false });
 
   if (organizationId) {
@@ -89,7 +99,7 @@ export async function getVenue(id: string): Promise<Venue | null> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("venues")
-    .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
+    .select(VENUE_COLS)
     .eq("id", id)
     .maybeSingle();
 
@@ -116,6 +126,7 @@ export async function createVenue(data: CreateVenueInput, actorUserId?: string |
       name: data.name,
       description: data.description,
       address: data.address,
+      timezone: normalizeVenueTimezone(data.timezone),
       logo_url: data.logo_url,
       banner_url: data.banner_url,
       map_image_url: data.map_image_url,
@@ -124,7 +135,7 @@ export async function createVenue(data: CreateVenueInput, actorUserId?: string |
       secondary_color: data.secondary_color,
       status: "Draft",
     })
-    .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
+    .select(VENUE_COLS)
     .single();
 
   if (error) {
@@ -156,6 +167,10 @@ export async function updateVenue(id: string, data: UpdateVenueInput, actorUserI
       name: data.name,
       description: data.description,
       address: data.address,
+      // Only when the caller actually supplied one. Spreading a normalized
+      // default here would quietly drag an Eastern venue back to Central every
+      // time someone saved an unrelated field on the venue form.
+      ...(data.timezone ? { timezone: normalizeVenueTimezone(data.timezone) } : {}),
       logo_url: data.logo_url,
       banner_url: data.banner_url,
       map_image_url: data.map_image_url,
@@ -165,7 +180,7 @@ export async function updateVenue(id: string, data: UpdateVenueInput, actorUserI
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select("id,organization_id,name,description,address,city,state,parking_note,status,logo_url,banner_url,map_image_url,map_notes,primary_color,secondary_color,created_at,updated_at")
+    .select(VENUE_COLS)
     .single();
 
   if (error) {
@@ -184,4 +199,26 @@ export async function updateVenue(id: string, data: UpdateVenueInput, actorUserI
   });
 
   return mappedVenue;
+}
+
+// ---- Timezone lookups -------------------------------------------------------
+//
+// The venue's clock, for surfaces that hold an id rather than a loaded Venue.
+// Both fall back to Central rather than throwing: a missing venue should render
+// an hour wrong at worst, never blank a coach's reservation board.
+
+export async function getVenueTimezone(venueId: string): Promise<string> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.from("venues").select("timezone").eq("id", venueId).maybeSingle();
+  if (error || !data) return DEFAULT_VENUE_TIMEZONE;
+  return normalizeVenueTimezone(data.timezone);
+}
+
+// Field reservations are granted per FIELD and never carry a venue id, so the
+// slot window's timezone has to be resolved one hop up the hierarchy.
+export async function getVenueTimezoneForField(fieldId: string): Promise<string> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.from("fields").select("venue_id").eq("id", fieldId).maybeSingle();
+  if (error || !data?.venue_id) return DEFAULT_VENUE_TIMEZONE;
+  return getVenueTimezone(data.venue_id);
 }

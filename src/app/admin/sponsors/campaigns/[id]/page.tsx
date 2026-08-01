@@ -11,13 +11,13 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function dateRange(startsOn: string, endsOn: string): string {
-  const fmt = (d: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "America/Chicago" }).format(new Date(d + "T12:00:00Z"));
+function dateRange(startsOn: string, endsOn: string, timeZone: string): string {
+  const fmt = (d: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(new Date(d + "T12:00:00Z"));
   return startsOn === endsOn ? fmt(startsOn) : `${fmt(startsOn)} – ${fmt(endsOn)}`;
 }
 
-function timestamp(iso: string): string {
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).format(new Date(iso));
+function timestamp(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone }).format(new Date(iso));
 }
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
@@ -36,7 +36,7 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
   // Object-level authorization: only view campaigns within the caller's org.
   const scopedOrgIds = await getScopedOrganizationIds();
   if (scopedOrgIds && result.campaign.organizationId && !scopedOrgIds.has(result.campaign.organizationId)) notFound();
-  const { campaign, sponsorName, venueName, proof, suppression } = result;
+  const { campaign, sponsorName, venueName, timeZone, proof, suppression } = result;
   const rateTone = proof.deliveryRate >= 0.95 ? "text-emerald-600" : proof.deliveryRate >= 0.75 ? "text-amber-700" : "text-red-700";
 
   return (
@@ -54,7 +54,7 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
         <h1 className="mt-1 text-2xl font-black sm:text-3xl">{sponsorName}</h1>
         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
           {campaign.name}
-          {campaign.packageName ? ` · ${campaign.packageName}` : ""} · {venueName ?? "All venues"} · {dateRange(campaign.startsOn, campaign.endsOn)}
+          {campaign.packageName ? ` · ${campaign.packageName}` : ""} · {venueName ?? "All venues"} · {dateRange(campaign.startsOn, campaign.endsOn, timeZone)}
         </p>
       </header>
 
@@ -162,7 +162,7 @@ export default async function CampaignProofPage({ params }: { params: Promise<{ 
                   <p className="truncate text-sm font-bold text-[var(--foreground)]">{entry.label}</p>
                   <p className="truncate text-xs font-semibold text-[var(--muted)]">{entry.gameLabel}</p>
                 </div>
-                <p className="shrink-0 text-xs font-black text-[var(--muted)]">{timestamp(entry.occurredAt)}</p>
+                <p className="shrink-0 text-xs font-black text-[var(--muted)]">{timestamp(entry.occurredAt, timeZone)}</p>
               </div>
             ))}
           </div>

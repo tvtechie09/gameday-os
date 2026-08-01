@@ -33,6 +33,10 @@ create table if not exists public.venues (
   address text,
   latitude double precision,
   longitude double precision,
+  -- IANA zone the venue stands in. Every venue-local date/time in the app (the
+  -- "today" boundary, delay math, slot windows) is computed here, not in a
+  -- hardcoded Central Time.
+  timezone text not null default 'America/Chicago',
   parking_note text,
   status text not null default 'Draft' check (status in ('Draft', 'Live')),
   logo_url text,

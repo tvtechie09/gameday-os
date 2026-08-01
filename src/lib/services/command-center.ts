@@ -9,12 +9,13 @@ import { getAudioProfiles } from "@/lib/services/audio-profiles";
 import { assessStormRisk } from "@/lib/services/storm-watch";
 import type { AccessContext } from "@/lib/access/capabilities";
 import type { AudioProfile, Field, Session, VenueAsset } from "@/lib/types";
+import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
 import {
   buildAttentionQueue,
   buildFieldBoard,
   buildModeChecklist,
   buildSchedulePulse,
-  chicagoDateString,
+  venueDateString,
   resolveMode,
   summarize,
   type CommandCenterMode,
@@ -40,6 +41,9 @@ export * from "@/lib/services/command-center-core";
 export type CommandCenterView = {
   venueId: string | null;
   venueName: string | null;
+  // The venue's IANA zone. Every label in this view is already rendered in it;
+  // carried out so the page's own header clock agrees with the board.
+  timeZone: string;
   mode: CommandCenterMode;
   generatedAt: string;
   summary: CommandCenterSummary;
@@ -82,6 +86,8 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
     return {
       venueId: null,
       venueName: null,
+      // No venue resolved, so there is no venue clock — fall back to Central.
+      timeZone: DEFAULT_VENUE_TIMEZONE,
       mode: "pregame",
       generatedAt: new Date().toISOString(),
       summary: EMPTY_SUMMARY,
@@ -94,7 +100,9 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
   }
 
   const now = Date.now();
-  const today = chicagoDateString(now);
+  // The venue's own operating day, not the server's and not Central's.
+  const timeZone = venue.timezone;
+  const today = venueDateString(now, timeZone);
 
   const [allSessions, allFields, workOrders, assets, storm, audioProfiles] = await Promise.all([
     getSessions().catch(() => [] as Session[]),
@@ -107,7 +115,7 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
 
   const venueFields = allFields.filter((f) => f.venueId === venue.id);
   const fieldIds = new Set(venueFields.map((f) => f.id));
-  const games = await listGamesForVenue(venue.id, { date: today, preloaded: { sessions: allSessions, fields: allFields } });
+  const games = await listGamesForVenue(venue.id, { date: today, timeZone, preloaded: { sessions: allSessions, fields: allFields } });
   const officials = await getOfficialsForSessions(games.map((g) => g.id)).catch(() => [] as SessionOfficial[]);
 
   const weather: WeatherSnapshot = storm ? { risk: storm.risk, reasons: storm.reasons } : null;
@@ -119,14 +127,15 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
   return {
     venueId: venue.id,
     venueName: venue.name,
+    timeZone,
     mode,
     generatedAt: new Date(now).toISOString(),
     summary: summarize({ games, fields: venueFields, officials, assets: venueAssets, weather, now }),
     // No venue closing time is modeled yet, so curfew risk stays empty rather
     // than guessing a close hour.
-    pulse: buildSchedulePulse({ fields: venueFields, games, now }),
-    fields: buildFieldBoard(venueFields, games, officials, now),
-    attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, audioProfiles: venueAudioProfiles, weather, now }),
+    pulse: buildSchedulePulse({ fields: venueFields, games, now, timeZone }),
+    fields: buildFieldBoard(venueFields, games, officials, now, timeZone),
+    attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, audioProfiles: venueAudioProfiles, weather, now, timeZone }),
     checklist: buildModeChecklist({ mode, fields: venueFields, games, officials, assets: venueAssets, weather, workOrders: venueWorkOrders, now }),
     weather,
   };

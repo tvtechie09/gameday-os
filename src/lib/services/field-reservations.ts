@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { canManageFields, isPlatformAdmin, type AccessContext } from "@/lib/access/capabilities";
 import { assertFieldInScope } from "@/lib/access/scoped-venue-data";
+import { getVenueTimezoneForField } from "@/lib/services/venues";
 import {
   expandGrantSlots,
   isClaimableSlot,
@@ -229,7 +230,10 @@ export async function getGrantBoard(
   const grant = await getGrant(grantId);
   if (!grant) return null;
   const claims = await listClaimsForGrant(grantId);
-  const slots = expandGrantSlots(grant.recurrence, rangeStartMs, rangeEndMs);
+  // A grant's window ("6-9pm") is venue-local wall clock, and a grant only knows
+  // its field — so the zone comes from the field's venue.
+  const timeZone = await getVenueTimezoneForField(grant.fieldId);
+  const slots = expandGrantSlots(grant.recurrence, rangeStartMs, rangeEndMs, timeZone);
   const lite: ClaimLite[] = claims.map((c) => ({
     startsAt: c.startsAt,
     endsAt: c.endsAt,
@@ -270,7 +274,10 @@ export async function claimSlot(input: ClaimSlotInput): Promise<ClaimResult> {
   const grant = await getGrant(input.grantId);
   if (!grant) return { ok: false, reason: "invalid", message: "That block no longer exists." };
   if (grant.status !== "active") return { ok: false, reason: "closed", message: "This block is closed for new reservations." };
-  if (!isClaimableSlot(grant.recurrence, input.startsAt, input.endsAt)) {
+  // Must validate in the SAME zone the board generated the slot in, or a
+  // legitimate claim from a non-Central venue gets rejected as "not a slot".
+  const timeZone = await getVenueTimezoneForField(grant.fieldId);
+  if (!isClaimableSlot(grant.recurrence, input.startsAt, input.endsAt, timeZone)) {
     return { ok: false, reason: "invalid", message: "That's not an open slot on this block." };
   }
   if (!input.claimedByName?.trim()) {

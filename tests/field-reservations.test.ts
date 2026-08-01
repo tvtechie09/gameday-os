@@ -77,6 +77,70 @@ test("expandGrantSlots: 6pm means 6pm on both sides of a DST change", () => {
   assert.ok(firsts.every((s) => s.startLabel.endsWith("6:00 PM")));
 });
 
+// ---- slot windows in a SECOND timezone, across DST --------------------------
+//
+// A grant's window is venue-local wall clock: "6-9pm" must stay 6-9pm at the
+// field, in that field's zone, on both sides of a DST change. These mirror the
+// Chicago DST test for an Eastern venue -- the case that a Central-only
+// implementation gets wrong by an hour year-round, and by two across the change.
+
+test("expandGrantSlots: an Eastern venue's 6pm window is 6pm Eastern, not Central", () => {
+  // Tue 2026-07-21, 6-9pm New York (EDT, -04:00).
+  const slots = expandGrantSlots(
+    grant(),
+    ms("2026-07-21T00:00:00-04:00"),
+    ms("2026-07-22T00:00:00-04:00"),
+    "America/New_York",
+  );
+  assert.equal(slots.length, 2);
+  assert.equal(slots[0].startLabel, "Tue 6:00 PM");
+  assert.equal(slots[0].endLabel, "7:30 PM");
+  // 6:00 PM EDT is 22:00Z -- an hour earlier in absolute time than the same
+  // window at a Chicago venue, which is the whole point.
+  assert.equal(slots[0].startsAt, "2026-07-21T22:00:00.000Z");
+});
+
+test("expandGrantSlots: 6pm Eastern stays 6pm across the 2026-11-01 fall-back", () => {
+  const slots = expandGrantSlots(
+    grant({ seasonStartDate: "2026-10-01", seasonEndDate: "2026-11-30" }),
+    ms("2026-10-29T00:00:00-04:00"), // Thu Oct 29 (EDT)
+    ms("2026-11-06T00:00:00-05:00"), // through Thu Nov 5 (EST)
+    "America/New_York",
+  );
+  const firsts = slots.filter((s) => s.startLabel.endsWith("6:00 PM"));
+  assert.ok(firsts.length >= 2);
+  assert.ok(firsts.every((s) => s.startLabel.endsWith("6:00 PM")));
+
+  // The absolute instants must SHIFT by an hour across the change even though
+  // the local label does not: 6pm EDT is 22:00Z, 6pm EST is 23:00Z. A fixed
+  // offset would hold one of these wrong.
+  const before = slots.find((s) => s.startsAt < "2026-11-01" && s.startLabel.endsWith("6:00 PM"));
+  const after = slots.find((s) => s.startsAt > "2026-11-02" && s.startLabel.endsWith("6:00 PM"));
+  assert.ok(before && after);
+  assert.ok(before.startsAt.endsWith("T22:00:00.000Z"));
+  assert.ok(after.startsAt.endsWith("T23:00:00.000Z"));
+});
+
+test("isClaimableSlot: a slot is only claimable in the zone that generated it", () => {
+  const g = grant();
+  // The Tue 2026-07-21 6:00-7:30pm slot at an EASTERN venue.
+  const easternStart = "2026-07-21T22:00:00.000Z";
+  const easternEnd = "2026-07-21T23:30:00.000Z";
+  assert.equal(isClaimableSlot(g, easternStart, easternEnd, "America/New_York"), true);
+  // The same wall-clock window at a CENTRAL venue is a different instant, so the
+  // Eastern claim must not validate against Central -- that mismatch is how a
+  // coach's legitimate booking gets rejected as "not an open slot".
+  assert.equal(isClaimableSlot(g, easternStart, easternEnd, "America/Chicago"), false);
+  assert.equal(isClaimableSlot(g, "2026-07-21T23:00:00.000Z", "2026-07-22T00:30:00.000Z", "America/Chicago"), true);
+});
+
+test("timeLabel: reservation labels follow the venue's zone", () => {
+  assert.equal(timeLabel("2026-07-21T23:00:00.000Z", "America/New_York"), "7:00 PM");
+  assert.equal(timeLabel("2026-07-21T23:00:00.000Z", "America/Chicago"), "6:00 PM");
+  // Default stays Central for callers not yet passing a zone.
+  assert.equal(timeLabel("2026-07-21T23:00:00.000Z"), "6:00 PM");
+});
+
 test("expandGrantSlots: no days, zero slot length, or inverted window yields nothing", () => {
   const range: [number, number] = [ms("2026-07-20T00:00:00-05:00"), ms("2026-07-27T00:00:00-05:00")];
   assert.equal(expandGrantSlots(grant({ daysOfWeek: [] }), ...range).length, 0);

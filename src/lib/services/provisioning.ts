@@ -9,6 +9,7 @@ import {
   type PlannedField,
   type ProvisionInput,
 } from "@/lib/services/provisioning-core";
+import { normalizeVenueTimezone } from "@/lib/venue-timezone";
 
 // Customer onboarding (IO). Turns a signed founding venue into a live venue in one
 // submit: organization -> venue -> fields (+ splits) -> play surfaces -> technology
@@ -139,6 +140,7 @@ export async function provisionVenue(input: ProvisionInput, ctx: AccessContext |
       address: input.address?.trim().slice(0, 200) || null,
       city: input.city?.trim().slice(0, 120) || null,
       state: input.state?.trim().slice(0, 60) || null,
+      timezone: normalizeVenueTimezone(input.timezone),
       is_demo: input.isDemo,
     })
     .select("id,name")

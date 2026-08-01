@@ -5,6 +5,7 @@ import { canManagePlatform, isPlatformAdmin } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { listDemoTenants, packageCatalog, type DemoTenant } from "@/lib/services/provisioning";
 import { provisionVenueAction, teardownDemoAction } from "./actions";
+import { DEFAULT_VENUE_TIMEZONE, VENUE_TIMEZONE_OPTIONS } from "@/lib/venue-timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -130,6 +131,18 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
             <label className="grid gap-1"><span className={labelText}>City</span><input name="city" className={field} /></label>
             <label className="grid gap-1"><span className={labelText}>State</span><input name="state" maxLength={20} className={`${field} w-24`} /></label>
           </div>
+          <label className="grid gap-1">
+            <span className={labelText}>Timezone *</span>
+            <select name="timezone" required defaultValue={DEFAULT_VENUE_TIMEZONE} className={field}>
+              {VENUE_TIMEZONE_OPTIONS.map((tz) => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+            </select>
+            <span className="text-xs font-semibold text-[var(--muted)]">
+              The venue&rsquo;s own clock. This sets when their operating day rolls over and how every
+              game time reads — get it wrong and evening games fall on the wrong day.
+            </span>
+          </label>
         </div>
 
         {/* --- Fields ------------------------------------------------------ */}

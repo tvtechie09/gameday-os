@@ -5,6 +5,7 @@ import type { Field, VenueAsset } from "@/lib/types";
 // alias only resolves under the bundler, and these pure cores are run directly
 // by `node --test`. Type-only imports above are erased, so they can use `@/`.
 import { gameLabel, isSameVenueDay, timeLabel } from "./command-center-core.ts";
+import { DEFAULT_VENUE_TIMEZONE } from "../venue-timezone.ts";
 import { issueLifecycle, resolveIssueStage, type IssueStage } from "./work-order-core.ts";
 
 // End-of-day operations report — the artifact a GM forwards to their board on
@@ -65,6 +66,10 @@ export type EndOfDayCarryOver = {
 export type EndOfDayReport = {
   venueName: string | null;
   date: string;
+  // The zone `date` and every label in this report are expressed in. Carried out
+  // so the page renders its own date/time headers on the venue's clock instead
+  // of re-deriving a guess.
+  timeZone: string;
   generatedAt: string;
   games: EndOfDayGameCounts;
   schedule: EndOfDaySchedule;
@@ -87,6 +92,10 @@ export type EndOfDayInput = {
   // than silently falling back to the scheduled time, which would show a
   // perfect on-time day that never happened.
   actuals?: Map<string, { startedAt: string | null; finalAt: string | null }>;
+  // The venue's zone. `date` is already a venue-local YYYY-MM-DD, so this is
+  // what decides which work orders count as opened/resolved "today" — measuring
+  // an Eastern venue in Central would misfile every late-evening item.
+  timeZone?: string;
   now: number;
 };
 
@@ -95,6 +104,7 @@ const FLAGGED_FIELD_STATUSES = new Set(["delayed", "closed", "maintenance"]);
 export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
   const { games, fields, workOrders, assets, date, now } = input;
   const actuals = input.actuals ?? new Map();
+  const timeZone = input.timeZone ?? DEFAULT_VENUE_TIMEZONE;
   const fieldName = new Map(fields.map((field) => [field.id, field.name]));
   const nameOf = (fieldId: string) => fieldName.get(fieldId) ?? "Unassigned field";
 
@@ -117,7 +127,7 @@ export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
         label: gameLabel(game),
         fieldName: nameOf(game.fieldId),
         status: lifecycle || game.status,
-        scheduledStartLabel: timeLabel(game.startTime),
+        scheduledStartLabel: timeLabel(game.startTime, timeZone),
       });
     }
   }
@@ -171,8 +181,8 @@ export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
   const openIssues: EndOfDayCarryOver["openIssues"] = [];
 
   for (const order of workOrders) {
-    if (isSameVenueDay(order.createdAt, date)) issues.openedToday += 1;
-    if (order.closedAt && isSameVenueDay(order.closedAt, date)) issues.resolvedToday += 1;
+    if (isSameVenueDay(order.createdAt, date, timeZone)) issues.openedToday += 1;
+    if (order.closedAt && isSameVenueDay(order.closedAt, date, timeZone)) issues.resolvedToday += 1;
 
     const life = issueLifecycle(order, now);
     if (life.stage !== "resolved") {
@@ -226,6 +236,7 @@ export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
   return {
     venueName: input.venueName,
     date,
+    timeZone,
     generatedAt: new Date(now).toISOString(),
     games: counts,
     schedule,

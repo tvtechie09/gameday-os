@@ -126,6 +126,10 @@ export interface Venue {
   address: string;
   city?: string;
   state?: string;
+  // IANA zone this venue operates in. Always populated (the column is NOT NULL
+  // with a Central default, and the mapper normalizes), so callers can pass it
+  // straight into Intl without a fallback of their own.
+  timezone: string;
   parkingNote: string;
   fieldCount: number;
   status: VenueStatus;
