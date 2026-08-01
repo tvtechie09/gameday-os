@@ -49,6 +49,7 @@ export type ClaimForRoster = {
   claimedByName: string;
   claimedByEmail: string | null;
   startsAt: string;
+  fieldId: string;
   status: "confirmed" | "requested" | "denied" | "cancelled";
 };
 
@@ -57,6 +58,10 @@ export type CoachRosterEntry = {
   email: string | null;
   activeClaimCount: number; // confirmed + requested, i.e. still holds a slot
   lastClaimAt: string; // most recent startsAt across all their claims, any status
+  // The field `lastClaimAt` was claimed on. An org's coaches can hold slots at
+  // several venues, so the roster can't render that timestamp on one house
+  // clock — it has to be read in the zone of the venue where THAT claim sits.
+  lastClaimFieldId: string;
 };
 
 // Grouped by (name, email) so the same name with two different emails is two
@@ -72,9 +77,13 @@ export function deriveCoachRoster(claims: ClaimForRoster[]): CoachRosterEntry[] 
     const isActive = claim.status === "confirmed" || claim.status === "requested";
     if (existing) {
       existing.activeClaimCount += isActive ? 1 : 0;
-      if (claim.startsAt > existing.lastClaimAt) existing.lastClaimAt = claim.startsAt;
+      // Field moves with the timestamp: they name the same claim.
+      if (claim.startsAt > existing.lastClaimAt) {
+        existing.lastClaimAt = claim.startsAt;
+        existing.lastClaimFieldId = claim.fieldId;
+      }
     } else {
-      byKey.set(key, { name, email: claim.claimedByEmail, activeClaimCount: isActive ? 1 : 0, lastClaimAt: claim.startsAt });
+      byKey.set(key, { name, email: claim.claimedByEmail, activeClaimCount: isActive ? 1 : 0, lastClaimAt: claim.startsAt, lastClaimFieldId: claim.fieldId });
     }
   }
   return [...byKey.values()].sort((a, b) => b.lastClaimAt.localeCompare(a.lastClaimAt));

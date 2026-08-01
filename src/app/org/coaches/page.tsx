@@ -4,11 +4,16 @@ import { isOrgScoped } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { getSessionContext } from "@/lib/access/session";
 import { deriveCoachRoster, listClaimsForOrganization } from "@/lib/services/field-reservations";
+import { getFields } from "@/lib/services/fields";
+import { getVenues } from "@/lib/services/venues";
+import { normalizeVenueTimezone } from "@/lib/venue-timezone";
 
 export const dynamic = "force-dynamic";
 
-function dateLabel(iso: string): string {
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Chicago" }).format(new Date(iso));
+// A coach can hold slots at venues in different zones, so "last claimed" is read
+// in the zone of the venue that claim was actually made at, not one house clock.
+function dateLabel(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric", timeZone }).format(new Date(iso));
 }
 
 export default async function OrgCoachesPage() {
@@ -17,8 +22,17 @@ export default async function OrgCoachesPage() {
     redirect(getRoleHome(ctx));
   }
 
-  const claims = await listClaimsForOrganization(ctx.scopeId).catch(() => []);
+  const [claims, allFields, allVenues] = await Promise.all([
+    listClaimsForOrganization(ctx.scopeId).catch(() => []),
+    getFields().catch(() => []),
+    getVenues().catch(() => []),
+  ]);
   const roster = deriveCoachRoster(claims);
+
+  // field -> venue -> zone, so each row can be dated on its own venue's clock.
+  const venueTimeZoneById = new Map(allVenues.map((v) => [v.id, v.timezone]));
+  const fieldTimeZoneById = new Map(allFields.map((f) => [f.id, venueTimeZoneById.get(f.venueId)]));
+  const timeZoneForField = (fieldId: string) => normalizeVenueTimezone(fieldTimeZoneById.get(fieldId));
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -50,7 +64,7 @@ export default async function OrgCoachesPage() {
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold">{coach.activeClaimCount} active reservation{coach.activeClaimCount === 1 ? "" : "s"}</p>
-                <p className="text-xs text-[var(--muted)]">Last claimed {dateLabel(coach.lastClaimAt)}</p>
+                <p className="text-xs text-[var(--muted)]">Last claimed {dateLabel(coach.lastClaimAt, timeZoneForField(coach.lastClaimFieldId))}</p>
               </div>
             </div>
           ))

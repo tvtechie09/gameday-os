@@ -7,6 +7,7 @@ import { getFields } from "@/lib/services/fields";
 import { getVenues } from "@/lib/services/venues";
 import { listGrantsForOrganization, listClaimsForGrant, timeLabel, type BlockGrant, type SlotClaim } from "@/lib/services/field-reservations";
 import { cancelOwnClaimAction } from "./actions";
+import { normalizeVenueTimezone } from "@/lib/venue-timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,10 @@ function recurrenceLabel(grant: BlockGrant): string {
   return `${days || "No days set"}, ${fmt(start)}–${fmt(end)}`;
 }
 
-function claimDateLabel(iso: string): string {
-  return new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" }).format(new Date(iso));
+// An org can hold blocks at venues in different zones, so each block's rows read
+// on that venue's own clock rather than one house clock for the whole page.
+function claimDateLabel(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric", timeZone }).format(new Date(iso));
 }
 
 const statusStyle: Record<SlotClaim["status"], string> = {
@@ -89,6 +92,9 @@ export default async function OrgReservationsPage({ searchParams }: { searchPara
             const field = fieldsById.get(grant.fieldId);
             const venue = field?.venueId ? venuesById.get(field.venueId) : null;
             const claims = (claimsByGrant.get(grant.id) ?? []).slice().sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+            // Every claim on a block sits on that block's field, so the grant's
+            // venue is the right clock for all of its rows.
+            const timeZone = normalizeVenueTimezone(venue?.timezone);
             return (
               <div key={grant.id} className="rounded-lg border border-[var(--line)] bg-white p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -109,7 +115,7 @@ export default async function OrgReservationsPage({ searchParams }: { searchPara
                       <div key={claim.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[var(--background)] px-4 py-3">
                         <div>
                           <p className="text-sm font-bold">
-                            {claimDateLabel(claim.startsAt)}, {timeLabel(claim.startsAt)}–{timeLabel(claim.endsAt)}
+                            {claimDateLabel(claim.startsAt, timeZone)}, {timeLabel(claim.startsAt, timeZone)}–{timeLabel(claim.endsAt, timeZone)}
                           </p>
                           <p className="text-xs text-[var(--muted)]">{claim.claimedByName}{claim.claimedByEmail ? ` · ${claim.claimedByEmail}` : ""}</p>
                         </div>

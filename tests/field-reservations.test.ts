@@ -235,6 +235,7 @@ const rosterClaim = (over: Partial<ClaimForRoster> = {}): ClaimForRoster => ({
   claimedByName: "Jamie Rivera",
   claimedByEmail: "jamie@example.com",
   startsAt: "2026-07-21T23:00:00.000Z",
+  fieldId: "field-central",
   status: "confirmed",
   ...over,
 });
@@ -247,6 +248,30 @@ test("deriveCoachRoster groups repeat claims by the same coach into one row", ()
   assert.equal(roster.length, 1);
   assert.equal(roster[0].activeClaimCount, 2);
   assert.equal(roster[0].lastClaimAt, "2026-07-28T23:00:00.000Z");
+});
+
+test("deriveCoachRoster reports the field of the LAST claim, not the first seen", () => {
+  // The roster dates "last claimed" in the zone of the venue that claim was made
+  // at. If lastClaimFieldId lagged behind lastClaimAt, a coach whose newest slot
+  // is at an Eastern venue would have it rendered on the Central venue's clock —
+  // and the two disagree about the calendar day for anything after 11pm.
+  const roster = deriveCoachRoster([
+    rosterClaim({ startsAt: "2026-07-21T23:00:00.000Z", fieldId: "field-central" }),
+    rosterClaim({ startsAt: "2026-07-28T23:00:00.000Z", fieldId: "field-eastern" }),
+  ]);
+  assert.equal(roster.length, 1);
+  assert.equal(roster[0].lastClaimAt, "2026-07-28T23:00:00.000Z");
+  assert.equal(roster[0].lastClaimFieldId, "field-eastern");
+});
+
+test("deriveCoachRoster keeps the first field when a later claim is older", () => {
+  // Claims arrive in arbitrary order; the pairing must follow the timestamp.
+  const roster = deriveCoachRoster([
+    rosterClaim({ startsAt: "2026-07-28T23:00:00.000Z", fieldId: "field-eastern" }),
+    rosterClaim({ startsAt: "2026-07-21T23:00:00.000Z", fieldId: "field-central" }),
+  ]);
+  assert.equal(roster[0].lastClaimAt, "2026-07-28T23:00:00.000Z");
+  assert.equal(roster[0].lastClaimFieldId, "field-eastern");
 });
 
 test("deriveCoachRoster treats the same name with a different email as a different coach", () => {
