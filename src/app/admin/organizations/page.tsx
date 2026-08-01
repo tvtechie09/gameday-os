@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { isPlatformAdmin } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrganizations } from "@/lib/services/organizations";
 
@@ -29,6 +33,16 @@ async function safeTenantRows(tableName: "alerts" | "external_sources" | "fields
 }
 
 export default async function OrganizationsDashboardPage() {
+  // This is a cross-tenant Super Admin view (every org's counts, side by
+  // side) -- not something to scope per-org like the edit page. It was
+  // completely unguarded before: any authenticated user, including an
+  // org-scoped president, could see every organization's name, slug, and
+  // per-tenant resource counts.
+  const ctx = await getSessionContext();
+  if (!ctx || !isPlatformAdmin(ctx)) {
+    redirect(getRoleHome(ctx));
+  }
+
   const [organizations, venues, fields, sessions, sponsors, resources, alerts, integrations] = await Promise.all([
     getOrganizations().catch((error: unknown) => {
       console.error("Failed to load organizations dashboard", error);
