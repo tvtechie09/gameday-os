@@ -1,6 +1,8 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { canManagePlatform, isPlatformAdmin, type AccessContext } from "@/lib/access/capabilities";
 import { planDemoDay, type DemoSlot } from "@/lib/services/demo-day-core";
+import { venueDateString } from "@/lib/services/command-center-core";
+import { normalizeVenueTimezone } from "@/lib/venue-timezone";
 
 // Demo day refresh (IO). One click before a walkthrough re-times the demo games
 // onto today so the Command Center looks like a live Saturday.
@@ -43,7 +45,7 @@ function demoScore(index: number, slot: DemoSlot): { home: number; away: number 
 async function resolveDemoVenue(
   supabase: ReturnType<typeof getSupabaseAdminClient>,
   demoSessionIds: string[],
-): Promise<{ venueId: string; organizationId: string | null; fieldIds: string[] } | null> {
+): Promise<{ venueId: string; organizationId: string | null; timezone: string; fieldIds: string[] } | null> {
   if (!demoSessionIds.length) return null;
   const { data: sessionRows } = await supabase.from("sessions").select("field_id").in("id", demoSessionIds).eq("is_demo", true);
   const fieldIds = [...new Set((sessionRows ?? []).map((r) => (r as { field_id: string }).field_id).filter(Boolean))];
@@ -55,11 +57,13 @@ async function resolveDemoVenue(
 
   // Every field at that venue, so seeded work orders can land anywhere sensible.
   const { data: venueFields } = await supabase.from("fields").select("id").eq("venue_id", venueId);
-  const { data: venueRow } = await supabase.from("venues").select("organization_id").eq("id", venueId).maybeSingle();
+  const { data: venueRow } = await supabase.from("venues").select("organization_id,timezone").eq("id", venueId).maybeSingle();
+  const venue = venueRow as { organization_id: string | null; timezone: string | null } | null;
 
   return {
     venueId,
-    organizationId: (venueRow as { organization_id: string | null } | null)?.organization_id ?? null,
+    organizationId: venue?.organization_id ?? null,
+    timezone: normalizeVenueTimezone(venue?.timezone),
     fieldIds: (venueFields ?? []).map((r) => (r as { id: string }).id),
   };
 }
@@ -96,7 +100,7 @@ async function seedDemoWorkOrders(
 // short, which is what lets the make-good line be demoed honestly.
 async function ensureDemoCampaign(
   supabase: ReturnType<typeof getSupabaseAdminClient>,
-  demo: { venueId: string; organizationId: string | null },
+  demo: { venueId: string; organizationId: string | null; timezone: string },
   counts: { started: number; finals: number },
 ): Promise<boolean> {
   const { data: sponsorRows } = await supabase
@@ -108,7 +112,11 @@ async function ensureDemoCampaign(
   const sponsorId = (sponsorRows ?? [])[0] ? (sponsorRows as Array<{ id: string }>)[0].id : null;
   if (!sponsorId) return false;
 
-  const today = new Date().toISOString().slice(0, 10);
+  // The VENUE's today, not UTC's. `planDemoDay` places the games relative to now,
+  // so after ~7pm Central the UTC date is already tomorrow and this window would
+  // close before the games it is meant to cover — a 0% delivery rate on the
+  // Proof-of-Performance beat, in front of a prospect.
+  const today = venueDateString(Date.now(), demo.timezone);
   const contracted = {
     scoreboard_logo: counts.started * 2,
     pregame_announcement: counts.started,
