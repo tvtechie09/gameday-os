@@ -9,10 +9,12 @@
 // constraint (see migration 20260717090000). This layer decides which slots
 // EXIST and how to present them; the database decides who wins a race.
 
-const CHICAGO = "America/Chicago";
+import { DEFAULT_VENUE_TIMEZONE } from "../venue-timezone.ts";
 
-// The venue's calendar day/time. The whole app is Chicago-local today (see
-// command-center-core); multi-timezone venues are a later concern.
+// The recurrence is expressed in the VENUE's local wall clock: "Tue/Wed/Thu
+// 6-9pm" means 6pm where the field is, on both sides of a DST change. Every
+// function here therefore takes the venue's zone, defaulting to Central so
+// existing Chicagoland grants expand exactly as before.
 export type GrantRecurrence = {
   daysOfWeek: number[]; // 0=Sun .. 6=Sat
   windowStartMinute: number; // minutes from local midnight, e.g. 18*60
@@ -47,6 +49,7 @@ export type ClaimForRoster = {
   claimedByName: string;
   claimedByEmail: string | null;
   startsAt: string;
+  fieldId: string;
   status: "confirmed" | "requested" | "denied" | "cancelled";
 };
 
@@ -55,6 +58,10 @@ export type CoachRosterEntry = {
   email: string | null;
   activeClaimCount: number; // confirmed + requested, i.e. still holds a slot
   lastClaimAt: string; // most recent startsAt across all their claims, any status
+  // The field `lastClaimAt` was claimed on. An org's coaches can hold slots at
+  // several venues, so the roster can't render that timestamp on one house
+  // clock — it has to be read in the zone of the venue where THAT claim sits.
+  lastClaimFieldId: string;
 };
 
 // Grouped by (name, email) so the same name with two different emails is two
@@ -70,9 +77,13 @@ export function deriveCoachRoster(claims: ClaimForRoster[]): CoachRosterEntry[] 
     const isActive = claim.status === "confirmed" || claim.status === "requested";
     if (existing) {
       existing.activeClaimCount += isActive ? 1 : 0;
-      if (claim.startsAt > existing.lastClaimAt) existing.lastClaimAt = claim.startsAt;
+      // Field moves with the timestamp: they name the same claim.
+      if (claim.startsAt > existing.lastClaimAt) {
+        existing.lastClaimAt = claim.startsAt;
+        existing.lastClaimFieldId = claim.fieldId;
+      }
     } else {
-      byKey.set(key, { name, email: claim.claimedByEmail, activeClaimCount: isActive ? 1 : 0, lastClaimAt: claim.startsAt });
+      byKey.set(key, { name, email: claim.claimedByEmail, activeClaimCount: isActive ? 1 : 0, lastClaimAt: claim.startsAt, lastClaimFieldId: claim.fieldId });
     }
   }
   return [...byKey.values()].sort((a, b) => b.lastClaimAt.localeCompare(a.lastClaimAt));
@@ -90,9 +101,9 @@ export type ResolvedSlot = ReservationSlot & { state: SlotState };
 // --- Local-time helpers ------------------------------------------------------
 
 // The venue-local calendar date (YYYY-MM-DD) for an absolute instant.
-function localDateString(ms: number): string {
+function localDateString(ms: number, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: CHICAGO,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -100,29 +111,29 @@ function localDateString(ms: number): string {
 }
 
 // Day of week (0=Sun) in venue-local time.
-function localDayOfWeek(ms: number): number {
-  const wd = new Intl.DateTimeFormat("en-US", { timeZone: CHICAGO, weekday: "short" }).format(new Date(ms));
+function localDayOfWeek(ms: number, timeZone: string): number {
+  const wd = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(ms));
   return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(wd);
 }
 
-// The absolute instant of local `YYYY-MM-DD` + `minutesFromMidnight` in Chicago.
-// Resolves the timezone offset by probing what UTC guess actually lands on the
-// intended local wall-clock time — correct across DST without a tz library.
-function localWallClockToInstant(dateStr: string, minutesFromMidnight: number): number {
+// The absolute instant of local `YYYY-MM-DD` + `minutesFromMidnight` in the
+// venue's zone. Resolves the offset by probing what UTC guess actually lands on
+// the intended local wall-clock time — correct across DST without a tz library.
+function localWallClockToInstant(dateStr: string, minutesFromMidnight: number, timeZone: string): number {
   const [y, m, d] = dateStr.split("-").map(Number);
   const hour = Math.floor(minutesFromMidnight / 60);
   const minute = minutesFromMidnight % 60;
-  // Start from the UTC guess, then correct by the offset Chicago had at that guess.
+  // Start from the UTC guess, then correct by the offset the venue had then.
   const utcGuess = Date.UTC(y, m - 1, d, hour, minute);
-  const offsetMin = chicagoOffsetMinutes(utcGuess);
+  const offsetMin = zoneOffsetMinutes(utcGuess, timeZone);
   return utcGuess - offsetMin * 60_000;
 }
 
-// Chicago's UTC offset in minutes at a given instant (negative: behind UTC).
-function chicagoOffsetMinutes(ms: number): number {
-  // Format the instant in Chicago and in UTC, diff the wall clocks.
+// A zone's UTC offset in minutes at a given instant (negative: behind UTC).
+function zoneOffsetMinutes(ms: number, timeZone: string): number {
+  // Format the instant in the zone and in UTC, diff the wall clocks.
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: CHICAGO,
+    timeZone,
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(new Date(ms));
@@ -133,12 +144,12 @@ function chicagoOffsetMinutes(ms: number): number {
   return Math.round((asUTC - ms) / 60_000);
 }
 
-export function timeLabel(iso: string): string {
-  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: CHICAGO }).format(new Date(iso));
+export function timeLabel(iso: string, timeZone: string = DEFAULT_VENUE_TIMEZONE): string {
+  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone }).format(new Date(iso));
 }
 
-function dayTimeLabel(iso: string): string {
-  return new Intl.DateTimeFormat("en", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: CHICAGO }).format(new Date(iso));
+function dayTimeLabel(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone }).format(new Date(iso));
 }
 
 // --- Slot expansion ----------------------------------------------------------
@@ -152,6 +163,7 @@ export function expandGrantSlots(
   recurrence: GrantRecurrence,
   rangeStartMs: number,
   rangeEndMs: number,
+  timeZone: string = DEFAULT_VENUE_TIMEZONE,
 ): ReservationSlot[] {
   const slots: ReservationSlot[] = [];
   if (recurrence.slotMinutes <= 0) return slots;
@@ -162,8 +174,8 @@ export function expandGrantSlots(
 
   // Iterate venue-local dates from the later of (range start, season start) to the
   // earlier of (range end, season end). Walk by UTC noon to stay clear of DST edges.
-  const seasonStartMs = localWallClockToInstant(recurrence.seasonStartDate, 12 * 60);
-  const seasonEndMs = localWallClockToInstant(recurrence.seasonEndDate, 12 * 60);
+  const seasonStartMs = localWallClockToInstant(recurrence.seasonStartDate, 12 * 60, timeZone);
+  const seasonEndMs = localWallClockToInstant(recurrence.seasonEndDate, 12 * 60, timeZone);
   let cursor = Math.max(rangeStartMs, seasonStartMs);
   const end = Math.min(rangeEndMs, seasonEndMs + 24 * 60 * 60 * 1000);
 
@@ -171,22 +183,22 @@ export function expandGrantSlots(
   let guard = 0;
   while (cursor < end && guard < 400) {
     guard += 1;
-    const dateStr = localDateString(cursor);
+    const dateStr = localDateString(cursor, timeZone);
     if (!seen.has(dateStr)) {
       seen.add(dateStr);
-      const dow = localDayOfWeek(localWallClockToInstant(dateStr, 12 * 60));
+      const dow = localDayOfWeek(localWallClockToInstant(dateStr, 12 * 60, timeZone), timeZone);
       if (days.has(dow)) {
         for (
           let start = recurrence.windowStartMinute;
           start + recurrence.slotMinutes <= recurrence.windowEndMinute;
           start += recurrence.slotMinutes
         ) {
-          const startMs = localWallClockToInstant(dateStr, start);
-          const endMs = localWallClockToInstant(dateStr, start + recurrence.slotMinutes);
+          const startMs = localWallClockToInstant(dateStr, start, timeZone);
+          const endMs = localWallClockToInstant(dateStr, start + recurrence.slotMinutes, timeZone);
           if (endMs <= rangeStartMs || startMs >= rangeEndMs) continue;
           const startIso = new Date(startMs).toISOString();
           const endIso = new Date(endMs).toISOString();
-          slots.push({ startsAt: startIso, endsAt: endIso, startLabel: dayTimeLabel(startIso), endLabel: timeLabel(endIso) });
+          slots.push({ startsAt: startIso, endsAt: endIso, startLabel: dayTimeLabel(startIso, timeZone), endLabel: timeLabel(endIso, timeZone) });
           if (slots.length >= MAX_EXPANDED_SLOTS) return slots;
         }
       }
@@ -239,14 +251,19 @@ export function resolveSlotStates(
 // Is this the exact [startsAt, endsAt] of a real slot of the grant? A claim must
 // land on a generated slot boundary, not an arbitrary time a hand-built request
 // could smuggle in.
-export function isClaimableSlot(recurrence: GrantRecurrence, startsAt: string, endsAt: string): boolean {
+export function isClaimableSlot(
+  recurrence: GrantRecurrence,
+  startsAt: string,
+  endsAt: string,
+  timeZone: string = DEFAULT_VENUE_TIMEZONE,
+): boolean {
   const startMs = Date.parse(startsAt);
   const endMs = Date.parse(endsAt);
   if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) return false;
   // Expand just the day of the requested slot and look for an exact match.
   const dayStart = startMs - 12 * 60 * 60 * 1000;
   const dayEnd = endMs + 12 * 60 * 60 * 1000;
-  return expandGrantSlots(recurrence, dayStart, dayEnd).some(
+  return expandGrantSlots(recurrence, dayStart, dayEnd, timeZone).some(
     (s) => Date.parse(s.startsAt) === startMs && Date.parse(s.endsAt) === endMs,
   );
 }

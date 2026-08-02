@@ -5,7 +5,7 @@ import {
   buildFieldBoard,
   buildModeChecklist,
   buildSchedulePulse,
-  chicagoDateString,
+  venueDateString,
   defaultGameMinutes,
   DOWNSTREAM_IMPACT_THRESHOLD_MIN,
   UPCOMING_WINDOW_MIN,
@@ -261,12 +261,21 @@ test("buildModeChecklist: live ops flags schedule when a game runs behind", () =
   assert.equal(byKey.get("scoreboards_live")?.status, "ready");
 });
 
-// ---- chicagoDateString -----------------------------------------------------
+// ---- venueDateString -------------------------------------------------------
 
-test("chicagoDateString: renders YYYY-MM-DD in Central Time", () => {
+test("venueDateString: renders YYYY-MM-DD in Central Time by default", () => {
   // 2026-07-14T02:00Z is still 2026-07-13 in Chicago (UTC-5 in July).
-  assert.equal(chicagoDateString(Date.parse("2026-07-14T02:00:00.000Z")), "2026-07-13");
-  assert.match(chicagoDateString(NOW), /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(venueDateString(Date.parse("2026-07-14T02:00:00.000Z")), "2026-07-13");
+  assert.match(venueDateString(NOW), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("venueDateString: the same instant is a different operating day in different zones", () => {
+  // 12:30am Jul 17 in New York is still 11:30pm Jul 16 in Chicago and Phoenix.
+  // A venue's day boundary belongs to the venue, not to the server.
+  const instant = Date.parse("2026-07-17T04:30:00.000Z");
+  assert.equal(venueDateString(instant, "America/New_York"), "2026-07-17");
+  assert.equal(venueDateString(instant, "America/Chicago"), "2026-07-16");
+  assert.equal(venueDateString(instant, "America/Phoenix"), "2026-07-16");
 });
 
 // ---- isSameVenueDay --------------------------------------------------------
@@ -287,6 +296,58 @@ test("isSameVenueDay: an early-morning UTC stamp belongs to the prior venue day"
 test("isSameVenueDay: garbage timestamps never match", () => {
   assert.equal(isSameVenueDay("not-a-date", "2026-07-16"), false);
   assert.equal(isSameVenueDay("", "2026-07-16"), false);
+});
+
+// ---- isSameVenueDay in a SECOND timezone, across DST ------------------------
+//
+// The Central-only version of this function was correct for the founding cohort
+// and silently wrong everywhere else. These cases pin an Eastern venue, because
+// that is where the original bug re-appears one hour earlier in the evening --
+// and they straddle both DST transitions, because a hardcoded offset passes the
+// summer cases and fails exactly here.
+
+test("isSameVenueDay: an Eastern venue's evening game stays on its own day", () => {
+  // 9:09pm Jul 16 in New York is already Jul 17 in UTC.
+  assert.equal(isSameVenueDay("2026-07-17T01:09:00.000Z", "2026-07-16", "America/New_York"), true);
+  // 12:30am Jul 17 Eastern belongs to Jul 17 there -- but to Jul 16 in Central.
+  // Judging an Eastern venue on Central's clock loses the late game.
+  assert.equal(isSameVenueDay("2026-07-17T04:30:00.000Z", "2026-07-17", "America/New_York"), true);
+  assert.equal(isSameVenueDay("2026-07-17T04:30:00.000Z", "2026-07-17", "America/Chicago"), false);
+});
+
+test("isSameVenueDay: Eastern day boundary holds across the fall-back (2026-11-01)", () => {
+  // Midnight Nov 1 Eastern is 04:00Z while EDT (UTC-4) is still in force.
+  assert.equal(isSameVenueDay("2026-11-01T04:00:00.000Z", "2026-11-01", "America/New_York"), true);
+  // Two days later EST (UTC-5) applies, so 04:59Z is still 11:59pm on Nov 2.
+  // A hardcoded summer offset would file this game under Nov 3 and drop it from
+  // the Nov 2 board.
+  assert.equal(isSameVenueDay("2026-11-03T04:59:00.000Z", "2026-11-02", "America/New_York"), true);
+  assert.equal(isSameVenueDay("2026-11-03T04:59:00.000Z", "2026-11-03", "America/New_York"), false);
+});
+
+test("isSameVenueDay: Eastern day boundary holds across the spring-forward (2026-03-08)", () => {
+  // Before the change EST (UTC-5): 04:59Z is 11:59pm on Mar 7.
+  assert.equal(isSameVenueDay("2026-03-08T04:59:00.000Z", "2026-03-07", "America/New_York"), true);
+  // After it EDT (UTC-4): 04:00Z is already midnight Mar 9, not 11pm Mar 8.
+  assert.equal(isSameVenueDay("2026-03-09T04:00:00.000Z", "2026-03-09", "America/New_York"), true);
+  assert.equal(isSameVenueDay("2026-03-09T04:00:00.000Z", "2026-03-08", "America/New_York"), false);
+});
+
+test("isSameVenueDay: a zone that never observes DST is not assumed to", () => {
+  // Phoenix stays UTC-7 all year. In July it trails Denver by an hour; in
+  // January the two agree. Applying a blanket DST rule breaks the summer case.
+  assert.equal(isSameVenueDay("2026-07-17T06:30:00.000Z", "2026-07-16", "America/Phoenix"), true);
+  assert.equal(isSameVenueDay("2026-07-17T06:30:00.000Z", "2026-07-17", "America/Denver"), true);
+  assert.equal(isSameVenueDay("2026-01-15T06:30:00.000Z", "2026-01-14", "America/Phoenix"), true);
+  assert.equal(isSameVenueDay("2026-01-15T06:30:00.000Z", "2026-01-14", "America/Denver"), true);
+});
+
+test("timeLabel: the same instant reads on each venue's own clock", () => {
+  const iso = "2026-07-17T01:09:00.000Z";
+  assert.equal(timeLabel(iso, "America/New_York"), "9:09 PM");
+  assert.equal(timeLabel(iso, "America/Chicago"), "8:09 PM");
+  // Default stays Central, so untouched callers are unchanged.
+  assert.equal(timeLabel(iso), "8:09 PM");
 });
 
 // ---- deviceCheck honesty ----------------------------------------------------

@@ -5,16 +5,17 @@ import { canViewCommandCenter } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { buildEndOfDay, type EndOfDayReport } from "@/lib/services/end-of-day";
 import { PrintDownloadButton } from "@/components/print-download-button";
+import { timeZoneAbbreviation } from "@/lib/venue-timezone";
 
 export const dynamic = "force-dynamic";
 
-function formatDate(date: string) {
+function formatDate(date: string, timeZone: string) {
   // date is a venue-local YYYY-MM-DD; anchor at noon so the label can't slip a day.
-  return new Intl.DateTimeFormat("en", { dateStyle: "full", timeZone: "America/Chicago" }).format(new Date(date + "T12:00:00Z"));
+  return new Intl.DateTimeFormat("en", { dateStyle: "full", timeZone }).format(new Date(date + "T12:00:00Z"));
 }
 
-function formatGeneratedAt(iso: string) {
-  return new Intl.DateTimeFormat("en", { timeStyle: "short", timeZone: "America/Chicago" }).format(new Date(iso));
+function formatGeneratedAt(iso: string, timeZone: string) {
+  return new Intl.DateTimeFormat("en", { timeStyle: "short", timeZone }).format(new Date(iso));
 }
 
 function Stat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
@@ -60,7 +61,7 @@ export default async function EndOfDayPage({ searchParams }: { searchParams?: Pr
         <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">End-of-day operations report</p>
         <h1 className="mt-2 text-3xl font-black sm:text-4xl">{report.venueName ?? "No venue in scope"}</h1>
         <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-          {formatDate(report.date)} · generated {formatGeneratedAt(report.generatedAt)} CT
+          {formatDate(report.date, report.timeZone)} · generated {formatGeneratedAt(report.generatedAt, report.timeZone)} {timeZoneAbbreviation(report.timeZone)}
         </p>
       </header>
 

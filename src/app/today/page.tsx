@@ -9,6 +9,7 @@ import { flagshipVenueDisplayName } from "@/lib/access/demo-users";
 import { getSessionContext } from "@/lib/access/session";
 import { QuickActions } from "@/components/access/quick-actions";
 import { buildTodayView } from "@/lib/services/venue-operations";
+import { timeZoneAbbreviation } from "@/lib/venue-timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -50,8 +51,10 @@ export default async function TodayPage() {
     weekday: "long",
     month: "long",
     day: "numeric",
-    timeZone: "America/Chicago",
+    timeZone: view.timeZone,
   }).format(now);
+  // Name the clock we are actually showing instead of asserting "Central Time".
+  const zoneLabel = timeZoneAbbreviation(view.timeZone, now);
 
   const allowed = [
     canStartGame(ctx) ? "start" : null,
@@ -67,7 +70,7 @@ export default async function TodayPage() {
       <header className="flex flex-col gap-1 border-b border-[var(--line)] pb-5">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Today&rsquo;s Operations</p>
         <h1 className="text-2xl font-black leading-tight text-[var(--foreground)] sm:text-3xl">{venueName}</h1>
-        <p className="text-sm font-semibold text-[var(--muted)]">{dateLabel} · Central Time</p>
+        <p className="text-sm font-semibold text-[var(--muted)]">{dateLabel}{zoneLabel ? ` · ${zoneLabel}` : ""}</p>
       </header>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-4">

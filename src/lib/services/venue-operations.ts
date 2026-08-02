@@ -7,6 +7,7 @@ import { venueInScope, type AccessContext } from "@/lib/access/capabilities";
 import { listGamesForVenue } from "@/lib/game-engine/game-service";
 import { computeQuickActionTargets, labelFor, type QuickActionTargets } from "@/lib/services/quick-action-targets";
 import type { Field, Venue } from "@/lib/types";
+import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
 
 // Resolves the venue the acting user operates and builds the LIVE Today's-
 // Operations view from real sessions/fields/alerts — no demo data. A
@@ -18,6 +19,8 @@ export type { QuickActionTargets };
 export type TodayView = {
   venueId: string | null;
   venueName: string | null;
+  // The venue's IANA zone, so the page's date header matches these time labels.
+  timeZone: string;
   health: { activeGames: number; delayedFields: number; totalFields: number; maintenanceFields: number };
   liveGames: Array<{ id: string; label: string; fieldName: string; timeLabel: string }>;
   upcoming: Array<{ id: string; label: string; fieldName: string; timeLabel: string }>;
@@ -27,10 +30,10 @@ export type TodayView = {
   targets: QuickActionTargets;
 };
 
-function timeLabel(iso: string): string {
+function timeLabel(iso: string, timeZone: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).format(date);
+  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone }).format(date);
 }
 
 // Pure venue picker: a venue-scoped user gets their own venue; everyone else
@@ -54,6 +57,7 @@ export async function resolveActingVenue(ctx: AccessContext | null): Promise<Ven
 const EMPTY_VIEW: TodayView = {
   venueId: null,
   venueName: null,
+  timeZone: DEFAULT_VENUE_TIMEZONE,
   health: { activeGames: 0, delayedFields: 0, totalFields: 0, maintenanceFields: 0 },
   liveGames: [],
   upcoming: [],
@@ -79,6 +83,7 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
   const fieldIds = new Set(venueFields.map((field) => field.id));
   const fieldName = new Map(venueFields.map((field) => [field.id, field.name]));
   const now = Date.now();
+  const timeZone = venue.timezone;
 
   // First consumer of the Connected Game Engine read path: same data, served
   // through the shared Game domain service (preloaded to keep the single
@@ -87,16 +92,17 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
 
   const liveGames = venueSessions
     .filter((session) => session.status === "active")
-    .map((session) => ({ id: session.id, label: labelFor(session), fieldName: fieldName.get(session.fieldId) || "Field", timeLabel: timeLabel(session.startTime) }));
+    .map((session) => ({ id: session.id, label: labelFor(session), fieldName: fieldName.get(session.fieldId) || "Field", timeLabel: timeLabel(session.startTime, timeZone) }));
 
   const upcoming = venueSessions
     .filter((session) => session.status === "scheduled" && new Date(session.startTime).getTime() > now - 30 * 60 * 1000)
     .slice(0, 6)
-    .map((session) => ({ id: session.id, label: labelFor(session), fieldName: fieldName.get(session.fieldId) || "Field", timeLabel: timeLabel(session.startTime) }));
+    .map((session) => ({ id: session.id, label: labelFor(session), fieldName: fieldName.get(session.fieldId) || "Field", timeLabel: timeLabel(session.startTime, timeZone) }));
 
   return {
     venueId: venue.id,
     venueName: venue.name,
+    timeZone,
     health: {
       activeGames: liveGames.length,
       delayedFields: venueFields.filter((field) => field.status === "delayed").length,

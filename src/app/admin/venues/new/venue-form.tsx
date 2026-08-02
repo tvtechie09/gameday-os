@@ -3,6 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createVenueAction } from "./actions";
+import { DEFAULT_VENUE_TIMEZONE, VENUE_TIMEZONE_OPTIONS } from "@/lib/venue-timezone";
 
 type Message = {
   kind: "success" | "error";
@@ -92,6 +93,25 @@ export function VenueForm() {
           disabled={isSaving}
           type="text"
         />
+      </label>
+
+      <label className="grid gap-2">
+        <span className="text-sm font-bold">Timezone</span>
+        <select
+          className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+          defaultValue={DEFAULT_VENUE_TIMEZONE}
+          disabled={isSaving}
+          name="timezone"
+          required
+        >
+          {VENUE_TIMEZONE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <span className="text-sm leading-6 text-[var(--muted)]">
+          The venue&rsquo;s own clock. It sets when the operating day rolls over and how every game
+          time reads — get it wrong and evening games land on the wrong day.
+        </span>
       </label>
 
       <section className="grid gap-5 border-t border-[var(--line)] pt-5">

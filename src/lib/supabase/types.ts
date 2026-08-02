@@ -1212,6 +1212,10 @@ export type Database = {
           address: string | null;
           city: string | null;
           state: string | null;
+          // Optional on the Row so code that selects an explicit column list
+          // without it still type-checks; the column itself is NOT NULL with a
+          // default, so a row that selects it always has a value.
+          timezone?: string;
           parking_note: string | null;
           status: string;
           logo_url: string | null;
@@ -1232,6 +1236,7 @@ export type Database = {
           address?: string | null;
           city?: string | null;
           state?: string | null;
+          timezone?: string;
           parking_note?: string | null;
           status?: string;
           logo_url?: string | null;
@@ -1252,6 +1257,7 @@ export type Database = {
           address?: string | null;
           city?: string | null;
           state?: string | null;
+          timezone?: string;
           parking_note?: string | null;
           status?: string;
           logo_url?: string | null;

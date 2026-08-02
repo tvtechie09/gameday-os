@@ -13,6 +13,7 @@ export async function createVenueAction(formData: FormData): Promise<CreateVenue
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
+  const timezone = String(formData.get("timezone") ?? "").trim();
   const logoUrl = String(formData.get("logo_url") ?? "").trim();
   const bannerUrl = String(formData.get("banner_url") ?? "").trim();
   const mapImageUrl = String(formData.get("map_image_url") ?? "").trim();
@@ -30,6 +31,8 @@ export async function createVenueAction(formData: FormData): Promise<CreateVenue
         name,
         description,
         address,
+        // Omitted falls back to Central in createVenue, matching the column default.
+        timezone: timezone || undefined,
         logo_url: logoUrl || null,
         banner_url: bannerUrl || null,
         map_image_url: mapImageUrl || null,

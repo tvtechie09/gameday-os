@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getVenue, updateVenue } from "@/lib/services/venues";
 import { getSessionContext } from "@/lib/access/session";
 import { venueInScope } from "@/lib/access/capabilities";
+import { VENUE_TIMEZONE_OPTIONS } from "@/lib/venue-timezone";
 
 type EditVenuePageProps = {
   params: Promise<{ venueId: string }>;
@@ -32,6 +33,7 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
     const name = String(formData.get("name") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
     const address = String(formData.get("address") ?? "").trim();
+    const timezone = String(formData.get("timezone") ?? "").trim();
     const logoUrl = String(formData.get("logo_url") ?? "").trim();
     const bannerUrl = String(formData.get("banner_url") ?? "").trim();
     const mapImageUrl = String(formData.get("map_image_url") ?? "").trim();
@@ -49,6 +51,9 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
         name,
         description,
         address,
+        // Empty is a no-op in updateVenue, so a form posted without the field
+        // leaves the venue's existing zone alone rather than resetting it.
+        timezone: timezone || undefined,
         logo_url: logoUrl || null,
         banner_url: bannerUrl || null,
         map_image_url: mapImageUrl || null,
@@ -74,6 +79,14 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
     );
   }
 
+  // A venue can hold any IANA zone (set at onboarding or directly in SQL), while
+  // the picker only lists the common US ones. Surface the venue's current zone
+  // as its own option when it isn't on that list — otherwise the select would
+  // default to the first entry and silently rewrite the zone on the next save.
+  const timezoneOptions = VENUE_TIMEZONE_OPTIONS.some((option) => option.value === venue.timezone)
+    ? VENUE_TIMEZONE_OPTIONS
+    : [...VENUE_TIMEZONE_OPTIONS, { value: venue.timezone, label: venue.timezone }];
+
   return (
     <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
       <Link href="/admin/venues" className="text-sm font-bold text-[var(--accent-strong)]">
@@ -96,6 +109,19 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
         <label className="grid gap-2">
           <span className="text-sm font-bold">Address</span>
           <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={venue.address} name="address" />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-bold">Timezone</span>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={venue.timezone} name="timezone" required>
+            {timezoneOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          <span className="text-sm leading-6 text-[var(--muted)]">
+            This venue&rsquo;s own clock. It sets when the operating day rolls over and how every game
+            time reads across the Command Center, schedule, and reports. Changing it re-dates
+            evening games, so only change it if the venue is genuinely in another zone.
+          </span>
         </label>
         <section className="grid gap-5 border-t border-[var(--line)] pt-5">
           <div>

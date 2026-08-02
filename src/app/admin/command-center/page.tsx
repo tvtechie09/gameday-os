@@ -6,6 +6,7 @@ import { buildCommandCenter, type AttentionItem, type AttentionTier, type Comman
 import { LiveScore } from "@/app/fields/[fieldId]/live-score";
 import { ModeChecklistCard } from "./mode-checklist";
 import { refreshDemoDayAction } from "./actions";
+import { timeZoneAbbreviation } from "@/lib/venue-timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -188,8 +189,8 @@ export default async function CommandCenterPage() {
   const mode = modeCaption[view.mode];
   const s = view.summary;
 
-  const dateLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Chicago" }).format(new Date());
-  const generatedLabel = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).format(new Date(view.generatedAt));
+  const dateLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: view.timeZone }).format(new Date());
+  const generatedLabel = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: view.timeZone }).format(new Date(view.generatedAt));
 
   const urgent = view.attention.filter((i) => i.tier === "urgent");
   const soon = view.attention.filter((i) => i.tier === "soon");
@@ -211,7 +212,7 @@ export default async function CommandCenterPage() {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent-strong)]">GameDay Command Center</p>
           <h1 className="mt-1 text-2xl font-black leading-tight text-[var(--foreground)] sm:text-3xl">{view.venueName}</h1>
-          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{dateLabel} · Central Time · updated {generatedLabel}</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{dateLabel} · {timeZoneAbbreviation(view.timeZone)} · updated {generatedLabel}</p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <div className="rounded-xl border border-[var(--line)] bg-[var(--background)] px-4 py-3 sm:max-w-xs">

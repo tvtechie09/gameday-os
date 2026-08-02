@@ -38,6 +38,7 @@ export async function provisionVenueAction(formData: FormData): Promise<void> {
       address: String(formData.get("address") ?? ""),
       city: String(formData.get("city") ?? ""),
       state: String(formData.get("state") ?? ""),
+      timezone: String(formData.get("timezone") ?? ""),
       fieldCount: Number(formData.get("field_count") ?? 0),
       fieldNamePattern: String(formData.get("field_pattern") ?? "Field {n}"),
       splitsPerField: Number(formData.get("splits_per_field") ?? 0),

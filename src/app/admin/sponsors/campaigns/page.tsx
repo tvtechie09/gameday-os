@@ -3,15 +3,16 @@ import { getSponsors } from "@/lib/services/sponsors";
 import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSponsorCampaigns, getRevenueOpportunities } from "@/lib/services/sponsor-campaigns";
 import { CampaignForm } from "./campaign-form";
+import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
 
 export const dynamic = "force-dynamic";
 
-function todayInChicago(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+function todayAtVenue(timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
-function dateRange(startsOn: string, endsOn: string): string {
-  const fmt = (d: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "America/Chicago" }).format(new Date(d + "T12:00:00Z"));
+function dateRange(startsOn: string, endsOn: string, timeZone: string): string {
+  const fmt = (d: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(new Date(d + "T12:00:00Z"));
   return startsOn === endsOn ? fmt(startsOn) : `${fmt(startsOn)} – ${fmt(endsOn)}`;
 }
 
@@ -29,6 +30,11 @@ export default async function SponsorCampaignsPage({ searchParams }: { searchPar
   const sponsors = scopedOrgIds ? allSponsors.filter((s) => !s.organizationId || scopedOrgIds.has(s.organizationId)) : allSponsors;
   const campaigns = scopedOrgIds ? allCampaigns.filter((c) => !c.organizationId || scopedOrgIds.has(c.organizationId)) : allCampaigns;
   const sponsorName = new Map(sponsors.map((s) => [s.id, s.name]));
+  // A campaign is scoped to one venue, so each row reads on that venue's clock.
+  // The form's default "today" uses the caller's primary venue.
+  const venueTimeZone = new Map(venues.map((v) => [v.id, v.timezone]));
+  const primaryTimeZone = venues[0]?.timezone ?? DEFAULT_VENUE_TIMEZONE;
+  const timeZoneFor = (venueId: string | null) => (venueId ? venueTimeZone.get(venueId) : undefined) ?? primaryTimeZone;
   const oppTone: Record<string, string> = {
     high: "border-red-300 bg-red-50 text-red-900",
     medium: "border-amber-300 bg-amber-50 text-amber-950",
@@ -84,7 +90,7 @@ export default async function SponsorCampaignsPage({ searchParams }: { searchPar
             </p>
           ) : (
             <div className="mt-3">
-              <CampaignForm sponsors={sponsors} venues={venues} today={todayInChicago()} policyBlocked={policy === "blocked"} />
+              <CampaignForm sponsors={sponsors} venues={venues} today={todayAtVenue(primaryTimeZone)} policyBlocked={policy === "blocked"} />
             </div>
           )}
         </div>
@@ -105,7 +111,7 @@ export default async function SponsorCampaignsPage({ searchParams }: { searchPar
                     </div>
                     <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
                       {sponsorName.get(c.sponsorId) ?? "Sponsor"}
-                      {c.packageName ? ` · ${c.packageName}` : ""} · {dateRange(c.startsOn, c.endsOn)} · {contractedTotal} contracted placements
+                      {c.packageName ? ` · ${c.packageName}` : ""} · {dateRange(c.startsOn, c.endsOn, timeZoneFor(c.venueId))} · {contractedTotal} contracted placements
                     </p>
                     <p className="mt-2 text-xs font-black text-[var(--accent-strong)]">View proof of performance →</p>
                   </Link>

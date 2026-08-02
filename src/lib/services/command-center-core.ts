@@ -3,6 +3,9 @@ import type { SessionOfficial } from "@/lib/services/officials";
 import type { WorkOrder } from "@/lib/services/work-orders";
 import type { StormRiskLevel } from "@/lib/services/storm-assessment";
 import type { AudioProfile, Field, VenueAsset } from "@/lib/types";
+// Relative + .ts: this core is executed directly by `node --test`, where the
+// "@/" alias does not resolve for VALUE imports (type imports are stripped).
+import { DEFAULT_VENUE_TIMEZONE } from "../venue-timezone.ts";
 
 // Pure core of the GameDay Command Center — mode resolution, delay math, field
 // board, attention queue, and summary. Type-only imports keep this dependency-
@@ -33,8 +36,6 @@ const SPORT_GAME_MINUTES: Record<string, number> = {
 export function defaultGameMinutes(sportType: string | null | undefined): number {
   return SPORT_GAME_MINUTES[sportType ?? ""] ?? DEFAULT_GAME_MINUTES;
 }
-
-const CHICAGO = "America/Chicago";
 
 export type CommandCenterMode = "pregame" | "live" | "postgame";
 export type AttentionTier = "urgent" | "soon" | "info";
@@ -88,26 +89,34 @@ export type WeatherSnapshot = { risk: StormRiskLevel; reasons: string[] } | null
 const FIELD_ATTENTION_STATUSES = new Set(["delayed", "closed", "maintenance"]);
 const TIER_RANK: Record<AttentionTier, number> = { urgent: 0, soon: 1, info: 2 };
 
-export function chicagoDateString(now: number): string {
+// The venue's calendar date (YYYY-MM-DD) for an absolute instant.
+//
+// `timeZone` defaults to Central so a caller that has not been taught about
+// per-venue timezones yet behaves exactly as it did before. Every venue-facing
+// caller should pass the venue's own zone: for a venue outside Central, the
+// default rolls the operating day at the wrong hour.
+export function venueDateString(now: number, timeZone: string = DEFAULT_VENUE_TIMEZONE): string {
   // en-CA renders as YYYY-MM-DD, which is what listGamesForVenue's date filter wants.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: CHICAGO, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now));
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now));
 }
 
 // Does this timestamp fall on `date` AT THE VENUE?
 //
 // Never compare iso.slice(0,10) to this — that's the UTC date, and after ~7pm
-// Chicago (midnight UTC) an evening game rolls onto the next UTC day and silently
+// Central (midnight UTC) an evening game rolls onto the next UTC day and silently
 // disappears from "today" — precisely when a venue is running games under lights.
-export function isSameVenueDay(iso: string, date: string): boolean {
+// The same trap reopens if a non-Central venue is measured against the default
+// zone, just at a different hour of the evening.
+export function isSameVenueDay(iso: string, date: string, timeZone: string = DEFAULT_VENUE_TIMEZONE): boolean {
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return false;
-  return chicagoDateString(parsed.getTime()) === date;
+  return venueDateString(parsed.getTime(), timeZone) === date;
 }
 
-export function timeLabel(iso: string): string {
+export function timeLabel(iso: string, timeZone: string = DEFAULT_VENUE_TIMEZONE): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: CHICAGO }).format(date);
+  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone }).format(date);
 }
 
 export function gameLabel(game: Pick<GameRecord, "title" | "homeTeam" | "awayTeam">): string {
@@ -159,7 +168,13 @@ function fieldSlot(field: Field, games: GameRecord[], now: number): { games: Gam
   return { games: fieldGames, current, next };
 }
 
-export function buildFieldBoard(fields: Field[], games: GameRecord[], officials: SessionOfficial[], now: number): FieldBoardEntry[] {
+export function buildFieldBoard(
+  fields: Field[],
+  games: GameRecord[],
+  officials: SessionOfficial[],
+  now: number,
+  timeZone: string = DEFAULT_VENUE_TIMEZONE,
+): FieldBoardEntry[] {
   return fields.map((field) => {
     const { current, next } = fieldSlot(field, games, now);
 
@@ -167,7 +182,7 @@ export function buildFieldBoard(fields: Field[], games: GameRecord[], officials:
     let recommendedAction: string | null = null;
     if (current && next && behind >= 10) {
       const projected = new Date(new Date(next.startTime).getTime() + behind * 60_000);
-      recommendedAction = `Running ${behind} min behind — consider moving the next game to ~${timeLabel(projected.toISOString())}.`;
+      recommendedAction = `Running ${behind} min behind — consider moving the next game to ~${timeLabel(projected.toISOString(), timeZone)}.`;
     }
 
     return {
@@ -181,11 +196,11 @@ export function buildFieldBoard(fields: Field[], games: GameRecord[], officials:
             scoreHome: current.homeScore,
             scoreAway: current.awayScore,
             lifecycleStatus: current.lifecycleStatus,
-            startLabel: timeLabel(current.startTime),
+            startLabel: timeLabel(current.startTime, timeZone),
             minutesBehind: behind,
           }
         : null,
-      nextGame: next ? { id: next.id, label: gameLabel(next), startLabel: timeLabel(next.startTime) } : null,
+      nextGame: next ? { id: next.id, label: gameLabel(next), startLabel: timeLabel(next.startTime, timeZone) } : null,
       officialsConfirmed: next ? hasConfirmedOfficial(next.id, officials) : true,
       recommendedAction,
     };
@@ -204,6 +219,8 @@ export type AttentionInputs = {
   audioProfiles: AudioProfile[];
   weather: WeatherSnapshot;
   now: number;
+  // The venue's zone, for every clock time this queue quotes back to a GM.
+  timeZone?: string;
 };
 
 // How far ahead a game still counts as "coming up" for readiness warnings. Past
@@ -215,6 +232,7 @@ export const UPCOMING_WINDOW_MIN = 120;
 export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
   const items: AttentionItem[] = [];
   const fieldName = new Map(input.fields.map((f) => [f.id, f.name]));
+  const timeZone = input.timeZone ?? DEFAULT_VENUE_TIMEZONE;
 
   if (input.weather && input.weather.risk === "severe") {
     items.push({
@@ -289,7 +307,7 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
       title: `Audio is offline on ${fieldName.get(profile.fieldId) ?? "a field"}`,
       why: live
         ? `${gameLabel(live)} is playing there now — no announcements, including a weather hold.`
-        : `${gameLabel(upcoming!)} starts at ${timeLabel(upcoming!.startTime)} and has no working audio.`,
+        : `${gameLabel(upcoming!)} starts at ${timeLabel(upcoming!.startTime, timeZone)} and has no working audio.`,
       action: "Check the speaker or switch this field to a backup audio mode.",
       href: `/admin/audio/${profile.id}/edit`,
       fieldName: fieldName.get(profile.fieldId) ?? null,
@@ -311,7 +329,7 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
     }
   }
 
-  const board = buildFieldBoard(input.fields, input.games, input.officials, input.now);
+  const board = buildFieldBoard(input.fields, input.games, input.officials, input.now, timeZone);
   for (const entry of board) {
     if (entry.nextGame && !entry.officialsConfirmed) {
       items.push({
@@ -419,10 +437,13 @@ export type SchedulePulseInput = {
   // Venue closing / curfew time for the operating day. Omit it and we report NO
   // curfew risk rather than inventing a closing time.
   venueCloseIso?: string | null;
+  // The venue's zone, for the projected-start and projected-finish labels.
+  timeZone?: string;
 };
 
 export function buildSchedulePulse(input: SchedulePulseInput): SchedulePulse {
   const { fields, games, now } = input;
+  const timeZone = input.timeZone ?? DEFAULT_VENUE_TIMEZONE;
   const tracked = games.filter((g) => isLive(g) || g.status === "scheduled");
   const delays = tracked.map((g) => minutesBehind(g, now));
 
@@ -457,8 +478,8 @@ export function buildSchedulePulse(input: SchedulePulseInput): SchedulePulse {
       downstreamImpacts.push({
         fieldName: field.name,
         nextGameLabel: gameLabel(next),
-        scheduledStartLabel: timeLabel(next.startTime),
-        projectedStartLabel: timeLabel(projected.toISOString()),
+        scheduledStartLabel: timeLabel(next.startTime, timeZone),
+        projectedStartLabel: timeLabel(projected.toISOString(), timeZone),
         minutesLate: behind,
       });
     }
@@ -477,7 +498,7 @@ export function buildSchedulePulse(input: SchedulePulseInput): SchedulePulse {
           curfewRisks.push({
             fieldName: field.name,
             gameLabel: gameLabel(last),
-            projectedFinishLabel: timeLabel(new Date(projectedFinish).toISOString()),
+            projectedFinishLabel: timeLabel(new Date(projectedFinish).toISOString(), timeZone),
             minutesPastClose: Math.round((projectedFinish - closeAt) / 60_000),
           });
         }

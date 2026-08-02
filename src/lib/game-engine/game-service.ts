@@ -66,15 +66,21 @@ export async function getGameById(gameId: string): Promise<GameRecord | null> {
 }
 
 // Was `iso.slice(0, 10) === date`, which compared the UTC date against a VENUE
-// (America/Chicago) date. Every game after ~7pm Chicago rolls onto the next UTC
-// day and vanished from "today" — the exact hours a complex runs under lights.
-function sameLocalDay(iso: string, date: string): boolean {
-  return isSameVenueDay(iso, date);
+// date. Every game after ~7pm Central rolls onto the next UTC day and vanished
+// from "today" — the exact hours a complex runs under lights. `timeZone` must be
+// the VENUE's zone: matching an Eastern venue against Central reopens the same
+// hole, just an hour earlier in the evening.
+function sameLocalDay(iso: string, date: string, timeZone?: string): boolean {
+  return isSameVenueDay(iso, date, timeZone);
 }
 
 export async function listGamesForVenue(
   venueId: string,
-  options?: { date?: string; preloaded?: { sessions: Session[]; fields: Array<{ id: string; venueId: string }> } }
+  options?: {
+    date?: string;
+    timeZone?: string;
+    preloaded?: { sessions: Session[]; fields: Array<{ id: string; venueId: string }> };
+  }
 ): Promise<GameRecord[]> {
   const [sessions, fields] = options?.preloaded
     ? [options.preloaded.sessions, options.preloaded.fields]
@@ -82,16 +88,16 @@ export async function listGamesForVenue(
   const fieldIds = new Set(fields.filter((field) => field.venueId === venueId).map((field) => field.id));
   return sessions
     .filter((session) => fieldIds.has(session.fieldId))
-    .filter((session) => !options?.date || sameLocalDay(session.startTime, options.date))
+    .filter((session) => !options?.date || sameLocalDay(session.startTime, options.date, options.timeZone))
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
     .map(toGameRecord);
 }
 
-export async function listGamesByFieldAndDate(fieldId: string, date?: string): Promise<GameRecord[]> {
+export async function listGamesByFieldAndDate(fieldId: string, date?: string, timeZone?: string): Promise<GameRecord[]> {
   const sessions = await getSessions();
   return sessions
     .filter((session) => session.fieldId === fieldId)
-    .filter((session) => !date || sameLocalDay(session.startTime, date))
+    .filter((session) => !date || sameLocalDay(session.startTime, date, timeZone))
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
     .map(toGameRecord);
 }
