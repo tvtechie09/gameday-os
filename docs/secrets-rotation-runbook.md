@@ -9,7 +9,7 @@ laptop loss, or contractor offboarding. Budget ~15 minutes.
 | Secret | Where it lives | Why now |
 |---|---|---|
 | ~~Supabase **service_role**~~ ✅ **ROTATED 2026-08-10** | Vercel env `SUPABASE_SERVICE_ROLE_KEY` (+ `.env.local`) | Was exposed. Now a `sb_secret_…` key; the leaked legacy key is **disabled**. |
-| **OpenWeather** API key | Vercel env `OPENWEATHER_API_KEY` (+ `.env.local`) | Previously exposed. Low blast radius but leaked = rotate. |
+| **OpenWeather** API key ⏳ | Vercel env `OPENWEATHER_API_KEY` | New key set 2026-08-10; provider still returns 401 (activation lag or wrong value). Old key must NOT be deleted until the new one answers 200. |
 | **`SESSION_COOKIE_SECRET`** (NEW) | Vercel env — **not yet set** | Signs the session cookie (see the cookie-signing change). Must be set before dev-login is ever enabled on a deploy. |
 
 Repo scan (done 2026-07-18): **no secret is committed to git — current tree or
@@ -82,12 +82,57 @@ are disabled"; `gameday-os` renders live venue data; both apps' pages return 200
 with no error markers; `.env.local` works against production; the staging
 project (separate) is unaffected.
 
-### 2. OpenWeather key
-1. OpenWeather account → **API keys** → generate a new key, delete the old one.
-2. Vercel → `OPENWEATHER_API_KEY` (and `WEATHER_API_KEY` if you set that alias)
-   → new value for Production + Preview → redeploy.
-3. Confirm: a field page weather panel loads instead of the "missing API key"
-   message.
+### 2. OpenWeather key — ⏳ IN PROGRESS 2026-08-10
+
+New key set in Vercel `gameday-os` (`OPENWEATHER_API_KEY`, Production +
+Preview), redeployed with build cache off. **The provider is currently
+rejecting it:**
+
+```
+OpenWeather provider failure { status: 401,
+  body: '{"cod":401, "message": "Invalid API key..."}' }
+```
+
+Almost certainly activation lag — OpenWeather can take up to ~2 hours to
+activate a newly created key. Distinguish lag from a typo by testing the key
+directly; if it is still 401 after a couple of hours, the value is wrong:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "https://api.openweathermap.org/data/2.5/weather?lat=41.51&lon=-87.84&appid=NEW_KEY"
+```
+
+**Order matters, and this is why:** create the new key, wait for it to answer
+200, update Vercel, and only then delete the old key at OpenWeather. Deleting
+first means weather is dark for the whole activation window.
+
+Verify end-to-end against the real venue (not a synthetic request):
+
+```bash
+curl -s "https://gameday-os.vercel.app/api/weather/venue/a8235a4f-c5bf-4f79-b527-853d15f6ae17"
+```
+
+- `422 missing_coordinates` → the venue has no weather profile
+- `502 provider_failure` → coordinates fine, the key is the problem
+- `200` → done
+
+### 2a. Weather coordinates — ✅ FIXED 2026-08-10
+
+Rotating the key surfaced a bigger problem: **weather was dark for every venue
+regardless of the key.** Zero of four venues could resolve coordinates, and the
+one configured `weather_profiles` row belonged to "Crossroads Test Complex", not
+the real Wintrust Crossroads.
+
+**The gotcha:** `venues.latitude` / `venues.longitude` exist but are **not read**
+by the weather path. `weather-live.ts` resolves coordinates *only* from
+`weather_profiles`. Setting them on the venue row does nothing.
+
+Fixed by adding a profile for the real venue (41.5067, -87.9631 — New Lenox IL
+60451, confirmed by reverse geocode). `weather_source` is deliberately NOT
+`national_weather_service`, since that value diverts away from the
+env-configured provider.
+
+Still without coordinates: Manhattan Junior High, Test Venue Edit.
 
 ### 3. SESSION_COOKIE_SECRET (set for the first time)
 1. Generate a strong random value:
