@@ -12,8 +12,6 @@ type SessionUpdateRow = Database["public"]["Tables"]["sessions"]["Update"];
 
 const sessionSelect =
   "id,organization_id,field_id,play_surface_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,is_demo,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
-const sessionSelectWithoutDemo =
-  "id,organization_id,field_id,play_surface_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
 
 const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
 const validSportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
@@ -99,10 +97,10 @@ function readSportType(value: string | null | undefined): SessionSportType {
   return validSportTypes.find((sportType) => sportType === value) ?? "baseball";
 }
 
-function isMissingIsDemoColumnError(error: { message?: string }) {
-  return error.message?.includes("sessions.is_demo") === true
-    || error.message?.includes("column sessions.is_demo does not exist") === true;
-}
+// sessions.is_demo is guaranteed by migration; there is no read fallback for it
+// on purpose. The equivalent fallback on organizations concealed a month-long
+// outage -- reads degraded quietly while writes failed outright -- so a missing
+// column is treated as the deployment fault it is, and throws.
 
 async function recordAutomaticStatusEvents(previousStatus: Session["status"] | null, nextSession: Session) {
   if (previousStatus !== "active" && nextSession.gameStatus === "active") {
@@ -169,7 +167,11 @@ async function getOrganizationIdForField(fieldId: string) {
   return data?.organization_id ?? await getWritableOrganizationId();
 }
 
-function mapSession(row: Omit<SessionRow, "is_demo" | "scorekeeper_token" | "scorekeeper_pin" | "scorekeeper_seq" | "gdt_team_season_id" | "gdt_home_team_season_id" | "gdt_away_team_season_id"> & { is_demo?: boolean | null; scorekeeper_token?: string | null; scorekeeper_pin?: string | null; scorekeeper_seq?: number; gdt_team_season_id?: string | null; gdt_home_team_season_id?: string | null; gdt_away_team_season_id?: string | null }): Session {
+// is_demo is required here now that the read fallback is gone -- it is always in
+// sessionSelect. The scorekeeper_* and gdt_* fields stay optional because they
+// are deliberately NOT selected: scorekeeper_token and scorekeeper_pin are
+// withheld by column-level grants and must never travel on a session read.
+function mapSession(row: Omit<SessionRow, "scorekeeper_token" | "scorekeeper_pin" | "scorekeeper_seq" | "gdt_team_season_id" | "gdt_home_team_season_id" | "gdt_away_team_season_id"> & { scorekeeper_token?: string | null; scorekeeper_pin?: string | null; scorekeeper_seq?: number; gdt_team_season_id?: string | null; gdt_home_team_season_id?: string | null; gdt_away_team_season_id?: string | null }): Session {
   return {
     id: row.id,
     organizationId: row.organization_id ?? null,
@@ -219,25 +221,6 @@ export async function getSessions(): Promise<Session[]> {
   const { data, error } = await query;
 
   if (error) {
-    if (isMissingIsDemoColumnError(error)) {
-      let fallbackQuery = supabase
-        .from("sessions")
-        .select(sessionSelectWithoutDemo)
-        .order("start_time", { ascending: true });
-
-      if (organizationId) {
-        fallbackQuery = fallbackQuery.eq("organization_id", organizationId);
-      }
-
-      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
-
-      if (fallbackError) {
-        throw new Error(fallbackError.message);
-      }
-
-      return (fallbackData ?? []).map(mapSession);
-    }
-
     throw new Error(error.message);
   }
 
@@ -253,20 +236,6 @@ export async function getSession(id: string): Promise<Session | null> {
     .maybeSingle();
 
   if (error) {
-    if (isMissingIsDemoColumnError(error)) {
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from("sessions")
-        .select(sessionSelectWithoutDemo)
-        .eq("id", id)
-        .maybeSingle();
-
-      if (fallbackError) {
-        throw new Error(fallbackError.message);
-      }
-
-      return fallbackData ? mapSession(fallbackData) : null;
-    }
-
     throw new Error(error.message);
   }
 
@@ -282,20 +251,6 @@ export async function getSessionsByFieldId(fieldId: string): Promise<Session[]> 
     .order("start_time", { ascending: true });
 
   if (error) {
-    if (isMissingIsDemoColumnError(error)) {
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from("sessions")
-        .select(sessionSelectWithoutDemo)
-        .eq("field_id", fieldId)
-        .order("start_time", { ascending: true });
-
-      if (fallbackError) {
-        throw new Error(fallbackError.message);
-      }
-
-      return (fallbackData ?? []).map(mapSession);
-    }
-
     throw new Error(error.message);
   }
 
