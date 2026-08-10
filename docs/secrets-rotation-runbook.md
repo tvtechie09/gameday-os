@@ -9,7 +9,7 @@ laptop loss, or contractor offboarding. Budget ~15 minutes.
 | Secret | Where it lives | Why now |
 |---|---|---|
 | ~~Supabase **service_role**~~ ✅ **ROTATED 2026-08-10** | Vercel env `SUPABASE_SERVICE_ROLE_KEY` (+ `.env.local`) | Was exposed. Now a `sb_secret_…` key; the leaked legacy key is **disabled**. |
-| **OpenWeather** API key ⏳ | Vercel env `OPENWEATHER_API_KEY` | New key set 2026-08-10; provider still returns 401 (activation lag or wrong value). Old key must NOT be deleted until the new one answers 200. |
+| ~~**OpenWeather** API key~~ ✅ **ROTATED 2026-08-10** | Vercel env `OPENWEATHER_API_KEY` | New key live and returning real weather. Old key can now be deleted at OpenWeather. |
 | **`SESSION_COOKIE_SECRET`** (NEW) | Vercel env — **not yet set** | Signs the session cookie (see the cookie-signing change). Must be set before dev-login is ever enabled on a deploy. |
 
 Repo scan (done 2026-07-18): **no secret is committed to git — current tree or
@@ -82,7 +82,7 @@ are disabled"; `gameday-os` renders live venue data; both apps' pages return 200
 with no error markers; `.env.local` works against production; the staging
 project (separate) is unaffected.
 
-### 2. OpenWeather key — ⏳ IN PROGRESS 2026-08-10
+### 2. OpenWeather key — ✅ DONE 2026-08-10
 
 New key set in Vercel `gameday-os` (`OPENWEATHER_API_KEY`, Production +
 Preview), redeployed with build cache off. **The provider is currently
@@ -93,8 +93,9 @@ OpenWeather provider failure { status: 401,
   body: '{"cod":401, "message": "Invalid API key..."}' }
 ```
 
-Almost certainly activation lag — OpenWeather can take up to ~2 hours to
-activate a newly created key. Distinguish lag from a typo by testing the key
+**It was activation lag, confirmed.** The key began working roughly 20 minutes
+later with no further change — same key, same deployment. OpenWeather can take
+up to ~2 hours to activate a newly created key. Distinguish lag from a typo by testing the key
 directly; if it is still 401 after a couple of hours, the value is wrong:
 
 ```bash
@@ -142,13 +143,8 @@ rather than `missing_coordinates`, i.e. the request reaches OpenWeather):
 | Manhattan Junior High | 41.4392, -87.9883 | W Smith Rd, Manhattan IL 60442 (OSM) |
 | Test Venue Edit | 41.4225, -87.9859 | **PLACEHOLDER** — address is "123 Test Street" |
 
-*Noticed while doing this, and worth a decision:* the venue holding all the real
-data is **"Crossroads Test Complex"** (31 fields, 18 sessions), while
-**"Wintrust Crossroads Sports Complex"** — the name matching the flagship demo —
-has **zero fields and zero sessions**. Two records for one physical site, with
-the operational data on the one whose name says "Test". Worth reconciling before
-a customer or investor sees the admin list. "Test Venue Edit" (1 field, address
-"123 Test Street") looks like straightforward junk and is a deletion candidate.
+**Both duplicates resolved 2026-08-10.** "Test Venue Edit" was deleted (backup in
+the session scratchpad), and the two Crossroads records were merged — see below.
 
 ### 3. SESSION_COOKIE_SECRET (set for the first time)
 1. Generate a strong random value:
@@ -183,3 +179,34 @@ which the security audits cover — not from secrecy.
 `RESEND_API_KEY`, `SCHEDULE_PUSH_TOKEN`, `CRON_SECRET`, `DAKTRONICS_ADAPTER_TOKEN`,
 `TWILIO_AUTH_TOKEN`, `SPORTSENGINE_CLIENT_SECRET`, `STRIPE_SECRET_KEY` (unused —
 payments are out of scope). None are known-leaked; rotate if suspected.
+
+---
+
+## Duplicate Crossroads records — merged 2026-08-10
+
+One physical site had two venue rows, with the operational data on the wrong one:
+
+| | Wintrust Crossroads Sports Complex | Crossroads Test Complex |
+|---|---|---|
+| id | `a8235a4f…` | `d15ce9df…` |
+| created | 2026-07-07 | 2026-07-09 |
+| address | 520 Cedar Crossings Dr, New Lenox | *(blank)* |
+| fields / sessions | 0 / 0 | 31 / 18 |
+
+**Wintrust was canonical** — created first, correctly named, has the address, and
+crucially is hardcoded in `supabase/crossroads-rebuild-seed.sql` as *"existing
+live Crossroads venue"*. Renaming the data-bearing row instead would have broken
+that reference, so the data moved rather than the name.
+
+**339 rows across 14 tables** were repointed onto the canonical venue, then the
+duplicate was deleted. The updates were generated from `pg_constraint` — walking
+every FK that references `public.venues` — rather than a hand-written list, so no
+table could be missed. Checked first: no unique index is keyed on `venue_id`, so
+there was no collision risk merging 31 fields into a venue that had none.
+
+Verified after: Wintrust holds 31 fields / 18 sessions / 31 surfaces / 45
+resources, no table anywhere still references the deleted id, the public venue
+page returns 200 with no trace of "Test Complex", and weather resolves.
+
+Reversal data (duplicate's full row, all 31 field ids, per-table counts) is in
+the session scratchpad as `crossroads-merge-2026-08-10.json`.
