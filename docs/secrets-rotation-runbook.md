@@ -8,7 +8,7 @@ laptop loss, or contractor offboarding. Budget ~15 minutes.
 
 | Secret | Where it lives | Why now |
 |---|---|---|
-| Supabase **service_role / `sb_secret`** key | Vercel env `SUPABASE_SERVICE_ROLE_KEY` (+ your `.env.local`) | Previously exposed. God-mode over the whole DB incl. kids' PII. |
+| ~~Supabase **service_role**~~ ✅ **ROTATED 2026-08-10** | Vercel env `SUPABASE_SERVICE_ROLE_KEY` (+ `.env.local`) | Was exposed. Now a `sb_secret_…` key; the leaked legacy key is **disabled**. |
 | **OpenWeather** API key | Vercel env `OPENWEATHER_API_KEY` (+ `.env.local`) | Previously exposed. Low blast radius but leaked = rotate. |
 | **`SESSION_COOKIE_SECRET`** (NEW) | Vercel env — **not yet set** | Signs the session cookie (see the cookie-signing change). Must be set before dev-login is ever enabled on a deploy. |
 
@@ -21,19 +21,66 @@ rotation is a dashboard + Vercel-env task; there is no git history to scrub.
 Rotate one key at a time; each finishes with a Vercel redeploy so the new value
 is live before you invalidate the old one.
 
-### 1. Supabase service_role key
-1. Supabase dashboard → project `ekkmflksqerdhutqxeii` → **Project Settings → API Keys**.
-2. If the project uses the **new API keys** (`sb_publishable_…` / `sb_secret_…`):
-   create a new secret key, copy it, and there's a grace window where both work —
-   ideal. If it uses the **legacy JWT keys**: note that "Roll JWT secret"
-   rotates BOTH anon and service_role at once (see step 4), so prefer the new
-   key system if offered.
-3. Vercel → project `gameday-os` → **Settings → Environment Variables** →
-   `SUPABASE_SERVICE_ROLE_KEY` → set the new value for **Production AND Preview**.
-4. Redeploy (Vercel → Deployments → Redeploy latest, or push any commit).
-5. Confirm the app still reads/writes (load `/admin`, open a field page).
-6. Back in Supabase, **revoke/delete the old secret key**.
-7. Update your local `.env.local` with the new value.
+### 1. Supabase service_role key — ✅ DONE 2026-08-10
+
+**The original plan in this runbook was not possible, and the reason matters.**
+
+There is no longer a "roll the JWT secret" button. This project migrated to ECC
+(P-256) JWT signing keys on 2026-06-10, after which the legacy HS256 shared
+secret became verify-only: the dashboard states it "can only be changed by
+rotating to a standby key and then revoking it." So legacy `anon` and
+`service_role` keys **cannot be regenerated** — only revoked. There was no
+fast-cutover option; migrating to the new key format was the only path.
+
+Which was the better path anyway: new-format keys work *alongside* legacy ones,
+so nothing broke until we chose to break it, and we broke it only after proving
+the replacement worked. Zero downtime.
+
+What was actually done:
+
+1. Created a fresh secret key (Settings → API Keys → **Publishable and secret
+   API keys** → New secret key). Did not reuse the June `default` secret, whose
+   exposure history is unknown.
+2. Set **the same variable names** to new-format values — no code changes, since
+   nothing decodes these keys as JWTs:
+   - `SUPABASE_SERVICE_ROLE_KEY` = `sb_secret_…`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `sb_publishable_…`
+   Applied in **both** Vercel projects — `gameday-os` (Production + Preview) and
+   `game-day-team` (**Production only**; its Preview points at the staging
+   Supabase project and must keep that project's own keys) — plus
+   `gameday-venue-os/.env.local`.
+3. Redeployed both projects with **"Use existing Build Cache" unchecked**;
+   `NEXT_PUBLIC_*` is inlined at build time, so a cached build keeps the old key.
+4. Verified both apps served real database content.
+5. Settings → API Keys → **Legacy anon, service_role API keys** → Disable.
+
+**Only two variable names mattered.** The projects carry nine Supabase env vars
+between them (`SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET`, `SUPABASE_ANON_KEY`,
+the publishable ones…), but a grep showed the code reads exactly two. The rest
+are leftovers from the Vercel–Supabase integration and were left alone.
+
+**Gotchas worth knowing next time:**
+
+- **Two dialogs.** The first is a generic OAuth-integration warning. The second
+  is the real one and requires typing `disable`. Clicking through the first
+  changes nothing — easy to believe you're done when you aren't.
+- **~45 seconds of propagation.** The legacy key kept returning HTTP 200 for
+  roughly a minute after the switch flipped. Do not conclude the disable failed.
+- **Verify with the REAL key, never a hand-made one.** A fabricated legacy-format
+  key returns `{"message":"Invalid API key"}` whether or not legacy keys are
+  disabled, which reads as success and proves nothing. The genuine
+  disabled-state response is distinct: `{"message":"Legacy API keys are
+  disabled"}`. Fetch the real key via the Management API
+  (`/v1/projects/{ref}/api-keys?reveal=true`) and test with that.
+- **Reversible.** After disabling, the panel offers "Re-enable JWT-based API
+  keys". Good to know before you flip it on production.
+- **No forced logouts.** User sessions are signed by the current ECC key, not the
+  legacy secret, so nobody was signed out.
+
+**Verified after the cutover:** the real legacy key returns 401 "Legacy API keys
+are disabled"; `gameday-os` renders live venue data; both apps' pages return 200
+with no error markers; `.env.local` works against production; the staging
+project (separate) is unaffected.
 
 ### 2. OpenWeather key
 1. OpenWeather account → **API keys** → generate a new key, delete the old one.
