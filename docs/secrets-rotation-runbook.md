@@ -132,7 +132,23 @@ Fixed by adding a profile for the real venue (41.5067, -87.9631 — New Lenox IL
 `national_weather_service`, since that value diverts away from the
 env-configured provider.
 
-Still without coordinates: Manhattan Junior High, Test Venue Edit.
+All four venues now resolve coordinates (every one returns `provider_failure`
+rather than `missing_coordinates`, i.e. the request reaches OpenWeather):
+
+| Venue | Coordinates | Source |
+|---|---|---|
+| Wintrust Crossroads Sports Complex | 41.5067, -87.9631 | New Lenox IL 60451, reverse-geocoded |
+| Crossroads Test Complex | 41.5067, -87.9631 | pre-existing; same physical site |
+| Manhattan Junior High | 41.4392, -87.9883 | W Smith Rd, Manhattan IL 60442 (OSM) |
+| Test Venue Edit | 41.4225, -87.9859 | **PLACEHOLDER** — address is "123 Test Street" |
+
+*Noticed while doing this, and worth a decision:* the venue holding all the real
+data is **"Crossroads Test Complex"** (31 fields, 18 sessions), while
+**"Wintrust Crossroads Sports Complex"** — the name matching the flagship demo —
+has **zero fields and zero sessions**. Two records for one physical site, with
+the operational data on the one whose name says "Test". Worth reconciling before
+a customer or investor sees the admin list. "Test Venue Edit" (1 field, address
+"123 Test Street") looks like straightforward junk and is a deletion candidate.
 
 ### 3. SESSION_COOKIE_SECRET (set for the first time)
 1. Generate a strong random value:
