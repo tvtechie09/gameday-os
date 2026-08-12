@@ -132,7 +132,12 @@ export function VenueDisplayBoard({
       }
     }
 
-    const interval = window.setInterval(refreshDisplay, 10000);
+    // 30s, not 10s: every refresh fans out to seven-plus queries behind
+    // /api/display/venue (venue, org, all fields, all sessions, alerts,
+    // sponsors, policy), and a concourse TV runs around the clock. Schedule
+    // and alert data does not change on a 10-second timescale, and at 10s the
+    // always-on boards were a steady drain on the shared-CPU database.
+    const interval = window.setInterval(refreshDisplay, 30000);
     return () => {
       cancelled = true;
       window.clearTimeout(seedTimer);
@@ -189,7 +194,7 @@ export function VenueDisplayBoard({
                 <p className={`text-sm font-black uppercase tracking-[0.2em] ${mutedClass}`}>Field Grid</p>
                 <h2 className="mt-1 text-2xl font-black sm:text-4xl">Live venue status</h2>
               </div>
-              <p className={`text-sm font-bold uppercase tracking-[0.16em] ${mutedClass}`}>Auto-refresh 10s</p>
+              <p className={`text-sm font-bold uppercase tracking-[0.16em] ${mutedClass}`}>Auto-refresh 30s</p>
             </div>
             <div className={`mt-4 grid gap-3 ${fieldColumns}`}>
               {payload.fields.length > 0 ? payload.fields.map((item) => (
