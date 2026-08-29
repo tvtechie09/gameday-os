@@ -75,7 +75,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link className="inline-flex min-h-10 items-center rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" href="/admin/command-center">Open Command Center</Link>
+            <Link className="inline-flex min-h-10 items-center rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" href={`/admin/pilot-launch?venueId=${sp.venue ?? ""}`}>Continue to Pilot Launch</Link>
+            <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/command-center">Open Command Center</Link>
             <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/fields">Fields &amp; QR codes</Link>
             <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/billing">Billing</Link>
             <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/onboarding">Onboard another</Link>

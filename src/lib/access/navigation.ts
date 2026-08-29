@@ -95,6 +95,7 @@ export const navItems: NavItem[] = [
   { key: "reports", href: "/admin/executive", label: "Reports", icon: "Activity", group: "operations", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
 
   // --- Admin workspace (grouped separately) ---
+  { key: "pilot-launch", href: "/admin/pilot-launch", label: "Pilot Launch", icon: "ClipboardCheck", group: "admin", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { key: "venue-settings", href: "/admin/venues", label: "Venue Settings", icon: "MapPin", group: "admin", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { key: "organizations", href: "/admin/organizations", label: "Organizations", icon: "Users", group: "admin", stage: "supporting", cap: isPlatformAdmin },
   { key: "integrations", href: "/admin/integrations", label: "Schedule Imports", icon: "Database", group: "admin", stage: "supporting", cap: canManageIntegrations },
@@ -171,6 +172,7 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   { prefix: "/admin/sync", cap: isPlatformAdmin },
   { prefix: "/admin/schema-audit", cap: isPlatformAdmin },
   { prefix: "/admin/system-health", cap: isPlatformAdmin },
+  { prefix: "/admin/pilot-launch", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/venues", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/sessions", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/tournaments", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },

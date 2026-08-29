@@ -1128,6 +1128,209 @@ export type Database = {
           },
         ];
       };
+      pilot_launches: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          venue_id: string;
+          status: string;
+          target_launch_date: string | null;
+          primary_owner_name: string;
+          primary_owner_contact: string;
+          backup_owner_name: string;
+          backup_owner_contact: string;
+          escalation_contact: string;
+          support_notes: string;
+          go_no_go_notes: string;
+          approved_by: string | null;
+          approved_at: string | null;
+          launched_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id: string;
+          status?: string;
+          target_launch_date?: string | null;
+          primary_owner_name?: string;
+          primary_owner_contact?: string;
+          backup_owner_name?: string;
+          backup_owner_contact?: string;
+          escalation_contact?: string;
+          support_notes?: string;
+          go_no_go_notes?: string;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          launched_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id?: string;
+          status?: string;
+          target_launch_date?: string | null;
+          primary_owner_name?: string;
+          primary_owner_contact?: string;
+          backup_owner_name?: string;
+          backup_owner_contact?: string;
+          escalation_contact?: string;
+          support_notes?: string;
+          go_no_go_notes?: string;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          launched_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pilot_launches_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_launches_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_launches_approved_by_fkey";
+            columns: ["approved_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pilot_rehearsal_checks: {
+        Row: {
+          id: string;
+          pilot_launch_id: string;
+          check_key: string;
+          status: string;
+          notes: string;
+          completed_by: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pilot_launch_id: string;
+          check_key: string;
+          status?: string;
+          notes?: string;
+          completed_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pilot_launch_id?: string;
+          check_key?: string;
+          status?: string;
+          notes?: string;
+          completed_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pilot_rehearsal_checks_pilot_launch_id_fkey";
+            columns: ["pilot_launch_id"];
+            isOneToOne: false;
+            referencedRelation: "pilot_launches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_rehearsal_checks_completed_by_fkey";
+            columns: ["completed_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pilot_support_incidents: {
+        Row: {
+          id: string;
+          pilot_launch_id: string;
+          venue_id: string;
+          severity: string;
+          status: string;
+          summary: string;
+          owner_name: string;
+          requires_developer: boolean;
+          resolution_notes: string;
+          reported_by: string | null;
+          resolved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pilot_launch_id: string;
+          venue_id: string;
+          severity?: string;
+          status?: string;
+          summary: string;
+          owner_name?: string;
+          requires_developer?: boolean;
+          resolution_notes?: string;
+          reported_by?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pilot_launch_id?: string;
+          venue_id?: string;
+          severity?: string;
+          status?: string;
+          summary?: string;
+          owner_name?: string;
+          requires_developer?: boolean;
+          resolution_notes?: string;
+          reported_by?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pilot_support_incidents_pilot_launch_id_fkey";
+            columns: ["pilot_launch_id"];
+            isOneToOne: false;
+            referencedRelation: "pilot_launches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_support_incidents_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pilot_support_incidents_reported_by_fkey";
+            columns: ["reported_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       notifications: {
         Row: {
           id: string;
