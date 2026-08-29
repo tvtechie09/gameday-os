@@ -39,7 +39,7 @@ test("it is handed every prop it needs to function", () => {
   // Rendering it without sessions or sources would mount a component that
   // cannot dedupe against existing games or name its source.
   const mount = code.slice(code.indexOf("<CalendarImportAdapter"));
-  for (const prop of ["fields=", "sessions=", "sources=", "venues="]) {
+  for (const prop of ["fields=", "pendingReviewCount=", "sessions=", "sources=", "syncJobs=", "venues="]) {
     assert.ok(mount.includes(prop), `CalendarImportAdapter is missing ${prop}`);
   }
 });

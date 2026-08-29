@@ -1,6 +1,6 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
-import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
+import type { GameDayTeamSyncStatus, InningHalf, Session, SessionLifecycleStatus, SessionLinkLabel, SessionSportType } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 import { safelyCreateNotification } from "./notifications";
@@ -11,7 +11,7 @@ type SessionRow = Database["public"]["Tables"]["sessions"]["Row"];
 type SessionUpdateRow = Database["public"]["Tables"]["sessions"]["Update"];
 
 const sessionSelect =
-  "id,organization_id,field_id,play_surface_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,is_demo,inning,inning_half,balls,strikes,outs,game_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,notes,created_at,updated_at";
+  "id,organization_id,field_id,play_surface_id,tournament_id,title,sport_type,home_team,away_team,start_time,end_time,status,home_score,away_score,is_demo,inning,inning_half,balls,strikes,outs,game_status,lifecycle_status,primary_link_label,primary_link_url,secondary_link_label,secondary_link_url,external_source,external_source_id,external_source_url,gdt_team_season_id,gdt_home_team_season_id,gdt_away_team_season_id,gdt_sync_status,gdt_last_synced_at,notes,created_at,updated_at";
 
 const validLinkLabels = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"] as const;
 const validSportTypes = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"] as const;
@@ -42,6 +42,10 @@ export type CreateSessionInput = {
 };
 
 export type UpdateSessionInput = CreateSessionInput;
+
+export type UpdateImportedSessionScheduleInput = Pick<CreateSessionInput,
+  "field_id" | "title" | "sport_type" | "home_team" | "away_team" | "start_time" | "end_time" | "external_source" | "external_source_id" | "external_source_url" | "notes"
+>;
 
 export type UpdateSessionGameStateInput = {
   home_score: number;
@@ -74,6 +78,15 @@ export type DuplicateSessionsInput = {
 
 function readSessionStatus(value: string): Session["status"] {
   return value === "active" || value === "final" ? value : "scheduled";
+}
+
+function readLifecycleStatus(value: string | null | undefined): SessionLifecycleStatus {
+  const statuses: SessionLifecycleStatus[] = ["draft", "scheduled", "check_in", "warmup", "ready", "live", "delayed", "suspended", "postponed", "cancelled", "final", "archived"];
+  return statuses.find((status) => status === value) ?? "scheduled";
+}
+
+function readGameDayTeamSyncStatus(value: string | null | undefined): GameDayTeamSyncStatus {
+  return value === "linked" || value === "synced" ? value : "unlinked";
 }
 
 function readInningHalf(value: string): InningHalf {
@@ -167,11 +180,9 @@ async function getOrganizationIdForField(fieldId: string) {
   return data?.organization_id ?? await getWritableOrganizationId();
 }
 
-// is_demo is required here now that the read fallback is gone -- it is always in
-// sessionSelect. The scorekeeper_* and gdt_* fields stay optional because they
-// are deliberately NOT selected: scorekeeper_token and scorekeeper_pin are
-// withheld by column-level grants and must never travel on a session read.
-function mapSession(row: Omit<SessionRow, "scorekeeper_token" | "scorekeeper_pin" | "scorekeeper_seq" | "gdt_team_season_id" | "gdt_home_team_season_id" | "gdt_away_team_season_id"> & { scorekeeper_token?: string | null; scorekeeper_pin?: string | null; scorekeeper_seq?: number; gdt_team_season_id?: string | null; gdt_home_team_season_id?: string | null; gdt_away_team_season_id?: string | null }): Session {
+// Scorekeeper credentials are deliberately excluded from sessionSelect. Team
+// linkage and source identity are part of the canonical operational event.
+function mapSession(row: Omit<SessionRow, "scorekeeper_token" | "scorekeeper_pin" | "scorekeeper_seq"> & { scorekeeper_token?: string | null; scorekeeper_pin?: string | null; scorekeeper_seq?: number }): Session {
   return {
     id: row.id,
     organizationId: row.organization_id ?? null,
@@ -194,6 +205,7 @@ function mapSession(row: Omit<SessionRow, "scorekeeper_token" | "scorekeeper_pin
     strikes: readNumber(row.strikes, 0),
     outs: readNumber(row.outs, 0),
     gameStatus: readSessionStatus(row.game_status),
+    lifecycleStatus: readLifecycleStatus(row.lifecycle_status),
     primaryLinkLabel: readLinkLabel(row.primary_link_label),
     primaryLinkUrl: readOptionalText(row.primary_link_url),
     secondaryLinkLabel: readLinkLabel(row.secondary_link_label),
@@ -201,6 +213,11 @@ function mapSession(row: Omit<SessionRow, "scorekeeper_token" | "scorekeeper_pin
     externalSource: readOptionalText(row.external_source),
     externalSourceId: readOptionalText(row.external_source_id),
     externalSourceUrl: readOptionalText(row.external_source_url),
+    gameDayTeamSeasonId: readOptionalText(row.gdt_team_season_id),
+    gameDayHomeTeamSeasonId: readOptionalText(row.gdt_home_team_season_id),
+    gameDayAwayTeamSeasonId: readOptionalText(row.gdt_away_team_season_id),
+    gameDayTeamSyncStatus: readGameDayTeamSyncStatus(row.gdt_sync_status),
+    gameDayTeamLastSyncedAt: readOptionalText(row.gdt_last_synced_at),
     notes: readOptionalText(row.notes),
     updatedAt: row.updated_at,
   };
@@ -356,6 +373,67 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
   if (previousSession && (previousSession.startTime !== mappedSession.startTime || previousSession.fieldId !== mappedSession.fieldId)) {
     // Awaited but best-effort internally: families and followers hear about
     // reschedules/moves; failures never block the schedule edit.
+    await notifyScheduleChange({
+      sessionId: mappedSession.id,
+      title: mappedSession.title,
+      homeTeam: mappedSession.homeTeam,
+      awayTeam: mappedSession.awayTeam,
+      fieldId: mappedSession.fieldId,
+      startTime: mappedSession.startTime,
+      previousStartTime: previousSession.startTime,
+      previousFieldId: previousSession.fieldId,
+    });
+  }
+
+  return mappedSession;
+}
+
+// Schedule imports may move or rename an event, but must not wipe live-game,
+// hardware, tournament, play-surface, or GameDay Team linkage state.
+export async function updateImportedSessionSchedule(id: string, data: UpdateImportedSessionScheduleInput): Promise<Session> {
+  const supabase = getSupabaseAdminClient();
+  const previousSession = await getSession(id);
+  if (!previousSession) {
+    throw new Error("The matching GameDay event no longer exists.");
+  }
+  if (
+    previousSession.externalSource?.trim().toLowerCase() !== data.external_source?.trim().toLowerCase()
+    || previousSession.externalSourceId !== data.external_source_id
+  ) {
+    throw new Error("The external event identity no longer matches this GameDay event.");
+  }
+
+  const organizationId = await getOrganizationIdForField(data.field_id);
+  const { data: session, error } = await supabase
+    .from("sessions")
+    .update({
+      organization_id: organizationId,
+      field_id: data.field_id,
+      title: data.title,
+      sport_type: readSportType(data.sport_type),
+      home_team: data.home_team,
+      away_team: data.away_team,
+      start_time: data.start_time,
+      end_time: readOptionalText(data.end_time),
+      external_source_url: readOptionalText(data.external_source_url),
+      notes: readOptionalText(data.notes),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(sessionSelect)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const mappedSession = mapSession(session);
+  await recordSessionEvent({
+    eventMessage: `${mappedSession.title} was refreshed from ${mappedSession.externalSource ?? "an external schedule"}.`,
+    eventType: "operations_update",
+    sessionId: mappedSession.id,
+  });
+  if (previousSession.startTime !== mappedSession.startTime || previousSession.fieldId !== mappedSession.fieldId) {
     await notifyScheduleChange({
       sessionId: mappedSession.id,
       title: mappedSession.title,

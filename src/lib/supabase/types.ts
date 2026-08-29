@@ -2154,6 +2154,8 @@ export type Database = {
           gdt_team_season_id: string | null;
           gdt_home_team_season_id: string | null;
           gdt_away_team_season_id: string | null;
+          gdt_sync_status: string;
+          gdt_last_synced_at: string | null;
         };
         Insert: {
           id?: string;
@@ -2194,6 +2196,8 @@ export type Database = {
           gdt_team_season_id?: string | null;
           gdt_home_team_season_id?: string | null;
           gdt_away_team_season_id?: string | null;
+          gdt_sync_status?: string;
+          gdt_last_synced_at?: string | null;
         };
         Update: {
           id?: string;
@@ -2234,6 +2238,8 @@ export type Database = {
           gdt_team_season_id?: string | null;
           gdt_home_team_season_id?: string | null;
           gdt_away_team_season_id?: string | null;
+          gdt_sync_status?: string;
+          gdt_last_synced_at?: string | null;
         };
         Relationships: [
           {

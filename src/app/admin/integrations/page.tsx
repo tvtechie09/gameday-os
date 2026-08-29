@@ -2,16 +2,19 @@ import Link from "next/link";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getExternalSources } from "@/lib/services/external-sources";
 import { getSessions } from "@/lib/services/sessions";
+import { getSyncJobs, getSyncQueueItems } from "@/lib/services/sync-engine";
 import { CalendarImportAdapter } from "./calendar-import-adapter";
 import { IntegrationFrameworkConsole } from "./integration-framework-console";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage() {
-  const [{ venues, fields }, sessions, sources] = await Promise.all([
+  const [{ venues, fields }, sessions, sources, syncJobs, queueItems] = await Promise.all([
     getScopedVenuesAndFields(),
     getSessions(),
     getExternalSources(),
+    getSyncJobs(),
+    getSyncQueueItems("all"),
   ]);
 
   return (
@@ -44,7 +47,7 @@ export default async function IntegrationsPage() {
           is imported, and re-importing the same feed updates rather than duplicates.
         </p>
       </section>
-      <CalendarImportAdapter fields={fields} sessions={sessions} sources={sources} venues={venues} />
+      <CalendarImportAdapter fields={fields} pendingReviewCount={queueItems.filter((item) => item.reviewStatus === "pending" || item.reviewStatus === "approved").length} sessions={sessions} sources={sources} syncJobs={syncJobs} venues={venues} />
 
       <IntegrationFrameworkConsole defaultActorUserId={process.env.NEXT_PUBLIC_GAMEDAY_ADMIN_ACTOR_USER_ID ?? ""} venues={venues} />
     </main>

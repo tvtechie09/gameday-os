@@ -6,7 +6,8 @@ import { getSessions } from "@/lib/services/sessions";
 import { createSyncJobWithQueue, type CreateSyncQueueRecordInput } from "@/lib/services/sync-engine";
 import { requireServerActionPermission } from "@/lib/access/server-action";
 import { fetchPublicCalendarText } from "@/lib/safe-calendar-fetch";
-import type { Session, SessionSportType } from "@/lib/types";
+import { canonicalExternalEventKey, classifyScheduleImport } from "@/lib/operational-event";
+import type { SessionSportType } from "@/lib/types";
 
 export type CalendarImportEvent = {
   sourceId: string;
@@ -45,9 +46,11 @@ export type FetchCalendarResult = {
 
 export type ImportCalendarResult = {
   created: number;
+  updated: number;
   jobId?: string;
   queued: number;
   skipped: number;
+  conflicts: number;
   errors: string[];
 };
 
@@ -157,14 +160,6 @@ function parseIcalEvents(text: string): CalendarImportEvent[] {
   });
 }
 
-function externalKey(session: Pick<Session, "externalSource" | "externalSourceId">) {
-  return session.externalSource && session.externalSourceId ? `${session.externalSource}|${session.externalSourceId}` : null;
-}
-
-function externalUrlKey(session: Pick<Session, "externalSource" | "externalSourceUrl">) {
-  return session.externalSource && session.externalSourceUrl ? `${session.externalSource}|url|${session.externalSourceUrl}` : null;
-}
-
 export async function fetchCalendarEventsAction(feedUrl: string): Promise<FetchCalendarResult> {
   try {
     await requireServerActionPermission("integration.webhook.manage");
@@ -196,36 +191,64 @@ export async function importCalendarSessionsAction({
   await requireServerActionPermission("integration.webhook.manage");
   const externalSource = await getExternalSource(sourceId);
   if (!externalSource) {
-    return { created: 0, errors: ["Choose a valid integration source."], queued: 0, skipped: 0 };
+    return { conflicts: 0, created: 0, errors: ["Choose a valid integration source."], queued: 0, skipped: 0, updated: 0 };
   }
 
   const existingSessions = await getSessions();
-  const existingExternalKeys = new Set(existingSessions.flatMap((session) => {
-    const idKey = externalKey(session);
-    const urlKey = externalUrlKey(session);
-    return [idKey, urlKey].filter((key): key is string => Boolean(key));
-  }));
-
   let skipped = 0;
+  let conflicts = 0;
+  let creates = 0;
+  let updates = 0;
+  const errors: string[] = [];
   const storedExternalSourceName = externalSourceName?.trim() || externalSource.sourceName;
   const storedExternalSourceUrl = externalSourceUrl?.trim() || feedUrl || externalSource.sourceUrl;
   const syncRecords: CreateSyncQueueRecordInput[] = [];
+  const batchKeys = new Set<string>();
 
   for (const row of rows) {
     const externalSourceId = row.externalSourceId;
-    const idKey = `${storedExternalSourceName}|${externalSourceId}`;
     const rowExternalSourceUrl = row.externalSourceUrl?.trim()
       || (storedExternalSourceUrl ? `${storedExternalSourceUrl}#${encodeURIComponent(externalSourceId)}` : null);
-    const urlKey = rowExternalSourceUrl ? `${storedExternalSourceName}|url|${rowExternalSourceUrl}` : null;
+    const batchKey = canonicalExternalEventKey(storedExternalSourceName, externalSourceId);
+    if (batchKeys.has(batchKey)) {
+      conflicts += 1;
+      errors.push(`${row.title}: the source returned the same external event ID more than once.`);
+      continue;
+    }
+    batchKeys.add(batchKey);
 
-    if (existingExternalKeys.has(idKey) || Boolean(urlKey && existingExternalKeys.has(urlKey))) {
+    const decision = classifyScheduleImport({
+      awayTeam: row.awayTeam || "TBD",
+      endTime: row.endTime ?? null,
+      externalSource: storedExternalSourceName,
+      externalSourceId,
+      externalSourceUrl: rowExternalSourceUrl,
+      fieldId: row.fieldId,
+      homeTeam: row.homeTeam || row.title,
+      notes: row.notes ?? null,
+      sportType: row.sportType || "baseball",
+      startTime: row.startTime,
+      title: row.title,
+    }, existingSessions);
+
+    if (decision.action === "unchanged") {
       skipped += 1;
       continue;
     }
+    if (decision.action === "conflict") {
+      conflicts += 1;
+      errors.push(`${row.title}: ${decision.reason}`);
+      continue;
+    }
+    if (decision.action === "create") creates += 1;
+    if (decision.action === "update") updates += 1;
 
     syncRecords.push({
       sourceData: {
         kind: "session" as const,
+        operation: decision.action,
+        existing_session_id: decision.existingSessionId,
+        changed_fields: decision.changedFields,
         session: {
           away_team: row.awayTeam || "TBD",
           end_time: row.endTime,
@@ -250,10 +273,6 @@ export async function importCalendarSessionsAction({
       },
       sourceRecordId: externalSourceId,
     });
-    existingExternalKeys.add(idKey);
-    if (urlKey) {
-      existingExternalKeys.add(urlKey);
-    }
   }
 
   const job = await createSyncJobWithQueue({
@@ -271,5 +290,5 @@ export async function importCalendarSessionsAction({
   revalidatePath("/admin/sync");
   revalidatePath("/admin/sync/review");
 
-  return { created: 0, errors: [], jobId: job.id, queued: syncRecords.length, skipped };
+  return { conflicts, created: creates, errors, jobId: job.id, queued: syncRecords.length, skipped, updated: updates };
 }

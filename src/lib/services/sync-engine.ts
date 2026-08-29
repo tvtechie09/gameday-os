@@ -1,7 +1,7 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Session, SessionLinkLabel, SessionSportType, SyncJob, SyncJobStatus, SyncQueueItem, SyncQueueReviewStatus } from "@/lib/types";
-import { createSession, getSessions } from "./sessions";
+import { createSession, getSessions, updateImportedSessionSchedule } from "./sessions";
 
 type SyncJobRow = Database["public"]["Tables"]["sync_jobs"]["Row"];
 type SyncQueueRow = Database["public"]["Tables"]["sync_queue"]["Row"];
@@ -29,6 +29,9 @@ export type CreateSyncQueueRecordInput = {
   sourceRecordId: string;
   sourceData: {
     kind: "session";
+    operation?: "create" | "update";
+    existing_session_id?: string | null;
+    changed_fields?: string[];
     session: SyncSessionPayload;
     source?: {
       field_name?: string | null;
@@ -150,6 +153,14 @@ function readSessionPayload(value: unknown): SyncSessionPayload | null {
   };
 }
 
+function readImportOperation(value: unknown) {
+  if (!isRecord(value)) return { operation: "create" as const, existingSessionId: null };
+  return {
+    operation: value.operation === "update" ? "update" as const : "create" as const,
+    existingSessionId: typeof value.existing_session_id === "string" ? value.existing_session_id : null,
+  };
+}
+
 export function getSyncStatusLabel(status: SyncJobStatus | SyncQueueReviewStatus) {
   return status.replace("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -159,13 +170,13 @@ export async function createSyncJobWithQueue(data: CreateSyncJobInput): Promise<
   const { data: job, error } = await supabase
     .from("sync_jobs")
     .insert({
-      completed_at: new Date().toISOString(),
+      completed_at: data.records.length > 0 ? null : new Date().toISOString(),
       records_found: data.recordsFound,
       records_imported: 0,
       records_skipped: data.recordsSkipped ?? 0,
       source_id: data.sourceId ?? null,
       source_type: data.sourceType,
-      status: "completed",
+      status: data.records.length > 0 ? "pending" : "completed",
     })
     .select(syncJobSelect)
     .single();
@@ -249,7 +260,9 @@ export async function updateSyncQueueReviewStatus(id: string, status: Exclude<Sy
     throw new Error(error.message);
   }
 
-  return mapSyncQueueItem(data);
+  const item = mapSyncQueueItem(data);
+  await refreshSyncJobStatus(item.syncJobId);
+  return item;
 }
 
 export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueResult> {
@@ -275,6 +288,35 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
     return { errors: ["Queue item is not a valid session record."], imported: 0, skipped: 0 };
   }
 
+  const importOperation = readImportOperation(item.sourceData);
+  if (importOperation.operation === "update") {
+    if (!importOperation.existingSessionId) {
+      await updateSyncQueueReviewStatus(id, "rejected");
+      return { errors: ["The queued update is missing its matching GameDay event."], imported: 0, skipped: 0 };
+    }
+    try {
+      await updateImportedSessionSchedule(importOperation.existingSessionId, {
+        away_team: session.away_team,
+        end_time: session.end_time,
+        external_source: session.external_source,
+        external_source_id: session.external_source_id,
+        external_source_url: session.external_source_url,
+        field_id: session.field_id,
+        home_team: session.home_team,
+        notes: session.notes,
+        sport_type: session.sport_type,
+        start_time: session.start_time,
+        title: session.title,
+      });
+      await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);
+      await supabase.from("sync_jobs").update({ records_imported: await nextJobCount(item.syncJobId, "records_imported") }).eq("id", item.syncJobId);
+      await refreshSyncJobStatus(item.syncJobId);
+      return { errors: [], imported: 1, skipped: 0 };
+    } catch (error) {
+      return { errors: [error instanceof Error ? error.message : "Unable to update the imported event."], imported: 0, skipped: 0 };
+    }
+  }
+
   const existingSessions = await getSessions();
   const existingSessionKeys = new Set(existingSessions.map((existingSession) => duplicateKey({
     away_team: existingSession.awayTeam,
@@ -293,6 +335,7 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
   if (existingSessionKeys.has(duplicateKey(session)) || externalDuplicate) {
     await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);
     await supabase.from("sync_jobs").update({ records_skipped: await nextJobCount(item.syncJobId, "records_skipped") }).eq("id", item.syncJobId);
+    await refreshSyncJobStatus(item.syncJobId);
     return { errors: [], imported: 0, skipped: 1 };
   }
 
@@ -317,10 +360,31 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
     });
     await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);
     await supabase.from("sync_jobs").update({ records_imported: await nextJobCount(item.syncJobId, "records_imported") }).eq("id", item.syncJobId);
+    await refreshSyncJobStatus(item.syncJobId);
     return { errors: [], imported: 1, skipped: 0 };
   } catch (error) {
     return { errors: [error instanceof Error ? error.message : "Unable to import sync record."], imported: 0, skipped: 0 };
   }
+}
+
+async function refreshSyncJobStatus(jobId: string) {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("sync_queue")
+    .select("review_status")
+    .eq("sync_job_id", jobId);
+  if (error) throw new Error(error.message);
+
+  const isPending = (data ?? []).some((item) => item.review_status === "pending" || item.review_status === "approved");
+  const nextStatus: SyncJobStatus = isPending ? "pending" : "completed";
+  const { error: updateError } = await supabase
+    .from("sync_jobs")
+    .update({
+      completed_at: isPending ? null : new Date().toISOString(),
+      status: nextStatus,
+    })
+    .eq("id", jobId);
+  if (updateError) throw new Error(updateError.message);
 }
 
 async function nextJobCount(jobId: string, column: "records_imported" | "records_skipped") {

@@ -8,6 +8,8 @@ export type VenueModeEndpointType = "qr_entry" | "equipment" | "location_provide
 export type VenueModeProviderKey = "manual" | "meraki" | "cisco_spaces" | "future_provider" | "other";
 export type VenueModeEndpointStatus = "not_configured" | "configured" | "active" | "offline" | "error";
 export type SessionStatus = "scheduled" | "active" | "final";
+export type SessionLifecycleStatus = "draft" | "scheduled" | "check_in" | "warmup" | "ready" | "live" | "delayed" | "suspended" | "postponed" | "cancelled" | "final" | "archived";
+export type GameDayTeamSyncStatus = "unlinked" | "linked" | "synced";
 export type InningHalf = "top" | "bottom";
 export type SessionLinkLabel = "GameChanger" | "SidelineHD" | "YouTube" | "SportsEngine" | "TeamSnap" | "Other";
 export type SessionSportType = "baseball" | "softball" | "soccer" | "football" | "lacrosse" | "basketball" | "volleyball" | "other";
@@ -186,6 +188,7 @@ export interface Session {
   strikes: number;
   outs: number;
   gameStatus: SessionStatus;
+  lifecycleStatus: SessionLifecycleStatus;
   operationsStatus?: SessionOperationsStatus | null;
   scoreboardProfileId?: string | null;
   streamingProfile?: Record<string, unknown> | null;
@@ -200,6 +203,11 @@ export interface Session {
   externalSource: string | null;
   externalSourceId: string | null;
   externalSourceUrl: string | null;
+  gameDayTeamSeasonId: string | null;
+  gameDayHomeTeamSeasonId: string | null;
+  gameDayAwayTeamSeasonId: string | null;
+  gameDayTeamSyncStatus: GameDayTeamSyncStatus;
+  gameDayTeamLastSyncedAt: string | null;
   notes: string | null;
   updatedAt: string;
 }
