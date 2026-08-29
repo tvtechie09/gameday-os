@@ -973,6 +973,57 @@ export type Database = {
           },
         ];
       };
+      alert_deliveries: {
+        Row: {
+          id: string;
+          alert_id: string;
+          follow_id: string | null;
+          email: string;
+          status: string;
+          provider: string;
+          error: string;
+          created_at: string;
+          sent_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          alert_id: string;
+          follow_id?: string | null;
+          email: string;
+          status?: string;
+          provider?: string;
+          error?: string;
+          created_at?: string;
+          sent_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          alert_id?: string;
+          follow_id?: string | null;
+          email?: string;
+          status?: string;
+          provider?: string;
+          error?: string;
+          created_at?: string;
+          sent_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "alert_deliveries_alert_id_fkey";
+            columns: ["alert_id"];
+            isOneToOne: false;
+            referencedRelation: "alerts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "alert_deliveries_follow_id_fkey";
+            columns: ["follow_id"];
+            isOneToOne: false;
+            referencedRelation: "follows";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       external_sources: {
         Row: {
           id: string;
@@ -1031,6 +1082,9 @@ export type Database = {
           follow_type: string;
           display_name: string | null;
           email: string | null;
+          email_enabled: boolean;
+          notification_level: string;
+          manage_token: string;
           created_at: string;
         };
         Insert: {
@@ -1040,6 +1094,9 @@ export type Database = {
           follow_type: string;
           display_name?: string | null;
           email?: string | null;
+          email_enabled?: boolean;
+          notification_level?: string;
+          manage_token?: string;
           created_at?: string;
         };
         Update: {
@@ -1049,6 +1106,9 @@ export type Database = {
           follow_type?: string;
           display_name?: string | null;
           email?: string | null;
+          email_enabled?: boolean;
+          notification_level?: string;
+          manage_token?: string;
           created_at?: string;
         };
         Relationships: [

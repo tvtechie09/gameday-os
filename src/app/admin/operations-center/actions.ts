@@ -6,6 +6,7 @@ import { updateFieldStatus } from "@/lib/services/fields";
 import { getSessionContext } from "@/lib/access/session";
 import { safelyCreateNotification } from "@/lib/services/notifications";
 import type { AlertPriority, AlertType, FieldStatus } from "@/lib/types";
+import { assertFieldInScope, assertVenueInScope, getScopedVenuesAndFields, OrganizationScopeError } from "@/lib/access/scoped-venue-data";
 
 export type VenueOperationType =
   | "normal_operations"
@@ -158,6 +159,17 @@ function readFieldIds(formData: FormData) {
   };
 }
 
+async function assertOperationScope(venueId: string, fieldIds: string[]) {
+  await assertVenueInScope(venueId);
+  if (fieldIds.length === 0) return;
+
+  const { fields } = await getScopedVenuesAndFields();
+  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  if (fieldIds.some((fieldId) => fieldsById.get(fieldId)?.venueId !== venueId)) {
+    throw new OrganizationScopeError();
+  }
+}
+
 function revalidateOperationSurfaces(fieldIds: string[]) {
   revalidatePath("/admin/operations-center");
   revalidatePath("/admin/weather");
@@ -281,6 +293,7 @@ export async function createVenueStatusAction(formData: FormData): Promise<void>
   if (!venueId) return;
 
   const { affectedFieldIds, scopeMode } = readFieldIds(formData);
+  await assertOperationScope(venueId, affectedFieldIds);
   const config = operationConfigs[operationType];
   const endTime = addHours(new Date(), operationType === "normal_operations" || operationType === "all_clear" || operationType === "field_reopened" ? 2 : 8).toISOString();
 
@@ -337,6 +350,7 @@ export async function createVenueAnnouncementAction(formData: FormData): Promise
 
   const config = announcementConfig[announcementType] ?? announcementConfig.general;
   const { affectedFieldIds, scopeMode } = readFieldIds(formData);
+  await assertOperationScope(venueId, affectedFieldIds);
 
   await createScopedAlert({
     affectedFieldIds,
@@ -359,6 +373,7 @@ export async function createDelayUpdateAction(formData: FormData): Promise<void>
   const delayStatus = String(formData.get("delay_status") ?? "on_time");
 
   if (!venueId || !fieldId) return;
+  await assertOperationScope(venueId, [fieldId]);
 
   const isOnTime = delayStatus === "on_time";
   const isClosed = delayStatus === "closed";
@@ -392,6 +407,8 @@ export async function resetAllFieldDelaysAction(formData: FormData): Promise<voi
   const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
   const venueId = String(formData.get("venue_id") ?? "").trim();
 
+  await assertOperationScope(venueId, fieldIds);
+
   const ctxReset = await getSessionContext();
   await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctxReset?.userId)));
   if (venueId) {
@@ -408,6 +425,7 @@ export async function resetSelectedFieldDelayAction(formData: FormData): Promise
   const fieldId = String(formData.get("field_id") ?? "").trim();
 
   if (!fieldId) return;
+  await assertFieldInScope(fieldId);
 
   const ctxSel = await getSessionContext();
   await updateFieldStatus(fieldId, "open", ctxSel?.userId);
@@ -417,6 +435,8 @@ export async function resetSelectedFieldDelayAction(formData: FormData): Promise
 export async function reopenAllClosedFieldsAction(formData: FormData): Promise<void> {
   const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
   const venueId = String(formData.get("venue_id") ?? "").trim();
+
+  await assertOperationScope(venueId, fieldIds);
 
   const ctxReopen = await getSessionContext();
   await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctxReopen?.userId)));
@@ -435,6 +455,8 @@ export async function clearActiveOperationsAlertsAction(formData: FormData): Pro
   const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
 
   if (!venueId) return;
+
+  await assertOperationScope(venueId, fieldIds);
 
   await clearActiveOperationsAlerts(venueId);
   await notifyOperationsEvent({

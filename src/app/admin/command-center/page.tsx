@@ -7,6 +7,7 @@ import { LiveScore } from "@/app/fields/[fieldId]/live-score";
 import { ModeChecklistCard } from "./mode-checklist";
 import { refreshDemoDayAction } from "./actions";
 import { timeZoneAbbreviation } from "@/lib/venue-timezone";
+import { createVenueStatusAction } from "@/app/admin/operations-center/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,32 @@ function SummaryTile({ label, value, tone }: { label: string; value: string | nu
       <p className={`text-2xl font-black leading-none ${tone ?? "text-[var(--foreground)]"}`}>{value}</p>
       <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--muted)]">{label}</p>
     </div>
+  );
+}
+
+function QuickCommunicationAction({
+  fieldIds,
+  label,
+  operationType,
+  tone,
+  venueId,
+}: {
+  fieldIds: string[];
+  label: string;
+  operationType: "weather_delay" | "schedule_delay" | "all_clear";
+  tone: string;
+  venueId: string;
+}) {
+  return (
+    <form action={createVenueStatusAction}>
+      <input name="venue_id" type="hidden" value={venueId} />
+      <input name="scope_mode" type="hidden" value="all" />
+      <input name="operation_type" type="hidden" value={operationType} />
+      {fieldIds.map((fieldId) => <input key={fieldId} name="all_field_ids" type="hidden" value={fieldId} />)}
+      <button className={`min-h-14 w-full rounded-xl px-4 text-sm font-black shadow-sm ${tone}`} type="submit">
+        {label}
+      </button>
+    </form>
   );
 }
 
@@ -248,6 +275,22 @@ export default async function CommandCenterPage() {
           value={s.systemsTotal === 0 ? "OK" : `${s.systemsTotal - s.systemsOffline - s.systemsUnknown}/${s.systemsTotal}`}
           tone={s.systemsOffline > 0 ? "text-red-700" : s.systemsUnknown > 0 ? "text-amber-700" : "text-emerald-600"}
         />
+      </section>
+
+      <section className="mt-7 rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--accent-strong)]">Quick communication</p>
+            <h2 className="mt-1 text-xl font-black">Update every field</h2>
+          </div>
+          <Link className="inline-flex min-h-11 items-center text-sm font-black text-[var(--accent-strong)]" href="/admin/operations-center">Choose fields or write a custom alert →</Link>
+        </div>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">One tap updates field status, public QR pages, displays, and eligible email followers.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <QuickCommunicationAction fieldIds={view.fields.map((field) => field.fieldId)} label="Weather delay" operationType="weather_delay" tone="bg-amber-500 text-white" venueId={view.venueId} />
+          <QuickCommunicationAction fieldIds={view.fields.map((field) => field.fieldId)} label="Schedule delay" operationType="schedule_delay" tone="bg-[var(--black-soft)] text-white" venueId={view.venueId} />
+          <QuickCommunicationAction fieldIds={view.fields.map((field) => field.fieldId)} label="All clear" operationType="all_clear" tone="bg-emerald-600 text-white" venueId={view.venueId} />
+        </div>
       </section>
 
       <SchedulePulseCard pulse={view.pulse} />

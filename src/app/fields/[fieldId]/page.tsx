@@ -467,6 +467,12 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
     ? { label: field.mapLabel ?? field.name, x: field.mapX, y: field.mapY }
     : null;
   const currentSessionIsBaseballSoftball = currentSession ? isBaseballSoftballSport(currentSession) : false;
+  const directionsQuery = venue
+    ? [venue.name, venue.address, venue.city, venue.state].filter(Boolean).join(", ")
+    : "";
+  const directionsUrl = directionsQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directionsQuery)}`
+    : "#directions";
 
   return (
     <section className="min-h-screen bg-white">
@@ -514,8 +520,11 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
             ) : null}
 
             {field ? (
-              <section className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Current Status</p>
+              <section className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5" id="game-day-overview">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">At a glance</p>
+                  <p className="text-xs font-bold text-[var(--muted)]">{formatRelativeUpdate(field.updatedAt)}</p>
+                </div>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="text-2xl font-black">{field.name}</h2>
@@ -525,7 +534,23 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     {getFieldStatusLabel(field.status)}
                   </span>
                 </div>
-                <div className="mt-4 border-t border-[var(--line)] pt-4">
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className={publicAlerts.length > 0 ? "rounded-lg bg-red-50 p-3" : "rounded-lg bg-emerald-50 p-3"}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">Active alerts</p>
+                    <p className="mt-1 text-lg font-black">{publicAlerts.length > 0 ? publicAlerts.length : "None"}</p>
+                  </div>
+                  <div className="rounded-lg bg-[var(--background)] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">{currentSessionBadge === "LIVE NOW" ? "Live now" : "Next game"}</p>
+                    <p className="mt-1 truncate text-sm font-black">{currentSession ? currentSession.title : "Not scheduled"}</p>
+                    {currentSession ? <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{formatTimeOnly(currentSession.startTime)}</p> : null}
+                  </div>
+                </div>
+                <nav aria-label="Field page shortcuts" className="mt-3 grid grid-cols-3 gap-2">
+                  <a className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-2 text-center text-xs font-black" href={directionsUrl} rel="noreferrer" target={directionsQuery ? "_blank" : undefined}>Directions</a>
+                  <a className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-2 text-center text-xs font-black" href="#updates">Get updates</a>
+                  <a className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-2 text-center text-xs font-black" href="#schedule">Schedule</a>
+                </nav>
+                <div className="mt-4 border-t border-[var(--line)] pt-4" id="updates">
                   <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} />
                 </div>
               </section>
@@ -541,6 +566,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
 
             <section
               className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-4 shadow-lg sm:p-6" : "rounded-lg border-2 bg-white p-4 shadow-md sm:p-6"}
+              id="current-game"
               style={currentSessionBadge === "LIVE NOW" ? undefined : accentStyle}
             >
               <div className="flex flex-wrap items-center gap-2">
@@ -663,7 +689,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </section>
             ) : null}
 
-            <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5">
+            <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5" id="schedule">
               <h2 className="text-xl font-black">Today&apos;s Schedule</h2>
               <div className="mt-4 grid gap-3">
                 {todayScheduleGroups.length > 0 ? (
@@ -733,7 +759,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
 
             <AlertStack alerts={recentUpdates} showState title="Recent updates" />
 
-            <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+            <section className="rounded-lg border border-[var(--line)] bg-white p-5" id="directions">
               <h2 className="text-lg font-black">Find This Field</h2>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                 {field?.mapLabel ?? field?.name ?? "Field location"}
@@ -786,7 +812,6 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                   <CommunityLinks links={communityLinks} />
                   <ResourceActivationForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
                   {currentSession ? <VolunteerRoleForm fieldId={fieldId} sessionId={currentSession.id} venueId={venue.id} /> : null}
-                  <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} />
                 </div>
               </details>
             ) : null}

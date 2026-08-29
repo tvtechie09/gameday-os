@@ -54,6 +54,7 @@ export type VolunteerRoleStatus = "requested" | "approved" | "active" | "ended" 
 export type ExternalSourceType = "sportsengine" | "hometeamsonline" | "teamsnap" | "gamechanger" | "csv" | "ical" | "other";
 export type ExternalSourceStatus = "connected" | "not_configured" | "error" | "paused" | "unknown";
 export type FollowType = "field" | "session";
+export type FollowPreferenceLevel = "critical_only" | "all_updates";
 export type NotificationType = "alert" | "field_status" | "session_status" | "resource" | "volunteer" | "sponsor";
 export type SyncJobStatus = "pending" | "running" | "completed" | "failed";
 export type SyncQueueReviewStatus = "pending" | "approved" | "rejected" | "imported";

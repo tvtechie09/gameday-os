@@ -42,13 +42,13 @@ function LifecycleControls({ order, now }: { order: WorkOrder; now: number }) {
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <form action={assignWorkOrderAction} className="flex flex-wrap items-end gap-2">
+      <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-end">
+        <form action={assignWorkOrderAction} className="grid gap-2 sm:flex sm:flex-wrap sm:items-end">
           <input name="id" type="hidden" value={order.id} />
           <label className="grid gap-1">
             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">Assign to</span>
             <input
-              className="min-h-9 w-36 rounded-lg border border-[var(--line)] px-2 text-xs font-semibold"
+              className="min-h-12 w-full rounded-lg border border-[var(--line)] px-3 text-sm font-semibold sm:w-36"
               defaultValue={order.assignedRole ?? ""}
               name="assigned_role"
               placeholder="grounds crew"
@@ -56,33 +56,33 @@ function LifecycleControls({ order, now }: { order: WorkOrder; now: number }) {
           </label>
           <label className="grid gap-1">
             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">Due</span>
-            <input className="min-h-9 rounded-lg border border-[var(--line)] px-2 text-xs font-semibold" name="due_at" type="datetime-local" />
+            <input className="min-h-12 rounded-lg border border-[var(--line)] px-3 text-sm font-semibold" name="due_at" type="datetime-local" />
           </label>
-          <button className="min-h-9 rounded-lg border border-[var(--line)] px-3 text-xs font-bold" type="submit">
+          <button className="min-h-12 rounded-lg border border-[var(--line)] px-4 text-sm font-bold" type="submit">
             Save
           </button>
         </form>
 
         {!order.acknowledgedAt ? (
-          <form action={acknowledgeWorkOrderAction}>
+          <form action={acknowledgeWorkOrderAction} className="w-full sm:w-auto">
             <input name="id" type="hidden" value={order.id} />
-            <button className="min-h-9 rounded-lg bg-[var(--black-soft)] px-3 text-xs font-bold text-white" type="submit">
+            <button className="min-h-12 w-full rounded-lg bg-[var(--black-soft)] px-4 text-sm font-bold text-white" type="submit">
               I&apos;m on it
             </button>
           </form>
         ) : null}
 
-        <form action={resolveWorkOrderAction} className="flex flex-wrap items-end gap-2">
+        <form action={resolveWorkOrderAction} className="grid gap-2 sm:flex sm:flex-wrap sm:items-end">
           <input name="id" type="hidden" value={order.id} />
           <label className="grid gap-1">
             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">Resolution</span>
             <input
-              className="min-h-9 w-44 rounded-lg border border-[var(--line)] px-2 text-xs font-semibold"
+              className="min-h-12 w-full rounded-lg border border-[var(--line)] px-3 text-sm font-semibold sm:w-44"
               name="resolution_notes"
               placeholder="what fixed it"
             />
           </label>
-          <button className="min-h-9 rounded-lg border border-[var(--line)] px-3 text-xs font-bold" type="submit">
+          <button className="min-h-12 rounded-lg border border-[var(--line)] px-4 text-sm font-bold" type="submit">
             Resolve
           </button>
         </form>
