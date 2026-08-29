@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { getExternalSource, updateExternalSourceLastSync } from "@/lib/services/external-sources";
 import { getSessions } from "@/lib/services/sessions";
 import { createSyncJobWithQueue, type CreateSyncQueueRecordInput } from "@/lib/services/sync-engine";
+import { requireServerActionPermission } from "@/lib/access/server-action";
+import { fetchPublicCalendarText } from "@/lib/safe-calendar-fetch";
 import type { Session, SessionSportType } from "@/lib/types";
 
 export type CalendarImportEvent = {
@@ -164,28 +166,9 @@ function externalUrlKey(session: Pick<Session, "externalSource" | "externalSourc
 }
 
 export async function fetchCalendarEventsAction(feedUrl: string): Promise<FetchCalendarResult> {
-  let url: URL;
   try {
-    url = new URL(feedUrl);
-  } catch {
-    return { events: [], error: "This feed could not be imported. Try CSV import instead." };
-  }
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { events: [], error: "This feed could not be imported. Try CSV import instead." };
-  }
-
-  try {
-    const response = await fetch(url.toString(), {
-      cache: "no-store",
-      headers: { Accept: "text/calendar,text/plain,*/*" },
-    });
-
-    if (!response.ok) {
-      return { events: [], error: "This feed could not be imported. Try CSV import instead." };
-    }
-
-    const events = parseIcalEvents(await response.text());
+    await requireServerActionPermission("integration.webhook.manage");
+    const events = parseIcalEvents(await fetchPublicCalendarText(feedUrl));
     if (events.length === 0) {
       return { events: [], error: "This feed could not be imported. Try CSV import instead." };
     }
@@ -210,6 +193,7 @@ export async function importCalendarSessionsAction({
   rows: CalendarImportRow[];
   sourceId: string;
 }): Promise<ImportCalendarResult> {
+  await requireServerActionPermission("integration.webhook.manage");
   const externalSource = await getExternalSource(sourceId);
   if (!externalSource) {
     return { created: 0, errors: ["Choose a valid integration source."], queued: 0, skipped: 0 };

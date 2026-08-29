@@ -8,7 +8,7 @@ const adminLayout = readFileSync(new URL("../src/app/admin/layout.tsx", import.m
 const apiRequest = readFileSync(new URL("../src/lib/api-request.ts", import.meta.url), "utf8");
 const publicWriteRoutes = ["field-page-views", "follows", "sponsor-analytics/clicks", "sponsor-analytics/impressions", "resource-activations"].map((route) => readFileSync(new URL(`../src/app/api/${route}/route.ts`, import.meta.url), "utf8"));
 const liveReadRoutes = ["display/venue/[venueId]", "scoreboard/field/[fieldId]", "scoreboard/session/[sessionId]", "venues/[venueId]/mode", "weather/venue/[venueId]"].map((route) => readFileSync(new URL(`../src/app/api/${route}/route.ts`, import.meta.url), "utf8"));
-const middleware = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
+const proxy = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 const serverAuth = readFileSync(new URL("../src/lib/supabase/server-auth.ts", import.meta.url), "utf8");
 const protectedAdminRoutes = [
   "automations/route.ts",
@@ -73,8 +73,8 @@ test("live operational reads explicitly prevent stale intermediary caching", () 
 });
 
 test("admin routes require a verified Supabase session", () => {
-  assert.match(middleware, /matcher: \["\/admin\/:path\*"\]/);
-  assert.match(middleware, /auth\.getUser\(\)/);
+  assert.match(proxy, /export async function proxy/);
+  assert.match(proxy, /auth\.getUser\(\)/);
   assert.match(serverAuth, /supabase\.auth\.getUser\(\)/);
   assert.match(serverAuth, /eq\("auth_user_id", data\.user\.id\)/);
   assert.match(serverAuth, /user_status.*active/);
