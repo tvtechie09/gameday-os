@@ -31,9 +31,11 @@ function ctxFor(roleKey: string): AccessContext {
   } as AccessContext;
 }
 
-function opsHrefs(roleKey: string): string[] {
+function opsHomeHrefs(roleKey: string): string[] {
   const ops = buildNavigation(ctxFor(roleKey)).find((g) => g.key === "operations");
-  return (ops?.items ?? []).filter((i) => i.label === "Today's Operations").map((i) => i.href);
+  return (ops?.items ?? [])
+    .filter((i) => i.key === "command-center" || i.key === "today")
+    .map((i) => i.href);
 }
 
 const VENUE_OPERATORS = ["platform_admin", "venue_director", "venue_staff", "venue_tech_manager"];
@@ -41,7 +43,7 @@ const OTHER_OPS_ROLES = ["tournament_director", "emergency_coordinator", "coach"
 
 test("venue operators get the Command Center as Today's Operations", () => {
   for (const role of VENUE_OPERATORS) {
-    assert.deepEqual(opsHrefs(role), ["/admin/command-center"], `${role} should land on the Command Center`);
+    assert.deepEqual(opsHomeHrefs(role), ["/admin/command-center"], `${role} should land on the Command Center`);
   }
 });
 
@@ -50,19 +52,19 @@ test("non-operators with ops tasks keep /today and never see the Command Center"
   // alone. They must not reach the venue's attention queue, officials, or work
   // orders.
   for (const role of OTHER_OPS_ROLES) {
-    assert.deepEqual(opsHrefs(role), ["/today"], `${role} should stay on /today`);
+    assert.deepEqual(opsHomeHrefs(role), ["/today"], `${role} should stay on /today`);
   }
 });
 
 test("exactly one Today's Operations entry renders for every role", () => {
   for (const role of Object.keys(ROLE_PERMISSIONS)) {
-    const hrefs = opsHrefs(role);
+    const hrefs = opsHomeHrefs(role);
     assert.ok(hrefs.length <= 1, `${role} sees ${hrefs.length} competing entries: ${hrefs.join(", ")}`);
   }
 });
 
 test("a role with no ops permissions sees no Today's Operations entry", () => {
-  assert.deepEqual(opsHrefs("parent"), []);
+  assert.deepEqual(opsHomeHrefs("parent"), []);
 });
 
 // This is the regression that matters: nav visibility and the middleware guard
@@ -72,11 +74,23 @@ test("a role with no ops permissions sees no Today's Operations entry", () => {
 test("everyone who sees the Command Center link can actually open it", () => {
   const guard = guardForAdminPath("/admin/command-center");
   for (const role of Object.keys(ROLE_PERMISSIONS)) {
-    const linked = opsHrefs(role).includes("/admin/command-center");
+    const linked = opsHomeHrefs(role).includes("/admin/command-center");
     if (linked) {
       assert.ok(guard(ctxFor(role)), `${role} sees the link but the route guard rejects it`);
     }
   }
+});
+
+test("platform-only tools are separated from customer management navigation", () => {
+  const platformAdmin = ctxFor("platform_admin");
+  platformAdmin.permissions.add("platform.devtools");
+  const groups = buildNavigation(platformAdmin);
+  const platform = groups.find((group) => group.key === "platform");
+  const manage = groups.find((group) => group.key === "admin");
+
+  assert.equal(platform?.label, "Internal Tools");
+  assert.ok(platform?.items.some((item) => item.key === "marketplace"));
+  assert.equal(manage?.items.some((item) => item.key === "marketplace"), false);
 });
 
 test("the Command Center guard rejects roles that are not venue operators", () => {

@@ -261,7 +261,7 @@ export default async function CommandCenterPage() {
           <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Attention Queue</h2>
           <span className="flex flex-wrap items-center gap-3">
             <Link href="/admin/command-center/end-of-day" className="text-xs font-black text-[var(--accent-strong)]">Day report →</Link>
-            <Link href="/admin/operations-center" className="text-xs font-black text-[var(--accent-strong)]">Venue controls →</Link>
+            <Link href="/admin/operations-center" className="text-xs font-black text-[var(--accent-strong)]">Venue status &amp; alerts →</Link>
           </span>
         </div>
         {view.attention.length === 0 ? (
@@ -297,11 +297,10 @@ export default async function CommandCenterPage() {
         <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">Jump to</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {[
-            ["Venue controls", "/admin/operations-center"],
+            ["Venue status & alerts", "/admin/operations-center"],
             ["Storm assessment", "/admin/alerts/storm"],
             ["Officials", "/admin/sessions/officials"],
             ["Work orders", "/admin/fields/work-orders"],
-            ["Today", "/today"],
           ].map(([label, href]) => (
             <Link key={href} href={href} className="inline-flex min-h-9 items-center rounded-lg border border-[var(--line)] bg-white px-3 text-xs font-bold text-[var(--foreground)]">
               {label}

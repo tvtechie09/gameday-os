@@ -25,7 +25,9 @@ import {
   type AccessContext,
 } from "./capabilities.ts";
 
-export type NavGroupKey = "operations" | "admin";
+export type NavGroupKey = "operations" | "admin" | "platform";
+
+export type ProductSurfaceStage = "core" | "supporting" | "internal";
 
 export type NavItem = {
   key: string;
@@ -33,6 +35,7 @@ export type NavItem = {
   label: string;
   icon: string;
   group: NavGroupKey;
+  stage: ProductSurfaceStage;
   cap: (ctx: AccessContext | null) => boolean;
 };
 
@@ -53,14 +56,14 @@ export const navItems: NavItem[] = [
   // also resolves true for organization_admin -- but an org-scoped ctx's
   // venueId is always null (Phase B), so Command Center has nothing to render
   // for it. Same dead-end Phase B flagged for /today; excluded the same way.
-  { key: "command-center", href: "/admin/command-center", label: "Today's Operations", icon: "Home", group: "operations", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
-  { key: "org-home", href: "/org", label: "Organization Home", icon: "Home", group: "operations", cap: isOrgScoped },
-  { key: "today", href: "/today", label: "Today's Operations", icon: "Home", group: "operations", cap: (ctx) => canViewOpsTasks(ctx) && !canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "command-center", href: "/admin/command-center", label: "Command Center", icon: "Home", group: "operations", stage: "core", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "org-home", href: "/org", label: "Organization Home", icon: "Home", group: "operations", stage: "core", cap: isOrgScoped },
+  { key: "today", href: "/today", label: "Today's Operations", icon: "Home", group: "operations", stage: "core", cap: (ctx) => canViewOpsTasks(ctx) && !canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   // Reservations (grants + claims already exist) and the derived coaches
   // roster -- the two org-shaped screens an org president actually needs day
   // to day. Billing (below) is reused as-is via the widened canViewBilling cap.
-  { key: "org-reservations", href: "/org/reservations", label: "Reservations", icon: "CalendarDays", group: "operations", cap: isOrgScoped },
-  { key: "org-coaches", href: "/org/coaches", label: "Coaches", icon: "Users", group: "operations", cap: isOrgScoped },
+  { key: "org-reservations", href: "/org/reservations", label: "Reservations", icon: "CalendarDays", group: "operations", stage: "core", cap: isOrgScoped },
+  { key: "org-coaches", href: "/org/coaches", label: "Coaches", icon: "Users", group: "operations", stage: "supporting", cap: isOrgScoped },
   // Venue-wide posture: normal play / weather delay / schedule delay / closed /
   // emergency / maintenance, plus bulk field resets and venue announcements.
   // These are decisions the Command Center deliberately does NOT make -- it shows
@@ -82,45 +85,46 @@ export const navItems: NavItem[] = [
   // check that venueInScope now does. If an owning org's admin needs to run
   // their own venue day-to-day, today's answer is a venue-scoped role
   // assignment for that venue, not their org-scoped one.
-  { key: "venue-mode", href: "/admin/operations-center", label: "Venue Mode & Status", icon: "Gauge", group: "operations", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
-  { key: "schedule", href: "/admin/sessions", label: "Schedule & Games", icon: "CalendarDays", group: "operations", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
-  { key: "tournaments", href: "/admin/tournaments", label: "Tournaments & Brackets", icon: "Trophy", group: "operations", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },
-  { key: "fields", href: "/admin/fields", label: "Fields", icon: "MapPin", group: "operations", cap: (ctx) => canManageFields(ctx) && !isOrgScoped(ctx) },
-  { key: "scoreboards", href: "/admin/scoreboards", label: "Scoreboards", icon: "Gauge", group: "operations", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
-  { key: "devices", href: "/admin/resources", label: "Devices & Cameras", icon: "Radio", group: "operations", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
-  { key: "announcements", href: "/admin/alerts", label: "Announcements", icon: "Bell", group: "operations", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
-  { key: "reports", href: "/admin/executive", label: "Reports", icon: "Activity", group: "operations", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
+  { key: "venue-mode", href: "/admin/operations-center", label: "Venue Status & Alerts", icon: "Gauge", group: "operations", stage: "core", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "schedule", href: "/admin/sessions", label: "Schedule", icon: "CalendarDays", group: "operations", stage: "core", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
+  { key: "tournaments", href: "/admin/tournaments", label: "Tournament Operations", icon: "Trophy", group: "operations", stage: "supporting", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },
+  { key: "fields", href: "/admin/fields", label: "Fields", icon: "MapPin", group: "operations", stage: "core", cap: (ctx) => canManageFields(ctx) && !isOrgScoped(ctx) },
+  { key: "scoreboards", href: "/admin/scoreboards", label: "Scoreboards", icon: "Gauge", group: "operations", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
+  { key: "devices", href: "/admin/resources", label: "Venue Systems", icon: "Radio", group: "operations", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
+  { key: "announcements", href: "/admin/alerts", label: "Announcements", icon: "Bell", group: "operations", stage: "core", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
+  { key: "reports", href: "/admin/executive", label: "Reports", icon: "Activity", group: "operations", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
 
   // --- Admin workspace (grouped separately) ---
-  { key: "venue-settings", href: "/admin/venues", label: "Venue Settings", icon: "MapPin", group: "admin", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
-  { key: "organizations", href: "/admin/organizations", label: "Organizations", icon: "Users", group: "admin", cap: isPlatformAdmin },
-  { key: "integrations", href: "/admin/integrations", label: "Integrations", icon: "Database", group: "admin", cap: canManageIntegrations },
-  { key: "users", href: "/admin/identity/people", label: "Users", icon: "Users", group: "admin", cap: canManageUsers },
-  { key: "permissions", href: "/admin/roles", label: "Permissions & Roles", icon: "ShieldCheck", group: "admin", cap: canManagePermissions },
+  { key: "venue-settings", href: "/admin/venues", label: "Venue Settings", icon: "MapPin", group: "admin", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
+  { key: "organizations", href: "/admin/organizations", label: "Organizations", icon: "Users", group: "admin", stage: "supporting", cap: isPlatformAdmin },
+  { key: "integrations", href: "/admin/integrations", label: "Schedule Imports", icon: "Database", group: "admin", stage: "supporting", cap: canManageIntegrations },
+  { key: "users", href: "/admin/identity/people", label: "People & Access", icon: "Users", group: "admin", stage: "supporting", cap: canManageUsers },
+  { key: "permissions", href: "/admin/roles", label: "Roles & Permissions", icon: "ShieldCheck", group: "admin", stage: "supporting", cap: canManagePermissions },
   // canViewBilling (not the stricter canManageBilling) so an org-scoped
   // president sees their own org's plan/invoices read-only, matching what
   // billing/page.tsx already implements and self-guards on.
-  { key: "billing", href: "/admin/billing", label: "Billing", icon: "Gauge", group: "admin", cap: canViewBilling },
-  { key: "marketplace", href: "/admin/marketplace", label: "Automation Marketplace", icon: "Sparkles", group: "admin", cap: canViewDevTools },
-  { key: "developer", href: "/admin/developer", label: "Developer & API", icon: "Database", group: "admin", cap: canViewDevTools },
-  { key: "impersonation", href: "/admin/impersonation", label: "Impersonation", icon: "ShieldCheck", group: "admin", cap: canImpersonate },
+  { key: "billing", href: "/admin/billing", label: "Billing", icon: "Gauge", group: "admin", stage: "supporting", cap: canViewBilling },
+  { key: "marketplace", href: "/admin/marketplace", label: "Operational Workflows", icon: "Sparkles", group: "platform", stage: "internal", cap: canViewDevTools },
+  { key: "developer", href: "/admin/developer", label: "Developer & API", icon: "Database", group: "platform", stage: "internal", cap: canViewDevTools },
+  { key: "impersonation", href: "/admin/impersonation", label: "Impersonation", icon: "ShieldCheck", group: "platform", stage: "internal", cap: canImpersonate },
   // Your own account (2FA). Every signed-in user gets this -- it only ever acts
   // on the caller's own Supabase user, so there's no capability to gate on.
-  { key: "account", href: "/admin/account", label: "Your Account", icon: "ShieldCheck", group: "admin", cap: (ctx) => Boolean(ctx) },
-  { key: "feedback", href: "/admin/feedback", label: "Send Feedback", icon: "Bell", group: "admin", cap: canAccessAdminWorkspace },
+  { key: "account", href: "/admin/account", label: "Your Account", icon: "ShieldCheck", group: "admin", stage: "supporting", cap: (ctx) => Boolean(ctx) },
+  { key: "feedback", href: "/admin/feedback", label: "Send Feedback", icon: "Bell", group: "admin", stage: "supporting", cap: canAccessAdminWorkspace },
 ];
 
 const groupLabels: Record<NavGroupKey, string> = {
-  operations: "Daily Operations",
-  admin: "Admin",
+  operations: "Run Today",
+  admin: "Manage",
+  platform: "Internal Tools",
 };
 
 export function buildNavigation(ctx: AccessContext | null): NavGroup[] {
   const groups: NavGroup[] = [];
-  for (const groupKey of ["operations", "admin"] as NavGroupKey[]) {
+  for (const groupKey of ["operations", "admin", "platform"] as NavGroupKey[]) {
     const items = navItems
       .filter((item) => item.group === groupKey && item.cap(ctx))
-      .map(({ key, href, label, icon }) => ({ key, href, label, icon }));
+      .map(({ key, href, label, icon, stage }) => ({ key, href, label, icon, stage }));
     if (items.length > 0) {
       groups.push({ key: groupKey, label: groupLabels[groupKey], items });
     }
