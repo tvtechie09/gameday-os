@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { buildContentSecurityPolicy } from "../next.config.ts";
 
 const nextConfig = readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -28,6 +29,12 @@ test("Venue OS ships browser hardening headers", () => {
   for (const header of ["X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "X-Frame-Options"]) {
     assert.match(nextConfig, new RegExp(header));
   }
+});
+
+test("development hot reload does not weaken the production content security policy", () => {
+  assert.match(buildContentSecurityPolicy("development"), /'unsafe-eval'/);
+  assert.doesNotMatch(buildContentSecurityPolicy("production"), /'unsafe-eval'/);
+  assert.match(nextConfig, /allowedDevOrigins: \["127\.0\.0\.1"\]/);
 });
 
 test("Venue OS has deterministic ESM and type-validation gates", () => {

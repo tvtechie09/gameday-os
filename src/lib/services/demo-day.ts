@@ -158,18 +158,24 @@ async function ensureDemoCampaign(
 
 const DEMO_CAMPAIGN_NAME = "Weekend Sponsor Package — Saturday";
 
-export async function refreshDemoDay(ctx: AccessContext | null): Promise<DemoRefreshResult> {
+export async function refreshDemoDay(ctx: AccessContext | null, options?: { sessionIds?: string[] }): Promise<DemoRefreshResult> {
   if (!isPlatformAdmin(ctx) && !canManagePlatform(ctx)) {
     throw new Error("Only GameDay platform staff can refresh the demo day.");
   }
   const supabase = getSupabaseAdminClient();
 
   // ONLY demo sessions. This is the guard — never widen it.
-  const { data, error } = await supabase
+  if (options?.sessionIds && options.sessionIds.length === 0) {
+    throw new Error("No reference demo sessions were selected for refresh.");
+  }
+  const demoSessionsQuery = supabase
     .from("sessions")
     .select("id")
-    .eq("is_demo", true)
-    .order("start_time", { ascending: true });
+    .eq("is_demo", true);
+  const { data, error } = await (options?.sessionIds
+    ? demoSessionsQuery.in("id", options.sessionIds)
+    : demoSessionsQuery
+  ).order("start_time", { ascending: true });
   if (error) throw new Error(error.message);
 
   const ids = (data ?? []).map((r) => (r as { id: string }).id);

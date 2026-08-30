@@ -9,6 +9,7 @@ import {
   canManageFields,
   canManageIntegrations,
   canManagePermissions,
+  canManagePlatform,
   canManageSchedule,
   canManageTournaments,
   canManageUsers,
@@ -106,6 +107,7 @@ export const navItems: NavItem[] = [
   // billing/page.tsx already implements and self-guards on.
   { key: "billing", href: "/admin/billing", label: "Billing", icon: "Gauge", group: "admin", stage: "supporting", cap: canViewBilling },
   { key: "marketplace", href: "/admin/marketplace", label: "Operational Workflows", icon: "Sparkles", group: "platform", stage: "internal", cap: canViewDevTools },
+  { key: "demo-readiness", href: "/admin/demo", label: "Demo Readiness", icon: "ClipboardCheck", group: "platform", stage: "internal", cap: (ctx) => isPlatformAdmin(ctx) || canManagePlatform(ctx) },
   { key: "developer", href: "/admin/developer", label: "Developer & API", icon: "Database", group: "platform", stage: "internal", cap: canViewDevTools },
   { key: "impersonation", href: "/admin/impersonation", label: "Impersonation", icon: "ShieldCheck", group: "platform", stage: "internal", cap: canImpersonate },
   // Your own account (2FA). Every signed-in user gets this -- it only ever acts
@@ -162,6 +164,7 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   { prefix: "/admin/command-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/operations-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/impersonation", cap: canImpersonate },
+  { prefix: "/admin/demo", cap: (ctx) => isPlatformAdmin(ctx) || canManagePlatform(ctx) },
   { prefix: "/admin/developer", cap: canViewDevTools },
   { prefix: "/admin/marketplace", cap: canViewDevTools },
   { prefix: "/admin/billing", cap: canViewBilling },
