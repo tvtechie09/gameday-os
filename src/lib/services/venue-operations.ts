@@ -117,7 +117,7 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
       .slice(0, 5)
       .map((alert) => ({ id: alert.id, title: alert.title, message: alert.message, priority: alert.alertPriority })),
     workOrders: workOrders
-      .filter((order) => fieldIds.has(order.fieldId) && order.status !== "done" && !order.closedAt)
+      .filter((order) => (order.venueId === venue.id || (order.fieldId !== null && fieldIds.has(order.fieldId))) && order.status !== "done" && order.status !== "resolved" && !order.closedAt)
       .slice(0, 6)
       .map((order) => ({ id: order.id, title: order.title, detail: order.detail ?? "", priority: order.priority })),
     targets: computeQuickActionTargets(venue, venueFields, venueSessions, Date.now()),

@@ -4,10 +4,8 @@ import type { WorkOrder } from "@/lib/services/work-orders";
 // isolation (same split as command-center-core / storm-assessment); all IO lives
 // in work-orders.ts.
 //
-// Design note: the stored `status` vocabulary is UNCHANGED (open | in_progress |
-// done). The richer lifecycle stage is DERIVED from assignment + acknowledgement
-// timestamps, so nothing that reads or writes status has to change and old rows
-// resolve correctly with every new column null.
+// The canonical lifecycle is explicit. Legacy `done` rows are still accepted
+// during rollout so old records do not reopen or disappear from reporting.
 
 export type IssueStage = "open" | "assigned" | "acknowledged" | "in_progress" | "resolved";
 
@@ -33,12 +31,14 @@ export function issueStageLabel(stage: IssueStage): string {
 }
 
 function isResolved(order: WorkOrder): boolean {
-  return order.status === "done" || Boolean(order.closedAt);
+  return order.status === "resolved" || order.status === "done" || Boolean(order.closedAt);
 }
 
 export function resolveIssueStage(order: WorkOrder): IssueStage {
   if (isResolved(order)) return "resolved";
   if (order.status === "in_progress") return "in_progress";
+  if (order.status === "acknowledged") return "acknowledged";
+  if (order.status === "assigned") return "assigned";
   if (order.acknowledgedAt) return "acknowledged";
   if (order.assignedToUserId || order.assignedRole) return "assigned";
   return "open";

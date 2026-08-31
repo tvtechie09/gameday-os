@@ -76,7 +76,7 @@ export async function getVenueImpact(ctx: AccessContext | null, rangeDays = 30):
     alertsPosted: alerts.length,
     familiesNotified: (deliveries as { count: number | null }).count ?? 0,
     weatherHolds: alerts.filter((a) => (a.alert_type ?? "") === "weather").length,
-    workOrders: workOrders.filter((o) => venueFieldIds.has(o.fieldId)),
+    workOrders: workOrders.filter((o) => o.venueId === venue.id || (o.fieldId !== null && venueFieldIds.has(o.fieldId))),
     sponsorPlacementsDelivered: delivered,
     sponsorContracted: contracted,
     engineEventsRecorded: (eventCount as { count: number | null }).count ?? 0,

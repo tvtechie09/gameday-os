@@ -249,7 +249,8 @@ export type Database = {
       field_work_orders: {
         Row: {
           id: string;
-          field_id: string;
+          venue_id: string;
+          field_id: string | null;
           title: string;
           detail: string | null;
           priority: string;
@@ -267,10 +268,17 @@ export type Database = {
           source?: string;
           game_id?: string | null;
           asset_id?: string | null;
+          issue_type?: string;
+          system_key?: string | null;
+          detected_at?: string;
+          assigned_at?: string | null;
+          started_at?: string | null;
+          metadata?: Json;
         };
         Insert: {
           id?: string;
-          field_id: string;
+          venue_id: string;
+          field_id?: string | null;
           title: string;
           detail?: string | null;
           priority?: string;
@@ -288,10 +296,17 @@ export type Database = {
           source?: string;
           game_id?: string | null;
           asset_id?: string | null;
+          issue_type?: string;
+          system_key?: string | null;
+          detected_at?: string;
+          assigned_at?: string | null;
+          started_at?: string | null;
+          metadata?: Json;
         };
         Update: {
           id?: string;
-          field_id?: string;
+          venue_id?: string;
+          field_id?: string | null;
           title?: string;
           detail?: string | null;
           priority?: string;
@@ -308,6 +323,12 @@ export type Database = {
           source?: string;
           game_id?: string | null;
           asset_id?: string | null;
+          issue_type?: string;
+          system_key?: string | null;
+          detected_at?: string;
+          assigned_at?: string | null;
+          started_at?: string | null;
+          metadata?: Json;
         };
         Relationships: [
           {

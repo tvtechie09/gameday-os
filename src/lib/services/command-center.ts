@@ -119,7 +119,7 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
   const officials = await getOfficialsForSessions(games.map((g) => g.id)).catch(() => [] as SessionOfficial[]);
 
   const weather: WeatherSnapshot = storm ? { risk: storm.risk, reasons: storm.reasons } : null;
-  const venueWorkOrders = workOrders.filter((o) => fieldIds.has(o.fieldId));
+  const venueWorkOrders = workOrders.filter((o) => o.venueId === venue.id || (o.fieldId !== null && fieldIds.has(o.fieldId)));
   const venueAssets = assets.filter((a) => a.venueId === venue.id);
   const venueAudioProfiles = audioProfiles.filter((p) => p.venueId === venue.id);
   const mode = resolveMode(games, now);
@@ -134,7 +134,7 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
     // No venue closing time is modeled yet, so curfew risk stays empty rather
     // than guessing a close hour.
     pulse: buildSchedulePulse({ fields: venueFields, games, now, timeZone }),
-    fields: buildFieldBoard(venueFields, games, officials, now, timeZone),
+    fields: buildFieldBoard(venueFields, games, officials, now, timeZone, venueAssets, venueWorkOrders, weather),
     attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, audioProfiles: venueAudioProfiles, weather, now, timeZone }),
     checklist: buildModeChecklist({ mode, fields: venueFields, games, officials, assets: venueAssets, weather, workOrders: venueWorkOrders, now }),
     weather,

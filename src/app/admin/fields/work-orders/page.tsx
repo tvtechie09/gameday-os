@@ -3,7 +3,7 @@ import { publicErrorMessage } from "@/lib/public-error";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getWorkOrders, type WorkOrder } from "@/lib/services/work-orders";
 import { issueLifecycle, issueStageLabel, orderIssues, rollupIssues } from "@/lib/services/work-order-core";
-import { acknowledgeWorkOrderAction, assignWorkOrderAction, resolveWorkOrderAction, setWorkOrderStatusAction } from "./actions";
+import { acknowledgeWorkOrderAction, assignWorkOrderAction, resolveWorkOrderAction, setWorkOrderStatusAction, startWorkOrderAction } from "./actions";
 import { WorkOrderForm } from "./work-order-form";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +72,13 @@ function LifecycleControls({ order, now }: { order: WorkOrder; now: number }) {
           </form>
         ) : null}
 
+        {life.stage !== "in_progress" ? (
+          <form action={startWorkOrderAction} className="w-full sm:w-auto">
+            <input name="id" type="hidden" value={order.id} />
+            <button className="min-h-12 w-full rounded-lg border border-[var(--line)] px-4 text-sm font-bold" type="submit">Start work</button>
+          </form>
+        ) : null}
+
         <form action={resolveWorkOrderAction} className="grid gap-2 sm:flex sm:flex-wrap sm:items-end">
           <input name="id" type="hidden" value={order.id} />
           <label className="grid gap-1">
@@ -92,15 +99,10 @@ function LifecycleControls({ order, now }: { order: WorkOrder; now: number }) {
 }
 
 function StatusActions({ order }: { order: WorkOrder }) {
-  const next: Array<{ status: string; label: string }> =
-    order.status === "open"
-      ? [
-          { status: "in_progress", label: "Start" },
-          { status: "done", label: "Done" },
-        ]
-      : order.status === "in_progress"
-        ? [{ status: "done", label: "Done" }]
-        : [{ status: "open", label: "Reopen" }];
+  const resolved = order.status === "resolved" || order.status === "done" || Boolean(order.closedAt);
+  const next: Array<{ status: string; label: string }> = resolved
+    ? [{ status: "open", label: "Reopen" }]
+    : [{ status: "resolved", label: "Resolve" }];
   return (
     <div className="flex gap-2">
       {next.map((option) => (
@@ -127,9 +129,10 @@ async function loadIssueBoard() {
     const venueById = new Map(scoped.venues.map((venue) => [venue.id, venue]));
     const fieldOptions = scoped.fields.map((field) => ({ id: field.id, name: field.name, venueName: venueById.get(field.venueId)?.name ?? "Venue" }));
     for (const field of scoped.fields) fieldNameById.set(field.id, field.name);
-    // Confine work orders to in-scope fields.
+    // Confine field and venue-wide issues to in-scope venues.
     const fieldIds = new Set(scoped.fields.map((field) => field.id));
-    const orders = workOrders.filter((order) => fieldIds.has(order.fieldId));
+    const venueIds = new Set(scoped.venues.map((venue) => venue.id));
+    const orders = workOrders.filter((order) => venueIds.has(order.venueId) || (order.fieldId !== null && fieldIds.has(order.fieldId)));
 
     return {
       errorMessage: null as string | null,
@@ -138,8 +141,8 @@ async function loadIssueBoard() {
       fieldNameById,
       // Ranked by what most needs a decision (overdue, then priority, then
       // unowned) rather than newest-first, so the forgotten item rises.
-      openOrders: orderIssues(orders.filter((order) => order.status !== "done"), now),
-      doneOrders: orders.filter((order) => order.status === "done").slice(0, 20),
+      openOrders: orderIssues(orders.filter((order) => order.status !== "done" && order.status !== "resolved" && !order.closedAt), now),
+      doneOrders: orders.filter((order) => order.status === "done" || order.status === "resolved" || Boolean(order.closedAt)).slice(0, 20),
       rollup: rollupIssues(orders, now),
     };
   } catch (error) {
@@ -201,10 +204,10 @@ export default async function WorkOrdersPage() {
                             {order.priority}
                           </span>
                           <span className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--muted)]">
-                            {order.status === "in_progress" ? "In progress" : "Open"}
+                            {issueStageLabel(issueLifecycle(order, now).stage)}
                           </span>
                         </div>
-                        <h3 className="mt-2 font-black">{fieldNameById.get(order.fieldId) ?? "Field"} — {order.title}</h3>
+                        <h3 className="mt-2 font-black">{order.fieldId ? fieldNameById.get(order.fieldId) ?? "Field" : "Venue-wide"} — {order.title}</h3>
                         {order.detail ? <p className="mt-1 text-sm text-[var(--muted)]">{order.detail}</p> : null}
                         <p className="mt-2 text-xs text-[var(--muted)]">
                           {formatCreatedAt(order.createdAt)}
@@ -228,7 +231,7 @@ export default async function WorkOrdersPage() {
                   <li key={order.id} className="border-b border-[var(--line)] pb-2 last:border-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span>
-                        <span className="font-bold">{fieldNameById.get(order.fieldId) ?? "Field"}</span> — {order.title}
+                        <span className="font-bold">{order.fieldId ? fieldNameById.get(order.fieldId) ?? "Field" : "Venue-wide"}</span> — {order.title}
                       </span>
                       <StatusActions order={order} />
                     </div>

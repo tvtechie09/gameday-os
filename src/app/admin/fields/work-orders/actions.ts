@@ -8,10 +8,11 @@ import {
   getWorkOrders,
   resolveWorkOrder,
   setWorkOrderStatus,
+  startWorkOrder,
 } from "@/lib/services/work-orders";
 import { publicErrorMessage } from "@/lib/public-error";
 import { resolveSession } from "@/lib/access/session";
-import { assertFieldInScope } from "@/lib/access/scoped-venue-data";
+import { assertFieldInScope, assertVenueInScope } from "@/lib/access/scoped-venue-data";
 
 export type CreateWorkOrderResult = { ok: boolean; error?: string };
 
@@ -21,7 +22,8 @@ export type CreateWorkOrderResult = { ok: boolean; error?: string };
 async function assertIssueInScope(id: string): Promise<boolean> {
   const order = (await getWorkOrders()).find((item) => item.id === id);
   if (!order) return false;
-  await assertFieldInScope(order.fieldId);
+  await assertVenueInScope(order.venueId);
+  if (order.fieldId) await assertFieldInScope(order.fieldId);
   return true;
 }
 
@@ -97,6 +99,19 @@ export async function acknowledgeWorkOrderAction(formData: FormData): Promise<vo
   revalidatePath("/admin/fields/work-orders");
 }
 
+export async function startWorkOrderAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  try {
+    if (!(await assertIssueInScope(id))) return;
+    await startWorkOrder(id);
+  } catch {
+    // Unchanged.
+  }
+  revalidatePath("/admin/fields/work-orders");
+  revalidatePath("/admin/command-center");
+}
+
 export async function resolveWorkOrderAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") || "");
   if (!id) return;
@@ -107,4 +122,5 @@ export async function resolveWorkOrderAction(formData: FormData): Promise<void> 
     // Unchanged.
   }
   revalidatePath("/admin/fields/work-orders");
+  revalidatePath("/admin/command-center");
 }

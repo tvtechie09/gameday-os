@@ -10,6 +10,7 @@ const minsAhead = (m: number) => new Date(NOW + m * 60_000).toISOString();
 function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
   return {
     id: "w1",
+    venueId: "V1",
     fieldId: "F1",
     title: "Sprinkler head broken",
     detail: null,
@@ -27,18 +28,27 @@ function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
     source: "manual",
     gameId: null,
     assetId: null,
+    issueType: "maintenance",
+    systemKey: null,
+    detectedAt: minsAgo(60),
+    assignedAt: null,
+    startedAt: null,
+    metadata: {},
     ...overrides,
   };
 }
 
 // ---- stage derivation ------------------------------------------------------
 
-test("stage: derived from assignment + acknowledgement, not a new status value", () => {
+test("stage: honors explicit lifecycle states and legacy lifecycle columns", () => {
   assert.equal(resolveIssueStage(order()), "open");
   assert.equal(resolveIssueStage(order({ assignedRole: "grounds" })), "assigned");
   assert.equal(resolveIssueStage(order({ assignedToUserId: "u1" })), "assigned");
   assert.equal(resolveIssueStage(order({ assignedRole: "grounds", acknowledgedAt: minsAgo(10) })), "acknowledged");
   assert.equal(resolveIssueStage(order({ status: "in_progress" })), "in_progress");
+  assert.equal(resolveIssueStage(order({ status: "assigned" })), "assigned");
+  assert.equal(resolveIssueStage(order({ status: "acknowledged" })), "acknowledged");
+  assert.equal(resolveIssueStage(order({ status: "resolved" })), "resolved");
   assert.equal(resolveIssueStage(order({ status: "done" })), "resolved");
 });
 

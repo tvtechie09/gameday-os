@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
-import { canManagePlatform, isPlatformAdmin } from "@/lib/access/capabilities";
+import { canManagePlatform, canViewCommandCenter, isPlatformAdmin } from "@/lib/access/capabilities";
 import { buildCommandCenter, type AttentionItem, type AttentionTier, type CommandCenterMode, type FieldBoardEntry, type SchedulePulse } from "@/lib/services/command-center";
 import { LiveScore } from "@/app/fields/[fieldId]/live-score";
 import { ModeChecklistCard } from "./mode-checklist";
-import { refreshDemoDayAction } from "./actions";
+import { refreshDemoDayAction, trackAttentionItemAction, updateAttentionIssueAction } from "./actions";
 import { timeZoneAbbreviation } from "@/lib/venue-timezone";
 import { createVenueStatusAction } from "@/app/admin/operations-center/actions";
 
@@ -146,6 +146,8 @@ function AttentionCard({ item }: { item: AttentionItem }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ${meta.chip}`}>{meta.label}</span>
         {item.fieldName ? <span className="rounded-md bg-white/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">{item.fieldName}</span> : null}
+        {item.issueType ? <span className="rounded-md bg-white/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">{item.issueType}</span> : null}
+        {item.status ? <span className="rounded-md bg-white/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--muted)]">{item.status.replaceAll("_", " ")}</span> : null}
       </div>
       <h3 className="mt-2 text-base font-black leading-snug text-[var(--foreground)]">{item.title}</h3>
       <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{item.why}</p>
@@ -157,9 +159,40 @@ function AttentionCard({ item }: { item: AttentionItem }) {
           </Link>
         ) : null}
       </div>
+      {item.issueId ? (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-black/10 pt-3">
+          {!item.assignedTo ? <IssueAction issueId={item.issueId} label="Assign to me" operation="assign_self" /> : null}
+          {!item.acknowledged ? <IssueAction issueId={item.issueId} label="Acknowledge" operation="acknowledge" /> : null}
+          {item.status !== "in_progress" ? <IssueAction issueId={item.issueId} label="Start" operation="start" /> : null}
+          <IssueAction issueId={item.issueId} label="Resolve" operation="resolve" primary />
+        </div>
+      ) : item.source === "computed" ? (
+        <form action={trackAttentionItemAction} className="mt-3 border-t border-black/10 pt-3">
+          <input name="item_id" type="hidden" value={item.id} />
+          <button className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-xs font-black focus-visible:outline-2 focus-visible:outline-offset-2" type="submit">Track issue</button>
+        </form>
+      ) : null}
     </article>
   );
 }
+
+function IssueAction({ issueId, label, operation, primary = false }: { issueId: string; label: string; operation: string; primary?: boolean }) {
+  return (
+    <form action={updateAttentionIssueAction}>
+      <input name="issue_id" type="hidden" value={issueId} />
+      <input name="operation" type="hidden" value={operation} />
+      <button className={`min-h-11 rounded-lg px-3 text-xs font-black focus-visible:outline-2 focus-visible:outline-offset-2 ${primary ? "bg-[var(--black-soft)] text-white" : "border border-[var(--line)] bg-white"}`} type="submit">{label}</button>
+    </form>
+  );
+}
+
+const deviceTone: Record<FieldBoardEntry["devices"]["scoreboard"]["status"], string> = {
+  online: "bg-emerald-50 text-emerald-800",
+  offline: "bg-red-100 text-red-900",
+  degraded: "bg-amber-100 text-amber-900",
+  unknown: "bg-slate-100 text-slate-700",
+  not_configured: "bg-transparent text-[var(--muted)]",
+};
 
 function FieldCard({ entry }: { entry: FieldBoardEntry }) {
   const meta = fieldStatusMeta[entry.status] ?? { dot: "bg-slate-400", ring: "border-[var(--line)]", label: entry.status };
@@ -201,6 +234,19 @@ function FieldCard({ entry }: { entry: FieldBoardEntry }) {
         </p>
       ) : null}
 
+      <div className="mt-3 flex flex-wrap gap-1.5" aria-label={`${entry.fieldName} system health`}>
+        {(["scoreboard", "audio", "camera"] as const).map((kind) => {
+          const state = entry.devices[kind];
+          return <span key={kind} className={`rounded-md px-2 py-1 text-[10px] font-bold ${deviceTone[state.status]}`}>{kind}: {state.label}</span>;
+        })}
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-[var(--muted)]">
+        <span>Staff: {entry.staffCoverage.label}</span>
+        {entry.unresolvedIssueCount > 0 ? <span className="font-black text-red-700">{entry.unresolvedIssueCount} open issue{entry.unresolvedIssueCount === 1 ? "" : "s"}</span> : null}
+        {entry.weatherRisk ? <span className="font-black text-amber-800">Weather: {entry.weatherRisk}</span> : null}
+      </div>
+
       {entry.recommendedAction ? (
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-900">{entry.recommendedAction}</p>
       ) : null}
@@ -211,6 +257,7 @@ function FieldCard({ entry }: { entry: FieldBoardEntry }) {
 export default async function CommandCenterPage() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/dev-login");
+  if (!canViewCommandCenter(ctx)) redirect("/no-access");
 
   const view = await buildCommandCenter(ctx);
   const mode = modeCaption[view.mode];

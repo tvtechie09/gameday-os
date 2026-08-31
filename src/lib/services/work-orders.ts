@@ -1,11 +1,13 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/types";
 
-// Field maintenance work orders: broken sprinkler head, chewed-up mound,
-// fence gap — logged against a field, worked by grounds staff, closed out.
+// Lightweight operational issues for the venue command center. Historical
+// field-maintenance work orders remain valid records in this same table.
 
 export type WorkOrder = {
   id: string;
-  fieldId: string;
+  venueId: string;
+  fieldId: string | null;
   title: string;
   detail: string | null;
   priority: string;
@@ -25,25 +27,44 @@ export type WorkOrder = {
   source: string;
   gameId: string | null;
   assetId: string | null;
+  issueType: OperationalIssueType;
+  systemKey: string | null;
+  detectedAt: string;
+  assignedAt: string | null;
+  startedAt: string | null;
+  metadata: Json;
 };
 
+export type OperationalIssueStatus = "open" | "assigned" | "acknowledged" | "in_progress" | "resolved";
+export type OperationalIssueType = "maintenance" | "schedule" | "staffing" | "device" | "scoreboard" | "audio" | "camera" | "weather" | "incident" | "task" | "other";
+
 export type CreateWorkOrderInput = {
-  fieldId: string;
+  venueId?: string | null;
+  fieldId?: string | null;
   title: string;
   detail?: string | null;
   priority?: string;
   reportedBy?: string | null;
+  issueType?: OperationalIssueType;
+  source?: "manual" | "system";
+  systemKey?: string | null;
+  gameId?: string | null;
+  assetId?: string | null;
+  detectedAt?: string | null;
+  metadata?: Json;
 };
 
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
-const STATUSES = new Set(["open", "in_progress", "done"]);
+const STATUSES = new Set<OperationalIssueStatus>(["open", "assigned", "acknowledged", "in_progress", "resolved"]);
+const ISSUE_TYPES = new Set<OperationalIssueType>(["maintenance", "schedule", "staffing", "device", "scoreboard", "audio", "camera", "weather", "incident", "task", "other"]);
 
 // Lifecycle columns are optional on the row type: a deploy where the code is
 // ahead of the migration (or an old cached row shape) must degrade to nulls
 // rather than throw.
 function mapWorkOrder(row: {
   id: string;
-  field_id: string;
+  venue_id?: string | null;
+  field_id: string | null;
   title: string;
   detail: string | null;
   priority: string;
@@ -60,9 +81,16 @@ function mapWorkOrder(row: {
   source?: string | null;
   game_id?: string | null;
   asset_id?: string | null;
+  issue_type?: string | null;
+  system_key?: string | null;
+  detected_at?: string | null;
+  assigned_at?: string | null;
+  started_at?: string | null;
+  metadata?: Json | null;
 }): WorkOrder {
   return {
     id: row.id,
+    venueId: row.venue_id ?? "",
     fieldId: row.field_id,
     title: row.title,
     detail: row.detail,
@@ -80,6 +108,12 @@ function mapWorkOrder(row: {
     source: row.source ?? "manual",
     gameId: row.game_id ?? null,
     assetId: row.asset_id ?? null,
+    issueType: ISSUE_TYPES.has(row.issue_type as OperationalIssueType) ? row.issue_type as OperationalIssueType : "maintenance",
+    systemKey: row.system_key ?? null,
+    detectedAt: row.detected_at ?? row.created_at,
+    assignedAt: row.assigned_at ?? null,
+    startedAt: row.started_at ?? null,
+    metadata: row.metadata ?? {},
   };
 }
 
@@ -101,17 +135,36 @@ export async function getWorkOrders(): Promise<WorkOrder[]> {
   return (data ?? []).map(mapWorkOrder);
 }
 
+async function resolveVenueId(input: Pick<CreateWorkOrderInput, "venueId" | "fieldId">): Promise<string> {
+  if (input.venueId) return input.venueId;
+  if (!input.fieldId) throw new Error("Venue is required for a venue-wide issue.");
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.from("fields").select("venue_id").eq("id", input.fieldId).maybeSingle();
+  if (error || !data?.venue_id) throw new Error(error?.message ?? "The issue field has no venue.");
+  return data.venue_id;
+}
+
 export async function createWorkOrder(input: CreateWorkOrderInput): Promise<WorkOrder> {
   const supabase = getSupabaseAdminClient();
+  const venueId = await resolveVenueId(input);
   const priority = PRIORITIES.has(input.priority ?? "") ? (input.priority as string) : "normal";
+  const issueType = ISSUE_TYPES.has(input.issueType ?? "maintenance") ? input.issueType as OperationalIssueType : "maintenance";
   const { data, error } = await supabase
     .from("field_work_orders")
     .insert({
-      field_id: input.fieldId,
+      venue_id: venueId,
+      field_id: input.fieldId ?? null,
       title: input.title.trim().slice(0, 160),
       detail: input.detail?.trim().slice(0, 1000) || null,
       priority,
       reported_by: input.reportedBy?.trim().slice(0, 120) || null,
+      issue_type: issueType,
+      source: input.source ?? "manual",
+      system_key: input.systemKey?.trim().slice(0, 240) || null,
+      game_id: input.gameId ?? null,
+      asset_id: input.assetId ?? null,
+      detected_at: input.detectedAt ?? new Date().toISOString(),
+      metadata: input.metadata ?? {},
     })
     .select("*")
     .single();
@@ -121,20 +174,33 @@ export async function createWorkOrder(input: CreateWorkOrderInput): Promise<Work
   return mapWorkOrder(data);
 }
 
+export async function createSystemWorkOrder(input: CreateWorkOrderInput & { venueId: string; systemKey: string }): Promise<WorkOrder> {
+  const supabase = getSupabaseAdminClient();
+  const { data: existing, error: existingError } = await supabase
+    .from("field_work_orders")
+    .select("*")
+    .eq("venue_id", input.venueId)
+    .eq("system_key", input.systemKey)
+    .not("status", "in", "(resolved,done)")
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+  if (existing) return mapWorkOrder(existing);
+  return createWorkOrder({ ...input, source: "system" });
+}
+
 // ---- Issue lifecycle -------------------------------------------------------
-//
-// The stored `status` vocabulary is deliberately unchanged; assignment and
-// acknowledgement are separate columns, and work-order-core derives the richer
-// stage from them. That keeps every existing reader/writer of status correct.
 
 export async function assignWorkOrder(id: string, input: { role?: string | null; userId?: string | null; dueAt?: string | null }): Promise<void> {
   const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
   const patch: {
     updated_at: string;
+    status: OperationalIssueStatus;
+    assigned_at: string;
     assigned_role?: string | null;
     assigned_to_user_id?: string | null;
     due_at?: string | null;
-  } = { updated_at: new Date().toISOString() };
+  } = { updated_at: now, status: "assigned", assigned_at: now };
   // Only touch what the caller actually passed, so assigning a role doesn't
   // silently clear a due time (or vice versa).
   if (input.role !== undefined) patch.assigned_role = input.role?.trim().slice(0, 60) || null;
@@ -152,14 +218,14 @@ export async function assignWorkOrder(id: string, input: { role?: string | null;
 // trail records when it was actually picked up, not the last click.
 export async function acknowledgeWorkOrder(id: string, actorUserId?: string | null): Promise<void> {
   const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
   const { error } = await supabase
     .from("field_work_orders")
     .update({
-      acknowledged_at: new Date().toISOString(),
+      acknowledged_at: now,
       acknowledged_by: actorUserId || null,
-      // Acknowledging an untouched issue also moves it out of "open".
-      status: "in_progress",
-      updated_at: new Date().toISOString(),
+      status: "acknowledged",
+      updated_at: now,
     })
     .eq("id", id)
     .is("acknowledged_at", null);
@@ -168,13 +234,24 @@ export async function acknowledgeWorkOrder(id: string, actorUserId?: string | nu
   }
 }
 
+export async function startWorkOrder(id: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("field_work_orders")
+    .update({ status: "in_progress", started_at: now, updated_at: now })
+    .eq("id", id)
+    .in("status", ["assigned", "acknowledged", "open", "in_progress"]);
+  if (error) throw new Error(error.message);
+}
+
 export async function resolveWorkOrder(id: string, notes?: string | null): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const closedAt = new Date().toISOString();
   const { error } = await supabase
     .from("field_work_orders")
     .update({
-      status: "done",
+      status: "resolved",
       resolution_notes: notes?.trim().slice(0, 2000) || null,
       closed_at: closedAt,
       updated_at: closedAt,
@@ -186,16 +263,20 @@ export async function resolveWorkOrder(id: string, notes?: string | null): Promi
 }
 
 export async function setWorkOrderStatus(id: string, status: string): Promise<void> {
-  if (!STATUSES.has(status)) {
+  if (!STATUSES.has(status as OperationalIssueStatus)) {
     throw new Error("Unknown work order status.");
   }
   const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
   const { error } = await supabase
     .from("field_work_orders")
     .update({
-      status,
-      updated_at: new Date().toISOString(),
-      closed_at: status === "done" ? new Date().toISOString() : null,
+      status: status as OperationalIssueStatus,
+      updated_at: now,
+      closed_at: status === "resolved" ? now : null,
+      ...(status === "assigned" ? { assigned_at: now } : {}),
+      ...(status === "acknowledged" ? { acknowledged_at: now } : {}),
+      ...(status === "in_progress" ? { started_at: now } : {}),
     })
     .eq("id", id);
   if (error) {

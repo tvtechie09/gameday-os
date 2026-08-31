@@ -73,21 +73,21 @@ async function resolveDemoVenue(
 // already open we leave it alone rather than piling up duplicates on every click.
 async function seedDemoWorkOrders(
   supabase: ReturnType<typeof getSupabaseAdminClient>,
-  demo: { fieldIds: string[] },
+  demo: { venueId: string; fieldIds: string[] },
 ): Promise<number> {
   if (!demo.fieldIds.length) return 0;
   const { data: existing } = await supabase
     .from("field_work_orders")
     .select("id")
     .in("field_id", demo.fieldIds)
-    .neq("status", "done")
+    .not("status", "in", "(done,resolved)")
     .limit(1);
   if ((existing ?? []).length > 0) return 0;
 
   // Realistic titles — a prospect reads these, so no "[demo]" prefixes.
   const seeds = [
-    { field_id: demo.fieldIds[0], title: "Mound clay needs tamping — third-base side", detail: "Lip washed out after last night's rain.", priority: "high" },
-    { field_id: demo.fieldIds[Math.min(1, demo.fieldIds.length - 1)], title: "Bleacher rail loose behind the dugout", detail: "Third section from the gate. Safety check before the afternoon wave.", priority: "normal" },
+    { venue_id: demo.venueId, field_id: demo.fieldIds[0], title: "Mound clay needs tamping — third-base side", detail: "Lip washed out after last night's rain.", priority: "high" },
+    { venue_id: demo.venueId, field_id: demo.fieldIds[Math.min(1, demo.fieldIds.length - 1)], title: "Bleacher rail loose behind the dugout", detail: "Third section from the gate. Safety check before the afternoon wave.", priority: "normal" },
   ];
   const { data: inserted } = await supabase.from("field_work_orders").insert(seeds).select("id");
   return (inserted ?? []).length;
