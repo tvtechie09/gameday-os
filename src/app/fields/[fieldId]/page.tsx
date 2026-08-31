@@ -3,6 +3,7 @@ import { LiveScore } from "./live-score";
 import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
+import { WeatherOperationsStatusCard } from "@/components/weather/weather-operations-status-card";
 import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
@@ -559,6 +560,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
             {field ? <FieldStatusBanner field={field} /> : null}
 
             <AlertStack alerts={weatherAlerts} showState title="Active Alerts" />
+
+            {venue ? <WeatherOperationsStatusCard venueId={venue.id} /> : null}
 
             {venue ? <WeatherStatusCard compact venueId={venue.id} /> : null}
 

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getPublicFieldUrl } from "@/lib/public-url";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
+import { WeatherOperationsStatusCard } from "@/components/weather/weather-operations-status-card";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
 import { getFieldStatusClass, getFieldStatusLabel, getFields } from "@/lib/services/fields";
 import { getResourceTypeLabel, getResources } from "@/lib/services/resources";
@@ -346,6 +347,8 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
             ) : null}
 
             <AlertStack alerts={weatherAlerts} showState title="Venue status and weather" />
+
+            {venue ? <WeatherOperationsStatusCard venueId={venue.id} /> : null}
 
             {venue ? <WeatherStatusCard venueId={venue.id} /> : null}
 
