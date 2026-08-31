@@ -135,6 +135,22 @@ export async function getWorkOrders(): Promise<WorkOrder[]> {
   return (data ?? []).map(mapWorkOrder);
 }
 
+// Reporting uses an explicit venue predicate at the database boundary and a
+// wider limit than the live queue. Do not load another tenant's rows and then
+// rely on an in-memory filter for management analytics.
+export async function getWorkOrdersForVenue(venueId: string, sinceIso: string): Promise<WorkOrder[]> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("field_work_orders")
+    .select("*")
+    .eq("venue_id", venueId)
+    .gte("detected_at", sinceIso)
+    .order("detected_at", { ascending: false })
+    .limit(5000);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapWorkOrder);
+}
+
 async function resolveVenueId(input: Pick<CreateWorkOrderInput, "venueId" | "fieldId">): Promise<string> {
   if (input.venueId) return input.venueId;
   if (!input.fieldId) throw new Error("Venue is required for a venue-wide issue.");

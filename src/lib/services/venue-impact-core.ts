@@ -26,6 +26,7 @@ export type ImpactInput = {
   sponsorPlacementsDelivered: number; // from Proof-of-Performance (game-record backed)
   sponsorContracted: number;        // contracted placements across active campaigns
   engineEventsRecorded: number;     // game_events rows: score/lifecycle captured automatically
+  actuals?: Map<string, { startedAt: string | null; finalAt: string | null }>;
   now: number;
 };
 
@@ -61,8 +62,18 @@ function rate(numerator: number, denominator: number): number {
 export function buildImpactReport(input: ImpactInput): ImpactReport {
   // "On time" is judged only on games that actually started — a scheduled game
   // that never happened is not an on-time win.
-  const started = input.games.filter((g) => g.status === "active" || g.status === "final");
-  const behind = started.filter((g) => minutesBehind(g, input.now) >= LATE_ATTENTION_THRESHOLD_MIN);
+  const started = input.actuals
+    ? input.games.filter((game) => Boolean(input.actuals?.get(game.id)?.startedAt))
+    : input.games.filter((game) => game.status === "active" || game.status === "final");
+  const behind = input.actuals
+    ? started.filter((game) => {
+        const actualStart = new Date(input.actuals?.get(game.id)?.startedAt ?? "").getTime();
+        const scheduledStart = new Date(game.startTime).getTime();
+        return Number.isFinite(actualStart)
+          && Number.isFinite(scheduledStart)
+          && (actualStart - scheduledStart) / 60_000 >= LATE_ATTENTION_THRESHOLD_MIN;
+      })
+    : started.filter((game) => minutesBehind(game, input.now) >= LATE_ATTENTION_THRESHOLD_MIN);
   const onTime = started.length - behind.length;
 
   const opened = input.workOrders.length;
