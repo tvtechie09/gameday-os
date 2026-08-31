@@ -107,14 +107,15 @@ export function AlertForm({
           </select>
         </label>
         <label className="grid gap-2">
-          <span className="text-sm font-bold">Visibility</span>
+          <span className="text-sm font-bold">Audience</span>
           <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue="public" disabled={isSaving} name="alert_visibility" required>
             {alertVisibilities.map((visibility) => (
-              <option key={visibility} value={visibility}>{visibility.replace("_", " ")}</option>
+              <option key={visibility} value={visibility}>{visibility === "public" ? "Family and public" : "Venue staff only"}</option>
             ))}
           </select>
         </label>
       </div>
+      <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-900">Family and public announcements appear only for families with a relevant event at this venue, field, or tournament during the publish window.</p>
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-bold">Venue</span>

@@ -58,7 +58,7 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Communications</p>
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">Venue alerts</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Manage active and scheduled messages for venue, tournament, and field pages.
+            Publish parent-safe venue, tournament, and field updates. Family relevance and expiration are enforced automatically.
           </p>
         </div>
         <Link href="/admin/alerts/storm" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
