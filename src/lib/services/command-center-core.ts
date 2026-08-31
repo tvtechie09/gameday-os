@@ -6,6 +6,7 @@ import type { AudioProfile, Field, VenueAsset } from "@/lib/types";
 // Relative + .ts: this core is executed directly by `node --test`, where the
 // "@/" alias does not resolve for VALUE imports (type imports are stripped).
 import { DEFAULT_VENUE_TIMEZONE } from "../venue-timezone.ts";
+import { logicalAssetHealth } from "./logical-asset-health-core.ts";
 
 // Pure core of the GameDay Command Center — mode resolution, delay math, field
 // board, attention queue, and summary. Type-only imports keep this dependency-
@@ -182,9 +183,11 @@ function hasConfirmedOfficial(gameId: string, officials: SessionOfficial[]): boo
 function deviceState(assets: VenueAsset[], match: (asset: VenueAsset) => boolean): FieldDeviceState {
   const group = assets.filter(match);
   if (group.length === 0) return { count: 0, label: "Not configured", status: "not_configured" };
-  if (group.some((asset) => asset.status === "offline")) return { count: group.length, label: "Offline", status: "offline" };
-  if (group.some((asset) => asset.status === "maintenance_needed")) return { count: group.length, label: "Degraded", status: "degraded" };
-  if (group.some((asset) => asset.status === "unknown")) return { count: group.length, label: "Unknown", status: "unknown" };
+  const health = group.map((asset) => logicalAssetHealth(asset));
+  if (health.some((state) => state.status === "offline")) return { count: group.length, label: "Offline", status: "offline" };
+  if (health.some((state) => state.status === "degraded")) return { count: group.length, label: "Needs attention", status: "degraded" };
+  if (health.some((state) => state.status === "unknown")) return { count: group.length, label: "Not verified", status: "unknown" };
+  if (health.every((state) => state.status === "not_configured")) return { count: group.length, label: "Manual", status: "not_configured" };
   return { count: group.length, label: "Online", status: "online" };
 }
 

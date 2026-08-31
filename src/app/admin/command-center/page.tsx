@@ -201,6 +201,7 @@ function RapidScheduleControls({ entry, fields }: { entry: FieldBoardEntry; fiel
     <details className="mt-3 border-t border-[var(--line)] pt-3">
       <summary className="min-h-11 cursor-pointer py-3 text-xs font-black text-[var(--accent-strong)] focus-visible:outline-2 focus-visible:outline-offset-2">Rapid schedule actions</summary>
       <div className="grid gap-2 pt-2">
+        <Link className="flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-3 text-xs font-black text-white" href={`/admin/fields/${entry.fieldId}/control`}>Open field, score &amp; device controls</Link>
         <div className="grid grid-cols-2 gap-2">
           {[15, 30].map((minutes) => (
             <form action={rapidScheduleAction} key={minutes}>
@@ -326,7 +327,7 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 sm:px-6 md:pb-6">
       <header className="flex flex-col gap-3 border-b border-[var(--line)] pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent-strong)]">GameDay Command Center</p>
@@ -394,7 +395,7 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
         <ModeChecklistCard checklist={view.checklist} />
       </div>
 
-      <section className="mt-7">
+      <section className="mt-7" id="field-board">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Attention Queue</h2>
           <span className="flex flex-wrap items-center gap-3">
@@ -420,7 +421,14 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
         )}
       </section>
 
-      <section className="mt-7">
+      <nav aria-label="Mobile operations" className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-1 rounded-2xl border border-[var(--line)] bg-white/95 p-2 shadow-xl backdrop-blur md:hidden">
+        <a className="flex min-h-12 items-center justify-center rounded-xl px-1 text-center text-[10px] font-black focus-visible:outline-2" href="#field-board">Fields</a>
+        <a className="flex min-h-12 items-center justify-center rounded-xl px-1 text-center text-[10px] font-black focus-visible:outline-2" href="#attention-queue">Attention</a>
+        <Link className="flex min-h-12 items-center justify-center rounded-xl px-1 text-center text-[10px] font-black focus-visible:outline-2" href="/admin/fields/work-orders">Report issue</Link>
+        <Link className="flex min-h-12 items-center justify-center rounded-xl bg-[var(--black-soft)] px-1 text-center text-[10px] font-black text-white focus-visible:outline-2" href="/admin/operations-center">Announce</Link>
+      </nav>
+
+      <section className="mt-7" id="attention-queue">
         <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Field Board</h2>
         {view.fields.length === 0 ? (
           <p className="mt-3 text-sm font-semibold text-[var(--muted)]">No fields configured at this venue.</p>

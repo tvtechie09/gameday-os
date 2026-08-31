@@ -38,6 +38,7 @@ export type VenueAssetType =
   | "other";
 export type VenueAssetStatus = "healthy" | "offline" | "maintenance_needed" | "unknown";
 export type VenueAssetIntegrationStatus = "not_configured" | "configured" | "connected" | "testing";
+export type VenueAssetConnectionHealth = "not_configured" | "online" | "degraded" | "offline" | "unknown";
 export type AudioMode = "none" | "parent_speaker" | "venue_pa" | "bluetooth_speaker" | "obs_audio" | "future_integration";
 export type AudioProfileStatus = "not_configured" | "configured" | "testing" | "active" | "offline";
 export type WeatherProfileStatus = "not_configured" | "configured" | "monitoring" | "paused" | "offline";
@@ -397,6 +398,11 @@ export interface VenueAsset {
   mapY: number | null;
   status: VenueAssetStatus;
   integrationStatus: VenueAssetIntegrationStatus;
+  connectionHealth: VenueAssetConnectionHealth;
+  lastSeenAt: string | null;
+  healthMessage: string | null;
+  edgeDeviceId: string | null;
+  diagnosticSummary: Record<string, unknown>;
   notes: string | null;
   installationDate: string | null;
   warrantyEnd: string | null;

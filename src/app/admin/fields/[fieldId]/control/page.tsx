@@ -140,7 +140,8 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
     const sessionId = String(formData.get("session_id") ?? "").trim();
     const session = sessionId ? await getSession(sessionId) : null;
 
-    if (!session) return;
+    if (!session || session.fieldId !== fieldId) return;
+    const ctx = await getSessionContext();
 
     let didStart = false;
 
@@ -159,7 +160,7 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
         secondary_link_label: session.secondaryLinkLabel,
         secondary_link_url: session.secondaryLinkUrl,
         strikes: session.strikes,
-      });
+      }, ctx?.userId);
       revalidatePath(`/admin/fields/${fieldId}/control`);
       revalidatePath(`/admin/sessions/${session.id}`);
       revalidatePath(`/scoreboard/${session.id}`);
