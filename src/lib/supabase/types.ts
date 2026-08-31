@@ -1486,6 +1486,87 @@ export type Database = {
           },
         ];
       };
+      amenities: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          venue_id: string;
+          sponsor_id: string | null;
+          zone_id: string | null;
+          parent_amenity_id: string | null;
+          name: string;
+          short_label: string | null;
+          amenity_type: string;
+          description: string | null;
+          map_x: number | null;
+          map_y: number | null;
+          latitude: number | null;
+          longitude: number | null;
+          address: string | null;
+          accessibility_notes: string | null;
+          operating_hours: string | null;
+          sort_order: number;
+          status: string;
+          parent_visible: boolean;
+          status_effective_at: string | null;
+          status_expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id: string;
+          sponsor_id?: string | null;
+          zone_id?: string | null;
+          parent_amenity_id?: string | null;
+          name: string;
+          short_label?: string | null;
+          amenity_type: string;
+          description?: string | null;
+          map_x?: number | null;
+          map_y?: number | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          operating_hours?: string | null;
+          sort_order?: number;
+          status?: string;
+          parent_visible?: boolean;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          venue_id?: string;
+          sponsor_id?: string | null;
+          zone_id?: string | null;
+          parent_amenity_id?: string | null;
+          name?: string;
+          short_label?: string | null;
+          amenity_type?: string;
+          description?: string | null;
+          map_x?: number | null;
+          map_y?: number | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          operating_hours?: string | null;
+          sort_order?: number;
+          status?: string;
+          parent_visible?: boolean;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       venues: {
         Row: {
           id: string;
@@ -1508,6 +1589,10 @@ export type Database = {
           map_notes: string | null;
           primary_color: string | null;
           secondary_color: string | null;
+          public_status?: string;
+          public_status_message?: string | null;
+          public_status_effective_at?: string | null;
+          public_status_expires_at?: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1529,6 +1614,10 @@ export type Database = {
           map_notes?: string | null;
           primary_color?: string | null;
           secondary_color?: string | null;
+          public_status?: string;
+          public_status_message?: string | null;
+          public_status_effective_at?: string | null;
+          public_status_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1550,6 +1639,10 @@ export type Database = {
           map_notes?: string | null;
           primary_color?: string | null;
           secondary_color?: string | null;
+          public_status?: string;
+          public_status_message?: string | null;
+          public_status_effective_at?: string | null;
+          public_status_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1575,6 +1668,15 @@ export type Database = {
           status: string;
           field_status: string;
           resources: Json;
+          parent_visible: boolean;
+          public_description: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          address: string | null;
+          accessibility_notes: string | null;
+          sort_order: number;
+          status_effective_at: string | null;
+          status_expires_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1597,6 +1699,15 @@ export type Database = {
           status?: string;
           field_status?: string;
           resources?: Json;
+          parent_visible?: boolean;
+          public_description?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          sort_order?: number;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1619,6 +1730,15 @@ export type Database = {
           status?: string;
           field_status?: string;
           resources?: Json;
+          parent_visible?: boolean;
+          public_description?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          sort_order?: number;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1660,6 +1780,17 @@ export type Database = {
           sort_order: number;
           created_at: string;
           updated_at: string;
+          parent_visible?: boolean;
+          parent_zone_id?: string | null;
+          short_label?: string | null;
+          status?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          operating_hours?: string | null;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
         };
         Insert: {
           id?: string;
@@ -1674,6 +1805,17 @@ export type Database = {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          parent_visible?: boolean;
+          parent_zone_id?: string | null;
+          short_label?: string | null;
+          status?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          operating_hours?: string | null;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
         };
         Update: {
           id?: string;
@@ -1688,6 +1830,17 @@ export type Database = {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          parent_visible?: boolean;
+          parent_zone_id?: string | null;
+          short_label?: string | null;
+          status?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          operating_hours?: string | null;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
         };
         Relationships: [
           {
@@ -1720,6 +1873,16 @@ export type Database = {
           sort_order: number;
           created_at: string;
           updated_at: string;
+          parent_visible?: boolean;
+          description?: string | null;
+          short_label?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          operating_hours?: string | null;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
         };
         Insert: {
           id?: string;
@@ -1741,6 +1904,16 @@ export type Database = {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          parent_visible?: boolean;
+          description?: string | null;
+          short_label?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          operating_hours?: string | null;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
         };
         Update: {
           id?: string;
@@ -1762,6 +1935,16 @@ export type Database = {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          parent_visible?: boolean;
+          description?: string | null;
+          short_label?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          address?: string | null;
+          accessibility_notes?: string | null;
+          operating_hours?: string | null;
+          status_effective_at?: string | null;
+          status_expires_at?: string | null;
         };
         Relationships: [
           {
