@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
 import { canViewCommandCenter } from "@/lib/access/capabilities";
 import { assertFieldInScope, assertVenueInScope } from "@/lib/access/scoped-venue-data";
 import { buildCommandCenter } from "@/lib/services/command-center";
 import { refreshDemoDay } from "@/lib/services/demo-day";
+import { executeRapidScheduleOperation, type RapidScheduleOperation } from "@/lib/services/schedule-operations";
 import {
   acknowledgeWorkOrder,
   assignWorkOrder,
@@ -18,6 +20,40 @@ import {
 function revalidateOperations() {
   revalidatePath("/admin/command-center");
   revalidatePath("/admin/fields/work-orders");
+}
+
+function scheduleRedirect(kind: "success" | "error", message: string): never {
+  redirect(`/admin/command-center?schedule_${kind}=${encodeURIComponent(message.slice(0, 180))}`);
+}
+
+export async function rapidScheduleAction(formData: FormData): Promise<void> {
+  const ctx = await requireCommandCenter();
+  const type = String(formData.get("operation") || "");
+  const sessionId = String(formData.get("session_id") || "");
+  const fieldId = String(formData.get("field_id") || "");
+  const targetFieldId = String(formData.get("target_field_id") || "");
+  const minutes = Number(formData.get("minutes") || 0);
+  let operation: RapidScheduleOperation;
+  if (type === "delay_game") operation = { type, sessionId, minutes };
+  else if (type === "delay_remaining") operation = { type, fieldId, fromTime: String(formData.get("from_time") || new Date().toISOString()), minutes };
+  else if (type === "move_game") operation = { type, sessionId, fieldId: targetFieldId };
+  else if (type === "cancel" || type === "postpone") operation = { type, sessionId };
+  else return scheduleRedirect("error", "Unknown schedule action.");
+
+  let count = 0;
+  try {
+    if (fieldId) await assertFieldInScope(fieldId);
+    if (targetFieldId) await assertFieldInScope(targetFieldId);
+    const result = await executeRapidScheduleOperation(operation, ctx.userId);
+    count = result.count;
+    revalidateOperations();
+    revalidatePath("/admin/sessions");
+    revalidatePath("/fields/[fieldId]", "page");
+    revalidatePath("/venues/[venueId]", "page");
+  } catch (error) {
+    return scheduleRedirect("error", error instanceof Error ? error.message : "Schedule update failed.");
+  }
+  return scheduleRedirect("success", `${count} game${count === 1 ? "" : "s"} updated.`);
 }
 
 async function requireCommandCenter() {

@@ -77,10 +77,11 @@ export type FieldBoardEntry = {
     scoreHome: number;
     scoreAway: number;
     lifecycleStatus: string;
+    startTime: string;
     startLabel: string;
     minutesBehind: number;
   } | null;
-  nextGame: { id: string; label: string; startLabel: string } | null;
+  nextGame: { id: string; label: string; startTime: string; startLabel: string } | null;
   officialsConfirmed: boolean;
   staffCoverage: { confirmed: number; label: string };
   devices: { scoreboard: FieldDeviceState; audio: FieldDeviceState; camera: FieldDeviceState };
@@ -233,11 +234,12 @@ export function buildFieldBoard(
             scoreHome: current.homeScore,
             scoreAway: current.awayScore,
             lifecycleStatus: current.lifecycleStatus,
+            startTime: current.startTime,
             startLabel: timeLabel(current.startTime, timeZone),
             minutesBehind: behind,
           }
         : null,
-      nextGame: next ? { id: next.id, label: gameLabel(next), startLabel: timeLabel(next.startTime, timeZone) } : null,
+      nextGame: next ? { id: next.id, label: gameLabel(next), startTime: next.startTime, startLabel: timeLabel(next.startTime, timeZone) } : null,
       officialsConfirmed: next ? hasConfirmedOfficial(next.id, officials) : true,
       staffCoverage: { confirmed, label: next ? (confirmed > 0 ? `${confirmed} confirmed` : "Coverage needed") : "No next game" },
       devices: {

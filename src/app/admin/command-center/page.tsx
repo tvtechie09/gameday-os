@@ -5,7 +5,7 @@ import { canManagePlatform, canViewCommandCenter, isPlatformAdmin } from "@/lib/
 import { buildCommandCenter, type AttentionItem, type AttentionTier, type CommandCenterMode, type FieldBoardEntry, type SchedulePulse } from "@/lib/services/command-center";
 import { LiveScore } from "@/app/fields/[fieldId]/live-score";
 import { ModeChecklistCard } from "./mode-checklist";
-import { refreshDemoDayAction, trackAttentionItemAction, updateAttentionIssueAction } from "./actions";
+import { rapidScheduleAction, refreshDemoDayAction, trackAttentionItemAction, updateAttentionIssueAction } from "./actions";
 import { timeZoneAbbreviation } from "@/lib/venue-timezone";
 import { createVenueStatusAction } from "@/app/admin/operations-center/actions";
 
@@ -194,7 +194,50 @@ const deviceTone: Record<FieldBoardEntry["devices"]["scoreboard"]["status"], str
   not_configured: "bg-transparent text-[var(--muted)]",
 };
 
-function FieldCard({ entry }: { entry: FieldBoardEntry }) {
+function RapidScheduleControls({ entry, fields }: { entry: FieldBoardEntry; fields: FieldBoardEntry[] }) {
+  const target = entry.currentGame ?? entry.nextGame;
+  if (!target) return null;
+  return (
+    <details className="mt-3 border-t border-[var(--line)] pt-3">
+      <summary className="min-h-11 cursor-pointer py-3 text-xs font-black text-[var(--accent-strong)] focus-visible:outline-2 focus-visible:outline-offset-2">Rapid schedule actions</summary>
+      <div className="grid gap-2 pt-2">
+        <div className="grid grid-cols-2 gap-2">
+          {[15, 30].map((minutes) => (
+            <form action={rapidScheduleAction} key={minutes}>
+              <input name="operation" type="hidden" value="delay_game" />
+              <input name="session_id" type="hidden" value={target.id} />
+              <input name="minutes" type="hidden" value={minutes} />
+              <button className="min-h-11 w-full rounded-lg border border-[var(--line)] px-3 text-xs font-black" type="submit">Delay game {minutes}m</button>
+            </form>
+          ))}
+        </div>
+        <form action={rapidScheduleAction}>
+          <input name="operation" type="hidden" value="delay_remaining" />
+          <input name="field_id" type="hidden" value={entry.fieldId} />
+          <input name="from_time" type="hidden" value={target.startTime} />
+          <input name="minutes" type="hidden" value="30" />
+          <button className="min-h-11 w-full rounded-lg bg-amber-100 px-3 text-xs font-black text-amber-900" type="submit">Delay remaining field schedule 30m</button>
+        </form>
+        <form action={rapidScheduleAction} className="grid grid-cols-[1fr_auto] gap-2">
+          <input name="operation" type="hidden" value="move_game" />
+          <input name="session_id" type="hidden" value={target.id} />
+          <select aria-label={`Move ${target.label} to field`} className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-2 text-xs font-bold" name="target_field_id" required>
+            <option value="">Move to…</option>
+            {fields.filter((field) => field.fieldId !== entry.fieldId).map((field) => <option key={field.fieldId} value={field.fieldId}>{field.fieldName}</option>)}
+          </select>
+          <button className="min-h-11 rounded-lg border border-[var(--line)] px-3 text-xs font-black" type="submit">Move</button>
+        </form>
+        <form action={rapidScheduleAction}>
+          <input name="operation" type="hidden" value="postpone" />
+          <input name="session_id" type="hidden" value={target.id} />
+          <button className="min-h-11 w-full rounded-lg border border-red-200 px-3 text-xs font-black text-red-800" type="submit">Postpone game</button>
+        </form>
+      </div>
+    </details>
+  );
+}
+
+function FieldCard({ entry, fields }: { entry: FieldBoardEntry; fields: FieldBoardEntry[] }) {
   const meta = fieldStatusMeta[entry.status] ?? { dot: "bg-slate-400", ring: "border-[var(--line)]", label: entry.status };
   const game = entry.currentGame;
   const isLive = game ? game.lifecycleStatus === "live" || game.lifecycleStatus === "suspended" : false;
@@ -250,16 +293,18 @@ function FieldCard({ entry }: { entry: FieldBoardEntry }) {
       {entry.recommendedAction ? (
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-900">{entry.recommendedAction}</p>
       ) : null}
+      <RapidScheduleControls entry={entry} fields={fields} />
     </article>
   );
 }
 
-export default async function CommandCenterPage() {
+export default async function CommandCenterPage({ searchParams }: { searchParams: Promise<{ schedule_error?: string; schedule_success?: string }> }) {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/dev-login");
   if (!canViewCommandCenter(ctx)) redirect("/no-access");
 
   const view = await buildCommandCenter(ctx);
+  const messages = await searchParams;
   const mode = modeCaption[view.mode];
   const s = view.summary;
 
@@ -324,6 +369,9 @@ export default async function CommandCenterPage() {
         />
       </section>
 
+      {messages.schedule_error ? <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-900">{messages.schedule_error}</p> : null}
+      {messages.schedule_success ? <p role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">{messages.schedule_success}</p> : null}
+
       <section className="mt-7 rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -378,7 +426,7 @@ export default async function CommandCenterPage() {
           <p className="mt-3 text-sm font-semibold text-[var(--muted)]">No fields configured at this venue.</p>
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {view.fields.map((entry) => <FieldCard key={entry.fieldId} entry={entry} />)}
+            {view.fields.map((entry) => <FieldCard key={entry.fieldId} entry={entry} fields={view.fields} />)}
           </div>
         )}
       </section>
