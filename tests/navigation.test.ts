@@ -38,6 +38,10 @@ function opsHomeHrefs(roleKey: string): string[] {
     .map((i) => i.href);
 }
 
+function navHrefs(roleKey: string): string[] {
+  return buildNavigation(ctxFor(roleKey)).flatMap((group) => group.items.map((item) => item.href));
+}
+
 const VENUE_OPERATORS = ["platform_admin", "venue_director", "venue_staff", "venue_tech_manager"];
 const OTHER_OPS_ROLES = ["tournament_director", "emergency_coordinator", "coach", "scorekeeper"];
 
@@ -79,6 +83,20 @@ test("everyone who sees the Command Center link can actually open it", () => {
       assert.ok(guard(ctxFor(role)), `${role} sees the link but the route guard rejects it`);
     }
   }
+});
+
+test("venue operators can open Field Operations while setup routes stay managed", () => {
+  const operationsGuard = guardForAdminPath("/admin/fields");
+  const workOrdersGuard = guardForAdminPath("/admin/fields/work-orders");
+  const newFieldGuard = guardForAdminPath("/admin/fields/new");
+  for (const role of VENUE_OPERATORS) {
+    assert.ok(navHrefs(role).includes("/admin/fields"), `${role} should see Field Operations`);
+    assert.ok(operationsGuard(ctxFor(role)), `${role} should open Field Operations`);
+    assert.ok(workOrdersGuard(ctxFor(role)), `${role} should open field issues`);
+  }
+  assert.equal(newFieldGuard(ctxFor("venue_staff")), false, "staff must not gain field setup access");
+  assert.equal(newFieldGuard(ctxFor("venue_director")), true, "venue director keeps field setup access");
+  assert.equal(operationsGuard(ctxFor("parent")), false, "public/family roles cannot open internal field operations");
 });
 
 test("platform-only tools are separated from customer management navigation", () => {

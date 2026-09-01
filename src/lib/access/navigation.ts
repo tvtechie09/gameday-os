@@ -89,7 +89,7 @@ export const navItems: NavItem[] = [
   { key: "venue-mode", href: "/admin/operations-center", label: "Venue Status & Alerts", icon: "Gauge", group: "operations", stage: "core", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { key: "schedule", href: "/admin/sessions", label: "Schedule", icon: "CalendarDays", group: "operations", stage: "core", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
   { key: "tournaments", href: "/admin/tournaments", label: "Tournament Operations", icon: "Trophy", group: "operations", stage: "supporting", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },
-  { key: "fields", href: "/admin/fields", label: "Fields", icon: "MapPin", group: "operations", stage: "core", cap: (ctx) => canManageFields(ctx) && !isOrgScoped(ctx) },
+  { key: "fields", href: "/admin/fields", label: "Fields", icon: "MapPin", group: "operations", stage: "core", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { key: "scoreboards", href: "/admin/scoreboards", label: "Scoreboards", icon: "Gauge", group: "operations", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
   { key: "devices", href: "/admin/resources", label: "Venue Systems", icon: "Radio", group: "operations", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
   { key: "announcements", href: "/admin/alerts", label: "Announcements", icon: "Bell", group: "operations", stage: "core", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
@@ -157,7 +157,7 @@ export function getRoleHome(ctx: AccessContext | null): string {
 // Ordered longest-prefix-first guard map for /admin/* routes. Middleware picks
 // the most specific matching prefix; unlisted /admin paths fall back to the
 // admin-workspace umbrella.
-export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext | null) => boolean }> = [
+export const adminRouteGuards: Array<{ prefix: string; exact?: boolean; cap: (ctx: AccessContext | null) => boolean }> = [
   // Must match the nav cap exactly. Without this the route falls back to
   // canAccessAdminWorkspace, which venue_staff does not satisfy -- they would see
   // the nav link and get bounced.
@@ -179,6 +179,11 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   { prefix: "/admin/venues", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/sessions", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/tournaments", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },
+  // Field Operations is a frontline surface; setup/configuration below it is
+  // still restricted by canManageFields. Work orders are part of the same
+  // operational attention workflow and remain venue-scoped in their loader.
+  { prefix: "/admin/fields", exact: true, cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/fields/work-orders", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/fields", cap: (ctx) => canManageFields(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/scoreboards", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/audio", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
@@ -193,7 +198,7 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
 
 export function guardForAdminPath(pathname: string): (ctx: AccessContext | null) => boolean {
   const match = adminRouteGuards
-    .filter((guard) => pathname === guard.prefix || pathname.startsWith(`${guard.prefix}/`))
-    .sort((a, b) => b.prefix.length - a.prefix.length)[0];
+    .filter((guard) => guard.exact ? pathname === guard.prefix : pathname === guard.prefix || pathname.startsWith(`${guard.prefix}/`))
+    .sort((a, b) => b.prefix.length - a.prefix.length || Number(Boolean(b.exact)) - Number(Boolean(a.exact)))[0];
   return match ? match.cap : canAccessAdminWorkspace;
 }
