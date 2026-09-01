@@ -4,6 +4,9 @@ import { recordGameStateChange } from "@/lib/game-engine/game-service";
 import { lifecycleFromLegacy } from "@/lib/game-engine/game-lifecycle";
 import { scorekeeperIdempotencyKey } from "@/lib/game-engine/game-events";
 
+// Limited venue scoreboard/display fallback, not a detailed scorebook or player
+// statistics engine. It records only canonical game-display state for venues
+// without an authoritative provider/scoreboard feed.
 // Rung 1 scoring: any adult at the field can keep score through a per-game
 // link + 4-digit PIN — no account, no admin access. Updates are absolute
 // state snapshots with a monotonic sequence so offline outbox replays are
