@@ -382,6 +382,10 @@ export async function updateSession(id: string, data: UpdateSessionInput): Promi
       startTime: mappedSession.startTime,
       previousStartTime: previousSession.startTime,
       previousFieldId: previousSession.fieldId,
+      organizationId: mappedSession.organizationId,
+      teamSeasonId: mappedSession.gameDayTeamSeasonId,
+      sourceProvider: mappedSession.externalSource,
+      sourceEventId: mappedSession.externalSourceId,
     });
   }
 
@@ -443,6 +447,10 @@ export async function updateImportedSessionSchedule(id: string, data: UpdateImpo
       startTime: mappedSession.startTime,
       previousStartTime: previousSession.startTime,
       previousFieldId: previousSession.fieldId,
+      organizationId: mappedSession.organizationId,
+      teamSeasonId: mappedSession.gameDayTeamSeasonId,
+      sourceProvider: mappedSession.externalSource,
+      sourceEventId: mappedSession.externalSourceId,
     });
   }
 

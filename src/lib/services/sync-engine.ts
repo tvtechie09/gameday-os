@@ -2,6 +2,8 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Session, SessionLinkLabel, SessionSportType, SyncJob, SyncJobStatus, SyncQueueItem, SyncQueueReviewStatus } from "@/lib/types";
 import { createSession, getSessions, updateImportedSessionSchedule } from "./sessions";
+import { getExternalSource } from "./external-sources";
+import { recordImportedSessionLineage } from "./provider-lineage";
 
 type SyncJobRow = Database["public"]["Tables"]["sync_jobs"]["Row"];
 type SyncQueueRow = Database["public"]["Tables"]["sync_queue"]["Row"];
@@ -161,6 +163,18 @@ function readImportOperation(value: unknown) {
   };
 }
 
+function readSourceRaw(value: unknown) {
+  if (!isRecord(value) || !isRecord(value.source) || !isRecord(value.source.raw)) return null;
+  return value.source.raw;
+}
+
+async function getJobExternalSource(jobId: string) {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.from("sync_jobs").select("source_id").eq("id", jobId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.source_id ? getExternalSource(data.source_id) : null;
+}
+
 export function getSyncStatusLabel(status: SyncJobStatus | SyncQueueReviewStatus) {
   return status.replace("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -295,7 +309,7 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
       return { errors: ["The queued update is missing its matching GameDay event."], imported: 0, skipped: 0 };
     }
     try {
-      await updateImportedSessionSchedule(importOperation.existingSessionId, {
+      const updatedSession = await updateImportedSessionSchedule(importOperation.existingSessionId, {
         away_team: session.away_team,
         end_time: session.end_time,
         external_source: session.external_source,
@@ -308,6 +322,8 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
         start_time: session.start_time,
         title: session.title,
       });
+      const externalSource = await getJobExternalSource(item.syncJobId);
+      if (externalSource) await recordImportedSessionLineage({ source: externalSource, session: updatedSession, raw: readSourceRaw(item.sourceData) });
       await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);
       await supabase.from("sync_jobs").update({ records_imported: await nextJobCount(item.syncJobId, "records_imported") }).eq("id", item.syncJobId);
       await refreshSyncJobStatus(item.syncJobId);
@@ -333,6 +349,9 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
   }));
 
   if (existingSessionKeys.has(duplicateKey(session)) || externalDuplicate) {
+    const matchingSession = existingSessions.find((existingSession) => existingSession.externalSource === session.external_source && (existingSession.externalSourceId === session.external_source_id || existingSession.externalSourceUrl === session.external_source_url));
+    const externalSource = matchingSession ? await getJobExternalSource(item.syncJobId) : null;
+    if (externalSource && matchingSession) await recordImportedSessionLineage({ source: externalSource, session: matchingSession, raw: readSourceRaw(item.sourceData) });
     await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);
     await supabase.from("sync_jobs").update({ records_skipped: await nextJobCount(item.syncJobId, "records_skipped") }).eq("id", item.syncJobId);
     await refreshSyncJobStatus(item.syncJobId);
@@ -340,7 +359,7 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
   }
 
   try {
-    await createSession({
+    const createdSession = await createSession({
       away_team: session.away_team,
       end_time: session.end_time,
       external_source: session.external_source,
@@ -358,6 +377,8 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
       status: session.status ?? "scheduled",
       title: session.title,
     });
+    const externalSource = await getJobExternalSource(item.syncJobId);
+    if (externalSource) await recordImportedSessionLineage({ source: externalSource, session: createdSession, raw: readSourceRaw(item.sourceData) });
     await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);
     await supabase.from("sync_jobs").update({ records_imported: await nextJobCount(item.syncJobId, "records_imported") }).eq("id", item.syncJobId);
     await refreshSyncJobStatus(item.syncJobId);

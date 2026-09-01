@@ -26,6 +26,7 @@ export default async function IntegrationsPage() {
           Manage real provider connections, credential readiness, sync runs, webhooks, logs, and future connector mappings. Weather is registered as an existing working provider; SportsEngine is ready for OAuth credentials.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
+          <Link className="ui-button ui-button-primary min-h-11" href="/admin/integrations/quality">Provider Health &amp; Data Quality</Link>
           <Link className="ui-button ui-button-secondary min-h-11" href="/admin/integrations/daktronics">Daktronics Read-Only</Link>
           <Link className="ui-button ui-button-secondary min-h-11" href="/admin/integrations/sportsengine">SportsEngine</Link>
         </div>
