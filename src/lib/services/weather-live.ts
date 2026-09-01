@@ -1,6 +1,9 @@
 import { getVenue } from "@/lib/services/venues";
 import { getWeatherProfilesByVenueId } from "@/lib/services/weather-profiles";
+import { LiveWeatherError } from "@/lib/services/weather-errors";
 import type { WeatherProfile } from "@/lib/types";
+
+export { LiveWeatherError, publicWeatherErrorMessage } from "@/lib/services/weather-errors";
 
 export type LiveWeatherStatus = {
   condition: string;
@@ -13,19 +16,6 @@ export type LiveWeatherStatus = {
   source: string;
   fetchedAt: string;
 };
-
-export type LiveWeatherErrorCode = "missing_venue_id" | "venue_not_found" | "missing_coordinates" | "missing_api_key" | "provider_failure";
-
-export class LiveWeatherError extends Error {
-  code: LiveWeatherErrorCode;
-  status: number;
-
-  constructor(code: LiveWeatherErrorCode, message: string, status: number) {
-    super(message);
-    this.code = code;
-    this.status = status;
-  }
-}
 
 type WeatherCoordinates = {
   latitude: number;
@@ -120,7 +110,6 @@ async function fetchOpenWeather(coordinates: WeatherCoordinates): Promise<LiveWe
   const apiKey = getOpenWeatherApiKey();
 
   if (!apiKey) {
-    console.error("Weather API key missing", { expected: ["OPENWEATHER_API_KEY", "WEATHER_API_KEY"] });
     throw new LiveWeatherError(
       "missing_api_key",
       "Weather provider API key is missing. Set OPENWEATHER_API_KEY in Vercel Production and Preview.",

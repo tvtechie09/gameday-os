@@ -6,8 +6,10 @@ import { getWorkOrders } from "@/lib/services/work-orders";
 import { venueInScope, type AccessContext } from "@/lib/access/capabilities";
 import { listGamesForVenue } from "@/lib/game-engine/game-service";
 import { computeQuickActionTargets, labelFor, type QuickActionTargets } from "@/lib/services/quick-action-targets";
-import type { Field, FieldStatus, SessionSportType, Venue } from "@/lib/types";
+import type { Field, FieldStatus, Venue } from "@/lib/types";
 import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
+import { venueDateString } from "@/lib/services/command-center-core";
+import type { TodayAlert, TodayEvent } from "@/lib/services/today-timeline";
 
 // Resolves the venue the acting user operates and builds the LIVE Today's-
 // Operations view from real sessions/fields/alerts — no demo data. A
@@ -22,22 +24,9 @@ export type TodayView = {
   // The venue's IANA zone, so the page's date header matches these time labels.
   timeZone: string;
   health: { activeGames: number; delayedFields: number; totalFields: number; maintenanceFields: number };
-  liveGames: Array<{
-    id: string;
-    label: string;
-    fieldId: string;
-    fieldName: string;
-    timeLabel: string;
-    homeTeam: string;
-    awayTeam: string;
-    homeScore: number;
-    awayScore: number;
-    sportType: SessionSportType;
-    lifecycleStatus: string;
-  }>;
-  upcoming: Array<{ id: string; label: string; fieldName: string; timeLabel: string }>;
+  events: TodayEvent[];
   fields: Array<{ id: string; name: string; status: FieldStatus }>;
-  alerts: Array<{ id: string; title: string; message: string; priority: string }>;
+  alerts: TodayAlert[];
   workOrders: Array<{ id: string; title: string; detail: string; priority: string }>;
   targets: QuickActionTargets;
 };
@@ -71,8 +60,7 @@ const EMPTY_VIEW: TodayView = {
   venueName: null,
   timeZone: DEFAULT_VENUE_TIMEZONE,
   health: { activeGames: 0, delayedFields: 0, totalFields: 0, maintenanceFields: 0 },
-  liveGames: [],
-  upcoming: [],
+  events: [],
   fields: [],
   alerts: [],
   workOrders: [],
@@ -93,35 +81,45 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
 
   const venueFields = allFields.filter((field) => field.venueId === venue.id);
   const fieldIds = new Set(venueFields.map((field) => field.id));
-  const fieldName = new Map(venueFields.map((field) => [field.id, field.name]));
   const now = Date.now();
   const timeZone = venue.timezone;
 
   // First consumer of the Connected Game Engine read path: same data, served
   // through the shared Game domain service (preloaded to keep the single
   // parallel batch above).
-  const venueSessions = await listGamesForVenue(venue.id, { preloaded: { sessions: allSessions, fields: allFields } });
-
-  const liveGames = venueSessions
-    .filter((session) => session.status === "active")
-    .map((session) => ({
-      id: session.id,
-      label: labelFor(session),
-      fieldId: session.fieldId,
-      fieldName: fieldName.get(session.fieldId) || "Field",
-      timeLabel: timeLabel(session.startTime, timeZone),
-      homeTeam: session.homeTeam,
-      awayTeam: session.awayTeam,
-      homeScore: session.homeScore,
-      awayScore: session.awayScore,
-      sportType: session.sportType,
-      lifecycleStatus: session.lifecycleStatus,
-    }));
-
-  const upcoming = venueSessions
-    .filter((session) => session.status === "scheduled" && new Date(session.startTime).getTime() > now - 30 * 60 * 1000)
-    .slice(0, 6)
-    .map((session) => ({ id: session.id, label: labelFor(session), fieldName: fieldName.get(session.fieldId) || "Field", timeLabel: timeLabel(session.startTime, timeZone) }));
+  const venueSessions = await listGamesForVenue(venue.id, {
+    date: venueDateString(now, timeZone),
+    timeZone,
+    preloaded: { sessions: allSessions, fields: allFields },
+  });
+  const fieldById = new Map(venueFields.map((field) => [field.id, field]));
+  const events: TodayEvent[] = venueSessions
+    .filter((session) => session.lifecycleStatus !== "draft" && session.lifecycleStatus !== "archived")
+    .map((session) => {
+      const field = fieldById.get(session.fieldId);
+      const matchup = `${session.homeTeam} vs ${session.awayTeam}`;
+      const label = labelFor(session);
+      return {
+        id: session.id,
+        eventName: label,
+        opponent: label === matchup ? null : matchup,
+        homeTeam: session.homeTeam,
+        awayTeam: session.awayTeam,
+        homeScore: session.homeScore,
+        awayScore: session.awayScore,
+        sportType: session.sportType,
+        fieldId: session.fieldId,
+        fieldName: field?.name || "Field",
+        fieldStatus: field?.status || "open",
+        startTime: session.startTime,
+        endTime: session.endTime,
+        dateLabel: new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(new Date(session.startTime)),
+        timeLabel: timeLabel(session.startTime, timeZone),
+        status: session.status,
+        lifecycleStatus: session.lifecycleStatus,
+      };
+    });
+  const liveGames = events.filter((event) => event.status === "active");
 
   return {
     venueId: venue.id,
@@ -133,13 +131,12 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
       totalFields: venueFields.length,
       maintenanceFields: venueFields.filter((field) => field.status === "maintenance").length,
     },
-    liveGames,
-    upcoming,
+    events,
     fields: venueFields.map((field) => ({ id: field.id, name: field.name, status: field.status })),
     alerts: activeAlerts
       .filter((alert) => alert.venueId === venue.id && alert.alertVisibility === "public")
       .slice(0, 5)
-      .map((alert) => ({ id: alert.id, title: alert.title, message: alert.message, priority: alert.alertPriority })),
+      .map((alert) => ({ id: alert.id, title: alert.title, message: alert.message, priority: alert.alertPriority, alertType: alert.alertType })),
     workOrders: workOrders
       .filter((order) => (order.venueId === venue.id || (order.fieldId !== null && fieldIds.has(order.fieldId))) && order.status !== "done" && order.status !== "resolved" && !order.closedAt)
       .slice(0, 6)

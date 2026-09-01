@@ -9,7 +9,7 @@ const adminLayout = readFileSync(new URL("../src/app/admin/layout.tsx", import.m
 const apiRequest = readFileSync(new URL("../src/lib/api-request.ts", import.meta.url), "utf8");
 const publicWriteRoutes = ["field-page-views", "follows", "sponsor-analytics/clicks", "sponsor-analytics/impressions", "resource-activations"].map((route) => readFileSync(new URL(`../src/app/api/${route}/route.ts`, import.meta.url), "utf8"));
 const liveReadRoutes = ["display/venue/[venueId]", "scoreboard/field/[fieldId]", "scoreboard/session/[sessionId]", "venues/[venueId]/mode", "weather/venue/[venueId]"].map((route) => readFileSync(new URL(`../src/app/api/${route}/route.ts`, import.meta.url), "utf8"));
-const proxy = readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
+const proxy = readFileSync(new URL("../src/proxy.ts", import.meta.url), "utf8");
 const serverAuth = readFileSync(new URL("../src/lib/supabase/server-auth.ts", import.meta.url), "utf8");
 const protectedAdminRoutes = [
   "automations/route.ts",

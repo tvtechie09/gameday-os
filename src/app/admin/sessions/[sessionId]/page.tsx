@@ -15,6 +15,8 @@ import { getVenue } from "@/lib/services/venues";
 import { getVolunteerRolesBySessionId } from "@/lib/services/volunteer-roles";
 import type { ResourceActivation, SessionEvent, VolunteerRole } from "@/lib/types";
 import { DemoScoreboardControls } from "@/components/demo-scoreboard-controls";
+import { StatusChip, buttonStyles } from "@/components/ui/gameday-ui";
+import { gameStatusPresentation } from "@/lib/ui/status-presentation";
 import { LiveSessionDashboard } from "./live-session-dashboard";
 
 type SessionDashboardPageProps = {
@@ -103,6 +105,8 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
     );
   }
 
+  const status = gameStatusPresentation(session.status, session.lifecycleStatus);
+
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -111,7 +115,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
             Back to sessions
           </Link>
           <p className="mt-5 text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
-            Live session dashboard
+            Game dashboard
           </p>
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">{session.title}</h1>
           <p className="mt-3 w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
@@ -122,82 +126,43 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
               Demo Session
             </p>
           ) : null}
+          <StatusChip className="mt-2" tone={status.tone}>{status.label}</StatusChip>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
             {venue?.name ?? "Venue unavailable"} · {field?.name ?? "Field unavailable"} · {formatSessionTime(session.startTime)}
           </p>
         </div>
         {field ? (
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link
-              href="/admin/command-center"
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white"
-            >
-              Open Command Center
-            </Link>
+          <div className="grid gap-2 sm:min-w-64">
             <Link
               href="#score-entry"
-              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
+              className={buttonStyles("primary", "min-h-12")}
             >
-              Open Score Control
+              Open score control
             </Link>
-            <Link
-              href={getPublicScoreboardUrl(session.id)}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white"
-            >
-              Open Public Scoreboard
-            </Link>
-            <CopyLinkButton label="Copy Scoreboard Link" value={getPublicScoreboardUrl(session.id)} />
-            {scorekeeper ? <CopyLinkButton label={"Copy Scorekeeper Link (PIN " + scorekeeper.pin + ")"} value={getPublicAppUrl() + "/score/" + scorekeeper.token} /> : null}
-            <Link
-              href={`/fields/${field.id}`}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
-            >
-              View Field Page
-            </Link>
-            <Link
-              href={`/admin/scoreboards/display?session=${session.id}`}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
-            >
-              Display controls
-            </Link>
+            <details className="group rounded-lg border border-[var(--line)] bg-white">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-extrabold text-[var(--accent-strong)]">More game tools <span aria-hidden="true" className="transition-transform group-open:rotate-180">⌄</span></summary>
+              <div className="grid gap-2 border-t border-[var(--line)] p-3">
+                <Link href="/admin/command-center" className={buttonStyles("secondary")}>Command Center</Link>
+                <Link href={getPublicScoreboardUrl(session.id)} className={buttonStyles("secondary")}>Public scoreboard</Link>
+                <CopyLinkButton label="Copy scoreboard link" value={getPublicScoreboardUrl(session.id)} />
+                {scorekeeper ? <CopyLinkButton label={"Copy scorekeeper link (PIN " + scorekeeper.pin + ")"} value={getPublicAppUrl() + "/score/" + scorekeeper.token} /> : null}
+                <Link href={`/fields/${field.id}`} className={buttonStyles("secondary")}>Public field page</Link>
+                <Link href={`/admin/scoreboards/display?session=${session.id}`} className={buttonStyles("secondary")}>Display controls</Link>
+              </div>
+            </details>
           </div>
         ) : null}
       </div>
 
-      <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Parent Follow Mode</p>
-        <p className="mt-2 text-3xl font-black">{followCount}</p>
-        <p className="mt-1 text-sm font-semibold text-[var(--muted)]">Anonymous follows for this session.</p>
-      </section>
-
-      <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-5">
-        <div className="flex flex-col gap-1">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Session Timeline</p>
-          <h2 className="text-xl font-black">Recent events</h2>
-          <p className="text-sm font-semibold text-[var(--muted)]">Newest events appear first.</p>
+      <details className="group mt-8 rounded-lg border border-[var(--line)] bg-white">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 text-sm font-extrabold text-[var(--accent-strong)]">Activity details <span className="font-semibold text-[var(--muted)]">{followCount} following · {sessionEvents.length} events</span></summary>
+        <div className="grid gap-5 border-t border-[var(--line)] p-5">
+          <section><p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Family follows</p><p className="mt-2 text-3xl font-black">{followCount}</p><p className="mt-1 text-sm font-semibold text-[var(--muted)]">Anonymous follows for this game.</p></section>
+          <section className="border-t border-[var(--line)] pt-5"><h2 className="text-xl font-black">Recent events</h2><p className="mt-1 text-sm font-semibold text-[var(--muted)]">Newest events appear first.</p>
+            {sessionEvents.length > 0 ? <div className="mt-4 grid gap-3">{sessionEvents.map((event) => <article className="rounded-lg bg-[var(--background)] p-4" key={event.id}><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><span className="inline-flex rounded-md bg-white px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">{getSessionEventTypeLabel(event.eventType)}</span><p className="mt-2 text-sm font-black">{event.eventMessage}</p></div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">{formatTimelineTime(event.createdAt)}</p></div></article>)}</div> : <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">No activity has been recorded for this game yet.</p>}
+          </section>
         </div>
-        {sessionEvents.length > 0 ? (
-          <div className="mt-4 grid gap-3">
-            {sessionEvents.map((event) => (
-              <article className="rounded-lg bg-[var(--background)] p-4" key={event.id}>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <span className="inline-flex rounded-md bg-white px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
-                      {getSessionEventTypeLabel(event.eventType)}
-                    </span>
-                    <p className="mt-2 text-sm font-black">{event.eventMessage}</p>
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">{formatTimelineTime(event.createdAt)}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-4 rounded-lg bg-[var(--background)] p-4 text-sm leading-6 text-[var(--muted)]">
-            No timeline events have been recorded for this session yet.
-          </p>
-        )}
-      </section>
+      </details>
 
       <div className="mt-5">
         <DemoScoreboardControls session={session} />

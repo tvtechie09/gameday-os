@@ -24,10 +24,10 @@ export default async function NewSessionPage() {
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <div>
-        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Session setup</p>
-        <h1 className="mt-2 text-3xl font-black sm:text-4xl">Create a session</h1>
+        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Schedule</p>
+        <h1 className="mt-2 text-3xl font-black sm:text-4xl">Create a game or event</h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-          Save a real session to Supabase and attach it to a field.
+          Add the essential details now. Tournament, link, and demo options stay available under advanced details.
         </p>
       </div>
 

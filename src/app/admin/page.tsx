@@ -75,12 +75,15 @@ export default async function AdminDashboard() {
         </div>
       </Card>
 
-      <section className="mt-6 grid gap-3 sm:grid-cols-4">
-        <Metric href="/admin/venues" label="Venues" value={venueCount} />
-        <Metric href="/admin/fields" label="Fields" value={fieldCount} />
-        <Metric href="/admin/sessions" label="Games" value={sessionCount} />
-        <Metric href="/admin/sponsors" label="Sponsors" value={sponsorCount} />
-      </section>
+      <details className="ui-surface mt-6 overflow-hidden">
+        <summary className="flex min-h-14 cursor-pointer items-center px-5 text-sm font-black text-[var(--accent-strong)] focus-visible:outline-2 focus-visible:outline-offset-[-2px]">Platform inventory</summary>
+        <div className="grid gap-3 border-t border-[var(--line)] p-5 sm:grid-cols-4">
+          <Metric href="/admin/venues" label="Venues" value={venueCount} />
+          <Metric href="/admin/fields" label="Fields" value={fieldCount} />
+          <Metric href="/admin/sessions" label="Games" value={sessionCount} />
+          <Metric href="/admin/sponsors" label="Sponsors" value={sponsorCount} />
+        </div>
+      </details>
     </PageShell>
   );
 }

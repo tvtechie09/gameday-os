@@ -1,4 +1,4 @@
-import { getLiveWeatherForVenue, LiveWeatherError, type LiveWeatherStatus } from "@/lib/services/weather-live";
+import { getLiveWeatherForVenue, publicWeatherErrorMessage, type LiveWeatherStatus } from "@/lib/services/weather-live";
 import { getFields, updateFieldStatus } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getVenues } from "@/lib/services/venues";
@@ -47,7 +47,7 @@ export async function assessStormRisk(venueId?: string): Promise<StormAssessment
   try {
     weather = await getLiveWeatherForVenue(venue.id);
   } catch (error) {
-    weatherError = error instanceof LiveWeatherError ? error.message : "Live weather is unavailable.";
+    weatherError = publicWeatherErrorMessage(error);
   }
   const { risk, reasons } = weather ? assessConditions(weather, options) : { risk: "clear" as StormRiskLevel, reasons: [] };
 

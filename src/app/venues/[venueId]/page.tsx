@@ -5,8 +5,8 @@ import Link from "next/link";
 import { getPublicFieldUrl } from "@/lib/public-url";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
 import { WeatherOperationsStatusCard } from "@/components/weather/weather-operations-status-card";
-import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
-import { getFieldStatusClass, getFieldStatusLabel, getFields } from "@/lib/services/fields";
+import { filterAlertsForFieldPage, getActiveAlerts, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
+import { getFieldStatusClass, getFields } from "@/lib/services/fields";
 import { getResourceTypeLabel, getResources } from "@/lib/services/resources";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
@@ -16,6 +16,7 @@ import type { Alert, Field, Organization, Resource, Session, Sponsor, SponsorAss
 import { RECOMMENDED_PROHIBITED_CATEGORIES, type SponsorCategoryKey } from "@/lib/services/sponsor-category-core";
 import { getProhibitedCategories } from "@/lib/services/sponsor-policy";
 import { filterProhibitedPlacements } from "@/lib/services/sponsor-policy-core";
+import { alertLevelFor, alertLevelPresentation, fieldStatusPresentation } from "@/lib/ui/status-presentation";
 
 type PublicVenuePageProps = {
   params: Promise<{
@@ -174,7 +175,7 @@ function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; sho
       {alerts.map((alert) => (
         <article className={`rounded-lg border-2 p-5 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em]">{alertLevelPresentation(alertLevelFor(alert.alertPriority, alert.alertType)).label}</p>
             {showState ? (
               <span className="rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase">
                 {isAlertActive(alert) ? "Active" : isAlertExpired(alert) ? "Expired" : "Cleared"}
@@ -201,7 +202,7 @@ function FieldCard({ summary }: { summary: FieldSummary }) {
         <div>
           <h3 className="text-xl font-black">{summary.field.name}</h3>
           <span className={`mt-2 inline-flex w-fit rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(summary.field.status)}`}>
-            {getFieldStatusLabel(summary.field.status)}
+            {fieldStatusPresentation(summary.field.status).label}
           </span>
         </div>
         <Link className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-black text-white" href={`/fields/${summary.field.id}`}>

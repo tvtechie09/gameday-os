@@ -44,12 +44,10 @@ join public.roles r on r.key = d.role_key
 join public.permissions p on p.key = d.permission_key
 on conflict (role_id, permission_id) do nothing;
 
--- 3) Flagship venue + tournament (idempotent by name) -----------------------
---    "Crossroads Test Complex" is the seed name; the app displays it as
---    "New Lenox Crossroads".
-insert into public.venues (name, description, city, state, status)
-select 'Crossroads Test Complex', 'Flagship demo venue for role-based experiences.', 'New Lenox', 'IL', 'Published'
-where not exists (select 1 from public.venues where name = 'Crossroads Test Complex');
+-- 3) Flagship tournament (idempotent by name) -------------------------------
+--    The venue already comes from the canonical Crossroads seed. Do not create
+--    a second empty venue here: role assignments below resolve the populated
+--    Wintrust venue by relationship and fail fast if it is unavailable.
 
 insert into public.tournaments (name, description, start_date, end_date)
 select 'Crossroads Summer Classic', 'Demo tournament scope for the Tournament Director experience.', current_date, current_date + interval '2 days'
@@ -85,7 +83,9 @@ declare
     '55555555-5555-4555-8555-555555555555'
   ]::uuid[];
 begin
-  select id into v_venue_id from public.venues where name = 'Crossroads Test Complex' limit 1;
+  select id into strict v_venue_id
+  from public.venues
+  where name = 'Wintrust Crossroads Sports Complex';
   select id into v_tournament_id from public.tournaments where name = 'Crossroads Summer Classic' limit 1;
 
   delete from public.user_role_assignments where user_id = any(demo_user_ids);

@@ -21,6 +21,15 @@ test("shared GameDay design system exposes the 1.0A component contract", () => {
   assert.match(overlays, /export const Drawer = Sheet/);
 });
 
+test("universal GameDay card keeps one primary action and progressively discloses secondary context", () => {
+  assert.match(primitives, /export type GameDayCardProps/);
+  assert.match(primitives, /primaryAction: ReactNode/);
+  assert.match(primitives, /secondaryActions\?: ReactNode/);
+  assert.match(primitives, /<summary[^>]*>\s*More details/);
+  assert.match(primitives, /export function ScheduleChangeBanner/);
+  assert.match(primitives, /export function GameDayCardSkeleton/);
+});
+
 test("mobile shell keeps navigation capability-filtered and thumb reachable", () => {
   assert.match(shell, /buildMobileNavigation\(navGroups\)/);
   assert.match(shell, /selected\.slice\(0, 4\)/);

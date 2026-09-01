@@ -6,7 +6,19 @@ import type {
   ReactNode,
   SelectHTMLAttributes,
 } from "react";
-import { AlertCircle, CheckCircle2, ChevronRight, LoaderCircle, Search } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock3,
+  CloudSun,
+  LoaderCircle,
+  MapPin,
+  Search,
+  UserRound,
+} from "lucide-react";
 
 export function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -64,10 +76,6 @@ export function Card({ className, ...props }: Readonly<HTMLAttributes<HTMLDivEle
   return <div className={cx("ui-surface", className)} {...props} />;
 }
 
-export function GameDayCard({ className, ...props }: Readonly<HTMLAttributes<HTMLElement>>) {
-  return <article className={cx("ui-surface p-4 sm:p-5", className)} {...props} />;
-}
-
 export type StatusTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 const statusToneClasses: Record<StatusTone, string> = {
@@ -83,6 +91,115 @@ export function StatusChip({ children, className, tone = "neutral" }: Readonly<{
     <span className={cx("inline-flex min-h-7 shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-extrabold leading-none ring-1 ring-inset", statusToneClasses[tone], className)}>
       {children}
     </span>
+  );
+}
+
+export type GameDayCardProps = Omit<HTMLAttributes<HTMLElement>, "title"> & {
+  eventName: ReactNode;
+  opponent?: ReactNode;
+  date?: ReactNode;
+  startTime: ReactNode;
+  arrivalTime?: ReactNode;
+  venue?: ReactNode;
+  location?: ReactNode;
+  status?: ReactNode;
+  statusTone?: StatusTone;
+  fieldStatus?: ReactNode;
+  weather?: ReactNode;
+  assignment?: ReactNode;
+  scheduleChange?: ReactNode;
+  primaryAction: ReactNode;
+  secondaryActions?: ReactNode;
+  details?: ReactNode;
+};
+
+export function GameDayCard({
+  arrivalTime,
+  assignment,
+  className,
+  date,
+  details,
+  eventName,
+  fieldStatus,
+  location,
+  opponent,
+  primaryAction,
+  scheduleChange,
+  secondaryActions,
+  startTime,
+  status,
+  statusTone = "neutral",
+  venue,
+  weather,
+  ...props
+}: Readonly<GameDayCardProps>) {
+  const hasMore = Boolean(details || weather || assignment || secondaryActions);
+  return (
+    <article className={cx("ui-surface overflow-hidden", className)} {...props}>
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {date ? <p className="ui-eyebrow">{date}</p> : null}
+            <h3 className="mt-1 text-lg font-black leading-snug tracking-[-0.015em] text-[var(--foreground)]">{eventName}</h3>
+            {opponent ? <p className="mt-1 text-sm font-semibold leading-5 text-[var(--muted)]">{opponent}</p> : null}
+          </div>
+          {status ? <StatusChip tone={statusTone}>{status}</StatusChip> : null}
+        </div>
+
+        <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Clock3 className="h-4 w-4 shrink-0 text-[var(--accent-strong)]" aria-hidden="true" />
+            <dt className="sr-only">Start time</dt><dd className="font-extrabold">{startTime}</dd>
+          </div>
+          {location ? <div className="flex min-w-0 items-center gap-2"><MapPin className="h-4 w-4 shrink-0 text-[var(--accent-strong)]" aria-hidden="true" /><dt className="sr-only">Location</dt><dd className="truncate font-extrabold">{location}</dd></div> : null}
+          {venue ? <div className="flex min-w-0 items-center gap-2 text-[var(--muted)]"><MapPin className="h-4 w-4 shrink-0" aria-hidden="true" /><dt className="sr-only">Venue</dt><dd className="truncate font-semibold">{venue}</dd></div> : null}
+          {arrivalTime ? <div className="flex min-w-0 items-center gap-2 text-[var(--muted)]"><CalendarClock className="h-4 w-4 shrink-0" aria-hidden="true" /><dt className="sr-only">Arrival time</dt><dd className="font-semibold">Arrive {arrivalTime}</dd></div> : null}
+        </dl>
+
+        {fieldStatus ? <div className="mt-3 text-xs font-black uppercase tracking-[0.1em] text-[var(--muted)]">Field {fieldStatus}</div> : null}
+        {scheduleChange ? <div className="mt-4">{scheduleChange}</div> : null}
+        <div className="mt-4 [&>*]:w-full sm:[&>*]:w-auto">{primaryAction}</div>
+      </div>
+
+      {hasMore ? (
+        <details className="group border-t border-[var(--line)]">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-extrabold text-[var(--accent-strong)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] sm:px-5">
+            More details
+            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <div className="grid gap-3 border-t border-[var(--line)] bg-[var(--background)] px-4 py-4 text-sm sm:px-5">
+            {assignment ? <p className="flex items-center gap-2 font-semibold"><UserRound className="h-4 w-4 text-[var(--muted)]" aria-hidden="true" />{assignment}</p> : null}
+            {weather ? <p className="flex items-center gap-2 font-semibold"><CloudSun className="h-4 w-4 text-[var(--muted)]" aria-hidden="true" />{weather}</p> : null}
+            {details}
+            {secondaryActions ? <div className="flex flex-wrap gap-2">{secondaryActions}</div> : null}
+          </div>
+        </details>
+      ) : null}
+    </article>
+  );
+}
+
+export function GameDayCardSkeleton() {
+  return (
+    <div aria-label="Loading event" className="ui-surface animate-pulse p-4 sm:p-5" role="status">
+      <div className="h-3 w-24 rounded bg-slate-200" />
+      <div className="mt-3 h-6 w-3/4 rounded bg-slate-200" />
+      <div className="mt-2 h-4 w-1/2 rounded bg-slate-100" />
+      <div className="mt-5 grid grid-cols-2 gap-3"><div className="h-4 rounded bg-slate-100" /><div className="h-4 rounded bg-slate-100" /></div>
+      <div className="mt-5 h-12 rounded-lg bg-slate-200" />
+      <span className="sr-only">Loading event</span>
+    </div>
+  );
+}
+
+export function ScheduleChangeBanner({ children, className, title, tone = "warning" }: Readonly<{ children: ReactNode; className?: string; title: ReactNode; tone?: "info" | "warning" | "danger" }>) {
+  const Icon = tone === "danger" ? AlertCircle : CalendarClock;
+  const toneClass = tone === "danger" ? "bg-red-50 text-red-950 ring-red-200" : tone === "info" ? "bg-sky-50 text-sky-950 ring-sky-200" : "bg-amber-50 text-amber-950 ring-amber-200";
+  return (
+    <div className={cx("flex gap-3 rounded-[var(--radius-md)] p-3 ring-1 ring-inset", toneClass, className)} role={tone === "info" ? "status" : "alert"}>
+      <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+      <div className="min-w-0"><p className="text-xs font-black uppercase tracking-[0.12em]">{title}</p><div className="mt-1 text-sm font-semibold leading-5">{children}</div></div>
+    </div>
   );
 }
 

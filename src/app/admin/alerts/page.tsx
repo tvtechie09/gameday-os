@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
-import { alertTypes, getAlertLabel, getAlertPriorityLabel, getAlertScopeLabel, getAlertTone, getAlerts, isAlertActive, isAlertExpired, sortAlertsForDisplay } from "@/lib/services/alerts";
+import { StatusChip, buttonStyles } from "@/components/ui/gameday-ui";
+import { alertTypes, getAlertScopeLabel, getAlertTone, getAlerts, isAlertActive, isAlertExpired, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getTournaments } from "@/lib/services/tournaments";
+import { alertLevelFor, alertLevelPresentation, alertTypeLabel } from "@/lib/ui/status-presentation";
 import { clearAlertAction, clearAllActiveOperationsAlertsAction, expireAlertAction, hideAlertFromPublicAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +52,7 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
     if (filters?.active === "expired" && !isAlertExpired(alert)) return false;
     return true;
   }));
+  const hasFilters = Boolean(filters?.venue_id || filters?.field_id || filters?.tournament_id || filters?.alert_type || filters?.active);
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -61,15 +64,15 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
             Publish parent-safe venue, tournament, and field updates. Family relevance and expiration are enforced automatically.
           </p>
         </div>
-        <Link href="/admin/alerts/storm" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
-          Storm watch
-        </Link>
-        <Link href="/admin/alerts/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">
-          New alert
-        </Link>
+        <div className="grid gap-2 sm:min-w-44">
+          <Link href="/admin/alerts/new" className={buttonStyles("primary", "min-h-12")}>Publish update</Link>
+          <details className="group rounded-lg border border-[var(--line)] bg-white"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-bold text-[var(--accent-strong)]">More tools <span aria-hidden="true">⌄</span></summary><div className="border-t border-[var(--line)] p-2"><Link href="/admin/alerts/storm" className={buttonStyles("quiet", "w-full")}>Storm watch</Link></div></details>
+        </div>
       </div>
 
-      <form className="mt-8 grid gap-3 rounded-lg border border-[var(--line)] bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+      <details className="mt-8 rounded-lg border border-[var(--line)] bg-white" open={hasFilters}>
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-extrabold text-[var(--accent-strong)]">Filter updates {hasFilters ? <span className="rounded-full bg-[var(--accent-soft)] px-2 py-1 text-xs">Filters active</span> : null}</summary>
+      <form className="grid gap-3 border-t border-[var(--line)] p-4 sm:grid-cols-2 lg:grid-cols-5">
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Venue</span>
           <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.venue_id ?? ""} name="venue_id">
@@ -95,7 +98,7 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Type</span>
           <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.alert_type ?? ""} name="alert_type">
             <option value="">All types</option>
-            {alertTypes.map((type) => <option key={type} value={type}>{type.replace("_", " ")}</option>)}
+            {alertTypes.map((type) => <option key={type} value={type}>{alertTypeLabel(type)}</option>)}
           </select>
         </label>
         <label className="grid gap-1">
@@ -111,9 +114,11 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
           <Link href="/admin/alerts" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">Clear</Link>
         </div>
       </form>
+      </details>
 
-      <section className="mt-5 rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <details className="mt-5 rounded-lg border border-[var(--line)] bg-white">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-extrabold text-[var(--accent-strong)]">Advanced cleanup <span aria-hidden="true">⌄</span></summary>
+        <div className="flex flex-col gap-3 border-t border-[var(--line)] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-black">Operations alert cleanup</h2>
             <p className="mt-1 text-sm leading-6 text-[var(--muted)]">Close active delay, weather, emergency, and field closure alerts for one venue.</p>
@@ -128,23 +133,20 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
             </button>
           </form>
         </div>
-      </section>
+      </details>
 
       {visibleAlerts.length > 0 ? (
         <div className="mt-8 grid gap-4">
-          {visibleAlerts.map((alert) => (
+          {visibleAlerts.map((alert) => {
+            const level = alertLevelPresentation(alertLevelFor(alert.alertPriority, alert.alertType));
+            return (
             <article key={alert.id} className={`rounded-lg border p-5 ${getAlertTone(alert.alertType)}`}>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs font-black uppercase tracking-[0.14em]">{getAlertLabel(alert.alertType)}</p>
+                    <StatusChip tone={level.tone}>{level.label}</StatusChip>
                     <span className={isAlertActive(alert) ? "rounded-md bg-green-100 px-2 py-1 text-xs font-black uppercase text-green-800" : "rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase"}>
                       {isAlertActive(alert) ? "Active now" : isAlertExpired(alert) ? "Expired" : alert.isActive ? "Scheduled" : "Inactive"}
-                    </span>
-                    <span className="rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase">{getAlertPriorityLabel(alert.alertPriority)}</span>
-                    <span className="rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase">{alert.alertVisibility.replace("_", " ")}</span>
-                    <span className="rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase">
-                      {getAlertScopeLabel(alert.alertScope)}
                     </span>
                   </div>
                   <h2 className="mt-2 text-xl font-black">{alert.title}</h2>
@@ -158,9 +160,12 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
                     {formatDateTime(alert.startTime)} - {formatDateTime(alert.endTime)}
                   </p>
                 </div>
-                <div className="grid gap-2 sm:min-w-40">
+                <details className="rounded-lg border border-current/30 bg-white/60 sm:min-w-44">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-bold">Manage update <span aria-hidden="true">⌄</span></summary>
+                <div className="grid gap-2 border-t border-current/20 p-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.1em] opacity-75">{alertTypeLabel(alert.alertType)} · {getAlertScopeLabel(alert.alertScope)} · {alert.alertVisibility === "public" ? "Families and public" : "Venue staff only"}</p>
                   <Link href={`/admin/alerts/${alert.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-current bg-white/80 px-4 text-sm font-bold">
-                    Edit
+                    Edit update
                   </Link>
                   <form action={clearAlertAction}>
                     <input name="alert_id" type="hidden" value={alert.id} />
@@ -183,13 +188,14 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
                     </form>
                   ) : null}
                 </div>
+                </details>
               </div>
             </article>
-          ))}
+          );})}
         </div>
       ) : (
         <div className="mt-8">
-          <EmptyState title="No alerts yet" message="Create an alert to communicate weather, parking, delay, or field updates." actionHref="/admin/alerts/new" actionLabel="Create alert" />
+          <EmptyState title="No updates yet" message="Publish an update for weather, parking, delays, or field changes." actionHref="/admin/alerts/new" actionLabel="Publish update" />
         </div>
       )}
     </section>

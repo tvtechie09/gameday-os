@@ -27,6 +27,7 @@ export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[];
   const [result, setResult] = useState<QuickActionResult | null>(null);
   const [message, setMessage] = useState("");
   const [fieldId, setFieldId] = useState(targets.fields[0]?.id ?? "");
+  const [confirmingFieldClose, setConfirmingFieldClose] = useState(false);
   const [pending, startTransition] = useTransition();
 
   if (allowed.length === 0) {
@@ -44,6 +45,7 @@ export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[];
 
   function toggle(key: string) {
     setResult(null);
+    setConfirmingFieldClose(false);
     setOpen((current) => (current === key ? null : key));
   }
 
@@ -131,6 +133,7 @@ export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[];
       {open === "field" ? (
         <div className={panelClass}>
           {targets.fields.length ? (
+            <>
             <div className="flex flex-wrap items-center gap-2">
               <select className="ui-input min-w-48 flex-1" value={fieldId} onChange={(event) => setFieldId(event.target.value)}>
                 {targets.fields.map((field) => (
@@ -138,9 +141,20 @@ export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[];
                 ))}
               </select>
               <button className={confirmBtn} disabled={pending || !fieldId} onClick={() => run(() => setFieldStatusAction(fieldId, "open"))}>Open</button>
-              <button className={buttonStyles("destructive")} disabled={pending || !fieldId} onClick={() => run(() => setFieldStatusAction(fieldId, "closed"))}>Close</button>
+              <button className={buttonStyles("destructive")} disabled={pending || !fieldId} onClick={() => setConfirmingFieldClose(true)}>Close</button>
               {selectedField ? <span className="text-sm font-semibold text-[var(--muted)]">Currently {selectedField.status}</span> : null}
             </div>
+            {confirmingFieldClose && selectedField ? (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3" role="alert">
+                <p className="text-sm font-black text-red-950">Close {selectedField.name}?</p>
+                <p className="mt-1 text-sm font-semibold text-red-800">This changes public field status and may affect scheduled games.</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <button className={buttonStyles("destructive")} disabled={pending} onClick={() => run(() => setFieldStatusAction(fieldId, "closed"))}>Confirm closure</button>
+                  <button className={buttonStyles("secondary")} disabled={pending} onClick={() => setConfirmingFieldClose(false)}>Keep field open</button>
+                </div>
+              </div>
+            ) : null}
+            </>
           ) : (
             <p className="text-sm font-semibold text-[var(--muted)]">No fields configured at this venue.</p>
           )}

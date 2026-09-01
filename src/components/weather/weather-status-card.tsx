@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getLiveWeatherForVenue, LiveWeatherError } from "@/lib/services/weather-live";
+import { getLiveWeatherForVenue, publicWeatherErrorMessage } from "@/lib/services/weather-live";
 
 function sentenceCase(value: string) {
   const lower = value.toLowerCase();
@@ -65,8 +65,8 @@ async function getWeatherStatusResult(venueId: string) {
     return { ok: true as const, weather: await getLiveWeatherForVenue(venueId) };
   } catch (error) {
     return {
-      label: error instanceof LiveWeatherError ? error.code.replaceAll("_", " ") : "weather unavailable",
-      message: error instanceof LiveWeatherError ? error.message : "Weather is temporarily unavailable.",
+      label: "weather unavailable",
+      message: publicWeatherErrorMessage(error),
       ok: false as const,
     };
   }

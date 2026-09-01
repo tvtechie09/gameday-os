@@ -104,15 +104,6 @@ function SchedulePulseCard({ pulse }: { pulse: SchedulePulse }) {
   );
 }
 
-function SummaryTile({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
-  return (
-    <div className="rounded-xl border border-[var(--line)] bg-white p-4">
-      <p className={`text-2xl font-black leading-none ${tone ?? "text-[var(--foreground)]"}`}>{value}</p>
-      <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--muted)]">{label}</p>
-    </div>
-  );
-}
-
 function QuickCommunicationAction({
   fieldIds,
   label,
@@ -315,6 +306,10 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
   const urgent = view.attention.filter((i) => i.tier === "urgent");
   const soon = view.attention.filter((i) => i.tier === "soon");
   const info = view.attention.filter((i) => i.tier === "info");
+  const firstName = (ctx.displayName || ctx.roleLabel).trim().split(/\s+/)[0];
+  const greetingHour = Number(new Intl.DateTimeFormat("en", { hour: "numeric", hourCycle: "h23", timeZone: view.timeZone }).format(new Date()));
+  const greeting = greetingHour < 12 ? "Good morning" : greetingHour < 17 ? "Good afternoon" : "Good evening";
+  const roleBrief = ctx.roleKey === "venue_staff" ? "Your operations brief" : ctx.roleKey === "venue_tech_manager" ? "Systems and field brief" : "Venue brief";
 
   if (!view.venueId) {
     return (
@@ -351,23 +346,24 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
         </div>
       </header>
 
-      <section className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
-        <SummaryTile label="Scheduled" value={s.gamesScheduled} />
-        <SummaryTile label="Live now" value={s.gamesLive} tone={s.gamesLive > 0 ? "text-emerald-600" : undefined} />
-        <SummaryTile label="Behind" value={s.gamesBehind} tone={s.gamesBehind > 0 ? "text-amber-700" : undefined} />
-        <SummaryTile label="Fields flagged" value={s.fieldsNeedAttention} tone={s.fieldsNeedAttention > 0 ? "text-red-700" : undefined} />
-        <SummaryTile label="Weather" value={s.weatherRisk ? s.weatherRisk : "—"} tone={s.weatherRisk === "severe" ? "text-red-700" : s.weatherRisk === "caution" ? "text-amber-700" : "text-emerald-600"} />
-        <SummaryTile label="Officials open" value={s.officialsUnconfirmed} tone={s.officialsUnconfirmed > 0 ? "text-amber-700" : undefined} />
-        {/*
-          Green here must mean "healthy", not "not yet offline". This read a green
-          9/9 for a venue whose six manual boards had never reported once, because
-          `unknown` was quietly counted as good. Same lie deviceCheck used to tell.
-        */}
-        <SummaryTile
-          label="Systems"
-          value={s.systemsTotal === 0 ? "OK" : `${s.systemsTotal - s.systemsOffline - s.systemsUnknown}/${s.systemsTotal}`}
-          tone={s.systemsOffline > 0 ? "text-red-700" : s.systemsUnknown > 0 ? "text-amber-700" : "text-emerald-600"}
-        />
+      <section className="mt-5 rounded-2xl bg-[var(--black-soft)] p-5 text-white shadow-sm sm:p-7">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-200">{roleBrief}</p>
+        <h2 className="mt-3 text-2xl font-black leading-tight sm:text-3xl">{greeting}, {firstName}</h2>
+        <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-white/80">
+          {s.gamesScheduled} game{s.gamesScheduled === 1 ? "" : "s"} today, {s.gamesLive} live now. {view.attention.length > 0 ? `${view.attention.length} item${view.attention.length === 1 ? " needs" : "s need"} attention.` : "Nothing needs attention right now."}
+        </p>
+        <a className="mt-5 inline-flex min-h-12 items-center justify-center rounded-lg bg-white px-4 text-sm font-black text-[var(--foreground)]" href={view.attention.length > 0 ? "#attention-queue" : "#field-board"}>
+          {view.attention.length > 0 ? "Review needs attention" : "Open field board"}
+        </a>
+        <details className="mt-5 border-t border-white/15 pt-4">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-black text-white/80 focus-visible:outline-2 focus-visible:outline-offset-2">Operational snapshot</summary>
+          <dl className="grid gap-x-6 gap-y-3 pt-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div><dt className="text-white/60">Behind schedule</dt><dd className="font-black">{s.gamesBehind}</dd></div>
+            <div><dt className="text-white/60">Fields flagged</dt><dd className="font-black">{s.fieldsNeedAttention}</dd></div>
+            <div><dt className="text-white/60">Officials open</dt><dd className="font-black">{s.officialsUnconfirmed}</dd></div>
+            <div><dt className="text-white/60">Systems reporting healthy</dt><dd className="font-black">{s.systemsTotal === 0 ? "No systems configured" : `${s.systemsTotal - s.systemsOffline - s.systemsUnknown} of ${s.systemsTotal}`}</dd></div>
+          </dl>
+        </details>
       </section>
 
       {messages.schedule_error ? <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-900">{messages.schedule_error}</p> : null}

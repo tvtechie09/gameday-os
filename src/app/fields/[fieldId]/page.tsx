@@ -4,8 +4,8 @@ import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
 import { WeatherOperationsStatusCard } from "@/components/weather/weather-operations-status-card";
-import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
-import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
+import { getField, getFieldStatusClass } from "@/lib/services/fields";
+import { filterAlertsForFieldPage, getActiveAlerts, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
@@ -18,6 +18,7 @@ import { FieldPageViewTracker } from "./field-page-view-tracker";
 import { FollowButtons } from "./follow-buttons";
 import { ResourceActivationForm } from "./resource-activation-form";
 import { VolunteerRoleForm } from "./volunteer-role-form";
+import { alertLevelFor, alertLevelPresentation, fieldStatusPresentation } from "@/lib/ui/status-presentation";
 
 type FieldPageProps = {
   params: Promise<{
@@ -223,7 +224,7 @@ function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; sho
       {alerts.map((alert) => (
         <article className={`rounded-lg border-2 p-4 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em]">{alertLevelPresentation(alertLevelFor(alert.alertPriority, alert.alertType)).label}</p>
             {showState ? (
               <span className="rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase">
                 {isAlertActive(alert) ? "Active" : isAlertExpired(alert) ? "Expired" : "Cleared"}
@@ -286,7 +287,7 @@ function FieldStatusBanner({ field }: { field: Field }) {
 
   return (
     <section className={`rounded-lg border-2 p-5 shadow-sm sm:p-6 ${getFieldStatusClass(field.status)}`}>
-      <p className="text-xs font-black uppercase tracking-[0.16em]">{getFieldStatusLabel(field.status)}</p>
+      <p className="text-xs font-black uppercase tracking-[0.16em]">{fieldStatusPresentation(field.status).label}</p>
       <h2 className="mt-1 text-2xl font-black sm:text-3xl">{copy.title}</h2>
       <p className="mt-2 text-base font-semibold leading-7">{copy.message}</p>
     </section>
@@ -495,7 +496,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </span>
               {field ? (
                 <span className={`rounded-md px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
-                  {getFieldStatusLabel(field.status)}
+                  {fieldStatusPresentation(field.status).label}
                 </span>
               ) : null}
             </div>
@@ -532,7 +533,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{venue?.name ?? "Venue unavailable"}</p>
                   </div>
                   <span className={`w-fit rounded-md px-3 py-2 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
-                    {getFieldStatusLabel(field.status)}
+                    {fieldStatusPresentation(field.status).label}
                   </span>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
