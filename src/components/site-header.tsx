@@ -26,7 +26,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             href={item.href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)] ${focusRing} ${
+            className={`flex min-h-12 items-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)] ${focusRing} ${
               active ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "text-[var(--muted)]"
             }`}
           >
@@ -73,7 +73,7 @@ export function SiteHeader() {
         </div>
         <button
           type="button"
-          className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--background)] text-[var(--foreground)] lg:hidden ${focusRing}`}
+          className={`inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--background)] text-[var(--foreground)] lg:hidden ${focusRing}`}
           aria-expanded={open}
           aria-controls="site-menu"
           aria-label={open ? "Close menu" : "Open menu"}

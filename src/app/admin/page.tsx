@@ -3,6 +3,7 @@ import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
 import { getVenues } from "@/lib/services/venues";
+import { Card, PageShell, SectionHeader, buttonStyles } from "@/components/ui/gameday-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default async function AdminDashboard() {
   ].filter(Boolean) as Array<{ href: string; label: string }>;
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <PageShell>
       <div className="rounded-2xl bg-[var(--black-soft)] p-6 text-white shadow-sm sm:p-8">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">GameDay OS</p>
         <h1 className="mt-3 max-w-3xl text-3xl font-black leading-tight sm:text-5xl">What needs attention today?</h1>
@@ -47,25 +48,21 @@ export default async function AdminDashboard() {
           Start with the next useful action. Setup, reports, and advanced tools stay available when you need them.
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Link href={primaryAction.href} className="ui-button ui-button-primary min-h-12 bg-white text-[var(--foreground)] hover:bg-white/90">
+          <Link href={primaryAction.href} className={buttonStyles("secondary", "bg-white ring-0 hover:bg-white/90")}>
             {primaryAction.label}
           </Link>
-          <Link href="/admin/command-center" className="ui-button min-h-12 border border-white/20 bg-white/10 text-white hover:bg-white/15">
+          <Link href="/admin/command-center" className={buttonStyles("quiet", "border border-white/20 bg-white/10 text-white hover:bg-white/15")}>
             View Game Day
           </Link>
         </div>
       </div>
 
-      <section className="mt-6 rounded-xl border border-[var(--line)] bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Needs attention</p>
-            <h2 className="mt-1 text-2xl font-black">Next steps</h2>
-          </div>
-          <Link href="/admin/operations-center" className="text-sm font-black text-[var(--accent-strong)] hover:underline">
+      <Card className="mt-6 p-5 sm:p-6">
+        <SectionHeader action={
+          <Link href="/admin/operations-center" className="flex min-h-12 items-center text-sm font-black text-[var(--accent-strong)] hover:underline">
             Open Venue Command
           </Link>
-        </div>
+        } description="Start with the next useful action." title="Next steps" />
         <div className="mt-5 grid gap-3">
           {attentionItems.length > 0 ? attentionItems.map((item) => (
             <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg bg-[var(--background)] px-4 py-3 text-sm font-bold transition hover:bg-[var(--accent-soft)]" href={item.href} key={item.label}>
@@ -76,7 +73,7 @@ export default async function AdminDashboard() {
             <p className="rounded-lg bg-emerald-50 p-4 text-sm font-black text-emerald-900">No setup blockers. Open Venue Command to run the day.</p>
           )}
         </div>
-      </section>
+      </Card>
 
       <section className="mt-6 grid gap-3 sm:grid-cols-4">
         <Metric href="/admin/venues" label="Venues" value={venueCount} />
@@ -84,13 +81,13 @@ export default async function AdminDashboard() {
         <Metric href="/admin/sessions" label="Games" value={sessionCount} />
         <Metric href="/admin/sponsors" label="Sponsors" value={sponsorCount} />
       </section>
-    </section>
+    </PageShell>
   );
 }
 
 function Metric({ href, label, value }: { href: string; label: string; value: number }) {
   return (
-    <Link className="rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href={href}>
+    <Link className="ui-surface min-h-24 p-4 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]" href={href}>
       <p className="text-sm font-bold text-[var(--muted)]">{label}</p>
       <p className="mt-2 text-3xl font-black tabular-nums">{value}</p>
     </Link>

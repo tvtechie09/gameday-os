@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { getSupabaseAuthBrowserClient } from "@/lib/supabase/auth-browser";
 import { isPlausibleTotpCode, needsMfaChallenge } from "@/lib/access/mfa-core";
+import { AlertBanner, buttonStyles } from "@/components/ui/gameday-ui";
 
 // Email/password sign-in form. On success we do a full navigation so the server
 // re-resolves the session (cookies are now set) and routes to the role home.
@@ -100,9 +101,7 @@ export function LoginForm({
     return (
       <form onSubmit={onSubmitMfa} className="flex flex-col gap-4">
         {error ? (
-          <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
-            {error}
-          </p>
+          <AlertBanner title="Sign-in failed" tone="danger">{error}</AlertBanner>
         ) : null}
 
         <p className="text-sm leading-6 text-[var(--muted)]">
@@ -118,7 +117,7 @@ export function LoginForm({
             required
             value={mfaCode}
             onChange={(event) => setMfaCode(event.target.value)}
-            className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-semibold outline-none transition focus:border-[var(--accent)]"
+            className="ui-input font-semibold"
             placeholder="123456"
           />
         </label>
@@ -126,7 +125,7 @@ export function LoginForm({
         <button
           type="submit"
           disabled={submitting}
-          className="min-h-11 rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+          className={buttonStyles("primary", "bg-[var(--black-soft)] hover:bg-black")}
         >
           {submitting ? "Verifying…" : "Verify"}
         </button>
@@ -139,7 +138,7 @@ export function LoginForm({
             setMfaCode("");
             setError(null);
           }}
-          className="text-xs font-bold text-emerald-700 underline underline-offset-2"
+          className="min-h-12 text-sm font-bold text-emerald-700 underline underline-offset-2"
         >
           Cancel, sign in as someone else
         </button>
@@ -150,9 +149,7 @@ export function LoginForm({
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       {error ? (
-        <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
-          {error}
-        </p>
+        <AlertBanner title="Sign-in failed" tone="danger">{error}</AlertBanner>
       ) : null}
 
       <label className="flex flex-col gap-1 text-sm font-bold text-[var(--foreground)]">
@@ -164,7 +161,7 @@ export function LoginForm({
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-semibold outline-none transition focus:border-[var(--accent)]"
+          className="ui-input font-semibold"
           placeholder="you@example.com"
         />
       </label>
@@ -178,7 +175,7 @@ export function LoginForm({
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-semibold outline-none transition focus:border-[var(--accent)]"
+          className="ui-input font-semibold"
           placeholder="••••••••"
         />
       </label>
@@ -186,19 +183,19 @@ export function LoginForm({
       <button
         type="submit"
         disabled={submitting}
-        className="min-h-11 rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+        className={buttonStyles("primary", "bg-[var(--black-soft)] hover:bg-black")}
       >
         {submitting ? "Signing in…" : "Sign in"}
       </button>
 
-      <p className="text-xs leading-5 text-[var(--muted)]">
+      <p className="text-sm leading-6 text-[var(--muted)]">
         Use a real account. Demo role-switching is available in staging.
       </p>
 
       {devLoginEnabled ? (
         <Link
           href={next ? `/dev-login?next=${encodeURIComponent(next)}` : "/dev-login"}
-          className="text-xs font-bold text-emerald-700 underline underline-offset-2"
+          className="inline-flex min-h-12 items-center text-sm font-bold text-emerald-700 underline underline-offset-2"
         >
           Staging: use dev login instead
         </Link>

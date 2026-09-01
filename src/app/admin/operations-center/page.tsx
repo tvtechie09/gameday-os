@@ -24,6 +24,15 @@ type OperationTemplate = {
   type: VenueOperationType;
 };
 
+const operationButtonLabels: Partial<Record<VenueOperationType, string>> = {
+  closed: "Close venue or fields",
+  emergency: "Start emergency mode",
+  maintenance: "Start maintenance notice",
+  normal_operations: "Return to normal",
+  schedule_delay: "Post schedule delay",
+  weather_delay: "Start weather delay",
+};
+
 const venueStatusTemplates: OperationTemplate[] = [
   {
     description: "Use when the venue is operating normally.",
@@ -187,7 +196,7 @@ function OperationForm({ fields, template, venueId }: { fields: Field[]; templat
           <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{template.description}</p>
         </div>
         <button className="min-h-11 rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" type="submit">
-          Run Action
+          {operationButtonLabels[template.type] ?? `Post ${template.title.toLowerCase()}`}
         </button>
       </div>
       <div className="mt-4 grid gap-3">

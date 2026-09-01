@@ -12,32 +12,24 @@ import { QuickActions } from "@/components/access/quick-actions";
 import { buildTodayView } from "@/lib/services/venue-operations";
 import { timeZoneAbbreviation } from "@/lib/venue-timezone";
 import { TodayFieldStatusControl } from "./today-field-status-control";
+import { AlertBanner, Card, PageShell, PageTitle, SectionHeader, StatusChip, type StatusTone } from "@/components/ui/gameday-ui";
 
 export const dynamic = "force-dynamic";
 
-const statusStyles: Record<string, string> = {
-  // Session / field statuses
-  live: "bg-emerald-500/15 text-emerald-700",
-  scheduled: "bg-slate-500/10 text-slate-600",
-  delayed: "bg-amber-500/20 text-amber-800",
-  maintenance: "bg-red-500/15 text-red-700",
-  closed: "bg-red-500/15 text-red-700",
-  open: "bg-emerald-500/15 text-emerald-700",
-  active: "bg-emerald-500/15 text-emerald-700",
-  // Work-order priorities
-  urgent: "bg-red-500/15 text-red-700",
-  high: "bg-amber-500/20 text-amber-800",
-  medium: "bg-sky-500/15 text-sky-700",
-  low: "bg-slate-500/10 text-slate-600",
-  normal: "bg-slate-500/10 text-slate-600",
+const statusTones: Record<string, StatusTone> = {
+  active: "success",
+  closed: "danger",
+  delayed: "warning",
+  high: "warning",
+  live: "success",
+  maintenance: "danger",
+  medium: "info",
+  open: "success",
+  urgent: "danger",
 };
 
 function Badge({ status }: { status: string }) {
-  return (
-    <span className={`inline-block shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] ${statusStyles[status] ?? "bg-slate-500/10 text-slate-600"}`}>
-      {status}
-    </span>
-  );
+  return <StatusChip tone={statusTones[status] ?? "neutral"}>{status.replaceAll("_", " ")}</StatusChip>;
 }
 
 export default async function TodayPage() {
@@ -68,12 +60,8 @@ export default async function TodayPage() {
   const venueName = view.venueName ?? ctx.venueName ?? flagshipVenueDisplayName;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-      <header className="flex flex-col gap-1 border-b border-[var(--line)] pb-5">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Today&rsquo;s Operations</p>
-        <h1 className="text-2xl font-black leading-tight text-[var(--foreground)] sm:text-3xl">{venueName}</h1>
-        <p className="text-sm font-semibold text-[var(--muted)]">{dateLabel}{zoneLabel ? ` · ${zoneLabel}` : ""}</p>
-      </header>
+    <PageShell>
+      <PageTitle description={`${dateLabel}${zoneLabel ? ` · ${zoneLabel}` : ""}`} eyebrow="Today’s Operations" title={venueName} />
 
       <section className="mt-5 grid gap-3 sm:grid-cols-4">
         <Link className="rounded-xl border border-[var(--line)] bg-white p-4 transition hover:border-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2" href="#live-now">
@@ -93,16 +81,15 @@ export default async function TodayPage() {
         ))}
       </section>
 
-      <section className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
-        <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Quick Actions</h2>
+      <Card className="mt-6 p-4 sm:p-5">
+        <SectionHeader description="Common day-of changes, based on your access." title="Quick actions" />
         <div className="mt-3">
           <QuickActions allowed={allowed} targets={view.targets} />
         </div>
-      </section>
+      </Card>
 
       {view.alerts.length > 0 ? (
-        <section className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
-          <h2 className="text-sm font-black uppercase tracking-[0.12em] text-amber-800">Active Alerts</h2>
+        <AlertBanner className="mt-6" title="Active alerts" tone="warning">
           <ul className="mt-2 grid gap-1.5">
             {view.alerts.map((alert) => (
               <li key={alert.id} className="text-sm font-semibold leading-6 text-amber-900">
@@ -110,13 +97,13 @@ export default async function TodayPage() {
               </li>
             ))}
           </ul>
-        </section>
+        </AlertBanner>
       ) : null}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6">
         <section id="live-now">
-          <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Live Now</h2>
-          <div className="mt-3 grid gap-2">
+          <SectionHeader description="Tap a game for score and field details." title="Live now" />
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
             {view.liveGames.length === 0 ? (
               <p className="text-sm font-semibold text-[var(--muted)]">No games in progress.</p>
             ) : (
@@ -158,7 +145,7 @@ export default async function TodayPage() {
         </section>
 
         <section>
-          <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Field Status</h2>
+          <SectionHeader description="Make quick status changes without leaving Today." title="Field status" />
           <div className="mt-3 grid gap-2">
             {view.fields.map((field) => (
               <div key={field.id} className="grid gap-3 rounded-lg border border-[var(--line)] bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)] sm:items-center">
@@ -178,7 +165,7 @@ export default async function TodayPage() {
       </div>
 
       <section className="mt-6">
-        <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Upcoming Games</h2>
+        <SectionHeader title="Upcoming games" />
         <div className="mt-3 grid gap-2">
           {view.upcoming.length === 0 ? (
             <p className="text-sm font-semibold text-[var(--muted)]">Nothing scheduled next.</p>
@@ -198,7 +185,7 @@ export default async function TodayPage() {
 
       {view.workOrders.length > 0 ? (
         <section className="mt-6">
-          <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Operations Tasks</h2>
+          <SectionHeader title="Operations tasks" />
           <div className="mt-3 grid gap-2">
             {view.workOrders.map((task) => (
               <div key={task.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-white p-3">
@@ -212,6 +199,6 @@ export default async function TodayPage() {
           </div>
         </section>
       ) : null}
-    </div>
+    </PageShell>
   );
 }

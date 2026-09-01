@@ -327,7 +327,7 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 sm:px-6 md:pb-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
       <header className="flex flex-col gap-3 border-b border-[var(--line)] pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent-strong)]">GameDay Command Center</p>
@@ -421,11 +421,11 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
         )}
       </section>
 
-      <nav aria-label="Mobile operations" className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-1 rounded-2xl border border-[var(--line)] bg-white/95 p-2 shadow-xl backdrop-blur md:hidden">
-        <a className="flex min-h-12 items-center justify-center rounded-xl px-1 text-center text-[10px] font-black focus-visible:outline-2" href="#field-board">Fields</a>
-        <a className="flex min-h-12 items-center justify-center rounded-xl px-1 text-center text-[10px] font-black focus-visible:outline-2" href="#attention-queue">Attention</a>
-        <Link className="flex min-h-12 items-center justify-center rounded-xl px-1 text-center text-[10px] font-black focus-visible:outline-2" href="/admin/fields/work-orders">Report issue</Link>
-        <Link className="flex min-h-12 items-center justify-center rounded-xl bg-[var(--black-soft)] px-1 text-center text-[10px] font-black text-white focus-visible:outline-2" href="/admin/operations-center">Announce</Link>
+      <nav aria-label="Mobile operations" className="mt-6 grid grid-cols-2 gap-2 rounded-[var(--radius-lg)] bg-[var(--background-strong)] p-2 md:hidden">
+        <a className="flex min-h-12 items-center justify-center rounded-[var(--radius-md)] bg-white px-2 text-center text-sm font-extrabold" href="#field-board">Fields</a>
+        <a className="flex min-h-12 items-center justify-center rounded-[var(--radius-md)] bg-white px-2 text-center text-sm font-extrabold" href="#attention-queue">Attention</a>
+        <Link className="flex min-h-12 items-center justify-center rounded-[var(--radius-md)] bg-white px-2 text-center text-sm font-extrabold" href="/admin/fields/work-orders">Report issue</Link>
+        <Link className="flex min-h-12 items-center justify-center rounded-[var(--radius-md)] bg-[var(--black-soft)] px-2 text-center text-sm font-extrabold text-white" href="/admin/operations-center">Announce</Link>
       </nav>
 
       <section className="mt-7" id="field-board">

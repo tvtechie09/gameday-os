@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { setFieldStatusAction } from "./actions";
 import type { FieldStatus } from "@/lib/types";
+import { buttonStyles } from "@/components/ui/gameday-ui";
 
 const statuses: Array<{ value: FieldStatus; label: string }> = [
   { value: "open", label: "Open" },
@@ -41,7 +42,7 @@ export function TodayFieldStatusControl({
         Change {fieldName} status
       </label>
       <select
-        className="min-h-11 min-w-0 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="ui-input min-w-0 font-bold"
         disabled={pending}
         id={`today-field-status-${fieldId}`}
         onChange={(event) => setSelectedStatus(event.target.value as FieldStatus)}
@@ -52,7 +53,7 @@ export function TodayFieldStatusControl({
         ))}
       </select>
       <button
-        className="min-h-11 rounded-lg bg-[var(--black-soft)] px-4 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+        className={buttonStyles("primary", "bg-[var(--black-soft)] hover:bg-black")}
         disabled={pending || selectedStatus === savedStatus}
         onClick={updateStatus}
         type="button"
@@ -60,7 +61,7 @@ export function TodayFieldStatusControl({
         {pending ? "Updating…" : "Apply"}
       </button>
       {message ? (
-        <p className="text-xs font-semibold text-[var(--muted)] sm:col-span-2" role="status">{message}</p>
+        <p className="text-sm font-semibold text-[var(--muted)] sm:col-span-2" role="status">{message}</p>
       ) : null}
     </div>
   );

@@ -18,6 +18,7 @@ test("Today field status controls remain permission gated and server authorized"
 });
 
 test("Live Now expands into safe game details and public drill-down links", () => {
+  assert.match(page, /className="mt-3 grid gap-2 md:grid-cols-2"/);
   assert.match(page, /<details key=\{g\.id\}/);
   assert.match(page, /g\.homeScore/);
   assert.match(page, /g\.awayScore/);
@@ -25,4 +26,9 @@ test("Live Now expands into safe game details and public drill-down links", () =
   assert.match(page, /\/fields\/\$\{g\.fieldId\}/);
   assert.match(service, /homeScore: session\.homeScore/);
   assert.match(service, /lifecycleStatus: session\.lifecycleStatus/);
+});
+
+test("Field Status follows the full-width Live Now section", () => {
+  assert.doesNotMatch(page, /<div className="mt-6 grid gap-6 lg:grid-cols-2">/);
+  assert.ok(page.indexOf('title="Live now"') < page.indexOf('title="Field status"'));
 });
