@@ -395,7 +395,7 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
         <ModeChecklistCard checklist={view.checklist} />
       </div>
 
-      <section className="mt-7" id="field-board">
+      <section className="mt-7" id="attention-queue">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Attention Queue</h2>
           <span className="flex flex-wrap items-center gap-3">
@@ -428,7 +428,7 @@ export default async function CommandCenterPage({ searchParams }: { searchParams
         <Link className="flex min-h-12 items-center justify-center rounded-xl bg-[var(--black-soft)] px-1 text-center text-[10px] font-black text-white focus-visible:outline-2" href="/admin/operations-center">Announce</Link>
       </nav>
 
-      <section className="mt-7" id="attention-queue">
+      <section className="mt-7" id="field-board">
         <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Field Board</h2>
         {view.fields.length === 0 ? (
           <p className="mt-3 text-sm font-semibold text-[var(--muted)]">No fields configured at this venue.</p>
