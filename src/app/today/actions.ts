@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSessionContext } from "@/lib/access/session";
 import { canDelayGame, canOpenCloseField, canSendAnnouncement, canStartGame, managesAllVenues, venueInScope, type AccessContext } from "@/lib/access/capabilities";
-import { getFields, updateFieldStatus } from "@/lib/services/fields";
+import { fieldStatuses, getFields, updateFieldStatus } from "@/lib/services/fields";
 import { getVenue } from "@/lib/services/venues";
 import { createAlert } from "@/lib/services/alerts";
 import { getGameById, recordGameStateChange } from "@/lib/game-engine/game-service";
@@ -89,6 +89,7 @@ export async function setFieldStatusAction(fieldId: string, status: FieldStatus)
   const ctx = await getSessionContext();
   if (!canOpenCloseField(ctx)) return { ok: false, message: "You don't have permission to change field status." };
   if (!fieldId) return { ok: false, message: "Pick a field first." };
+  if (!fieldStatuses.includes(status)) return { ok: false, message: "Pick a valid field status." };
   try {
     if (!(await venueIdInScope(ctx, await venueIdForField(fieldId)))) return OUT_OF_SCOPE;
     await updateFieldStatus(fieldId, status, ctx?.userId);

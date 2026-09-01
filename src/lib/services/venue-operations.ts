@@ -6,7 +6,7 @@ import { getWorkOrders } from "@/lib/services/work-orders";
 import { venueInScope, type AccessContext } from "@/lib/access/capabilities";
 import { listGamesForVenue } from "@/lib/game-engine/game-service";
 import { computeQuickActionTargets, labelFor, type QuickActionTargets } from "@/lib/services/quick-action-targets";
-import type { Field, Venue } from "@/lib/types";
+import type { Field, FieldStatus, SessionSportType, Venue } from "@/lib/types";
 import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
 
 // Resolves the venue the acting user operates and builds the LIVE Today's-
@@ -22,9 +22,21 @@ export type TodayView = {
   // The venue's IANA zone, so the page's date header matches these time labels.
   timeZone: string;
   health: { activeGames: number; delayedFields: number; totalFields: number; maintenanceFields: number };
-  liveGames: Array<{ id: string; label: string; fieldName: string; timeLabel: string }>;
+  liveGames: Array<{
+    id: string;
+    label: string;
+    fieldId: string;
+    fieldName: string;
+    timeLabel: string;
+    homeTeam: string;
+    awayTeam: string;
+    homeScore: number;
+    awayScore: number;
+    sportType: SessionSportType;
+    lifecycleStatus: string;
+  }>;
   upcoming: Array<{ id: string; label: string; fieldName: string; timeLabel: string }>;
-  fields: Array<{ id: string; name: string; status: string }>;
+  fields: Array<{ id: string; name: string; status: FieldStatus }>;
   alerts: Array<{ id: string; title: string; message: string; priority: string }>;
   workOrders: Array<{ id: string; title: string; detail: string; priority: string }>;
   targets: QuickActionTargets;
@@ -92,7 +104,19 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
 
   const liveGames = venueSessions
     .filter((session) => session.status === "active")
-    .map((session) => ({ id: session.id, label: labelFor(session), fieldName: fieldName.get(session.fieldId) || "Field", timeLabel: timeLabel(session.startTime, timeZone) }));
+    .map((session) => ({
+      id: session.id,
+      label: labelFor(session),
+      fieldId: session.fieldId,
+      fieldName: fieldName.get(session.fieldId) || "Field",
+      timeLabel: timeLabel(session.startTime, timeZone),
+      homeTeam: session.homeTeam,
+      awayTeam: session.awayTeam,
+      homeScore: session.homeScore,
+      awayScore: session.awayScore,
+      sportType: session.sportType,
+      lifecycleStatus: session.lifecycleStatus,
+    }));
 
   const upcoming = venueSessions
     .filter((session) => session.status === "scheduled" && new Date(session.startTime).getTime() > now - 30 * 60 * 1000)

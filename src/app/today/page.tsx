@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   canDelayGame,
@@ -10,6 +11,7 @@ import { getSessionContext } from "@/lib/access/session";
 import { QuickActions } from "@/components/access/quick-actions";
 import { buildTodayView } from "@/lib/services/venue-operations";
 import { timeZoneAbbreviation } from "@/lib/venue-timezone";
+import { TodayFieldStatusControl } from "./today-field-status-control";
 
 export const dynamic = "force-dynamic";
 
@@ -74,8 +76,12 @@ export default async function TodayPage() {
       </header>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-4">
+        <Link className="rounded-xl border border-[var(--line)] bg-white p-4 transition hover:border-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2" href="#live-now">
+          <p className="text-2xl font-black text-[var(--foreground)]">{view.health.activeGames}</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--muted)]">Live now</p>
+          <p className="mt-2 text-xs font-black text-emerald-700">View details ↓</p>
+        </Link>
         {[
-          ["Live now", view.health.activeGames],
           ["Delayed", view.health.delayedFields],
           ["Fields", view.health.totalFields],
           ["Maintenance", view.health.maintenanceFields],
@@ -108,20 +114,44 @@ export default async function TodayPage() {
       ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section>
+        <section id="live-now">
           <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Live Now</h2>
           <div className="mt-3 grid gap-2">
             {view.liveGames.length === 0 ? (
               <p className="text-sm font-semibold text-[var(--muted)]">No games in progress.</p>
             ) : (
               view.liveGames.map((g) => (
-                <div key={g.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-white p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-[var(--foreground)]">{g.label}</p>
-                    <p className="text-xs font-semibold text-[var(--muted)]">{g.fieldName} · {g.timeLabel}</p>
+                <details key={g.id} className="group rounded-lg border border-[var(--line)] bg-white">
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-lg p-3 focus-visible:outline-2 focus-visible:outline-offset-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-[var(--foreground)]">{g.label}</p>
+                      <p className="text-xs font-semibold text-[var(--muted)]">{g.fieldName} · {g.timeLabel}</p>
+                    </div>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <Badge status="live" />
+                      <span aria-hidden="true" className="text-sm font-black text-[var(--muted)] transition group-open:rotate-180">⌄</span>
+                    </span>
+                  </summary>
+                  <div className="border-t border-[var(--line)] p-3">
+                    <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
+                      <span className="font-bold">{g.homeTeam}</span>
+                      <span className="text-lg font-black tabular-nums">{g.homeScore}</span>
+                      <span className="font-bold">{g.awayTeam}</span>
+                      <span className="text-lg font-black tabular-nums">{g.awayScore}</span>
+                    </div>
+                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted)]">
+                      {g.sportType} · {g.lifecycleStatus.replaceAll("_", " ")}
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <Link className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--black-soft)] px-3 text-xs font-black text-white" href={`/scoreboard/${g.id}`}>
+                        View live scoreboard
+                      </Link>
+                      <Link className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] px-3 text-xs font-black" href={`/fields/${g.fieldId}`}>
+                        View field page
+                      </Link>
+                    </div>
                   </div>
-                  <Badge status="live" />
-                </div>
+                </details>
               ))
             )}
           </div>
@@ -131,9 +161,13 @@ export default async function TodayPage() {
           <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Field Status</h2>
           <div className="mt-3 grid gap-2">
             {view.fields.map((field) => (
-              <div key={field.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-white p-3">
+              <div key={field.id} className="grid gap-3 rounded-lg border border-[var(--line)] bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)] sm:items-center">
                 <p className="text-sm font-black text-[var(--foreground)]">{field.name}</p>
-                <Badge status={field.status} />
+                {canOpenCloseField(ctx) ? (
+                  <TodayFieldStatusControl fieldId={field.id} fieldName={field.name} initialStatus={field.status} />
+                ) : (
+                  <div className="sm:justify-self-end"><Badge status={field.status} /></div>
+                )}
               </div>
             ))}
             {view.fields.length === 0 ? (
