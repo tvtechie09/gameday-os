@@ -2764,39 +2764,921 @@ export type Database = {
           },
         ];
       };
+      tournament_divisions: {
+        Row: {
+          age_group: string | null
+          competition_level: string | null
+          created_at: string
+          external_source: string | null
+          external_source_id: string | null
+          id: string
+          name: string
+          organization_id: string
+          source_updated_at: string | null
+          status: string
+          tournament_id: string
+          updated_at: string
+        }
+        Insert: {
+          age_group?: string | null
+          competition_level?: string | null
+          created_at?: string
+          external_source?: string | null
+          external_source_id?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          source_updated_at?: string | null
+          status?: string
+          tournament_id: string
+          updated_at?: string
+        }
+        Update: {
+          age_group?: string | null
+          competition_level?: string | null
+          created_at?: string
+          external_source?: string | null
+          external_source_id?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          source_updated_at?: string | null
+          status?: string
+          tournament_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_divisions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_divisions_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_divisions_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+
+      tournament_pools: {
+        Row: {
+          created_at: string
+          division_id: string
+          external_source: string | null
+          external_source_id: string | null
+          id: string
+          name: string
+          organization_id: string
+          source_updated_at: string | null
+          tie_breakers: Json
+          tournament_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          division_id: string
+          external_source?: string | null
+          external_source_id?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          source_updated_at?: string | null
+          tie_breakers?: Json
+          tournament_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          division_id?: string
+          external_source?: string | null
+          external_source_id?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          source_updated_at?: string | null
+          tie_breakers?: Json
+          tournament_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_pools_division_id_organization_id_fkey"
+            columns: ["division_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_divisions"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_pools_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_pools_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_pools_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+
+      tournament_entries: {
+        Row: {
+          created_at: string
+          division_id: string
+          entry_status: string
+          external_source: string | null
+          external_source_id: string | null
+          final_placement: number | null
+          gdt_team_season_id: string | null
+          id: string
+          organization_id: string
+          pool_id: string | null
+          source_updated_at: string | null
+          team_name: string
+          tournament_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          division_id: string
+          entry_status?: string
+          external_source?: string | null
+          external_source_id?: string | null
+          final_placement?: number | null
+          gdt_team_season_id?: string | null
+          id?: string
+          organization_id: string
+          pool_id?: string | null
+          source_updated_at?: string | null
+          team_name: string
+          tournament_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          division_id?: string
+          entry_status?: string
+          external_source?: string | null
+          external_source_id?: string | null
+          final_placement?: number | null
+          gdt_team_season_id?: string | null
+          id?: string
+          organization_id?: string
+          pool_id?: string | null
+          source_updated_at?: string | null
+          team_name?: string
+          tournament_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_entries_division_id_organization_id_fkey"
+            columns: ["division_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_divisions"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_entries_pool_id_organization_id_fkey"
+            columns: ["pool_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_pools"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_entries_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_entries_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+
+      tournament_standings: {
+        Row: {
+          created_at: string
+          division_id: string
+          entry_id: string
+          external_source: string | null
+          games_played: number
+          id: string
+          is_official: boolean
+          losses: number
+          organization_id: string
+          points: number | null
+          pool_id: string
+          published_at: string | null
+          rank: number
+          source_updated_at: string | null
+          tie_break_explanation: string | null
+          tie_break_label: string | null
+          tie_break_value: string | null
+          ties: number
+          tournament_id: string
+          updated_at: string
+          wins: number
+        }
+        Insert: {
+          created_at?: string
+          division_id: string
+          entry_id: string
+          external_source?: string | null
+          games_played?: number
+          id?: string
+          is_official?: boolean
+          losses?: number
+          organization_id: string
+          points?: number | null
+          pool_id: string
+          published_at?: string | null
+          rank: number
+          source_updated_at?: string | null
+          tie_break_explanation?: string | null
+          tie_break_label?: string | null
+          tie_break_value?: string | null
+          ties?: number
+          tournament_id: string
+          updated_at?: string
+          wins?: number
+        }
+        Update: {
+          created_at?: string
+          division_id?: string
+          entry_id?: string
+          external_source?: string | null
+          games_played?: number
+          id?: string
+          is_official?: boolean
+          losses?: number
+          organization_id?: string
+          points?: number | null
+          pool_id?: string
+          published_at?: string | null
+          rank?: number
+          source_updated_at?: string | null
+          tie_break_explanation?: string | null
+          tie_break_label?: string | null
+          tie_break_value?: string | null
+          ties?: number
+          tournament_id?: string
+          updated_at?: string
+          wins?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_standings_division_id_organization_id_fkey"
+            columns: ["division_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_divisions"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_standings_entry_id_organization_id_fkey"
+            columns: ["entry_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_entries"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_standings_entry_id_organization_id_fkey"
+            columns: ["entry_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_entries"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_standings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_standings_pool_id_organization_id_fkey"
+            columns: ["pool_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_pools"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_standings_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_standings_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+
+      tournament_rounds: {
+        Row: {
+          created_at: string
+          division_id: string
+          external_source: string | null
+          external_source_id: string | null
+          id: string
+          name: string
+          organization_id: string
+          round_order: number
+          round_type: string
+          source_updated_at: string | null
+          starts_at: string | null
+          tournament_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          division_id: string
+          external_source?: string | null
+          external_source_id?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          round_order: number
+          round_type?: string
+          source_updated_at?: string | null
+          starts_at?: string | null
+          tournament_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          division_id?: string
+          external_source?: string | null
+          external_source_id?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          round_order?: number
+          round_type?: string
+          source_updated_at?: string | null
+          starts_at?: string | null
+          tournament_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_rounds_division_id_organization_id_fkey"
+            columns: ["division_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_divisions"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_rounds_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_rounds_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_rounds_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+
+      tournament_game_contexts: {
+        Row: {
+          advancement_note: string | null
+          confirmation_state: string
+          created_at: string
+          division_id: string
+          external_source: string | null
+          external_source_id: string | null
+          game_number: string | null
+          game_type: string
+          organization_id: string
+          pool_id: string | null
+          round_id: string | null
+          session_id: string
+          source_updated_at: string | null
+          tournament_id: string
+          updated_at: string
+        }
+        Insert: {
+          advancement_note?: string | null
+          confirmation_state?: string
+          created_at?: string
+          division_id: string
+          external_source?: string | null
+          external_source_id?: string | null
+          game_number?: string | null
+          game_type?: string
+          organization_id: string
+          pool_id?: string | null
+          round_id?: string | null
+          session_id: string
+          source_updated_at?: string | null
+          tournament_id: string
+          updated_at?: string
+        }
+        Update: {
+          advancement_note?: string | null
+          confirmation_state?: string
+          created_at?: string
+          division_id?: string
+          external_source?: string | null
+          external_source_id?: string | null
+          game_number?: string | null
+          game_type?: string
+          organization_id?: string
+          pool_id?: string | null
+          round_id?: string | null
+          session_id?: string
+          source_updated_at?: string | null
+          tournament_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_game_contexts_division_id_organization_id_fkey"
+            columns: ["division_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_divisions"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_contexts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_game_contexts_pool_id_organization_id_fkey"
+            columns: ["pool_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_pools"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_contexts_round_id_organization_id_fkey"
+            columns: ["round_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_rounds"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_contexts_round_id_organization_id_fkey"
+            columns: ["round_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_rounds"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_contexts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_game_contexts_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_contexts_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+
+      tournament_game_slots: {
+        Row: {
+          created_at: string
+          display_label: string
+          entry_id: string | null
+          family_condition_text: string | null
+          id: string
+          organization_id: string
+          session_id: string
+          slot_position: string
+          source_pool_id: string | null
+          source_rank: number | null
+          source_session_id: string | null
+          source_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_label: string
+          entry_id?: string | null
+          family_condition_text?: string | null
+          id?: string
+          organization_id: string
+          session_id: string
+          slot_position: string
+          source_pool_id?: string | null
+          source_rank?: number | null
+          source_session_id?: string | null
+          source_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_label?: string
+          entry_id?: string | null
+          family_condition_text?: string | null
+          id?: string
+          organization_id?: string
+          session_id?: string
+          slot_position?: string
+          source_pool_id?: string | null
+          source_rank?: number | null
+          source_session_id?: string | null
+          source_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_game_slots_entry_id_organization_id_fkey"
+            columns: ["entry_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_entries"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_slots_entry_id_organization_id_fkey"
+            columns: ["entry_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_entries"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_slots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_game_slots_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_games"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_slots_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_game_contexts"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_slots_source_pool_id_organization_id_fkey"
+            columns: ["source_pool_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_pools"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_game_slots_source_session_id_fkey"
+            columns: ["source_session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+
+      tournament_venues: {
+        Row: {
+          created_at: string
+          is_primary: boolean
+          notes: string | null
+          organization_id: string
+          tournament_id: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_primary?: boolean
+          notes?: string | null
+          organization_id: string
+          tournament_id: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          is_primary?: boolean
+          notes?: string | null
+          organization_id?: string
+          tournament_id?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_venues_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_venues_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_venues_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_venues_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venue_public_summaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_venues_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venue_technology_profile"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "tournament_venues_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+
+      tournament_key_rules: {
+        Row: {
+          created_at: string
+          details: string | null
+          division_id: string | null
+          id: string
+          label: string
+          organization_id: string
+          published_at: string | null
+          rule_key: string
+          sort_order: number
+          sport_type: string
+          tournament_id: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          division_id?: string | null
+          id?: string
+          label: string
+          organization_id: string
+          published_at?: string | null
+          rule_key: string
+          sort_order?: number
+          sport_type?: string
+          tournament_id: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          division_id?: string | null
+          id?: string
+          label?: string
+          organization_id?: string
+          published_at?: string | null
+          rule_key?: string
+          sort_order?: number
+          sport_type?: string
+          tournament_id?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_key_rules_division_id_organization_id_fkey"
+            columns: ["division_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_divisions"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_key_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_key_rules_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_key_rules_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+
+      tournament_documents: {
+        Row: {
+          created_at: string
+          division_id: string | null
+          document_type: string
+          id: string
+          organization_id: string
+          published_at: string | null
+          title: string
+          tournament_id: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          division_id?: string | null
+          document_type: string
+          id?: string
+          organization_id: string
+          published_at?: string | null
+          title: string
+          tournament_id: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          division_id?: string | null
+          document_type?: string
+          id?: string
+          organization_id?: string
+          published_at?: string | null
+          title?: string
+          tournament_id?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_documents_division_id_organization_id_fkey"
+            columns: ["division_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_divisions"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_documents_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_family_tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tournament_documents_tournament_id_organization_id_fkey"
+            columns: ["tournament_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+
       tournaments: {
         Row: {
+          completed_at: string | null;
           id: string;
           organization_id: string | null;
           name: string;
           description: string | null;
+          external_source: string | null;
+          external_source_id: string | null;
           start_date: string;
           end_date: string;
           logo_url: string | null;
+          published_at: string | null;
+          source_updated_at: string | null;
+          sport_type: string;
+          status: string;
           website_url: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
+          completed_at?: string | null;
           id?: string;
           organization_id?: string | null;
           name: string;
           description?: string | null;
+          external_source?: string | null;
+          external_source_id?: string | null;
           start_date: string;
           end_date: string;
           logo_url?: string | null;
+          published_at?: string | null;
+          source_updated_at?: string | null;
+          sport_type?: string;
+          status?: string;
           website_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
+          completed_at?: string | null;
           id?: string;
           organization_id?: string | null;
           name?: string;
           description?: string | null;
+          external_source?: string | null;
+          external_source_id?: string | null;
           start_date?: string;
           end_date?: string;
           logo_url?: string | null;
+          published_at?: string | null;
+          source_updated_at?: string | null;
+          sport_type?: string;
+          status?: string;
           website_url?: string | null;
           created_at?: string;
           updated_at?: string;
