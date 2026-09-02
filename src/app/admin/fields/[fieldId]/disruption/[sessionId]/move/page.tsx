@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { PageShell, PageTitle } from "@/components/ui/gameday-ui";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { PageShell, PageTitle, buttonStyles } from "@/components/ui/gameday-ui";
 import { canOpenCloseField, canViewCommandCenter, isOrgScoped } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
@@ -31,9 +31,28 @@ export default async function MoveAffectedGamePage({ params }: { params: Promise
     getWorkOrders(),
   ]);
   const field = fields.find((candidate) => candidate.id === fieldId);
-  if (!field || !session || session.fieldId !== field.id) notFound();
+  if (!field || !session) notFound();
   const venue = venues.find((candidate) => candidate.id === field.venueId);
   if (!venue) notFound();
+  if (session.fieldId !== field.id) {
+    const currentField = fields.find((candidate) => candidate.id === session.fieldId);
+    if (!currentField || currentField.venueId !== venue.id) notFound();
+    const label = session.title || `${session.homeTeam} vs ${session.awayTeam}`;
+    const message = `${label} moved from ${field.name} to ${currentField.name}. Public schedule updated.`;
+
+    return (
+      <PageShell>
+        <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950" role="status">
+          <CheckCircle2 aria-hidden="true" className="h-8 w-8" />
+          <p className="mt-3 text-xs font-black uppercase tracking-[0.14em]">Game moved</p>
+          <h1 className="mt-1 text-3xl font-black">{label}</h1>
+          <p className="mt-3 text-base font-bold">{field.name} → {currentField.name}</p>
+          <p className="mt-2 text-sm font-semibold">Public schedule updated.</p>
+          <Link className={buttonStyles("primary", "mt-5")} href={`/admin/fields/${field.id}/disruption?moved=${encodeURIComponent(message)}`}>Return to disruption review</Link>
+        </section>
+      </PageShell>
+    );
+  }
   const review = buildFieldDisruptionReview({ field, venue, sessions, workOrders, now: currentProjectionTime() });
   const affectedIds = new Set([...review.inProgress, ...review.startingSoon, ...review.laterToday].map((game) => game.id));
   if (!affectedIds.has(session.id)) notFound();

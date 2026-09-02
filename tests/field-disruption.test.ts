@@ -69,11 +69,16 @@ test("disruption movement reuses the canonical mutation with server-side authori
   const action = readFileSync("src/app/admin/fields/[fieldId]/disruption/actions.ts", "utf8");
   const service = readFileSync("src/lib/services/schedule-operations.ts", "utf8");
   const form = readFileSync("src/app/admin/fields/[fieldId]/disruption/[sessionId]/move/move-game-form.tsx", "utf8");
+  const page = readFileSync("src/app/admin/fields/[fieldId]/disruption/[sessionId]/move/page.tsx", "utf8");
   assert.match(action, /canOpenCloseField\(ctx\)/);
   assert.match(action, /assertFieldInScope\(input\.targetFieldId\)/);
   assert.match(action, /executeRapidScheduleOperation/);
   assert.match(service, /requirePermission\(actorUserId, "venue\.field\.manage"/);
   assert.match(form, /Start time/);
   assert.match(form, /Public schedule updated/);
+  assert.match(page, /session\.fieldId !== field\.id/);
+  assert.match(page, /currentField\.venueId !== venue\.id/);
+  assert.match(page, /Public schedule updated/);
+  assert.match(page, /Return to disruption review/);
   assert.doesNotMatch(action, /\.from\("sessions"\)/);
 });
