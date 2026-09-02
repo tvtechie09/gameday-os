@@ -161,7 +161,25 @@ th {
 }
 
 .ui-input::placeholder {
-  color: color-mix(in srgb, var(--muted) 78%, white);
+  color: color-mix(in srgb, var(--muted) 90%, white);
+}
+
+.ui-skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  min-height: 3rem;
+  transform: translateY(-150%);
+  border-radius: var(--radius-md);
+  background: var(--black-soft);
+  padding: 0.75rem 1rem;
+  color: white;
+  font-weight: 800;
+}
+
+.ui-skip-link:focus {
+  transform: translateY(0);
 }
 
 .ui-card-strong {

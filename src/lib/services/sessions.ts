@@ -291,6 +291,20 @@ export async function getSessionsByFieldId(fieldId: string): Promise<Session[]> 
   return (data ?? []).map(mapSession);
 }
 
+export async function getSessionsByFieldIds(fieldIds: string[]): Promise<Session[]> {
+  const uniqueIds = [...new Set(fieldIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return [];
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("sessions")
+    .select(sessionSelect)
+    .in("field_id", uniqueIds)
+    .order("start_time", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapSession);
+}
+
 export async function createSession(data: CreateSessionInput): Promise<Session> {
   const supabase = getSupabaseAdminClient();
   const organizationId = await getOrganizationIdForField(data.field_id);

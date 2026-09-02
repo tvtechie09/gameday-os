@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { canManageVenueSettings, canOpenCloseField, isOrgScoped, type AccessContext } from "@/lib/access/capabilities";
-import { assertFieldInScope, assertVenueInScope } from "@/lib/access/scoped-venue-data";
+import { assertFieldInScope, assertVenueInScope, OrganizationScopeError } from "@/lib/access/scoped-venue-data";
 import { getSessionContext } from "@/lib/access/session";
 import { publicErrorMessage } from "@/lib/public-error";
 import { assertActorUserId, PermissionDeniedError, safelyLogAudit } from "@/lib/services/identity";
@@ -17,12 +17,14 @@ import {
   reopenWorkOrder,
   resolveWorkOrder,
   startWorkOrder,
+  WorkOrderConflictError,
   type WorkOrder,
 } from "@/lib/services/work-orders";
 
 export type WorkOrderActionResult = {
   ok: boolean;
   message: string;
+  code?: "conflict" | "missing" | "permission" | "temporary";
   workOrderId?: string;
 };
 
@@ -72,7 +74,15 @@ async function auditWorkOrder(order: WorkOrder, ctx: AccessContext, action: stri
 }
 
 function failure(error: unknown, fallback: string): WorkOrderActionResult {
-  return { ok: false, message: publicErrorMessage(error, fallback) };
+  if (error instanceof WorkOrderConflictError) return { ok: false, code: "conflict", message: error.message };
+  if (error instanceof PermissionDeniedError || error instanceof OrganizationScopeError) {
+    return { ok: false, code: "permission", message: publicErrorMessage(error, "You don't have permission to update this work order.") };
+  }
+  if (error instanceof Error && error.message === "Work order not found.") {
+    return { ok: false, code: "missing", message: "This work order is no longer available. We've refreshed the list." };
+  }
+  console.error("Work order action failed", error);
+  return { ok: false, code: "temporary", message: `${fallback} Check your connection and try again.` };
 }
 
 export async function createWorkOrderAction(formData: FormData): Promise<WorkOrderActionResult> {

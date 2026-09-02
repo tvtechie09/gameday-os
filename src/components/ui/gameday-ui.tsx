@@ -235,7 +235,7 @@ const buttonVariants: Record<ButtonVariant, string> = {
 };
 
 export function buttonStyles(variant: ButtonVariant = "primary", className?: string) {
-  return cx("ui-control inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] px-4 text-sm font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-50", buttonVariants[variant], className);
+  return cx("ui-control inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] px-4 text-sm font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-70", buttonVariants[variant], className);
 }
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;

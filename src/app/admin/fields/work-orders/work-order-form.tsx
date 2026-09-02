@@ -26,7 +26,12 @@ export function WorkOrderForm({
       action={(formData) => {
         setResult(null);
         startTransition(async () => {
-          const next = await createWorkOrderAction(formData);
+          let next: WorkOrderActionResult;
+          try {
+            next = await createWorkOrderAction(formData);
+          } catch {
+            next = { ok: false, code: "temporary", message: "Couldn't create the work order. Check your connection and try again." };
+          }
           setResult(next);
           if (next.ok && next.workOrderId) {
             formRef.current?.reset();
@@ -80,7 +85,7 @@ export function WorkOrderForm({
       </div>
 
       <button className={buttonStyles("primary", "w-full sm:w-fit")} disabled={pending} type="submit">{pending ? "Creating…" : "Create Work Order"}</button>
-      {result ? <p className={`rounded-lg p-3 text-sm font-bold ${result.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-900"}`} role="status">{result.message}</p> : null}
+      {result ? <p className={`rounded-lg p-3 text-sm font-bold ${result.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-900"}`} role={result.ok ? "status" : "alert"}>{result.message}</p> : null}
     </form>
   );
 }

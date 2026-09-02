@@ -26,13 +26,13 @@ export function AlertForm({ fields, initialValues, tournaments, venues }: { fiel
     if (isSaving) return;
     setIsSaving(true);
     setMessage(null);
-    const result = await createAlertAction(new FormData(event.currentTarget)).catch((error: unknown) => ({ error: error instanceof Error ? error.message : "Unable to publish update." }));
+    const result = await createAlertAction(new FormData(event.currentTarget)).catch(() => ({ error: "Couldn't publish this announcement. Check your connection and try again." }));
     if (result.error) {
       setMessage({ kind: "error", text: result.error });
       setIsSaving(false);
       return;
     }
-    setMessage({ kind: "success", text: "Update published. Opening communications..." });
+    setMessage({ kind: "success", text: "Announcement published. Opening announcements…" });
     formRef.current?.reset();
     router.push("/admin/alerts");
   }

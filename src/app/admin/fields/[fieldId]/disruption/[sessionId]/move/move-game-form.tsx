@@ -56,14 +56,19 @@ export function MoveGameForm({
     if (!target) return;
     setResult(null);
     startTransition(async () => {
-      const next = await moveAffectedGameAction({
-        sessionId,
-        originalFieldId: fieldId,
-        targetFieldId: target.id,
-        startTime: newStartLocal ? newStartTime : undefined,
-      });
+      let next: MoveAffectedGameResult;
+      try {
+        next = await moveAffectedGameAction({
+          sessionId,
+          originalFieldId: fieldId,
+          targetFieldId: target.id,
+          startTime: newStartLocal ? newStartTime : undefined,
+        });
+      } catch {
+        next = { ok: false, message: "Couldn't move this game. Check your connection and try again." };
+      }
       setResult(next);
-      setConfirming(false);
+      if (next.ok) setConfirming(false);
     });
   }
 
@@ -111,6 +116,7 @@ export function MoveGameForm({
           open
           title="Move this game?"
         >
+          {result && !result.ok ? <p className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-900" role="alert">{result.message}</p> : null}
           <div className="grid gap-4 text-sm">
             <div><p className="font-black">{gameLabel}</p></div>
             <dl className="grid gap-3 rounded-xl bg-[var(--background)] p-4 sm:grid-cols-2"><div><dt className="text-xs font-black uppercase text-[var(--muted)]">From</dt><dd className="mt-1 font-black">{fieldName}</dd></div><div><dt className="text-xs font-black uppercase text-[var(--muted)]">To</dt><dd className="mt-1 font-black">{target.name}</dd></div><div className="sm:col-span-2"><dt className="text-xs font-black uppercase text-[var(--muted)]">Start time</dt><dd className="mt-1 font-black">{formatDateTime(startTime, timeZone)}{newStartLocal ? ` → ${formatDateTime(newStartTime, timeZone)}` : " (unchanged)"}</dd></div></dl>

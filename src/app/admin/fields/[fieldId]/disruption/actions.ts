@@ -79,6 +79,11 @@ export async function moveAffectedGameAction(input: {
       newFieldName: targetField.name,
     };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "The game could not be moved." };
+    const message = error instanceof Error ? error.message : "";
+    if (/^(Game not found|No upcoming games matched|Schedule operations cannot cross venue boundaries|Schedule conflict:|You do not have permission)/.test(message)) {
+      return { ok: false, message };
+    }
+    console.error("Failed to move affected game", error);
+    return { ok: false, message: "Couldn't move this game. Review the latest schedule and try again." };
   }
 }

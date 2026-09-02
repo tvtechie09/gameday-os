@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { AlertTriangle, ChevronDown, Clock3, MapPin, UserRound } from "lucide-react";
 import { Modal, Sheet } from "@/components/ui/overlays";
-import { StatusChip, buttonStyles } from "@/components/ui/gameday-ui";
+import { AlertBanner, StatusChip, buttonStyles } from "@/components/ui/gameday-ui";
 import {
   issueLifecycle,
   issueStageLabel,
@@ -94,14 +94,27 @@ export function WorkOrderCard({
   function run(action: () => Promise<WorkOrderActionResult>, closeOnSuccess = false) {
     setMessage(null);
     startTransition(async () => {
-      const result = await action();
+      let result: WorkOrderActionResult;
+      try {
+        result = await action();
+      } catch {
+        result = { ok: false, code: "temporary", message: "Couldn't update this work order. Check your connection and try again." };
+      }
       setMessage(result);
       if (result.ok) {
         if (closeOnSuccess) setOverlay(null);
         router.refresh();
+      } else if (result.code === "conflict" || result.code === "missing") {
+        router.refresh();
       }
     });
   }
+
+  const overlayMessage = message && !message.ok ? (
+    <AlertBanner className="mb-4" title={message.code === "conflict" ? "Work order changed" : "Work order not updated"} tone="danger">
+      {message.message}
+    </AlertBanner>
+  ) : null;
 
   function runPrimary() {
     if (primary === "claim") run(() => claimWorkOrderAction(order.id, order.updatedAt));
@@ -152,7 +165,7 @@ export function WorkOrderCard({
         ) : null}
 
         <div className="mt-4">{primaryControl}</div>
-        {message ? <p className={`mt-3 rounded-lg p-3 text-sm font-bold ${message.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-900"}`} role="status">{message.message}</p> : null}
+        {message ? <p className={`mt-3 rounded-lg p-3 text-sm font-bold ${message.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-900"}`} role={message.ok ? "status" : "alert"}>{message.message}</p> : null}
       </div>
 
       <details className="group border-t border-[var(--line)]">
@@ -172,6 +185,7 @@ export function WorkOrderCard({
       </details>
 
       {overlay === "assign" ? <Sheet description="Choose a teammate assigned to this venue." onClose={() => setOverlay(null)} open title="Assign Work Order">
+        {overlayMessage}
         <label className="grid gap-2 text-sm font-black">Teammate
           <select className="ui-input" onChange={(event) => setAssigneeId(event.target.value)} value={assigneeId}>
             {assignees.map((person) => <option key={person.id} value={person.id}>{person.displayName}{person.roleLabel ? ` · ${person.roleLabel}` : ""}</option>)}
@@ -181,6 +195,7 @@ export function WorkOrderCard({
       </Sheet> : null}
 
       {overlay === "resolve" ? <Sheet description={`${order.title} · ${fieldName}`} onClose={() => setOverlay(null)} open title="Resolve Work Order">
+        {overlayMessage}
         <label className="grid gap-2 text-sm font-black">What was done? <span className="font-semibold text-[var(--muted)]">Optional</span>
           <textarea className="ui-input min-h-28" maxLength={2000} onChange={(event) => setResolutionNote(event.target.value)} placeholder="Replaced power supply" value={resolutionNote} />
         </label>
@@ -188,6 +203,7 @@ export function WorkOrderCard({
       </Sheet> : null}
 
       {overlay === "note" ? <Sheet description="This note becomes part of the authoritative work-order history." onClose={() => setOverlay(null)} open title="Add Note">
+        {overlayMessage}
         <label className="grid gap-2 text-sm font-black">Update
           <textarea className="ui-input min-h-28" maxLength={1000} onChange={(event) => setNote(event.target.value)} placeholder="Waiting for a replacement cable" value={note} />
         </label>
@@ -195,10 +211,12 @@ export function WorkOrderCard({
       </Sheet> : null}
 
       {overlay === "escalate" ? <Modal description="This flags the work order as urgent for venue management. It does not send an automatic external notification." onClose={() => setOverlay(null)} open title="Escalate Work Order?">
+        {overlayMessage}
         <button className={buttonStyles("destructive", "w-full")} disabled={pending} onClick={() => run(() => escalateWorkOrderAction(order.id, order.updatedAt), true)} type="button">{pending ? "Escalating…" : "Escalate"}</button>
       </Modal> : null}
 
       {overlay === "reopen" ? <Modal description="The work order will return to New. Field status will not change." onClose={() => setOverlay(null)} open title="Reopen Work Order?">
+        {overlayMessage}
         <button className={buttonStyles("primary", "w-full")} disabled={pending} onClick={() => run(() => reopenWorkOrderAction(order.id, order.updatedAt), true)} type="button">{pending ? "Reopening…" : "Reopen"}</button>
       </Modal> : null}
     </article>

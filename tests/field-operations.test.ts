@@ -135,6 +135,6 @@ test("Field Operations implementation keeps bulk reads, contextual confirmation,
   assert.match(board, /Needs Attention/);
   assert.match(actions, /canOpenCloseField/);
   assert.match(actions, /assertFieldInScope/);
-  assert.match(actions, /updateFieldStatus\(fieldId, status, ctx\.userId\)/);
+  assert.match(actions, /updateFieldStatus\(fieldId, status, ctx\.userId, expectedUpdatedAt\)/);
   assert.match(audit, /Pre-implementation workflow audit/);
 });

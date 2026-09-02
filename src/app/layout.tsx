@@ -22,9 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} data-scroll-behavior="smooth">
       <body>
+        <a className="ui-skip-link" href="#main-content">Skip to main content</a>
         <div className="min-h-screen">
           <SiteHeader />
-          <main>{children}</main>
+          <div id="main-content" tabIndex={-1}>{children}</div>
           <ToastProvider />
         </div>
       </body>

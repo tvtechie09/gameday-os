@@ -5,7 +5,8 @@ import { alertTypes, getAlertScopeLabel, getAlertTone, getAlerts, isAlertActive,
 import { getScopedOrganizationIds, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getTournaments } from "@/lib/services/tournaments";
 import { alertLevelFor, alertLevelPresentation, alertTypeLabel } from "@/lib/ui/status-presentation";
-import { clearAlertAction, clearAllActiveOperationsAlertsAction, expireAlertAction, hideAlertFromPublicAction } from "./actions";
+import { AnnouncementActions } from "./announcement-actions";
+import { EndAllAnnouncements } from "./end-all-announcements";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Communications</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Venue alerts</h1>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Announcements</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
             Publish parent-safe venue, tournament, and field updates. Family relevance and expiration are enforced automatically.
           </p>
@@ -75,43 +76,43 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
       <form className="grid gap-3 border-t border-[var(--line)] p-4 sm:grid-cols-2 lg:grid-cols-5">
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Venue</span>
-          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.venue_id ?? ""} name="venue_id">
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.venue_id ?? ""} name="venue_id">
             <option value="">All venues</option>
             {venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}
           </select>
         </label>
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Field</span>
-          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.field_id ?? ""} name="field_id">
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.field_id ?? ""} name="field_id">
             <option value="">All fields</option>
             {fields.map((field) => <option key={field.id} value={field.id}>{field.name}</option>)}
           </select>
         </label>
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Tournament</span>
-          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.tournament_id ?? ""} name="tournament_id">
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.tournament_id ?? ""} name="tournament_id">
             <option value="">All tournaments</option>
             {tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}
           </select>
         </label>
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">Type</span>
-          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.alert_type ?? ""} name="alert_type">
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.alert_type ?? ""} name="alert_type">
             <option value="">All types</option>
             {alertTypes.map((type) => <option key={type} value={type}>{alertTypeLabel(type)}</option>)}
           </select>
         </label>
         <label className="grid gap-1">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">State</span>
-          <select className="min-h-10 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.active ?? ""} name="active">
+          <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue={filters?.active ?? ""} name="active">
             <option value="">All states</option>
             <option value="active">Active now</option>
             <option value="expired">Expired</option>
           </select>
         </label>
         <div className="flex gap-2 sm:col-span-2 lg:col-span-5">
-          <button className="min-h-10 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white" type="submit">Apply filters</button>
-          <Link href="/admin/alerts" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">Clear</Link>
+          <button className="min-h-12 rounded-lg bg-[var(--accent)] px-4 text-sm font-bold text-white" type="submit">Apply filters</button>
+          <Link href="/admin/alerts" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">Clear</Link>
         </div>
       </form>
       </details>
@@ -123,15 +124,7 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
             <h2 className="text-lg font-black">Operations alert cleanup</h2>
             <p className="mt-1 text-sm leading-6 text-[var(--muted)]">Close active delay, weather, emergency, and field closure alerts for one venue.</p>
           </div>
-          <form action={clearAllActiveOperationsAlertsAction} className="flex flex-col gap-2 sm:flex-row">
-            <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" name="venue_id" required>
-              <option value="">Choose venue</option>
-              {venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}
-            </select>
-            <button className="min-h-11 rounded-lg bg-[var(--black-soft)] px-4 text-sm font-black text-white" type="submit">
-              Clear all active operations alerts
-            </button>
-          </form>
+          <EndAllAnnouncements venues={venues.map((venue) => ({ id: venue.id, name: venue.name }))} />
         </div>
       </details>
 
@@ -164,29 +157,10 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-bold">Manage update <span aria-hidden="true">⌄</span></summary>
                 <div className="grid gap-2 border-t border-current/20 p-3">
                   <p className="text-xs font-bold uppercase tracking-[0.1em] opacity-75">{alertTypeLabel(alert.alertType)} · {getAlertScopeLabel(alert.alertScope)} · {alert.alertVisibility === "public" ? "Families and public" : "Venue staff only"}</p>
-                  <Link href={`/admin/alerts/${alert.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-current bg-white/80 px-4 text-sm font-bold">
+                  <Link href={`/admin/alerts/${alert.id}/edit`} className="inline-flex min-h-12 items-center justify-center rounded-lg border border-current bg-white/80 px-4 text-sm font-bold">
                     Edit update
                   </Link>
-                  <form action={clearAlertAction}>
-                    <input name="alert_id" type="hidden" value={alert.id} />
-                    <button className="min-h-10 w-full rounded-lg border border-current bg-white/80 px-4 text-sm font-bold" type="submit">
-                      Clear alert
-                    </button>
-                  </form>
-                  <form action={expireAlertAction}>
-                    <input name="alert_id" type="hidden" value={alert.id} />
-                    <button className="min-h-10 w-full rounded-lg border border-current bg-white/80 px-4 text-sm font-bold" type="submit">
-                      Expire alert
-                    </button>
-                  </form>
-                  {alert.alertVisibility === "public" ? (
-                    <form action={hideAlertFromPublicAction}>
-                      <input name="alert_id" type="hidden" value={alert.id} />
-                      <button className="min-h-10 w-full rounded-lg border border-current bg-white/80 px-4 text-sm font-bold" type="submit">
-                        Hide from public
-                      </button>
-                    </form>
-                  ) : null}
+                  <AnnouncementActions alertId={alert.id} isPublic={alert.alertVisibility === "public"} />
                 </div>
                 </details>
               </div>

@@ -8,8 +8,8 @@ import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessionContext } from "@/lib/access/session";
 import { publicErrorMessage } from "@/lib/public-error";
 import { buildFieldOperationItems, type FieldOperationItem } from "@/lib/services/field-operations-core";
-import { getSessions } from "@/lib/services/sessions";
-import { getWorkOrders } from "@/lib/services/work-orders";
+import { getSessionsByFieldIds } from "@/lib/services/sessions";
+import { getWorkOrdersForVenues } from "@/lib/services/work-orders";
 import { FieldOperationsBoard } from "./field-operations-board";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +17,10 @@ export const dynamic = "force-dynamic";
 async function loadFieldOperations(): Promise<{ items: FieldOperationItem[]; errorMessage: string | null }> {
   const now = Date.now();
   try {
-    const [scoped, sessions, workOrders] = await Promise.all([
-      getScopedVenuesAndFields(),
-      getSessions(),
-      getWorkOrders(),
+    const scoped = await getScopedVenuesAndFields();
+    const [sessions, workOrders] = await Promise.all([
+      getSessionsByFieldIds(scoped.fields.map((field) => field.id)),
+      getWorkOrdersForVenues(scoped.venues.map((venue) => venue.id)),
     ]);
     const items = scoped.venues.flatMap((venue) => buildFieldOperationItems({
       venue,

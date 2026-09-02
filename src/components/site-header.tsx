@@ -59,7 +59,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-white/95 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-8">
-        <Link href="/" className={`flex items-center gap-3 rounded-lg ${focusRing}`} aria-label="GameDay OS home" onClick={() => setOpen(false)}>
+        <Link href="/" className={`flex min-h-11 items-center gap-3 rounded-lg ${focusRing}`} aria-label="GameDay OS home" onClick={() => setOpen(false)}>
           <span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--black-soft)] text-sm font-black text-white">
             GD
           </span>

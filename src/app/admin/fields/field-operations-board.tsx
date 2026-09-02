@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useDeferredValue, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Search, ShieldAlert, Wrench } from "lucide-react";
-import { buttonStyles, StatusChip, type StatusTone } from "@/components/ui/gameday-ui";
+import { AlertBanner, buttonStyles, StatusChip, type StatusTone } from "@/components/ui/gameday-ui";
 import { Modal, Sheet } from "@/components/ui/overlays";
 import {
   fieldOperationMatchesFilter,
@@ -53,12 +53,14 @@ function primaryStatusAction(status: FieldStatus): { label: string; target: Fiel
   return { label: "Mark delayed", target: "delayed" };
 }
 
-function effectiveItem(item: FieldOperationItem, status: FieldStatus): FieldOperationItem {
+function effectiveItem(item: FieldOperationItem, override?: { status: FieldStatus; updatedAt: string }): FieldOperationItem {
+  const status = override?.status ?? item.status;
   const gameNeedsAttention = Boolean(item.currentGame && (["delayed", "suspended", "postponed"].includes(item.currentGame.lifecycleStatus) || item.currentGame.minutesBehind >= 20));
   const statusNeedsAttention = status === "delayed" || status === "closed" || status === "maintenance";
   return {
     ...item,
     status,
+    updatedAt: override?.updatedAt ?? item.updatedAt,
     affectedUpcomingGames: status === "closed" || status === "maintenance" ? item.upcomingGameCount : 0,
     needsAttention: statusNeedsAttention || item.unresolvedIssueCount > 0 || gameNeedsAttention,
   };
@@ -158,7 +160,7 @@ function FieldDetailSheet({
   canManageSchedule: boolean;
   canUpdateStatus: boolean;
   item: FieldOperationItem;
-  message: string | null;
+  message: { ok: boolean; message: string } | null;
   onClose: () => void;
   onStatus: (item: FieldOperationItem, status: FieldStatus) => void;
   pending: boolean;
@@ -189,7 +191,7 @@ function FieldDetailSheet({
           </div>
         </div>
 
-        {message ? <p className="mt-4 rounded-lg bg-slate-100 p-3 text-sm font-bold" role="status">{message}</p> : null}
+        {message ? <AlertBanner className="mt-4" title={message.ok ? "Field updated" : "Field not updated"} tone={message.ok ? "success" : "danger"}>{message.message}</AlertBanner> : null}
 
         {canUpdateStatus ? (
           <div className="mt-6">
@@ -220,12 +222,12 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
   const deferredQuery = useDeferredValue(query);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const [confirmation, setConfirmation] = useState<{ item: FieldOperationItem; status: FieldStatus } | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; message: string } | null>(null);
   const [pendingFieldId, setPendingFieldId] = useState<string | null>(null);
-  const [statusOverrides, setStatusOverrides] = useState<Record<string, FieldStatus>>({});
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, { status: FieldStatus; updatedAt: string }>>({});
   const [pending, startTransition] = useTransition();
 
-  const effectiveItems = items.map((item) => effectiveItem(item, statusOverrides[item.fieldId] ?? item.status));
+  const effectiveItems = items.map((item) => effectiveItem(item, statusOverrides[item.fieldId]));
   const summary = summarizeFieldOperations(effectiveItems);
   const visibleItems = effectiveItems.filter((item) => fieldOperationMatchesFilter(item, filter) && fieldOperationMatchesQuery(item, deferredQuery));
   const selected = effectiveItems.find((item) => item.fieldId === selectedId) ?? null;
@@ -244,11 +246,23 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
     setConfirmation(null);
     setPendingFieldId(item.fieldId);
     startTransition(async () => {
-      const result = await setFieldOperationalStatusAction(item.fieldId, status);
-      setMessage(result.message);
+      let result;
+      try {
+        result = await setFieldOperationalStatusAction(item.fieldId, status, item.updatedAt);
+      } catch {
+        result = { ok: false, code: "temporary" as const, message: `Couldn't update ${item.fieldName}. Check your connection and try again.` };
+      }
+      setMessage(result);
       setPendingFieldId(null);
-      if (result.ok) {
-        setStatusOverrides((current) => ({ ...current, [item.fieldId]: status }));
+      if (result.ok && result.updatedAt) {
+        setStatusOverrides((current) => ({ ...current, [item.fieldId]: { status, updatedAt: result.updatedAt! } }));
+        router.refresh();
+      } else if (result.code === "conflict") {
+        setStatusOverrides((current) => {
+          const next = { ...current };
+          delete next[item.fieldId];
+          return next;
+        });
         router.refresh();
       }
     });
@@ -280,6 +294,8 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
           <input className="ui-input min-h-12 w-full pl-12" onChange={(event) => setQuery(event.target.value)} placeholder="Search Field 9, Baseball 9, team, or issue" type="search" value={query} />
         </label>
       </section>
+
+      {!selected && message ? <AlertBanner className="mt-4" title={message.ok ? "Field updated" : "Field not updated"} tone={message.ok ? "success" : "danger"}>{message.message}</AlertBanner> : null}
 
       {venueGroups.length > 0 ? (
         <div className="mt-6 grid gap-8">

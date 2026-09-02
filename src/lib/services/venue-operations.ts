@@ -67,13 +67,14 @@ const EMPTY_VIEW: TodayView = {
 };
 
 export async function buildTodayView(ctx: AccessContext | null): Promise<TodayView> {
-  // Single parallel load, then pick the venue from what we already fetched.
+  // Core operational reads fail together. Returning empty arrays on a database
+  // outage would falsely tell operators that no games or issues need attention.
   const [venues, allFields, allSessions, activeAlerts, workOrders] = await Promise.all([
-    getVenues().catch(() => []),
-    getFields().catch(() => []),
-    getSessions().catch(() => []),
-    getActiveAlerts().catch(() => []),
-    getWorkOrders().catch(() => []),
+    getVenues(),
+    getFields(),
+    getSessions(),
+    getActiveAlerts(),
+    getWorkOrders(),
   ]);
   const venue = pickActingVenue(ctx, venues, allFields);
   if (!venue) return EMPTY_VIEW;
