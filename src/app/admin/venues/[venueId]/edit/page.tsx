@@ -119,7 +119,7 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
           </select>
           <span className="text-sm leading-6 text-[var(--muted)]">
             This venue&rsquo;s own clock. It sets when the operating day rolls over and how every game
-            time reads across the Command Center, schedule, and reports. Changing it re-dates
+            time reads across Today, Fields, Schedule, and reports. Changing it re-dates
             evening games, so only change it if the venue is genuinely in another zone.
           </span>
         </label>

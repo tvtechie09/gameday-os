@@ -18,7 +18,6 @@ export async function setFieldOperationalStatusAction(fieldId: string, status: F
     await assertFieldInScope(fieldId);
     const field = await updateFieldStatus(fieldId, status, ctx.userId);
     revalidatePath("/admin/fields");
-    revalidatePath("/admin/command-center");
     revalidatePath("/today");
     revalidatePath("/admin/operations-center");
     revalidatePath(`/admin/fields/${fieldId}/control`);

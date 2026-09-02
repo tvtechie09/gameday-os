@@ -29,7 +29,7 @@ export const packageCatalog: PackageDefinition[] = [
     key: "single_park",
     label: "Single park",
     sizeHint: "1–4 fields",
-    includes: ["Command Center", "Public field pages", "Alerts"],
+    includes: ["Home, Today, Fields & Schedule", "Public field pages", "Alerts"],
     minFields: 1,
     maxFields: 4,
   },

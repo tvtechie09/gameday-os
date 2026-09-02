@@ -88,7 +88,7 @@ export default async function AssetRegistryPage() {
             Operational Resources
           </Link>
           <Link className="ui-button ui-button-primary" href="/admin/operations-center">
-            Venue Command Center
+            Venue Status
           </Link>
         </div>
       </div>

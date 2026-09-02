@@ -49,28 +49,22 @@ export type NavGroup = {
 
 export const navItems: NavItem[] = [
   // --- Daily Operations ---
-  // One "Today's Operations" slot that resolves by role. Venue operators get the
-  // Command Center; everyone else with ops tasks (coaches, scorekeepers,
-  // tournament staff, emergency coordinators) keeps the lighter /today. The caps
-  // are mutually exclusive, so exactly one of these ever renders -- a venue never
-  // sees two screens competing for the same job.
-  // canViewCommandCenter is permission-based and (by design, see its comment)
-  // also resolves true for organization_admin -- but an org-scoped ctx's
-  // venueId is always null (Phase B), so Command Center has nothing to render
-  // for it. Same dead-end Phase B flagged for /today; excluded the same way.
-  { key: "command-center", href: "/admin/command-center", label: "Command Center", icon: "Home", group: "operations", stage: "core", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  // UI/UX 1.1C establishes one obvious home for each operational question:
+  // Home routes managers, Today is chronological, Fields is physical, and
+  // Schedule is administrative. Retired control-center bookmarks redirect to
+  // these destinations instead of returning to primary navigation.
+  { key: "home", href: "/admin", label: "Home", icon: "Home", group: "operations", stage: "core", cap: (ctx) => canAccessAdminWorkspace(ctx) && !isOrgScoped(ctx) },
   { key: "org-home", href: "/org", label: "Organization Home", icon: "Home", group: "operations", stage: "core", cap: isOrgScoped },
-  { key: "today", href: "/today", label: "Today's Operations", icon: "Home", group: "operations", stage: "core", cap: (ctx) => canViewOpsTasks(ctx) && !canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "today", href: "/today", label: "Today", icon: "Activity", group: "operations", stage: "core", cap: (ctx) => canViewOpsTasks(ctx) && !isOrgScoped(ctx) },
+  { key: "fields", href: "/admin/fields", label: "Fields", icon: "MapPin", group: "operations", stage: "core", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "schedule", href: "/admin/sessions", label: "Schedule", icon: "CalendarDays", group: "operations", stage: "core", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
   // Reservations (grants + claims already exist) and the derived coaches
   // roster -- the two org-shaped screens an org president actually needs day
   // to day. Billing (below) is reused as-is via the widened canViewBilling cap.
   { key: "org-reservations", href: "/org/reservations", label: "Reservations", icon: "CalendarDays", group: "operations", stage: "core", cap: isOrgScoped },
   { key: "org-coaches", href: "/org/coaches", label: "Coaches", icon: "Users", group: "operations", stage: "supporting", cap: isOrgScoped },
-  // Venue-wide posture: normal play / weather delay / schedule delay / closed /
-  // emergency / maintenance, plus bulk field resets and venue announcements.
-  // These are decisions the Command Center deliberately does NOT make -- it shows
-  // you the day; this changes the day for the whole venue. It was orphaned, so
-  // eight real server actions were unreachable by clicking.
+  // Venue-wide posture and the rest of the supporting tools remain reachable
+  // under More without competing with the four canonical operating surfaces.
   // All of these venue-admin screens are permission-based (canManage*), not
   // scope-based -- organization_admin's permission set includes venue.manage
   // regardless of whether the org actually owns a venue, so without the
@@ -87,16 +81,14 @@ export const navItems: NavItem[] = [
   // check that venueInScope now does. If an owning org's admin needs to run
   // their own venue day-to-day, today's answer is a venue-scoped role
   // assignment for that venue, not their org-scoped one.
-  { key: "venue-mode", href: "/admin/operations-center", label: "Venue Status & Alerts", icon: "Gauge", group: "operations", stage: "core", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
-  { key: "schedule", href: "/admin/sessions", label: "Schedule", icon: "CalendarDays", group: "operations", stage: "core", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
-  { key: "tournaments", href: "/admin/tournaments", label: "Tournament Operations", icon: "Trophy", group: "operations", stage: "supporting", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },
-  { key: "fields", href: "/admin/fields", label: "Fields", icon: "MapPin", group: "operations", stage: "core", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
-  { key: "scoreboards", href: "/admin/scoreboards", label: "Scoreboards", icon: "Gauge", group: "operations", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
-  { key: "devices", href: "/admin/resources", label: "Venue Systems", icon: "Radio", group: "operations", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
-  { key: "announcements", href: "/admin/alerts", label: "Announcements", icon: "Bell", group: "operations", stage: "core", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
-  { key: "reports", href: "/admin/executive", label: "Reports", icon: "Activity", group: "operations", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
-
-  // --- Admin workspace (grouped separately) ---
+  // --- Supporting and management surfaces (the More destination on mobile) ---
+  { key: "venue-status", href: "/admin/operations-center", label: "Venue Status", icon: "Gauge", group: "admin", stage: "supporting", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "announcements", href: "/admin/alerts", label: "Announcements", icon: "Bell", group: "admin", stage: "supporting", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
+  { key: "work-orders", href: "/admin/fields/work-orders", label: "Work Orders", icon: "ClipboardCheck", group: "admin", stage: "supporting", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "tournaments", href: "/admin/tournaments", label: "Tournament Operations", icon: "Trophy", group: "admin", stage: "supporting", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },
+  { key: "scoreboards", href: "/admin/scoreboards", label: "Scoreboards", icon: "Gauge", group: "admin", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
+  { key: "devices", href: "/admin/resources", label: "Venue Systems", icon: "Radio", group: "admin", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
+  { key: "reports", href: "/admin/executive", label: "Reports", icon: "Activity", group: "admin", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { key: "pilot-launch", href: "/admin/pilot-launch", label: "Pilot Launch", icon: "ClipboardCheck", group: "admin", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { key: "venue-settings", href: "/admin/venues", label: "Venue Settings", icon: "MapPin", group: "admin", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { key: "organizations", href: "/admin/organizations", label: "Organizations", icon: "Users", group: "admin", stage: "supporting", cap: isPlatformAdmin },
@@ -119,7 +111,7 @@ export const navItems: NavItem[] = [
 
 const groupLabels: Record<NavGroupKey, string> = {
   operations: "Run Today",
-  admin: "Manage",
+  admin: "More",
   platform: "Internal Tools",
 };
 
@@ -149,8 +141,8 @@ export function getRoleHome(ctx: AccessContext | null): string {
   if (isOrgScoped(ctx)) {
     return "/org";
   }
-  if (canViewCommandCenter(ctx)) {
-    return "/admin/command-center";
+  if (canAccessAdminWorkspace(ctx)) {
+    return "/admin";
   }
   return "/today";
 }

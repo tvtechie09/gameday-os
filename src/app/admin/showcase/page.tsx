@@ -230,7 +230,7 @@ export default async function ShowcasePage() {
   ];
 
   const previewCards = [
-    { href: "/admin/command-center", note: "Single operational view for games, alerts, resources, and volunteers.", title: "Command Center" },
+    { href: "/today", note: "Chronological view of changed, live, upcoming, and completed events.", title: "Today" },
     { href: "/admin/fields", note: "Field status and QR codes for operations staff.", title: "Fields" },
     { href: "/admin/pilot-launch", note: "Guided setup, rehearsal evidence, support ownership, and launch approval.", title: "Pilot Launch" },
     ...(firstVenue ? [{ href: getPublicVenueDisplayUrl(firstVenue.id), note: "TV, lobby, concession, website, or OBS venue display.", title: "Venue Display" }] : []),
@@ -402,7 +402,7 @@ export default async function ShowcasePage() {
           <article className="ui-card p-5">
             <SectionHeader note="Fast launch buttons for a live client demo." title="Open Demo Views" />
             <div className="mt-5 grid gap-3">
-              <Link className="ui-button ui-button-primary" href="/admin/command-center">Command Center</Link>
+              <Link className="ui-button ui-button-primary" href="/today">Today</Link>
               <Link className="ui-button ui-button-secondary" href="/admin/fields">Fields</Link>
               {demoReadyLinks.map((link) => (
                 <div className="rounded-lg border border-[var(--line)] p-3" key={`${link.label}-${link.href}`}>

@@ -109,7 +109,7 @@ export async function startWorkOrderAction(formData: FormData): Promise<void> {
     // Unchanged.
   }
   revalidatePath("/admin/fields/work-orders");
-  revalidatePath("/admin/command-center");
+  revalidatePath("/admin/fields");
 }
 
 export async function resolveWorkOrderAction(formData: FormData): Promise<void> {
@@ -122,5 +122,5 @@ export async function resolveWorkOrderAction(formData: FormData): Promise<void> 
     // Unchanged.
   }
   revalidatePath("/admin/fields/work-orders");
-  revalidatePath("/admin/command-center");
+  revalidatePath("/admin/fields");
 }

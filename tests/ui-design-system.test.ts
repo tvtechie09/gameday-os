@@ -6,7 +6,6 @@ const primitives = readFileSync("src/components/ui/gameday-ui.tsx", "utf8");
 const overlays = readFileSync("src/components/ui/overlays.tsx", "utf8");
 const shell = readFileSync("src/components/access/app-shell.tsx", "utf8");
 const bottomNavigation = readFileSync("src/components/access/bottom-navigation.tsx", "utf8");
-const commandCenter = readFileSync("src/app/admin/command-center/page.tsx", "utf8");
 
 test("shared GameDay design system exposes the 1.0A component contract", () => {
   for (const component of [
@@ -40,11 +39,12 @@ test("mobile shell keeps navigation capability-filtered and thumb reachable", ()
   assert.match(bottomNavigation, />More</);
 });
 
-test("global bottom navigation replaces the Command Center fixed-route bar", () => {
-  assert.doesNotMatch(commandCenter, /fixed inset-x-3 bottom-3/);
-  assert.match(commandCenter, /aria-label="Mobile operations"/);
-  assert.match(commandCenter, /href="#field-board"/);
-  assert.match(commandCenter, /href="#attention-queue"/);
+test("global bottom navigation owns the consolidated operating destinations", () => {
+  assert.match(shell, /keys: \["home", "org-home"\]/);
+  assert.match(shell, /keys: \["today"\]/);
+  assert.match(shell, /keys: \["fields", "org-coaches"\]/);
+  assert.match(shell, /keys: \["schedule", "org-reservations"\]/);
+  assert.doesNotMatch(shell, /command-center/);
 });
 
 test("sheet and modal use native dialog focus and dismissal behavior", () => {

@@ -7,7 +7,7 @@ Use this 15-minute story with a venue director or general manager. It is not a p
 1. Open **Admin → Demo Readiness**.
 2. Select a disposable demo tenant and click **Prepare reference demo**.
 3. Confirm every required check is ready.
-4. Open Command Center, a public field QR page, Sponsor Campaigns, End of Day, and Pilot Launch in separate tabs.
+4. Open Home, Today, Fields, Schedule, a public field QR page, Sponsor Campaigns, End of Day, and Pilot Launch in separate tabs.
 5. Test the public page from a phone using cellular data.
 
 ## The story
@@ -18,7 +18,7 @@ Ask: “When one field falls 30 minutes behind, who notices first, and how does 
 
 ### 2:00 — Understand the day
 
-Open Command Center. Show the live games, fields needing attention, schedule pulse, and the most urgent item. The claim is simple: GameDay turns the schedule into an operating view for the venue.
+Open Home, then Today and Fields. Show the live game, what needs attention, the disrupted field, and the direct path to the affected game. Point to Schedule as the one place for planned changes. The claim is simple: GameDay turns the schedule into an operating workflow for the venue.
 
 ### 5:00 — Communicate one confirmed change
 

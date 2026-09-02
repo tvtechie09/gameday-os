@@ -22,7 +22,7 @@ const phases = [
   {
     title: "Opening",
     steps: [
-      "Open Command Center and confirm the correct venue, fields, games, and device posture.",
+      "Open Today, then confirm the correct venue and games before checking field posture in Fields.",
       "Resolve any field or schedule mismatch before spectators arrive.",
       "Verify the public venue and field pages show the expected first games.",
       "Tell on-site staff who owns decisions and who serves as backup.",
@@ -31,7 +31,7 @@ const phases = [
   {
     title: "Live operations",
     steps: [
-      "Use Command Center as the shared source for field status, schedule, and active alerts.",
+      "Use Today for the chronology, Fields for physical status, and Schedule for planned changes.",
       "Publish only confirmed changes; use a clear all-clear when normal operations resume.",
       "Check the public QR experience after every venue-wide delay or field reassignment.",
       "Record support incidents while evidence is fresh, including who owned the response.",

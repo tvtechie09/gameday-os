@@ -142,7 +142,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
             <details className="group rounded-lg border border-[var(--line)] bg-white">
               <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-extrabold text-[var(--accent-strong)]">More game tools <span aria-hidden="true" className="transition-transform group-open:rotate-180">⌄</span></summary>
               <div className="grid gap-2 border-t border-[var(--line)] p-3">
-                <Link href="/admin/command-center" className={buttonStyles("secondary")}>Command Center</Link>
+                <Link href="/today" className={buttonStyles("secondary")}>Today</Link>
                 <Link href={getPublicScoreboardUrl(session.id)} className={buttonStyles("secondary")}>Public scoreboard</Link>
                 <CopyLinkButton label="Copy scoreboard link" value={getPublicScoreboardUrl(session.id)} />
                 {scorekeeper ? <CopyLinkButton label={"Copy scorekeeper link (PIN " + scorekeeper.pin + ")"} value={getPublicAppUrl() + "/score/" + scorekeeper.token} /> : null}

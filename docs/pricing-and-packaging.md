@@ -11,7 +11,7 @@ not committed numbers. Nothing here is implemented — see "Do not build billing
 
 - **Aggregating the truth is free** — authorized roster relationships, provider
   schedules, venue game state, and families seeing their game-day context.
-- **Operating a complex on game day is paid** — Command Center, attention queue,
+- **Operating a complex on game day is paid** — Today, Fields, Schedule, attention,
   systems health, staff coordination.
 - **Making the venue more money is the upside** — the Revenue Engine, where we can
   *prove* the ROI.
@@ -32,7 +32,7 @@ has a purchase order.
 
 So the shape of the business is:
 
-- **GameDay Venue OS = the paying product.** The Command Center makes the venue
+- **GameDay Venue OS = the paying product.** The daily operating workflow makes the venue
   depend on us every operating day.
 - **GameDay Team = the free network.** It's what pulls families and leagues in,
   feeds games into the shared record, and makes the venue unquittable.
@@ -50,7 +50,7 @@ Tiered by **field count** (the honest unit of both size and value):
 
 | Tier | Size | List (anchor to test) | Includes |
 |---|---|---|---|
-| Single park | 1–4 fields | $500/mo | Command Center, public field pages, alerts |
+| Single park | 1–4 fields | $500/mo | Home, Today, Fields, Schedule, public field pages, alerts |
 | Complex | 5–12 fields | $1,000/mo | + officials, work orders, bookings/permits, storm response |
 | Flagship | 13+ fields | $2,000/mo | + systems health, device integrations, multi-field ops |
 | District | multi-venue | TBD, not priced yet | + cross-venue reporting |
@@ -191,7 +191,7 @@ per-venue one.
 
 ## What to validate next
 
-Take the Command Center + a Revenue Engine Proof-of-Performance report to a real GM
+Take the consolidated venue operating workflow + a Revenue Engine Proof-of-Performance report to a real GM
 (Wintrust Crossroads) and ask exactly two questions:
 
 1. **"What would you pay for this per month?"**

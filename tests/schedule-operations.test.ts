@@ -65,11 +65,13 @@ test("schedule operation migration is atomic, venue-scoped, and provider-neutral
   assert.match(migration, /revoke all on function public\.apply_schedule_operation[^;]+from public, anon, authenticated/);
 });
 
-test("rapid schedule server action keeps capability and object-scope guards", () => {
-  const actions = readFileSync("src/app/admin/command-center/actions.ts", "utf8");
+test("canonical disruption move keeps capability and object-scope guards", () => {
+  const actions = readFileSync("src/app/admin/fields/[fieldId]/disruption/actions.ts", "utf8");
   const service = readFileSync("src/lib/services/schedule-operations.ts", "utf8");
-  assert.match(actions, /requireCommandCenter\(\)/);
-  assert.match(actions, /assertFieldInScope\(targetFieldId\)/);
+  assert.match(actions, /canOpenCloseField\(ctx\)/);
+  assert.match(actions, /assertFieldInScope\(input\.originalFieldId\)/);
+  assert.match(actions, /assertFieldInScope\(input\.targetFieldId\)/);
+  assert.match(actions, /executeRapidScheduleOperation/);
   assert.match(service, /requirePermission\(actorUserId, "venue\.field\.manage"/);
   assert.match(service, /Schedule operations cannot cross venue boundaries/);
   assert.match(service, /original_field_id/);

@@ -64,7 +64,6 @@ export async function moveAffectedGameAction(input: {
     revalidatePath("/admin/fields");
     revalidatePath(`/admin/fields/${originalField.id}/disruption`);
     revalidatePath(`/admin/fields/${targetField.id}/disruption`);
-    revalidatePath("/admin/command-center");
     revalidatePath("/admin/sessions");
     revalidatePath(`/admin/sessions/${session.id}`);
     revalidatePath("/today");

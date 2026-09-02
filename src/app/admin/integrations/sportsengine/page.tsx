@@ -17,7 +17,7 @@ export default function SportsEngineIntegrationPage() {
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link className="ui-button ui-button-primary min-h-11" href="/admin/integrations">Open Integration Framework</Link>
-          <Link className="ui-button ui-button-secondary min-h-11" href="/admin/command-center">Open Dashboard</Link>
+          <Link className="ui-button ui-button-secondary min-h-11" href="/admin/sessions">Open Schedule</Link>
         </div>
       </section>
 

@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const migration = readFileSync("supabase/migrations/20260831021258_operational_issue_command_center.sql", "utf8");
-const commandActions = readFileSync("src/app/admin/command-center/actions.ts", "utf8");
 const workOrderActions = readFileSync("src/app/admin/fields/work-orders/actions.ts", "utf8");
 
 test("operational issues are venue-scoped, deduplicated, and support the explicit lifecycle", () => {
@@ -21,10 +20,7 @@ test("operational issues remain deny-by-default to browser roles", () => {
   assert.match(migration, /grant select, insert, update, delete on public\.field_work_orders to service_role/);
 });
 
-test("every command-center issue mutation rechecks capability and tenant scope server-side", () => {
-  assert.match(commandActions, /canViewCommandCenter\(ctx\)/);
-  assert.match(commandActions, /assertVenueInScope\(issue\.venueId\)/);
-  assert.match(commandActions, /assertFieldInScope\(issue\.fieldId\)/);
+test("canonical work-order mutations recheck tenant and field scope server-side", () => {
   assert.match(workOrderActions, /assertVenueInScope\(order\.venueId\)/);
   assert.match(workOrderActions, /assertFieldInScope\(order\.fieldId\)/);
 });

@@ -15,7 +15,7 @@ Approval is not deployment. It is an operating decision for one venue and one pl
 
 ## Ownership
 
-- Primary operator: owns Command Center, confirms changes, and publishes alerts.
+- Primary operator: owns the Home / Today / Fields / Schedule workflow, confirms changes, and publishes alerts.
 - Backup operator: can take over the entire operating workflow without developer help.
 - Escalation contact: decides whether to pause, fall back, or resume.
 - Product lead: reviews evidence and recurring friction after the operating day.
@@ -38,7 +38,7 @@ Record evidence in the launch workflow. A verbal “it worked” is not enough f
 
 ## Game-day sequence
 
-Before opening, verify schedule, QR pages, emergency contacts, staff access, and the printed/manual fallback. During operations, use Command Center as the shared source for field status, schedule, and active alerts. Publish only confirmed changes and record incidents while evidence is fresh. At closing, clear expired alerts, assign every unresolved incident, and capture the most important improvement for the next date.
+Before opening, verify Schedule, QR pages, emergency contacts, staff access, and the printed/manual fallback. During operations, use Today for the chronology, Fields for physical state and disruptions, Schedule for planned changes, and Announcements for confirmed public updates. At closing, clear expired alerts, assign every unresolved incident, and capture the most important improvement for the next date.
 
 ## Pause and fallback
 

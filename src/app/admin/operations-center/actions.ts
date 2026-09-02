@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { clearActiveOperationsAlerts, createAlert, hasRecentAllClearAlert, updateAlertLifecycle } from "@/lib/services/alerts";
+import { canViewCommandCenter, isOrgScoped } from "@/lib/access/capabilities";
+import { clearActiveOperationsAlerts, createAlert, hasRecentAllClearAlert } from "@/lib/services/alerts";
 import { updateFieldStatus } from "@/lib/services/fields";
 import { getSessionContext } from "@/lib/access/session";
-import { safelyCreateNotification } from "@/lib/services/notifications";
 import type { AlertPriority, AlertType, FieldStatus } from "@/lib/types";
-import { assertFieldInScope, assertVenueInScope, getScopedVenuesAndFields, OrganizationScopeError } from "@/lib/access/scoped-venue-data";
+import { assertVenueInScope, getScopedVenuesAndFields, OrganizationScopeError } from "@/lib/access/scoped-venue-data";
 
 export type VenueOperationType =
   | "normal_operations"
@@ -125,19 +125,6 @@ const operationConfigs: Record<VenueOperationType, OperationConfig> = {
   },
 };
 
-const announcementConfig: Record<string, { alertType: AlertType; priority: AlertPriority; title: string }> = {
-  concessions: { alertType: "concession", priority: "normal", title: "Concessions Announcement" },
-  emergency: { alertType: "emergency", priority: "urgent", title: "Emergency Announcement" },
-  field_change: { alertType: "info", priority: "high", title: "Field Change Announcement" },
-  general: { alertType: "info", priority: "normal", title: "Venue Announcement" },
-  lost_child: { alertType: "emergency", priority: "urgent", title: "Lost Child Announcement" },
-  maintenance: { alertType: "field_closure", priority: "high", title: "Maintenance Announcement" },
-  medical: { alertType: "emergency", priority: "urgent", title: "Medical Announcement" },
-  parking: { alertType: "parking", priority: "normal", title: "Parking Announcement" },
-  tournament: { alertType: "info", priority: "normal", title: "Tournament Announcement" },
-  weather: { alertType: "weather", priority: "high", title: "Weather Announcement" },
-};
-
 function readOperationType(value: string): VenueOperationType {
   return Object.keys(operationConfigs).includes(value) ? value as VenueOperationType : "normal_operations";
 }
@@ -172,6 +159,10 @@ async function assertOperationScope(venueId: string, fieldIds: string[]) {
 
 function revalidateOperationSurfaces(fieldIds: string[]) {
   revalidatePath("/admin/operations-center");
+  revalidatePath("/admin/alerts");
+  revalidatePath("/admin/fields");
+  revalidatePath("/admin/sessions");
+  revalidatePath("/today");
   revalidatePath("/admin/weather");
   revalidatePath("/admin/pilot-launch");
   revalidatePath("/display/venue/[venueId]", "page");
@@ -181,26 +172,6 @@ function revalidateOperationSurfaces(fieldIds: string[]) {
   for (const fieldId of fieldIds) {
     revalidatePath(`/fields/${fieldId}`);
   }
-}
-
-async function notifyOperationsEvent({
-  fieldId,
-  message,
-  title,
-  venueId,
-}: {
-  fieldId?: string | null;
-  message: string;
-  title: string;
-  venueId: string;
-}) {
-  await safelyCreateNotification({
-    field_id: fieldId,
-    message,
-    notification_type: "alert",
-    title,
-    venue_id: venueId,
-  });
 }
 
 async function createScopedAlert({
@@ -285,6 +256,11 @@ async function createOperationsHistoryAlert({
 }
 
 export async function createVenueStatusAction(formData: FormData): Promise<void> {
+  const ctx = await getSessionContext();
+  if (!ctx || !canViewCommandCenter(ctx) || isOrgScoped(ctx)) {
+    throw new Error("Forbidden");
+  }
+
   const venueId = String(formData.get("venue_id") ?? "").trim();
   const operationType = readOperationType(String(formData.get("operation_type") ?? ""));
   const title = String(formData.get("title") ?? "").trim();
@@ -301,8 +277,7 @@ export async function createVenueStatusAction(formData: FormData): Promise<void>
     await clearActiveOperationsAlerts(venueId);
 
     if (affectedFieldIds.length > 0) {
-      const ctxOpen = await getSessionContext();
-      await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctxOpen?.userId)));
+      await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctx.userId)));
     }
 
     const historyTitle = operationType === "all_clear" ? "All Clear" : "Normal Operations";
@@ -333,159 +308,8 @@ export async function createVenueStatusAction(formData: FormData): Promise<void>
   const fieldStatus = config.fieldStatus;
 
   if (fieldStatus && affectedFieldIds.length > 0) {
-    const ctxStatus = await getSessionContext();
-    await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, fieldStatus, ctxStatus?.userId)));
+    await Promise.all(affectedFieldIds.map((fieldId) => updateFieldStatus(fieldId, fieldStatus, ctx.userId)));
   }
 
   revalidateOperationSurfaces(affectedFieldIds);
-}
-
-export async function createVenueAnnouncementAction(formData: FormData): Promise<void> {
-  const venueId = String(formData.get("venue_id") ?? "").trim();
-  const announcementType = String(formData.get("announcement_type") ?? "general");
-  const message = String(formData.get("message") ?? "").trim();
-  const title = String(formData.get("title") ?? "").trim();
-
-  if (!venueId || !message) return;
-
-  const config = announcementConfig[announcementType] ?? announcementConfig.general;
-  const { affectedFieldIds, scopeMode } = readFieldIds(formData);
-  await assertOperationScope(venueId, affectedFieldIds);
-
-  await createScopedAlert({
-    affectedFieldIds,
-    alertType: config.alertType,
-    endTime: addHours(new Date(), announcementType === "emergency" ? 8 : 4).toISOString(),
-    message,
-    priority: config.priority,
-    scopeMode,
-    title: title || config.title,
-    venueId,
-  });
-
-  revalidateOperationSurfaces(affectedFieldIds);
-}
-
-export async function createDelayUpdateAction(formData: FormData): Promise<void> {
-  const venueId = String(formData.get("venue_id") ?? "").trim();
-  const fieldId = String(formData.get("field_id") ?? "").trim();
-  const fieldName = String(formData.get("field_name") ?? "Field").trim();
-  const delayStatus = String(formData.get("delay_status") ?? "on_time");
-
-  if (!venueId || !fieldId) return;
-  await assertOperationScope(venueId, [fieldId]);
-
-  const isOnTime = delayStatus === "on_time";
-  const isClosed = delayStatus === "closed";
-  const label = isOnTime ? "On Time" : delayStatus.replaceAll("_", " ");
-  const message = isOnTime
-    ? `${fieldName} is on time.`
-    : isClosed
-      ? `${fieldName} is closed. Please check venue updates before heading to this field.`
-      : `${fieldName} is ${label} behind. Please watch for updated game times.`;
-
-  await createAlert({
-    alert_priority: isOnTime ? "normal" : "high",
-    alert_scope: "field",
-    alert_type: isOnTime ? "info" : isClosed ? "field_closure" : "delay",
-    alert_visibility: "public",
-    end_time: addHours(new Date(), isOnTime ? 2 : 6).toISOString(),
-    field_id: fieldId,
-    is_active: true,
-    message,
-    start_time: new Date().toISOString(),
-    title: isOnTime ? `${fieldName} On Time` : isClosed ? `${fieldName} Closed` : `${fieldName} Delay Update`,
-    venue_id: venueId,
-  });
-
-  const ctxSet = await getSessionContext();
-  await updateFieldStatus(fieldId, isOnTime ? "open" : isClosed ? "closed" : "delayed", ctxSet?.userId);
-  revalidateOperationSurfaces([fieldId]);
-}
-
-export async function resetAllFieldDelaysAction(formData: FormData): Promise<void> {
-  const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
-  const venueId = String(formData.get("venue_id") ?? "").trim();
-
-  await assertOperationScope(venueId, fieldIds);
-
-  const ctxReset = await getSessionContext();
-  await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctxReset?.userId)));
-  if (venueId) {
-    await notifyOperationsEvent({
-      message: "All fields reset to on time.",
-      title: "Fields Reset",
-      venueId,
-    });
-  }
-  revalidateOperationSurfaces(fieldIds);
-}
-
-export async function resetSelectedFieldDelayAction(formData: FormData): Promise<void> {
-  const fieldId = String(formData.get("field_id") ?? "").trim();
-
-  if (!fieldId) return;
-  await assertFieldInScope(fieldId);
-
-  const ctxSel = await getSessionContext();
-  await updateFieldStatus(fieldId, "open", ctxSel?.userId);
-  revalidateOperationSurfaces([fieldId]);
-}
-
-export async function reopenAllClosedFieldsAction(formData: FormData): Promise<void> {
-  const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
-  const venueId = String(formData.get("venue_id") ?? "").trim();
-
-  await assertOperationScope(venueId, fieldIds);
-
-  const ctxReopen = await getSessionContext();
-  await Promise.all(fieldIds.map((fieldId) => updateFieldStatus(fieldId, "open", ctxReopen?.userId)));
-  if (venueId) {
-    await notifyOperationsEvent({
-      message: "Closed fields reopened.",
-      title: "Fields Reopened",
-      venueId,
-    });
-  }
-  revalidateOperationSurfaces(fieldIds);
-}
-
-export async function clearActiveOperationsAlertsAction(formData: FormData): Promise<void> {
-  const venueId = String(formData.get("venue_id") ?? "").trim();
-  const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
-
-  if (!venueId) return;
-
-  await assertOperationScope(venueId, fieldIds);
-
-  await clearActiveOperationsAlerts(venueId);
-  await notifyOperationsEvent({
-    message: "Active operations alerts cleared.",
-    title: "Operations Alerts Cleared",
-    venueId,
-  });
-  revalidateOperationSurfaces(fieldIds);
-}
-
-export async function clearAnnouncementAction(formData: FormData): Promise<void> {
-  const alertId = String(formData.get("alert_id") ?? "").trim();
-  const venueId = String(formData.get("venue_id") ?? "").trim();
-  const fieldIds = formData.getAll("all_field_ids").map((value) => String(value).trim()).filter(Boolean);
-
-  if (!alertId) return;
-
-  await updateAlertLifecycle(alertId, {
-    end_time: new Date().toISOString(),
-    is_active: false,
-  });
-
-  if (venueId) {
-    await notifyOperationsEvent({
-      message: "Announcement cleared from public active displays.",
-      title: "Announcement Cleared",
-      venueId,
-    });
-  }
-
-  revalidateOperationSurfaces(fieldIds);
 }

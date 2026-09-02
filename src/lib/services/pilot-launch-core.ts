@@ -1,5 +1,5 @@
 export const PILOT_REHEARSAL_STEPS = [
-  { key: "operator_login", label: "Operator opens Command Center", expected: "Primary and backup operators can sign in and see the correct venue." },
+  { key: "operator_login", label: "Operator opens Home and Today", expected: "Primary and backup operators can sign in and see the correct venue day." },
   { key: "schedule_spot_check", label: "Schedule and field mapping spot-check", expected: "A sample of imported games matches source time, teams, and field." },
   { key: "qr_cellular", label: "QR scan on cellular data", expected: "A printed field QR opens without login and shows field, alert, and next game." },
   { key: "delay_all_clear", label: "Delay and all-clear drill", expected: "Staff publishes a delay, confirms public visibility, then restores normal operations." },

@@ -8,7 +8,7 @@ import { refreshDemoDay } from "@/lib/services/demo-day";
 
 function clean(value: FormDataEntryValue | null) { return String(value ?? "").trim().slice(0, 128); }
 function demoUrl(message?: string, error?: string) { const query = new URLSearchParams(); if (message) query.set("message", message); if (error) query.set("error", error); return `/admin/demo${query.size > 0 ? `?${query}` : ""}`; }
-function refreshDemoPaths() { revalidatePath("/admin/demo"); revalidatePath("/admin/command-center"); revalidatePath("/admin/impact"); revalidatePath("/admin/sponsors/campaigns"); }
+function refreshDemoPaths() { revalidatePath("/admin/demo"); revalidatePath("/today"); revalidatePath("/admin/fields"); revalidatePath("/admin/impact"); revalidatePath("/admin/sponsors/campaigns"); }
 
 export async function prepareReferenceDemoAction(formData: FormData): Promise<void> {
   const ctx = await getSessionContext();

@@ -40,14 +40,14 @@ test("logical asset health migration preserves private service-role-only access"
 
 test("normal operators get plain health while diagnostics remain permission-gated", () => {
   const assetsPage = readFileSync("src/app/admin/assets/page.tsx", "utf8");
-  const commandCenter = readFileSync("src/app/admin/command-center/page.tsx", "utf8");
+  const appShell = readFileSync("src/components/access/app-shell.tsx", "utf8");
+  const fieldBoard = readFileSync("src/app/admin/fields/field-operations-board.tsx", "utf8");
   assert.match(assetsPage, /showDiagnostics = canManageDevices\(ctx\)/);
   assert.match(assetsPage, /Administrator diagnostics/);
   assert.match(assetsPage, /health\.message/);
-  assert.match(commandCenter, /aria-label="Mobile operations"/);
-  assert.match(commandCenter, /Report issue/);
-  assert.match(commandCenter, /Announce/);
-  assert.match(commandCenter, /min-h-12/);
+  assert.match(appShell, /buildMobileNavigation\(navGroups\)/);
+  assert.match(fieldBoard, /Report an issue/);
+  assert.match(fieldBoard, /min-h-12/);
 });
 
 test("mobile field start remains object-scoped and carries the verified actor", () => {

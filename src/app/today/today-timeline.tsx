@@ -50,7 +50,7 @@ function EventCard({ event, venueName }: { event: TodayEvent; venueName: string 
   );
 }
 
-export function TodayTimeline({ events, venueName }: Readonly<{ events: TodayEvent[]; venueName: string }>) {
+export function TodayTimeline({ events, now, timeZone, venueName }: Readonly<{ events: TodayEvent[]; now: number; timeZone: string; venueName: string }>) {
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [fieldId, setFieldId] = useState("all");
   const [eventState, setEventState] = useState<EventStateFilter>("all");
@@ -69,12 +69,13 @@ export function TodayTimeline({ events, venueName }: Readonly<{ events: TodayEve
     return true;
   }), [eventState, events, fieldId, quickFilter]);
 
-  const timeline = buildTodayTimeline(filtered);
+  const timeline = buildTodayTimeline(filtered, now, timeZone);
   const sections = [
     { key: "attention", title: "Changed or needs attention", description: "Cancelled, delayed, closed, or unavailable.", events: timeline.attention },
     { key: "now", title: "Now", description: "Games currently in progress.", events: timeline.now },
     { key: "next", title: "Next", description: "The next events to prepare for.", events: timeline.next },
     { key: "later", title: "Later today", description: "Everything still ahead after next up.", events: timeline.later },
+    { key: "completed", title: "Completed", description: "Games that have finished today.", events: timeline.completed },
   ].filter((section) => section.events.length > 0);
 
   const quickFilters: Array<{ key: QuickFilter; label: string }> = [

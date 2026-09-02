@@ -34,7 +34,7 @@ export default async function WeatherProfilesPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link href="/admin/operations-center" className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--black-soft)] px-5 py-3 text-sm font-bold text-white">
-            Venue Command Center
+            Venue Status
           </Link>
           <Link href="/admin/alerts/new?weather_delay=true" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-950">
             Create Weather Delay Alert

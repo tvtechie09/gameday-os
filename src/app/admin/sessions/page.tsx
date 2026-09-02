@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { canManageSchedule, isOrgScoped } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 import { publicErrorMessage } from "@/lib/public-error";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSessions } from "@/lib/services/sessions";
@@ -49,6 +53,8 @@ function groupSessions(venues: Venue[], fields: Field[], sessions: Session[]) {
 }
 
 export default async function SessionsPage({ searchParams }: SessionsPageProps) {
+  const ctx = await getSessionContext();
+  if (!ctx || !canManageSchedule(ctx) || isOrgScoped(ctx)) redirect(getRoleHome(ctx));
   const { q = "" } = (await searchParams) ?? {};
   const query = q.trim();
   let venues: Venue[] = [];

@@ -90,7 +90,8 @@ export default async function StormWatchPage() {
       is_active: action !== "normal",
     });
     revalidatePath("/admin/alerts/storm");
-    revalidatePath("/admin/command-center");
+    revalidatePath("/today");
+    revalidatePath("/admin/fields");
     revalidatePath("/venues/[venueId]", "page");
     revalidatePath("/fields/[fieldId]", "page");
   }

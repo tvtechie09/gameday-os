@@ -126,7 +126,8 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
     try {
       await updateFieldStatus(fieldId, status, ctx?.userId);
       revalidatePath(`/admin/fields/${fieldId}/control`);
-      revalidatePath("/admin/command-center");
+      revalidatePath("/admin/fields");
+      revalidatePath("/today");
       revalidatePath("/admin/fields");
       revalidatePath(`/fields/${fieldId}`);
     } catch (error) {

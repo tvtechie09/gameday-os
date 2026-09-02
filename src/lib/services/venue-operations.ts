@@ -8,8 +8,7 @@ import { listGamesForVenue } from "@/lib/game-engine/game-service";
 import { computeQuickActionTargets, labelFor, type QuickActionTargets } from "@/lib/services/quick-action-targets";
 import type { Field, FieldStatus, Venue } from "@/lib/types";
 import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
-import { venueDateString } from "@/lib/services/command-center-core";
-import type { TodayAlert, TodayEvent } from "@/lib/services/today-timeline";
+import { selectTodayEvents, type TodayAlert, type TodayEvent } from "@/lib/services/today-timeline";
 
 // Resolves the venue the acting user operates and builds the LIVE Today's-
 // Operations view from real sessions/fields/alerts — no demo data. A
@@ -87,13 +86,9 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
   // First consumer of the Connected Game Engine read path: same data, served
   // through the shared Game domain service (preloaded to keep the single
   // parallel batch above).
-  const venueSessions = await listGamesForVenue(venue.id, {
-    date: venueDateString(now, timeZone),
-    timeZone,
-    preloaded: { sessions: allSessions, fields: allFields },
-  });
+  const venueSessions = await listGamesForVenue(venue.id, { preloaded: { sessions: allSessions, fields: allFields } });
   const fieldById = new Map(venueFields.map((field) => [field.id, field]));
-  const events: TodayEvent[] = venueSessions
+  const events = selectTodayEvents(venueSessions
     .filter((session) => session.lifecycleStatus !== "draft" && session.lifecycleStatus !== "archived")
     .map((session) => {
       const field = fieldById.get(session.fieldId);
@@ -118,7 +113,7 @@ export async function buildTodayView(ctx: AccessContext | null): Promise<TodayVi
         status: session.status,
         lifecycleStatus: session.lifecycleStatus,
       };
-    });
+    }), now, timeZone);
   const liveGames = events.filter((event) => event.status === "active");
 
   return {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildTodayTimeline, eventChangePresentation, type TodayEvent } from "../src/lib/services/today-timeline.ts";
+import { buildTodayTimeline, eventChangePresentation, selectTodayEvents, type TodayEvent } from "../src/lib/services/today-timeline.ts";
 
 const NOW = Date.parse("2026-09-01T15:00:00.000Z");
 const at = (minutes: number) => new Date(NOW + minutes * 60_000).toISOString();
@@ -29,7 +29,7 @@ function event(overrides: Partial<TodayEvent> = {}): TodayEvent {
 }
 
 test("timeline returns useful empty sections when there are no events", () => {
-  assert.deepEqual(buildTodayTimeline([], NOW), { attention: [], now: [], next: [], later: [] });
+  assert.deepEqual(buildTodayTimeline([], NOW), { attention: [], now: [], next: [], later: [], completed: [] });
 });
 
 test("timeline sorts multiple games into now, next, and later", () => {
@@ -42,6 +42,49 @@ test("timeline sorts multiple games into now, next, and later", () => {
   assert.deepEqual(result.now.map((item) => item.id), ["live"]);
   assert.deepEqual(result.next.map((item) => item.id), ["next-1", "next-2"]);
   assert.deepEqual(result.later.map((item) => item.id), ["later"]);
+});
+
+test("one valid event today is counted and always appears in a timeline section", () => {
+  const events = selectTodayEvents([event({ id: "today" })], NOW, "America/Chicago");
+  const result = buildTodayTimeline(events, NOW, "America/Chicago");
+  assert.equal(events.length, 1);
+  assert.deepEqual([...result.attention, ...result.now, ...result.next, ...result.later, ...result.completed].map((item) => item.id), ["today"]);
+});
+
+test("zero, historical, and future-day events agree with the Today empty state", () => {
+  assert.equal(selectTodayEvents([], NOW, "America/Chicago").length, 0);
+  assert.equal(selectTodayEvents([event({ startTime: "2026-08-31T18:00:00.000Z" })], NOW, "America/Chicago").length, 0);
+  assert.equal(selectTodayEvents([event({ startTime: "2026-09-02T18:00:00.000Z" })], NOW, "America/Chicago").length, 0);
+});
+
+test("overdue scheduled, moved, delayed, cancelled, and completed events remain visible", () => {
+  const result = buildTodayTimeline([
+    event({ id: "overdue", startTime: at(-180) }),
+    event({ id: "moved", fieldId: "field-7", fieldName: "Field 7", startTime: at(45) }),
+    event({ id: "delayed", lifecycleStatus: "delayed" }),
+    event({ id: "cancelled", lifecycleStatus: "cancelled" }),
+    event({ id: "completed", startTime: at(-240), status: "final", lifecycleStatus: "final" }),
+  ], NOW, "America/Chicago");
+  assert.deepEqual(result.now.map((item) => item.id), ["overdue"]);
+  assert.equal(result.next.find((item) => item.id === "moved")?.fieldName, "Field 7");
+  assert.deepEqual(result.attention.map((item) => item.id), ["delayed", "cancelled"]);
+  assert.deepEqual(result.completed.map((item) => item.id), ["completed"]);
+});
+
+test("venue-local day boundaries work in different zones and across DST", () => {
+  const boundaryNow = Date.parse("2026-09-02T04:30:00.000Z");
+  const boundaryEvent = event({ startTime: "2026-09-02T04:15:00.000Z" });
+  assert.equal(selectTodayEvents([boundaryEvent], boundaryNow, "America/New_York").length, 1);
+  assert.equal(selectTodayEvents([boundaryEvent], boundaryNow, "America/Chicago").length, 1);
+
+  const springForwardNow = Date.parse("2026-03-08T08:30:00.000Z");
+  const springForwardEvent = event({ startTime: "2026-03-08T07:30:00.000Z" });
+  assert.equal(selectTodayEvents([springForwardEvent], springForwardNow, "America/Chicago").length, 1);
+
+  const fallBackNow = Date.parse("2026-11-01T08:30:00.000Z");
+  const firstOneThirty = event({ startTime: "2026-11-01T06:30:00.000Z" });
+  const secondOneThirty = event({ id: "event-2", startTime: "2026-11-01T07:30:00.000Z" });
+  assert.equal(selectTodayEvents([firstOneThirty, secondOneThirty], fallBackNow, "America/Chicago").length, 2);
 });
 
 test("changed, cancelled, and field-blocked games are impossible to miss", () => {

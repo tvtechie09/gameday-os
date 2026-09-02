@@ -1,6 +1,8 @@
 # Venue Command Center
 
-Last reviewed: June 29, 2026
+Last reviewed: September 2, 2026
+
+> **Retired UI/UX 1.1C architecture.** This document records the former aggregate-screen model. The active model is Home / Today / Fields / Schedule, documented in `docs/ui-ux-1.1-operating-surfaces.md`. `/admin/command-center` is now an authorized compatibility redirect to Today; `/admin/operations-center` is the narrow Venue Status surface.
 
 ## Purpose
 

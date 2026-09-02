@@ -1,4 +1,11 @@
 import type { AlertPriority, AlertType, FieldStatus, SessionLifecycleStatus, SessionSportType } from "@/lib/types";
+import {
+  isCurrentProjectionSession,
+  isFutureProjectionSession,
+  isSameVenueDay,
+  venueDateString,
+} from "./session-projection-core.ts";
+import { DEFAULT_VENUE_TIMEZONE } from "../venue-timezone.ts";
 
 export type TodayEvent = {
   id: string;
@@ -34,6 +41,7 @@ export type TodayTimeline = {
   now: TodayEvent[];
   next: TodayEvent[];
   later: TodayEvent[];
+  completed: TodayEvent[];
 };
 
 const attentionLifecycles = new Set<SessionLifecycleStatus>(["cancelled", "delayed", "postponed", "suspended"]);
@@ -43,18 +51,35 @@ export function todayEventNeedsAttention(event: TodayEvent): boolean {
   return attentionLifecycles.has(event.lifecycleStatus) || attentionFields.has(event.fieldStatus);
 }
 
-export function buildTodayTimeline(events: TodayEvent[], now = Date.now()): TodayTimeline {
-  const sorted = [...events].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+export function selectTodayEvents(
+  events: TodayEvent[],
+  now = Date.now(),
+  timeZone = DEFAULT_VENUE_TIMEZONE,
+): TodayEvent[] {
+  const operatingDate = venueDateString(now, timeZone);
+  return events
+    .filter((event) => isSameVenueDay(event.startTime, operatingDate, timeZone))
+    .toSorted((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
+export function buildTodayTimeline(
+  events: TodayEvent[],
+  now = Date.now(),
+  timeZone = DEFAULT_VENUE_TIMEZONE,
+): TodayTimeline {
+  const sorted = selectTodayEvents(events, now, timeZone);
   const attention = sorted.filter(todayEventNeedsAttention);
   const normal = sorted.filter((event) => !todayEventNeedsAttention(event));
-  const live = normal.filter((event) => event.status === "active" || event.lifecycleStatus === "live");
-  const upcoming = normal.filter((event) => event.status === "scheduled" && new Date(event.startTime).getTime() >= now - 30 * 60_000);
+  const live = normal.filter((event) => isCurrentProjectionSession(event, now));
+  const upcoming = normal.filter((event) => isFutureProjectionSession(event, now));
+  const completed = normal.filter((event) => event.status === "final" || event.lifecycleStatus === "final");
 
   return {
     attention,
     now: live,
     next: upcoming.slice(0, 2),
     later: upcoming.slice(2),
+    completed,
   };
 }
 

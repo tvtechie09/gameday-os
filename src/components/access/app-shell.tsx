@@ -41,10 +41,10 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const mobileSlots = [
-  { keys: ["command-center", "org-home", "today"], label: "Home", icon: "Home" },
+  { keys: ["home", "org-home"], label: "Home", icon: "Home" },
+  { keys: ["today"], label: "Today", icon: "Activity" },
+  { keys: ["fields", "org-coaches"], label: "Fields", icon: "MapPin" },
   { keys: ["schedule", "org-reservations"], label: "Schedule", icon: "CalendarDays" },
-  { keys: ["venue-mode", "fields", "org-coaches"], label: "GameDay", icon: "MapPin" },
-  { keys: ["announcements", "feedback"], label: "Updates", icon: "Bell" },
 ] as const;
 
 export function buildMobileNavigation(navGroups: NavGroup[]): MobileNavItem[] {
@@ -60,6 +60,9 @@ export function buildMobileNavigation(navGroups: NavGroup[]): MobileNavItem[] {
 }
 
 function isActive(pathname: string, href: string) {
+  if (href === "/admin") {
+    return pathname === "/admin";
+  }
   if (href === "/today") {
     return pathname === "/today";
   }

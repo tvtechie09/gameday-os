@@ -2,18 +2,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   canDelayGame,
-  canOpenCloseField,
-  canSendAnnouncement,
+  canManageSchedule,
   canStartGame,
   canViewCommandCenter,
+  canViewOpsTasks,
+  isOrgScoped,
 } from "@/lib/access/capabilities";
 import { flagshipVenueDisplayName } from "@/lib/access/demo-users";
+import { getRoleHome } from "@/lib/access/navigation";
 import { getSessionContext } from "@/lib/access/session";
 import { QuickActions } from "@/components/access/quick-actions";
 import { buildTodayView } from "@/lib/services/venue-operations";
 import { timeZoneAbbreviation } from "@/lib/venue-timezone";
-import { alertLevelFor, alertLevelPresentation, fieldStatusPresentation } from "@/lib/ui/status-presentation";
-import { TodayFieldStatusControl } from "./today-field-status-control";
+import { alertLevelFor, alertLevelPresentation } from "@/lib/ui/status-presentation";
 import { TodayTimeline } from "./today-timeline";
 import {
   Card,
@@ -57,6 +58,8 @@ function alertPresentation(alertType: string) {
 export default async function TodayPage() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/dev-login");
+  if (isOrgScoped(ctx)) redirect(getRoleHome(ctx));
+  if (!canViewOpsTasks(ctx)) redirect("/no-access");
 
   const view = await buildTodayView(ctx);
   const now = new Date();
@@ -72,8 +75,6 @@ export default async function TodayPage() {
   const allowed = [
     canStartGame(ctx) ? "start" : null,
     canDelayGame(ctx) ? "delay" : null,
-    canSendAnnouncement(ctx) ? "announce" : null,
-    canOpenCloseField(ctx) ? "field" : null,
   ].filter((key): key is string => key !== null);
 
   if (!view.venueId) {
@@ -99,9 +100,11 @@ export default async function TodayPage() {
             ? `${needsAttention} item${needsAttention === 1 ? " needs" : "s need"} attention. ${activeFields} of ${view.health.totalFields} fields are open or active.`
             : `Nothing needs attention right now. ${activeFields} of ${view.health.totalFields} fields are open or active.`}
         </p>
-        <Link className={buttonStyles("secondary", "mt-5 bg-white ring-0 hover:bg-white/90")} href={isVenueOperator ? "/admin/command-center" : "#today-timeline"}>
-          {isVenueOperator ? "Open today’s board" : "View today’s schedule"}
-        </Link>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <a className={buttonStyles("secondary", "bg-white ring-0 hover:bg-white/90")} href="#today-timeline">View today’s schedule</a>
+          {isVenueOperator ? <Link className={buttonStyles("quiet", "border border-white/20 bg-white/10 text-white hover:bg-white/15")} href="/admin/fields">Check fields</Link> : null}
+          {canManageSchedule(ctx) ? <Link className={buttonStyles("quiet", "border border-white/20 bg-white/10 text-white hover:bg-white/15")} href="/admin/sessions">Change schedule</Link> : null}
+        </div>
       </section>
 
       {view.alerts.length > 0 ? (
@@ -126,20 +129,7 @@ export default async function TodayPage() {
 
       <section className="mt-7" id="today-timeline">
         <SectionHeader description="A chronological view of what is happening now and what comes next." title="Today" />
-        <div className="mt-4"><TodayTimeline events={view.events} venueName={venueName} /></div>
-      </section>
-
-      <section className="mt-8">
-        <SectionHeader description="Quick status changes stay close to the schedule." title="Field status" />
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {view.fields.map((field) => (
-            <div className="grid gap-3 rounded-lg border border-[var(--line)] bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)] sm:items-center" key={field.id}>
-              <p className="text-sm font-black text-[var(--foreground)]">{field.name}</p>
-              {canOpenCloseField(ctx) ? <TodayFieldStatusControl fieldId={field.id} fieldName={field.name} initialStatus={field.status} /> : <div className="sm:justify-self-end"><StatusChip tone={fieldStatusPresentation(field.status).tone}>{fieldStatusPresentation(field.status).label}</StatusChip></div>}
-            </div>
-          ))}
-          {view.fields.length === 0 ? <EmptyState className="sm:col-span-2" message="Add fields to the venue before field status can appear here." title="No fields configured" /> : null}
-        </div>
+        <div className="mt-4"><TodayTimeline events={view.events} now={now.getTime()} timeZone={view.timeZone} venueName={venueName} /></div>
       </section>
 
       {isVenueOperator && view.workOrders.length > 0 ? (

@@ -4,7 +4,9 @@ import test from "node:test";
 
 const migration = readFileSync("supabase/migrations/20260829161427_follower_notification_preferences.sql", "utf8");
 const publicFieldPage = readFileSync("src/app/fields/[fieldId]/page.tsx", "utf8");
-const commandCenter = readFileSync("src/app/admin/command-center/page.tsx", "utf8");
+const alertsPage = readFileSync("src/app/admin/alerts/page.tsx", "utf8");
+const alertForm = readFileSync("src/app/admin/alerts/new/alert-form.tsx", "utf8");
+const stormPage = readFileSync("src/app/admin/alerts/storm/page.tsx", "utf8");
 const notifications = readFileSync("src/app/admin/notifications/page.tsx", "utf8");
 const manageRoute = readFileSync("src/app/api/follows/[token]/route.ts", "utf8");
 
@@ -30,11 +32,11 @@ test("public QR journey exposes the fast answers and shortcuts", () => {
 });
 
 test("staff communication is mobile-first and delivery is visible", () => {
-  assert.match(commandCenter, /Quick communication/);
-  assert.match(commandCenter, /min-h-14/);
-  assert.match(commandCenter, /weather_delay/);
-  assert.match(commandCenter, /schedule_delay/);
-  assert.match(commandCenter, /all_clear/);
+  assert.match(alertsPage, /Publish update/);
+  assert.match(alertForm, /min-h-12/);
+  assert.match(alertForm, /Advanced delivery options/);
+  assert.match(stormPage, /weatherAction/);
+  assert.match(stormPage, /all_clear/);
   assert.match(notifications, /Delivery evidence/);
   assert.match(notifications, /Provider not set/);
 });

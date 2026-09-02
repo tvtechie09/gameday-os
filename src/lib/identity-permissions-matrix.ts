@@ -1,9 +1,9 @@
 import type { IdentityPlatformRoleType } from "@/lib/types";
 
 export type PermissionArea =
-  | "Venue Command Center"
-  | "Game Day Center"
-  | "Status Board"
+  | "Venue Status"
+  | "Today"
+  | "Home"
   | "Sessions"
   | "Fields"
   | "Scoreboards"
@@ -24,9 +24,9 @@ export type PermissionMatrixRow = {
 };
 
 export const permissionAreas: PermissionArea[] = [
-  "Venue Command Center",
-  "Game Day Center",
-  "Status Board",
+  "Home",
+  "Today",
+  "Venue Status",
   "Sessions",
   "Fields",
   "Scoreboards",
@@ -57,16 +57,16 @@ function access(overrides: Partial<Record<PermissionArea, PermissionLevel>>): Re
   return {
     Family: "none",
     Fields: "none",
-    "Game Day Center": "none",
+    Today: "none",
+    Home: "none",
     Identity: "none",
     Resources: "none",
     Scoreboards: "none",
     Sessions: "none",
     Settings: "none",
     Sponsors: "none",
-    "Status Board": "none",
     Team: "none",
-    "Venue Command Center": "none",
+    "Venue Status": "none",
     ...overrides,
   };
 }
@@ -76,16 +76,16 @@ export const permissionsMatrix: PermissionMatrixRow[] = [
     access: access({
       Family: "manage",
       Fields: "manage",
-      "Game Day Center": "manage",
+      Today: "manage",
+      Home: "manage",
       Identity: "manage",
       Resources: "manage",
       Scoreboards: "manage",
       Sessions: "manage",
       Settings: "manage",
       Sponsors: "manage",
-      "Status Board": "manage",
       Team: "manage",
-      "Venue Command Center": "manage",
+      "Venue Status": "manage",
     }),
     label: "Super Admin",
     role: "super_admin",
@@ -95,16 +95,16 @@ export const permissionsMatrix: PermissionMatrixRow[] = [
     access: access({
       Family: "view",
       Fields: "operate",
-      "Game Day Center": "operate",
+      Today: "operate",
+      Home: "operate",
       Identity: "manage",
       Resources: "operate",
       Scoreboards: "operate",
       Sessions: "operate",
       Settings: "manage",
       Sponsors: "operate",
-      "Status Board": "operate",
       Team: "operate",
-      "Venue Command Center": "operate",
+      "Venue Status": "operate",
     }),
     label: "Organization Admin",
     role: "organization_admin",
@@ -113,13 +113,13 @@ export const permissionsMatrix: PermissionMatrixRow[] = [
   {
     access: access({
       Fields: "manage",
-      "Game Day Center": "operate",
+      Today: "operate",
+      Home: "manage",
       Resources: "manage",
       Scoreboards: "manage",
       Sessions: "operate",
       Sponsors: "view",
-      "Status Board": "operate",
-      "Venue Command Center": "manage",
+      "Venue Status": "manage",
     }),
     label: "Venue Director",
     role: "venue_director",
@@ -128,12 +128,11 @@ export const permissionsMatrix: PermissionMatrixRow[] = [
   {
     access: access({
       Fields: "operate",
-      "Game Day Center": "operate",
+      Today: "operate",
       Resources: "operate",
       Scoreboards: "operate",
       Sessions: "operate",
-      "Status Board": "operate",
-      "Venue Command Center": "operate",
+      "Venue Status": "operate",
     }),
     label: "Venue Staff",
     role: "venue_staff",
@@ -142,12 +141,11 @@ export const permissionsMatrix: PermissionMatrixRow[] = [
   {
     access: access({
       Fields: "view",
-      "Game Day Center": "view",
+      Today: "view",
       Sessions: "manage",
       Sponsors: "view",
-      "Status Board": "view",
       Team: "view",
-      "Venue Command Center": "view",
+      "Venue Status": "view",
     }),
     label: "Tournament Director",
     role: "tournament_director",
@@ -210,10 +208,10 @@ export const permissionsMatrix: PermissionMatrixRow[] = [
   {
     access: access({
       Fields: "view",
-      "Game Day Center": "view",
+      Today: "view",
+      Home: "view",
       Sessions: "view",
-      "Status Board": "view",
-      "Venue Command Center": "view",
+      "Venue Status": "view",
     }),
     label: "Read Only",
     role: "read_only",
