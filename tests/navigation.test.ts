@@ -88,11 +88,15 @@ test("everyone who sees the Command Center link can actually open it", () => {
 test("venue operators can open Field Operations while setup routes stay managed", () => {
   const operationsGuard = guardForAdminPath("/admin/fields");
   const workOrdersGuard = guardForAdminPath("/admin/fields/work-orders");
+  const disruptionGuard = guardForAdminPath("/admin/fields/f1/disruption");
+  const moveGuard = guardForAdminPath("/admin/fields/f1/disruption/g1/move");
   const newFieldGuard = guardForAdminPath("/admin/fields/new");
   for (const role of VENUE_OPERATORS) {
     assert.ok(navHrefs(role).includes("/admin/fields"), `${role} should see Field Operations`);
     assert.ok(operationsGuard(ctxFor(role)), `${role} should open Field Operations`);
     assert.ok(workOrdersGuard(ctxFor(role)), `${role} should open field issues`);
+    assert.ok(disruptionGuard(ctxFor(role)), `${role} should review field disruption impact`);
+    assert.ok(moveGuard(ctxFor(role)), `${role} should open the guarded movement workflow`);
   }
   assert.equal(newFieldGuard(ctxFor("venue_staff")), false, "staff must not gain field setup access");
   assert.equal(newFieldGuard(ctxFor("venue_director")), true, "venue director keeps field setup access");

@@ -12,6 +12,7 @@ import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
+import { projectFieldSessions } from "@/lib/services/session-projection-core";
 import type { Alert, Field, Organization, Resource, Session, Sponsor, SponsorAssignment, Venue } from "@/lib/types";
 import { RECOMMENDED_PROHIBITED_CATEGORIES, type SponsorCategoryKey } from "@/lib/services/sponsor-category-core";
 import { getProhibitedCategories } from "@/lib/services/sponsor-policy";
@@ -26,10 +27,15 @@ type PublicVenuePageProps = {
 
 type FieldSummary = {
   currentOrNextSession: Session | null;
+  isCurrent: boolean;
   field: Field;
 };
 
 export const dynamic = "force-dynamic";
+
+function currentProjectionTime() {
+  return Date.now();
+}
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -66,46 +72,10 @@ function formatRelativeUpdate(value: string) {
   return `Updated ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
-function isToday(value: string, now: Date) {
-  const date = new Date(value);
-  return date.getFullYear() === now.getFullYear()
-    && date.getMonth() === now.getMonth()
-    && date.getDate() === now.getDate();
-}
-
-function isActiveSession(session: Session, now: Date) {
-  if (session.status === "active" || session.gameStatus === "active") {
-    return true;
-  }
-
-  if (!session.endTime) {
-    return false;
-  }
-
-  const startsAt = new Date(session.startTime).getTime();
-  const endsAt = new Date(session.endTime).getTime();
-  return startsAt <= now.getTime() && now.getTime() <= endsAt;
-}
-
-function isUpcomingSession(session: Session, now: Date) {
-  return session.status === "scheduled" && new Date(session.startTime).getTime() > now.getTime();
-}
-
-function getCurrentOrNextSession(sessions: Session[], now: Date) {
-  return sessions.find((session) => isActiveSession(session, now))
-    ?? sessions.find((session) => isUpcomingSession(session, now))
-    ?? null;
-}
-
-function groupTodaySchedule(fields: Field[], sessions: Session[], now: Date) {
-  const todaySessions = sessions
-    .filter((session) => isToday(session.startTime, now))
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
+function groupTodaySchedule(fields: Field[], sessions: Session[], now: number, timeZone?: string) {
   return fields.map((field) => ({
     field,
-    timeGroups: todaySessions
-      .filter((session) => session.fieldId === field.id)
+    timeGroups: projectFieldSessions({ sessions: sessions.filter((session) => session.fieldId === field.id), now, timeZone }).today
       .reduce<Array<{ sessions: Session[]; time: string }>>((groups, session) => {
         const time = formatTime(session.startTime);
         const existing = groups.find((group) => group.time === time);
@@ -212,7 +182,7 @@ function FieldCard({ summary }: { summary: FieldSummary }) {
       {session ? (
         <div className="mt-5 rounded-lg border border-[var(--line)] bg-[var(--background)] p-4">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">
-            {isActiveSession(session, new Date()) ? "Current session" : "Next session"}
+            {summary.isCurrent ? "Current session" : "Next session"}
           </p>
           <h4 className="mt-2 text-base font-black">{session.title}</h4>
           <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
@@ -279,7 +249,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
     errorMessage = publicErrorMessage(error, "Unable to load venue page.");
   }
 
-  const now = new Date();
+  const now = currentProjectionTime();
   const primaryColor = venue?.primaryColor ?? organization?.primaryColor ?? "#166534";
   const secondaryColor = venue?.secondaryColor ?? organization?.secondaryColor ?? "#111827";
   const logoUrl = venue?.logoUrl ?? organization?.logoUrl;
@@ -293,14 +263,11 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
     : {
       background: `linear-gradient(135deg, ${secondaryColor}, ${primaryColor})`,
     };
-  const fieldSummaries = fields.map((field) => ({
-    currentOrNextSession: getCurrentOrNextSession(
-      sessions.filter((session) => session.fieldId === field.id),
-      now,
-    ),
-    field,
-  }));
-  const scheduleGroups = groupTodaySchedule(fields, sessions, now);
+  const fieldSummaries = fields.map((field) => {
+    const projection = projectFieldSessions({ sessions: sessions.filter((session) => session.fieldId === field.id), now, timeZone: venue?.timezone });
+    return { currentOrNextSession: projection.current ?? projection.next, isCurrent: Boolean(projection.current), field };
+  });
+  const scheduleGroups = groupTodaySchedule(fields, sessions, now, venue?.timezone);
   const todaySessionCount = scheduleGroups.reduce((total, group) => total + group.timeGroups.reduce((count, timeGroup) => count + timeGroup.sessions.length, 0), 0);
   // Render-time enforcement of the venue's advertising policy on a public page.
   const sponsorCards = filterProhibitedPlacements(

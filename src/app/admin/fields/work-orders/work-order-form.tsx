@@ -5,7 +5,7 @@ import { createWorkOrderAction, type CreateWorkOrderResult } from "./actions";
 
 type FieldOption = { id: string; name: string; venueName: string };
 
-export function WorkOrderForm({ fields }: { fields: FieldOption[] }) {
+export function WorkOrderForm({ fields, initialFieldId }: { fields: FieldOption[]; initialFieldId?: string }) {
   const [result, setResult] = useState<CreateWorkOrderResult | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -27,7 +27,7 @@ export function WorkOrderForm({ fields }: { fields: FieldOption[] }) {
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="grid gap-1 text-sm font-bold">
           Field
-          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" name="fieldId" required>
+          <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" defaultValue={initialFieldId} name="fieldId" required>
             {fields.map((field) => (
               <option key={field.id} value={field.id}>
                 {field.venueName} — {field.name}

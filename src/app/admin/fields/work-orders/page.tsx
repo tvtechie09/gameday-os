@@ -121,7 +121,7 @@ function StatusActions({ order }: { order: WorkOrder }) {
 // Load + derive outside the component. The lifecycle math needs the current
 // time, and reading the clock in a component body is impure (same reason
 // buildCommandCenter timestamps inside the service, not the page).
-async function loadIssueBoard() {
+async function loadIssueBoard(requestedFieldId?: string) {
   const now = Date.now();
   const fieldNameById = new Map<string, string>();
   try {
@@ -132,13 +132,16 @@ async function loadIssueBoard() {
     // Confine field and venue-wide issues to in-scope venues.
     const fieldIds = new Set(scoped.fields.map((field) => field.id));
     const venueIds = new Set(scoped.venues.map((venue) => venue.id));
-    const orders = workOrders.filter((order) => venueIds.has(order.venueId) || (order.fieldId !== null && fieldIds.has(order.fieldId)));
+    const selectedFieldId = requestedFieldId && fieldIds.has(requestedFieldId) ? requestedFieldId : undefined;
+    const scopedOrders = workOrders.filter((order) => venueIds.has(order.venueId) || (order.fieldId !== null && fieldIds.has(order.fieldId)));
+    const orders = selectedFieldId ? scopedOrders.filter((order) => order.fieldId === selectedFieldId) : scopedOrders;
 
     return {
       errorMessage: null as string | null,
       now,
       fieldOptions,
       fieldNameById,
+      selectedFieldId,
       // Ranked by what most needs a decision (overdue, then priority, then
       // unowned) rather than newest-first, so the forgotten item rises.
       openOrders: orderIssues(orders.filter((order) => order.status !== "done" && order.status !== "resolved" && !order.closedAt), now),
@@ -151,6 +154,7 @@ async function loadIssueBoard() {
       now,
       fieldOptions: [] as Array<{ id: string; name: string; venueName: string }>,
       fieldNameById,
+      selectedFieldId: undefined as string | undefined,
       openOrders: [] as WorkOrder[],
       doneOrders: [] as WorkOrder[],
       rollup: rollupIssues([], now),
@@ -158,8 +162,10 @@ async function loadIssueBoard() {
   }
 }
 
-export default async function WorkOrdersPage() {
-  const { errorMessage, now, fieldOptions, fieldNameById, openOrders, doneOrders, rollup } = await loadIssueBoard();
+export default async function WorkOrdersPage({ searchParams }: { searchParams?: Promise<{ fieldId?: string }> }) {
+  const requestedFieldId = (await searchParams)?.fieldId;
+  const { errorMessage, now, fieldOptions, fieldNameById, openOrders, doneOrders, rollup, selectedFieldId } = await loadIssueBoard(requestedFieldId);
+  const selectedFieldName = selectedFieldId ? fieldNameById.get(selectedFieldId) : null;
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -169,6 +175,7 @@ export default async function WorkOrdersPage() {
         Log maintenance issues against a field and track them to done. Urgent items are for
         anything that makes a field unusable.
       </p>
+      {selectedFieldName ? <p className="mt-3 rounded-lg bg-[var(--accent-soft)] p-3 text-sm font-bold text-[var(--accent-strong)]">Showing issues for {selectedFieldName}. <Link className="underline" href="/admin/fields/work-orders">Show all fields</Link></p> : null}
       <p className="mt-2 text-sm">
         <Link className="font-bold text-[var(--accent-strong)] underline" href="/admin/fields">
           Back to Fields
@@ -181,7 +188,7 @@ export default async function WorkOrdersPage() {
         </div>
       ) : (
         <div className="mt-8 grid gap-6">
-          <WorkOrderForm fields={fieldOptions} />
+          <WorkOrderForm fields={fieldOptions} initialFieldId={selectedFieldId} />
 
           <section className="rounded-lg border border-[var(--line)] bg-white p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">

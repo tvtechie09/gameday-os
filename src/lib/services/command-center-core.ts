@@ -7,6 +7,9 @@ import type { AudioProfile, Field, VenueAsset } from "@/lib/types";
 // "@/" alias does not resolve for VALUE imports (type imports are stripped).
 import { DEFAULT_VENUE_TIMEZONE } from "../venue-timezone.ts";
 import { logicalAssetHealth } from "./logical-asset-health-core.ts";
+import { projectFieldSessions } from "./session-projection-core.ts";
+export { isSameVenueDay, timeLabel, venueDateString } from "./session-projection-core.ts";
+import { timeLabel } from "./session-projection-core.ts";
 
 // Pure core of the GameDay Command Center — mode resolution, delay math, field
 // board, attention queue, and summary. Type-only imports keep this dependency-
@@ -118,30 +121,6 @@ const TIER_RANK: Record<AttentionTier, number> = { urgent: 0, soon: 1, info: 2 }
 // per-venue timezones yet behaves exactly as it did before. Every venue-facing
 // caller should pass the venue's own zone: for a venue outside Central, the
 // default rolls the operating day at the wrong hour.
-export function venueDateString(now: number, timeZone: string = DEFAULT_VENUE_TIMEZONE): string {
-  // en-CA renders as YYYY-MM-DD, which is what listGamesForVenue's date filter wants.
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now));
-}
-
-// Does this timestamp fall on `date` AT THE VENUE?
-//
-// Never compare iso.slice(0,10) to this — that's the UTC date, and after ~7pm
-// Central (midnight UTC) an evening game rolls onto the next UTC day and silently
-// disappears from "today" — precisely when a venue is running games under lights.
-// The same trap reopens if a non-Central venue is measured against the default
-// zone, just at a different hour of the evening.
-export function isSameVenueDay(iso: string, date: string, timeZone: string = DEFAULT_VENUE_TIMEZONE): boolean {
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) return false;
-  return venueDateString(parsed.getTime(), timeZone) === date;
-}
-
-export function timeLabel(iso: string, timeZone: string = DEFAULT_VENUE_TIMEZONE): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone }).format(date);
-}
-
 export function gameLabel(game: Pick<GameRecord, "title" | "homeTeam" | "awayTeam">): string {
   return game.title || game.homeTeam + " vs " + game.awayTeam;
 }
@@ -196,12 +175,10 @@ const unresolved = (order: WorkOrder) => order.status !== "resolved" && order.st
 // Which game owns a field right now, and which is queued behind it. Shared by
 // the field board and the schedule pulse so both can never disagree about what
 // "current" means.
-function fieldSlot(field: Field, games: GameRecord[], now: number): { games: GameRecord[]; current: GameRecord | undefined; next: GameRecord | undefined } {
-  const fieldGames = games.filter((g) => g.fieldId === field.id).sort((a, b) => a.startTime.localeCompare(b.startTime));
-  const current = fieldGames.find(isLive)
-    ?? fieldGames.find((g) => g.status === "scheduled" && now >= new Date(g.startTime).getTime());
-  const next = fieldGames.find((g) => g.status === "scheduled" && (!current || g.id !== current.id) && new Date(g.startTime).getTime() > now);
-  return { games: fieldGames, current, next };
+function fieldSlot(field: Field, games: GameRecord[], now: number, timeZone: string): { games: GameRecord[]; current: GameRecord | undefined; next: GameRecord | undefined } {
+  const fieldGames = games.filter((g) => g.fieldId === field.id);
+  const projection = projectFieldSessions({ sessions: fieldGames, now, timeZone });
+  return { games: projection.today, current: projection.current ?? undefined, next: projection.next ?? undefined };
 }
 
 export function buildFieldBoard(
@@ -215,7 +192,7 @@ export function buildFieldBoard(
   weather: WeatherSnapshot = null,
 ): FieldBoardEntry[] {
   return fields.map((field) => {
-    const { current, next } = fieldSlot(field, games, now);
+    const { current, next } = fieldSlot(field, games, now, timeZone);
 
     const behind = current ? minutesBehind(current, now) : 0;
     let recommendedAction: string | null = null;
@@ -547,7 +524,7 @@ export function buildSchedulePulse(input: SchedulePulseInput): SchedulePulse {
   // Worst-hit fields: the largest current delay on each field, biggest first.
   const worstFields = fields
     .map((field) => {
-      const { current } = fieldSlot(field, games, now);
+      const { current } = fieldSlot(field, games, now, timeZone);
       return { fieldName: field.name, minutesBehind: current ? minutesBehind(current, now) : 0 };
     })
     .filter((entry) => entry.minutesBehind > 0)
@@ -560,7 +537,7 @@ export function buildSchedulePulse(input: SchedulePulseInput): SchedulePulse {
   const closeAt = input.venueCloseIso ? new Date(input.venueCloseIso).getTime() : NaN;
 
   for (const field of fields) {
-    const { games: fieldGames, current, next } = fieldSlot(field, games, now);
+    const { games: fieldGames, current, next } = fieldSlot(field, games, now, timeZone);
     const behind = current ? minutesBehind(current, now) : 0;
 
     if (current && next && behind >= DOWNSTREAM_IMPACT_THRESHOLD_MIN) {

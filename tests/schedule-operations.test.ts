@@ -72,4 +72,8 @@ test("rapid schedule server action keeps capability and object-scope guards", ()
   assert.match(actions, /assertFieldInScope\(targetFieldId\)/);
   assert.match(service, /requirePermission\(actorUserId, "venue\.field\.manage"/);
   assert.match(service, /Schedule operations cannot cross venue boundaries/);
+  assert.match(service, /original_field_id/);
+  assert.match(service, /new_field_id/);
+  assert.match(service, /original_start_time/);
+  assert.match(service, /new_start_time/);
 });

@@ -15,6 +15,7 @@ import {
   canManageUsers,
   canManageVenueSettings,
   canSendAnnouncement,
+  canOpenCloseField,
   canViewCommandCenter,
   canViewDevTools,
   canViewBilling,
@@ -184,6 +185,7 @@ export const adminRouteGuards: Array<{ prefix: string; exact?: boolean; cap: (ct
   // operational attention workflow and remain venue-scoped in their loader.
   { prefix: "/admin/fields", exact: true, cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/fields/work-orders", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/fields/:fieldId/disruption", cap: (ctx) => canOpenCloseField(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/fields", cap: (ctx) => canManageFields(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/scoreboards", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/audio", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
@@ -198,7 +200,13 @@ export const adminRouteGuards: Array<{ prefix: string; exact?: boolean; cap: (ct
 
 export function guardForAdminPath(pathname: string): (ctx: AccessContext | null) => boolean {
   const match = adminRouteGuards
-    .filter((guard) => guard.exact ? pathname === guard.prefix : pathname === guard.prefix || pathname.startsWith(`${guard.prefix}/`))
+    .filter((guard) => {
+      if (guard.exact) return pathname === guard.prefix;
+      const guardSegments = guard.prefix.split("/").filter(Boolean);
+      const pathSegments = pathname.split("/").filter(Boolean);
+      if (guardSegments.length > pathSegments.length) return false;
+      return guardSegments.every((segment, index) => segment.startsWith(":") || segment === pathSegments[index]);
+    })
     .sort((a, b) => b.prefix.length - a.prefix.length || Number(Boolean(b.exact)) - Number(Boolean(a.exact)))[0];
   return match ? match.cap : canAccessAdminWorkspace;
 }

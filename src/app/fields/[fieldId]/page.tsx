@@ -12,6 +12,7 @@ import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
+import { projectFieldSessions } from "@/lib/services/session-projection-core";
 import type { Alert, Field, Organization, ResourceActivation, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
 import { FieldPageViewTracker } from "./field-page-view-tracker";
@@ -26,7 +27,11 @@ type FieldPageProps = {
   }>;
 };
 
-type SessionBadgeLabel = "LIVE NOW" | "NEXT GAME" | "FINAL";
+type SessionBadgeLabel = "LIVE NOW" | "NEXT GAME";
+
+function currentProjectionTime() {
+  return Date.now();
+}
 
 function formatSessionTime(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -60,79 +65,6 @@ function formatRelativeUpdate(value: string) {
 
   const diffDays = Math.floor(diffHours / 24);
   return `Updated ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-}
-
-function getActiveOrNextSession(sessions: Session[]) {
-  return (
-    getActiveSession(sessions)
-    ?? getNextUpcomingSession(sessions)
-    ?? sessions.find((session) => session.status === "final")
-    ?? sessions.find((session) => session.status === "scheduled")
-    ?? null
-  );
-}
-
-function isSessionActive(session: Session) {
-  const now = Date.now();
-  if (session.status === "active") {
-    return true;
-  }
-
-  if (!session.endTime) {
-    return false;
-  }
-
-  const startsAt = new Date(session.startTime).getTime();
-  const endsAt = new Date(session.endTime).getTime();
-  return startsAt <= now && now <= endsAt;
-}
-
-function getActiveSession(sessions: Session[]) {
-  return sessions.find(isSessionActive) ?? null;
-}
-
-function isSessionUpcoming(session: Session) {
-  return session.status === "scheduled" && new Date(session.startTime).getTime() > Date.now();
-}
-
-function getSessionBadge(session: Session): SessionBadgeLabel | null {
-  if (isSessionActive(session)) {
-    return "LIVE NOW";
-  }
-
-  if (isSessionUpcoming(session)) {
-    return "NEXT GAME";
-  }
-
-  if (session.status === "final") {
-    return "FINAL";
-  }
-
-  return null;
-}
-
-function getNextUpcomingSession(sessions: Session[]) {
-  return sessions
-    .filter(isSessionUpcoming)
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0] ?? null;
-}
-
-function getUpcomingSessions(sessions: Session[]) {
-  return sessions.filter((session) => session.status === "scheduled").slice(0, 5);
-}
-
-function getTodaysSchedule(sessions: Session[]) {
-  const today = new Date();
-  return sessions
-    .filter((session) => {
-      const sessionDate = new Date(session.startTime);
-      return (
-        sessionDate.getFullYear() === today.getFullYear()
-        && sessionDate.getMonth() === today.getMonth()
-        && sessionDate.getDate() === today.getDate()
-      );
-    })
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 }
 
 function getPublicRecentUpdates(alerts: Alert[]) {
@@ -336,9 +268,7 @@ function SessionBadge({ label }: { label: SessionBadgeLabel }) {
       className={
         label === "LIVE NOW"
           ? "inline-flex min-h-8 w-fit items-center rounded-md bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
-          : label === "NEXT GAME"
-            ? "inline-flex min-h-8 w-fit items-center rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
-            : "inline-flex min-h-8 w-fit items-center rounded-md bg-[var(--black-soft)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
+          : "inline-flex min-h-8 w-fit items-center rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
       }
     >
       {label}
@@ -373,6 +303,7 @@ function CompactSessionRow({ session, badge }: { session: Session; badge?: Sessi
 
 export default async function PublicFieldPage({ params }: FieldPageProps) {
   const { fieldId } = await params;
+  const projectionNow = currentProjectionTime();
   let field: Field | null = null;
   let venue: Venue | null = null;
   let organization: Organization | null = null;
@@ -400,7 +331,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
       tournaments = tournamentResults;
       activeAlerts = alertResults;
       allAlerts = allAlertResults;
-      const activeOrNextSession = getActiveOrNextSession(sessionResults);
+      const earlyProjection = projectFieldSessions({ sessions: sessionResults, now: projectionNow, timeZone: venueResult?.timezone });
+      const activeOrNextSession = earlyProjection.current ?? earlyProjection.next;
       [sponsorPlacements, communityLinks] = await Promise.all([
         getSponsorPlacementsForFieldPage({
           venueId: field.venueId,
@@ -414,13 +346,14 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
     errorMessage = publicErrorMessage(error, "Unable to load field page.");
   }
 
-  const activeSession = getActiveSession(sessions);
-  const nextUpcomingSession = getNextUpcomingSession(sessions);
-  const currentSession = activeSession ?? nextUpcomingSession ?? getActiveOrNextSession(sessions);
-  const currentSessionBadge = currentSession ? getSessionBadge(currentSession) : null;
+  const projection = projectFieldSessions({ sessions, now: projectionNow, timeZone: venue?.timezone });
+  const activeSession = projection.current;
+  const nextUpcomingSession = projection.next;
+  const currentSession = activeSession ?? nextUpcomingSession;
+  const currentSessionBadge: SessionBadgeLabel | null = activeSession ? "LIVE NOW" : nextUpcomingSession ? "NEXT GAME" : null;
   const shouldShowNextUpcoming = Boolean(nextUpcomingSession && nextUpcomingSession.id !== currentSession?.id);
-  const upcomingSessions = getUpcomingSessions(sessions);
-  const todaysSchedule = getTodaysSchedule(sessions);
+  const upcomingSessions = projection.upcoming.slice(0, 5);
+  const todaysSchedule = projection.today;
   const todayScheduleGroups = groupSessionsByTime(todaysSchedule);
   const gameLinks = currentSession ? getGameLinks(currentSession) : [];
   const tournamentsById = new Map(tournaments.map((tournament) => [tournament.id, tournament]));
@@ -444,7 +377,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
     }))
     : [];
   const trackedSponsorIds = [...new Set(sponsorPlacements.map((placement) => placement.sponsorId))];
-  const topSessionLabel = currentSessionBadge === "FINAL" ? "Final score" : "Current / Next Game";
+  const topSessionLabel = "Current / Next Game";
   const primaryColor = venue?.primaryColor ?? organization?.primaryColor ?? "#166534";
   const secondaryColor = venue?.secondaryColor ?? organization?.secondaryColor ?? "#111827";
   const logoUrl = venue?.logoUrl ?? organization?.logoUrl;
@@ -688,7 +621,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               <section className="rounded-lg border border-[var(--line)] bg-white p-5">
                 <h2 className="text-lg font-black">Next Game</h2>
                 <div className="mt-4">
-                  <CompactSessionRow badge={getSessionBadge(nextUpcomingSession)} session={nextUpcomingSession} />
+                  <CompactSessionRow badge="NEXT GAME" session={nextUpcomingSession} />
                 </div>
               </section>
             ) : null}
@@ -701,7 +634,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     <div key={group.time} className="rounded-lg bg-[var(--background)] p-3">
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{group.time}</p>
                       <div className="mt-3 grid gap-3">
-                        {group.sessions.map((session) => <CompactSessionRow badge={getSessionBadge(session)} key={session.id} session={session} />)}
+                        {group.sessions.map((session) => <CompactSessionRow badge={session.id === activeSession?.id ? "LIVE NOW" : session.id === nextUpcomingSession?.id ? "NEXT GAME" : null} key={session.id} session={session} />)}
                       </div>
                     </div>
                   ))

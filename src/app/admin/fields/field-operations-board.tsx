@@ -130,7 +130,9 @@ function FieldCard({
       </div>
 
       <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
-        {canUpdateStatus ? (
+        {item.needsAttention ? (
+          <Link className={buttonStyles("primary", "min-h-12 px-3")} href={`/admin/fields/${item.fieldId}/disruption`}>Review impact</Link>
+        ) : canUpdateStatus ? (
           <button className={buttonStyles("primary", "min-h-12 px-3")} disabled={pending} onClick={() => onStatus(item, primary.target)} type="button">
             {pending ? "Updating…" : primary.label}
           </button>
@@ -176,13 +178,13 @@ function FieldDetailSheet({
             <h3 className="font-black">Game context</h3>
             <div className="mt-3 grid gap-3"><GameLine game={item.currentGame} kind="Current" /><GameLine game={item.nextGame} kind="Next" /></div>
             {item.upcomingGameCount > 0 ? <p className="mt-3 text-sm font-semibold text-[var(--muted)]">{item.upcomingGameCount} upcoming game{item.upcomingGameCount === 1 ? "" : "s"} remain on this field today.</p> : null}
-            {canManageSchedule ? <Link className={buttonStyles("secondary", "mt-4 w-full")} href={`/admin/sessions?q=${encodeURIComponent(item.fieldName)}`}>Review games</Link> : null}
+            {item.needsAttention ? <Link className={buttonStyles("primary", "mt-4 w-full")} href={`/admin/fields/${item.fieldId}/disruption`}>Review impact</Link> : canManageSchedule ? <Link className={buttonStyles("secondary", "mt-4 w-full")} href={`/admin/sessions?q=${encodeURIComponent(item.fieldName)}`}>Review games</Link> : null}
           </div>
 
           <div className="rounded-xl border border-[var(--line)] p-4">
             <h3 className="font-black">Operational issue</h3>
             {item.activeIssue ? <p className="mt-2 text-sm font-semibold text-red-800">{item.activeIssue.title}{item.unresolvedIssueCount > 1 ? ` and ${item.unresolvedIssueCount - 1} more` : ""}</p> : <p className="mt-2 text-sm font-semibold text-[var(--muted)]">No unresolved issue is attached to this field.</p>}
-            <Link className={buttonStyles("secondary", "mt-4 w-full")} href="/admin/fields/work-orders">{item.activeIssue ? "Open field issues" : "Report an issue"}</Link>
+            <Link className={buttonStyles("secondary", "mt-4 w-full")} href={`/admin/fields/work-orders?fieldId=${encodeURIComponent(item.fieldId)}`}>{item.activeIssue ? "Open field issues" : "Report an issue"}</Link>
           </div>
         </div>
 

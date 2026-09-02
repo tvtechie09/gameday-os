@@ -1,6 +1,7 @@
 import type { Field, FieldStatus, Session, Venue } from "../types.ts";
 import type { WorkOrder } from "./work-orders.ts";
-import { gameLabel, isSameVenueDay, minutesBehind, timeLabel, venueDateString } from "./command-center-core.ts";
+import { gameLabel, minutesBehind } from "./command-center-core.ts";
+import { projectFieldSessions, timeLabel } from "./session-projection-core.ts";
 
 export type FieldOperationsFilter = "all" | "active" | "attention" | "closed";
 
@@ -51,13 +52,6 @@ const unresolved = (order: WorkOrder) => order.status !== "resolved" && order.st
 const abnormalStatuses = new Set<FieldStatus>(["delayed", "closed", "maintenance"]);
 const attentionGameStatuses = new Set(["delayed", "suspended", "postponed"]);
 
-function isCurrentGame(session: Session, now: number): boolean {
-  if (session.status === "active" || session.lifecycleStatus === "live" || session.lifecycleStatus === "suspended") return true;
-  if (session.status !== "scheduled") return false;
-  if (["cancelled", "final", "archived", "postponed"].includes(session.lifecycleStatus)) return false;
-  return new Date(session.startTime).getTime() <= now;
-}
-
 function operationGame(session: Session, now: number, venueTimeZone: string): FieldOperationGame {
   return {
     id: session.id,
@@ -80,12 +74,11 @@ export function buildFieldOperationItems(input: {
   now: number;
 }): FieldOperationItem[] {
   const fieldIds = new Set(input.fields.map((field) => field.id));
-  const operatingDate = venueDateString(input.now, input.venue.timezone);
   const sessionsByField = new Map<string, Session[]>();
   const issuesByField = new Map<string, WorkOrder[]>();
 
   for (const session of input.sessions) {
-    if (!fieldIds.has(session.fieldId) || !isSameVenueDay(session.startTime, operatingDate, input.venue.timezone)) continue;
+    if (!fieldIds.has(session.fieldId)) continue;
     const fieldSessions = sessionsByField.get(session.fieldId) ?? [];
     fieldSessions.push(session);
     sessionsByField.set(session.fieldId, fieldSessions);
@@ -98,10 +91,10 @@ export function buildFieldOperationItems(input: {
   }
 
   return input.fields.map((field) => {
-    const fieldSessions = (sessionsByField.get(field.id) ?? []).toSorted((a, b) => a.startTime.localeCompare(b.startTime));
-    const current = fieldSessions.find((session) => isCurrentGame(session, input.now)) ?? null;
-    const next = fieldSessions.find((session) => session.status === "scheduled" && new Date(session.startTime).getTime() > input.now) ?? null;
-    const upcoming = fieldSessions.filter((session) => session.status === "scheduled" && new Date(session.startTime).getTime() > input.now).length;
+    const projection = projectFieldSessions({ sessions: sessionsByField.get(field.id) ?? [], now: input.now, timeZone: input.venue.timezone });
+    const current = projection.current;
+    const next = projection.next;
+    const upcoming = projection.remainingToday.length;
     const issues = (issuesByField.get(field.id) ?? []).toSorted((a, b) =>
       (priorityRank[a.priority] ?? priorityRank.normal) - (priorityRank[b.priority] ?? priorityRank.normal)
       || a.createdAt.localeCompare(b.createdAt),

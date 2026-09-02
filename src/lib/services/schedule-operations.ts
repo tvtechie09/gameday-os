@@ -91,6 +91,30 @@ export async function executeRapidScheduleOperation(operation: RapidScheduleOper
       }),
     ]);
   }));
-  await safelyLogAudit({ action: `session.schedule.${operation.type}`, actorUserId, metadata: { count: data ?? changes.length, operation_id: operationId }, resourceId: venueId, resourceType: "venue", scopeId: venueId, scopeType: "venue" });
+  await safelyLogAudit({
+    action: `session.schedule.${operation.type}`,
+    actorUserId,
+    metadata: {
+      count: data ?? changes.length,
+      operation_id: operationId,
+      changes: changes.map((change) => {
+        const previous = sessionById(sessions, change.sessionId);
+        return {
+          session_id: change.sessionId,
+          game: previous.title || `${previous.homeTeam} vs ${previous.awayTeam}`,
+          original_field_id: previous.fieldId,
+          original_field: fieldById.get(previous.fieldId)?.name ?? previous.fieldId,
+          new_field_id: change.fieldId,
+          new_field: fieldById.get(change.fieldId)?.name ?? change.fieldId,
+          original_start_time: previous.startTime,
+          new_start_time: change.startTime,
+        };
+      }),
+    },
+    resourceId: venueId,
+    resourceType: "venue",
+    scopeId: venueId,
+    scopeType: "venue",
+  });
   return { count: data ?? changes.length, venueId };
 }
