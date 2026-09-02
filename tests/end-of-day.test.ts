@@ -43,6 +43,7 @@ function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
     status: "open",
     reportedBy: null,
     createdAt: minsAgo(120),
+    updatedAt: minsAgo(120),
     closedAt: null,
     assignedRole: null,
     assignedToUserId: null,

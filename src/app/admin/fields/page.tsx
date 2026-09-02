@@ -35,11 +35,13 @@ async function loadFieldOperations(): Promise<{ items: FieldOperationItem[]; err
   }
 }
 
-export default async function FieldsPage() {
+export default async function FieldsPage({ searchParams }: { searchParams?: Promise<{ fieldId?: string }> }) {
   const ctx = await getSessionContext();
   if (!ctx || !canViewCommandCenter(ctx) || isOrgScoped(ctx)) redirect(getRoleHome(ctx));
 
   const { items, errorMessage } = await loadFieldOperations();
+  const requestedFieldId = (await searchParams)?.fieldId;
+  const initialSelectedId = items.some((item) => item.fieldId === requestedFieldId) ? requestedFieldId : undefined;
   const canConfigure = canManageFields(ctx);
   const scheduleAccess = canManageSchedule(ctx);
 
@@ -70,6 +72,7 @@ export default async function FieldsPage() {
           canConfigure={canConfigure}
           canManageSchedule={scheduleAccess}
           canUpdateStatus={canOpenCloseField(ctx)}
+          initialSelectedId={initialSelectedId}
           items={items}
         />
       ) : (

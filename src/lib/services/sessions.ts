@@ -259,6 +259,23 @@ export async function getSession(id: string): Promise<Session | null> {
   return data ? mapSession(data) : null;
 }
 
+export async function getSessionsByIds(ids: string[]): Promise<Session[]> {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (uniqueIds.length === 0) return [];
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("sessions")
+    .select(sessionSelect)
+    .in("id", uniqueIds)
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map(mapSession);
+}
+
 export async function getSessionsByFieldId(fieldId: string): Promise<Session[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase

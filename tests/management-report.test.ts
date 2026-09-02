@@ -38,6 +38,7 @@ function issue(id: string, overrides: Partial<WorkOrder> = {}): WorkOrder {
     status: "open",
     reportedBy: null,
     createdAt: RANGE_START,
+    updatedAt: RANGE_START,
     closedAt: null,
     assignedRole: null,
     assignedToUserId: null,

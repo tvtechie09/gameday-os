@@ -21,6 +21,7 @@ type FieldOperationsBoardProps = {
   canConfigure: boolean;
   canManageSchedule: boolean;
   canUpdateStatus: boolean;
+  initialSelectedId?: string;
 };
 
 const filters: Array<{ key: FieldOperationsFilter; label: string }> = [
@@ -212,12 +213,12 @@ function FieldDetailSheet({
   );
 }
 
-export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, canUpdateStatus }: FieldOperationsBoardProps) {
+export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, canUpdateStatus, initialSelectedId }: FieldOperationsBoardProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<FieldOperationsFilter>("all");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
   const [confirmation, setConfirmation] = useState<{ item: FieldOperationItem; status: FieldStatus } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pendingFieldId, setPendingFieldId] = useState<string | null>(null);
