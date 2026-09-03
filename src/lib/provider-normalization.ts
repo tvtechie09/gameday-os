@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getIntegrationProvider, type IntegrationMode, type IntegrationProviderKey } from "./integration-framework.ts";
 import { createIdentityState, resolvePersonAssertion, type IdentityState, type NormalizedPersonAssertion } from "./platform-identity.ts";
+import type { NormalizedProviderPersonInput, PersistentIdentityResolution } from "./platform-identity-runtime.ts";
 
 export type DataConfidence = "HIGH" | "MEDIUM" | "LOW";
 export type IntegrationHealth = "HEALTHY" | "DEGRADED" | "STALE" | "ERROR" | "DISCONNECTED" | "DISABLED";
@@ -44,6 +45,28 @@ export type ProviderPayload = {
   people?: NormalizedPersonAssertion[];
   venues?: NormalizedVenue[];
 };
+
+export type PersistentPersonRuntime = {
+  resolvePerson(input: NormalizedProviderPersonInput): Promise<PersistentIdentityResolution>;
+};
+
+/**
+ * Persistent provider-person boundary. Provider adapters normalize payloads;
+ * only Platform Identity decides whether a person links, needs review, or is new.
+ */
+export async function persistProviderPeople(
+  payload: Pick<ProviderPayload, "provider" | "integrationId" | "organizationId"> & { people?: NormalizedProviderPersonInput[] },
+  runtime: PersistentPersonRuntime,
+) {
+  const results: PersistentIdentityResolution[] = [];
+  for (const person of payload.people ?? []) {
+    if (person.provider !== payload.provider || person.providerConnectionKey !== payload.integrationId || person.organizationId !== payload.organizationId) {
+      throw new Error("Provider person scope does not match the integration payload.");
+    }
+    results.push(await runtime.resolvePerson(person));
+  }
+  return results;
+}
 
 export type ExternalEntityLink = {
   provider: string; integrationId: string; entityType: CanonicalEntityType; canonicalEntityId: string; externalId: string;
