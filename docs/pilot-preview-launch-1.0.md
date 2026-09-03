@@ -59,7 +59,7 @@ The screen explains that product feedback is not an operational issue. Venue pro
 
 ## Pilot build identity
 
-Vercel Preview deployments show a subtle `PILOT` marker and a `Staging Pilot · Build <short SHA> · Non-production` reference under More. The marker is enabled only when `VERCEL_ENV=preview` or the explicit server-only `PILOT_PREVIEW=true` flag is present. Production does not show it.
+Vercel Preview deployments show a subtle `PILOT` marker and a `Staging Pilot · Build <short SHA> · Non-production` reference under More. The same panel shows the non-sensitive Supabase project reference parsed at runtime from the configured public project URL. The marker is enabled only when `VERCEL_ENV=preview` or the explicit server-only `PILOT_PREVIEW=true` flag is present. Production does not show it.
 
 ## Success thresholds
 

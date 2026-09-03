@@ -101,3 +101,12 @@ test("pilot telemetry is best-effort and weather fallback is not error-level", (
   assert.doesNotMatch(weather, /console\.error\("Weather API missing venue coordinates"/);
   assert.match(weather, /optional venue coordinates are not configured/);
 });
+
+test("pilot build info exposes only a safe runtime Supabase project reference", () => {
+  const build = readFileSync("src/lib/pilot-build.ts", "utf8");
+  const shell = readFileSync("src/components/access/app-shell.tsx", "utf8");
+  assert.match(build, /NEXT_PUBLIC_SUPABASE_URL/);
+  assert.match(build, /\^\[a-z0-9\]\{20\}\\\.supabase\\\.co\$/);
+  assert.doesNotMatch(build, /SUPABASE_SERVICE_ROLE_KEY|ANON_KEY/);
+  assert.match(shell, /pilotInfo\.stagingProjectRef/);
+});

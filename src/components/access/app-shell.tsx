@@ -170,6 +170,7 @@ export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, ch
             <section className="rounded-[var(--radius-md)] border border-amber-300 bg-amber-50 p-3 text-amber-950" aria-label="Pilot build information">
               <p className="text-xs font-black uppercase tracking-[0.12em]">Staging Pilot</p>
               <p className="mt-1 text-xs font-semibold">Build {pilotInfo.commit} · Non-production</p>
+              {pilotInfo.stagingProjectRef ? <p className="mt-1 text-[11px] font-semibold">Staging {pilotInfo.stagingProjectRef}</p> : null}
             </section>
           ) : null}
         </div>
