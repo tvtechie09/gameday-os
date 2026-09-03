@@ -6,6 +6,9 @@ import { getStormResponseModeLabel } from "@/lib/services/weather-profiles";
 import { getSessionContext } from "@/lib/access/session";
 import { managesAllVenues, venueInScope } from "@/lib/access/capabilities";
 import { getVenue } from "@/lib/services/venues";
+import { getFields, updateFieldStatus } from "@/lib/services/fields";
+import { createAlert } from "@/lib/services/alerts";
+import { getVenueWeatherOperation, setVenueWeatherOperation, type VenueWeatherOperationStatus } from "@/lib/services/weather-operations";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,18 @@ export default async function StormWatchPage() {
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Storm watch is unavailable.");
   }
+  const operationState = assessment ? await getVenueWeatherOperation(assessment.venueId).catch(() => null) : null;
+
+  async function authorizeVenue(venueId: string) {
+    "use server";
+    const ctx = await getSessionContext();
+    if (!ctx?.userId) return null;
+    if (!managesAllVenues(ctx)) {
+      const venue = await getVenue(venueId);
+      if (!venue || !venueInScope(ctx, venue)) return null;
+    }
+    return ctx;
+  }
 
   async function respond(formData: FormData) {
     "use server";
@@ -30,19 +45,55 @@ export default async function StormWatchPage() {
     const severity = String(formData.get("severity") || "caution");
     if (!venueId) return;
     // Capability reaches the storm page; scope decides which venue can be held.
-    const ctx = await getSessionContext();
-    if (!managesAllVenues(ctx)) {
-      const venue = await getVenue(venueId);
-      if (!venue || !venueInScope(ctx, venue)) return;
-    }
+    const ctx = await authorizeVenue(venueId);
+    if (!ctx) return;
     const current = await assessStormRisk(venueId);
     if (!current) return;
     // A human clicked this, so the field holds attribute to them -- not to the
     // automation account. The scope check above already proved they may act here.
-    if (!ctx?.userId) return;
     await executeStormResponse(current, { severe: severity === "severe", source: "manual", actorUserId: ctx.userId });
     revalidatePath("/admin/alerts/storm");
     revalidatePath("/admin/alerts");
+  }
+
+  async function updateWeatherOperation(formData: FormData) {
+    "use server";
+    const venueId = String(formData.get("venueId") || "");
+    const action = String(formData.get("weatherAction") || "monitoring") as VenueWeatherOperationStatus;
+    if (!venueId) return;
+    const ctx = await authorizeVenue(venueId);
+    if (!ctx) return;
+    const fields = (await getFields()).filter((field) => field.venueId === venueId);
+    const fieldIds = fields.map((field) => field.id);
+    const restartNotBefore = action === "restart_countdown" ? new Date(Date.now() + 30 * 60_000).toISOString() : null;
+    const messages: Record<VenueWeatherOperationStatus, string> = {
+      normal: "Normal weather operations.",
+      monitoring: "Weather is being monitored. Be ready for a possible delay.",
+      hold: "Play is paused. Leave playing areas and wait for venue staff instructions.",
+      evacuating: "Evacuate all playing areas now and follow venue staff to designated shelter.",
+      restart_countdown: "Conditions are improving. Play may resume after the safety countdown and staff inspection.",
+      all_clear: "All clear. Fields may reopen when venue staff directs.",
+    };
+    if (action === "hold" || action === "evacuating") await Promise.all(fields.map((field) => updateFieldStatus(field.id, "delayed", ctx.userId)));
+    if (action === "all_clear" || action === "normal") await Promise.all(fields.map((field) => updateFieldStatus(field.id, "open", ctx.userId)));
+    await setVenueWeatherOperation({ venueId, status: action, message: messages[action], affectedFieldIds: action === "all_clear" || action === "normal" ? [] : fieldIds, restartNotBefore, acknowledge: true }, ctx.userId);
+    await createAlert({
+      venue_id: venueId,
+      alert_type: "weather",
+      alert_scope: "venue",
+      alert_priority: action === "evacuating" ? "urgent" : action === "hold" ? "high" : "normal",
+      alert_visibility: "public",
+      title: action === "evacuating" ? "Evacuate Fields" : action === "restart_countdown" ? "Weather Restart Countdown" : action === "all_clear" ? "All Clear" : "Weather Operations Update",
+      message: messages[action],
+      start_time: new Date().toISOString(),
+      end_time: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
+      is_active: action !== "normal",
+    });
+    revalidatePath("/admin/alerts/storm");
+    revalidatePath("/today");
+    revalidatePath("/admin/fields");
+    revalidatePath("/venues/[venueId]", "page");
+    revalidatePath("/fields/[fieldId]", "page");
   }
 
   const risk = RISK_STYLES[assessment?.risk ?? "clear"];
@@ -104,6 +155,25 @@ export default async function StormWatchPage() {
                 {new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(game.startTime))} · {game.fieldName} — {game.label}
               </p>
             ))}
+          </section>
+
+          <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black">Weather operations state</h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">One shared state feeds staff, public venue pages, and every field QR page.</p>
+              </div>
+              <span className="rounded-md bg-[var(--background)] px-3 py-2 text-xs font-black uppercase">{operationState?.status.replaceAll("_", " ") ?? "normal"}</span>
+            </div>
+            {operationState?.message ? <p className="mt-3 rounded-lg bg-[var(--background)] p-3 text-sm font-bold">{operationState.message}</p> : null}
+            <form action={updateWeatherOperation} className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <input name="venueId" type="hidden" value={assessment.venueId} />
+              <button className="min-h-12 rounded-lg bg-red-700 px-3 text-xs font-black text-white" name="weatherAction" type="submit" value="evacuating">Evacuate</button>
+              <button className="min-h-12 rounded-lg bg-amber-500 px-3 text-xs font-black text-white" name="weatherAction" type="submit" value="hold">Hold play</button>
+              <button className="min-h-12 rounded-lg border border-[var(--line)] px-3 text-xs font-black" name="weatherAction" type="submit" value="restart_countdown">Start 30m countdown</button>
+              <button className="min-h-12 rounded-lg bg-emerald-600 px-3 text-xs font-black text-white" name="weatherAction" type="submit" value="all_clear">All clear</button>
+            </form>
+            <p className="mt-3 text-xs font-semibold text-[var(--muted)]">{operationState?.acknowledgedAt ? `Acknowledged ${new Intl.DateTimeFormat("en", { timeStyle: "short" }).format(new Date(operationState.acknowledgedAt))}` : "Not yet acknowledged"}</p>
           </section>
 
           <section className="rounded-lg border border-[var(--line)] bg-white p-5">

@@ -1,4 +1,4 @@
-import { getLiveWeatherForVenue, LiveWeatherError, type LiveWeatherStatus } from "@/lib/services/weather-live";
+import { getLiveWeatherForVenue, publicWeatherErrorMessage, type LiveWeatherStatus } from "@/lib/services/weather-live";
 import { getFields, updateFieldStatus } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getVenues } from "@/lib/services/venues";
@@ -8,6 +8,7 @@ import { getWeatherProfilesByVenueId, markStormAutoTriggered } from "@/lib/servi
 import { normalizePhone, sendSms } from "@/lib/services/sms";
 import { assessConditions, buildStormAlertDraft, DEFAULT_ASSESS_OPTIONS, type AssessOptions, type StormRiskLevel } from "@/lib/services/storm-assessment";
 import type { WeatherProfile } from "@/lib/types";
+import { setVenueWeatherOperation } from "@/lib/services/weather-operations";
 
 // Storm watch: turns live weather into an actionable game-day decision.
 // Detection is automatic; thresholds and whether the response is a human tap
@@ -46,7 +47,7 @@ export async function assessStormRisk(venueId?: string): Promise<StormAssessment
   try {
     weather = await getLiveWeatherForVenue(venue.id);
   } catch (error) {
-    weatherError = error instanceof LiveWeatherError ? error.message : "Live weather is unavailable.";
+    weatherError = publicWeatherErrorMessage(error);
   }
   const { risk, reasons } = weather ? assessConditions(weather, options) : { risk: "clear" as StormRiskLevel, reasons: [] };
 
@@ -169,6 +170,13 @@ export async function executeStormResponse(
     await markStormAutoTriggered(assessment.profile.id, now.toISOString()).catch(() => undefined);
   }
 
+  await setVenueWeatherOperation({
+    venueId: assessment.venueId,
+    status: severe ? "hold" : "monitoring",
+    message: severe ? "Play is paused. Leave playing areas and wait for venue staff instructions." : "Weather is being monitored. Be ready for a possible delay.",
+    affectedFieldIds: severe ? (await getFields().catch(() => [])).filter((field) => field.venueId === assessment.venueId).map((field) => field.id) : [],
+    acknowledge: options.source === "manual",
+  }, options.actorUserId).catch((error) => console.error("Storm response: weather operation state failed", error));
+
   return { severe, fieldsHeld, umpiresTexted, umpiresSkipped, alertSent };
 }
-

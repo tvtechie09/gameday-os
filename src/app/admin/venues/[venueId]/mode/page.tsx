@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { getVenueModeData, type VenueModeScheduleGroup } from "@/lib/services/venue-mode";
 import { venueModeProviderDefinitions } from "@/lib/venue-mode-providers";
 import { getSessionContext } from "@/lib/access/session";
-import { venueInScope } from "@/lib/access/capabilities";
+import { canManageVenueSettings, venueInScope } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
 import type { FieldStatus, VenueModeEndpoint } from "@/lib/types";
 
 type VenueModePageProps = {
@@ -99,11 +100,13 @@ function ScheduleGroupCard({ group }: { group: VenueModeScheduleGroup }) {
 }
 
 export default async function VenueModePage({ params }: VenueModePageProps) {
+  const ctx = await getSessionContext();
+  if (!canManageVenueSettings(ctx)) redirect(getRoleHome(ctx));
   const { venueId } = await params;
   const data = await getVenueModeData(venueId);
 
   // Venue-scoped roles may only manage their own venue.
-  if (data && !venueInScope(await getSessionContext(), data.venue)) {
+  if (data && !venueInScope(ctx, data.venue)) {
     redirect("/admin/venues");
   }
 

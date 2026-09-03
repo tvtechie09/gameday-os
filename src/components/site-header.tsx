@@ -26,7 +26,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             href={item.href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)] ${focusRing} ${
+            className={`flex min-h-12 items-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)] ${focusRing} ${
               active ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "text-[var(--muted)]"
             }`}
           >
@@ -59,7 +59,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-white/95 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-8">
-        <Link href="/" className={`flex items-center gap-3 rounded-lg ${focusRing}`} aria-label="GameDay OS home" onClick={() => setOpen(false)}>
+        <Link href="/" className={`flex min-h-11 items-center gap-3 rounded-lg ${focusRing}`} aria-label="GameDay OS home" onClick={() => setOpen(false)}>
           <span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--black-soft)] text-sm font-black text-white">
             GD
           </span>
@@ -73,7 +73,7 @@ export function SiteHeader() {
         </div>
         <button
           type="button"
-          className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--background)] text-[var(--foreground)] lg:hidden ${focusRing}`}
+          className={`inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--background)] text-[var(--foreground)] lg:hidden ${focusRing}`}
           aria-expanded={open}
           aria-controls="site-menu"
           aria-label={open ? "Close menu" : "Open menu"}

@@ -4,7 +4,10 @@ import type { Tournament } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 
-type TournamentRow = Database["public"]["Tables"]["tournaments"]["Row"];
+type TournamentRow = Pick<Database["public"]["Tables"]["tournaments"]["Row"],
+  "id" | "organization_id" | "name" | "description" | "start_date" | "end_date" |
+  "logo_url" | "website_url" | "created_at" | "updated_at"
+>;
 
 export type CreateTournamentInput = {
   name: string;

@@ -1,31 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Bell, Clock, DoorOpen, Play } from "lucide-react";
-import {
-  delayGameAction,
-  sendAnnouncementAction,
-  setFieldStatusAction,
-  startGameAction,
-  type QuickActionResult,
-} from "@/app/today/actions";
+import { Clock, Play } from "lucide-react";
+import { delayGameAction, startGameAction, type QuickActionResult } from "@/app/today/actions";
 import type { QuickActionTargets } from "@/lib/services/venue-operations";
+import { buttonStyles, QuickActionButton } from "@/components/ui/gameday-ui";
 
 const META: Record<string, { label: string; Icon: typeof Play }> = {
   start: { label: "Start Game", Icon: Play },
   delay: { label: "Delay Game", Icon: Clock },
-  announce: { label: "Send Announcement", Icon: Bell },
-  field: { label: "Open / Close Field", Icon: DoorOpen },
 };
 
-// Capability-gated quick actions that act on real, server-resolved targets: the
-// next game to start, the current game to delay, the venue's fields, and a
-// venue announcement. Which actions render is decided server-side (`allowed`).
+// Today keeps only immediate game-state actions. Field state belongs in Fields
+// and authored communications belong in Announcements.
 export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[]; targets: QuickActionTargets }>) {
   const [open, setOpen] = useState<string | null>(null);
   const [result, setResult] = useState<QuickActionResult | null>(null);
-  const [message, setMessage] = useState("");
-  const [fieldId, setFieldId] = useState(targets.fields[0]?.id ?? "");
   const [pending, startTransition] = useTransition();
 
   if (allowed.length === 0) {
@@ -47,8 +37,7 @@ export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[];
   }
 
   const panelClass = "mt-3 rounded-lg border border-[var(--line)] bg-white p-3";
-  const confirmBtn = "min-h-11 rounded-lg bg-emerald-600 px-4 text-sm font-black text-white disabled:opacity-50";
-  const selectedField = targets.fields.find((field) => field.id === fieldId);
+  const confirmBtn = buttonStyles("primary");
 
   return (
     <div>
@@ -59,15 +48,15 @@ export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[];
           const Icon = meta.Icon;
           const active = open === key;
           return (
-            <button
+            <QuickActionButton
               key={key}
               type="button"
               onClick={() => toggle(key)}
-              className={"flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border px-2 py-3 text-center text-xs font-black transition " + (active ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-[var(--line)] bg-white text-[var(--foreground)] hover:border-emerald-400 hover:text-emerald-700")}
+              className={active ? "bg-emerald-50 text-emerald-800 ring-emerald-500" : undefined}
             >
               <Icon className="h-5 w-5" aria-hidden="true" />
               {meta.label}
-            </button>
+            </QuickActionButton>
           );
         })}
       </div>
@@ -96,7 +85,7 @@ export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[];
               <p className="text-sm font-semibold">
                 Delay <strong>{targets.delayGame.label}</strong> — flag {targets.delayGame.fieldName} delayed?
               </p>
-              <button className="min-h-11 rounded-lg bg-amber-600 px-4 text-sm font-black text-white disabled:opacity-50" disabled={pending} onClick={() => run(() => delayGameAction(targets.delayGame!.fieldId))}>
+              <button className={buttonStyles("primary", "bg-amber-600 hover:bg-amber-700")} disabled={pending} onClick={() => run(() => delayGameAction(targets.delayGame!.fieldId))}>
                 {pending ? "Delaying…" : "Delay game"}
               </button>
             </div>
@@ -106,48 +95,8 @@ export function QuickActions({ allowed, targets }: Readonly<{ allowed: string[];
         </div>
       ) : null}
 
-      {open === "announce" ? (
-        <div className={panelClass}>
-          {targets.venueId ? (
-            <div className="grid gap-2">
-              <textarea
-                className="min-h-20 rounded-lg border border-[var(--line)] px-3 py-2 text-sm"
-                placeholder="Message to fans at this venue (e.g. Parking lot B is full — use lot C)."
-                value={message}
-                maxLength={500}
-                onChange={(event) => setMessage(event.target.value)}
-              />
-              <button className={confirmBtn + " w-fit"} disabled={pending || message.trim().length < 3} onClick={() => run(() => sendAnnouncementAction(targets.venueId!, message).then((r) => { if (r.ok) setMessage(""); return r; }))}>
-                {pending ? "Sending…" : "Send announcement"}
-              </button>
-            </div>
-          ) : (
-            <p className="text-sm font-semibold text-[var(--muted)]">No venue resolved for announcements.</p>
-          )}
-        </div>
-      ) : null}
-
-      {open === "field" ? (
-        <div className={panelClass}>
-          {targets.fields.length ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-sm" value={fieldId} onChange={(event) => setFieldId(event.target.value)}>
-                {targets.fields.map((field) => (
-                  <option key={field.id} value={field.id}>{field.name} ({field.status})</option>
-                ))}
-              </select>
-              <button className={confirmBtn} disabled={pending || !fieldId} onClick={() => run(() => setFieldStatusAction(fieldId, "open"))}>Open</button>
-              <button className="min-h-11 rounded-lg bg-red-700 px-4 text-sm font-black text-white disabled:opacity-50" disabled={pending || !fieldId} onClick={() => run(() => setFieldStatusAction(fieldId, "closed"))}>Close</button>
-              {selectedField ? <span className="text-xs font-semibold text-[var(--muted)]">Currently {selectedField.status}</span> : null}
-            </div>
-          ) : (
-            <p className="text-sm font-semibold text-[var(--muted)]">No fields configured at this venue.</p>
-          )}
-        </div>
-      ) : null}
-
       {result ? (
-        <p role="status" className={"mt-3 rounded-md px-3 py-2 text-xs font-bold " + (result.ok ? "bg-emerald-500/10 text-emerald-800" : "bg-red-500/10 text-red-800")}>
+        <p role="status" className={"mt-3 rounded-md px-3 py-2 text-sm font-bold " + (result.ok ? "bg-emerald-500/10 text-emerald-800" : "bg-red-500/10 text-red-800")}>
           {result.message}
         </p>
       ) : null}

@@ -1,5 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Alert } from "@/lib/types";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { getOrganizationDataScope } from "./organization-data-scope";
+import { buildAlertEmail, dedupeFollowerEmails, shouldDeliverAlert, type AlertDeliverySummary } from "./alert-delivery-core";
+
+export { buildAlertEmail, dedupeFollowerEmails, shouldDeliverAlert } from "./alert-delivery-core";
 
 // Fans an alert out to followers who left an email. Sending uses Resend when
 // RESEND_API_KEY is configured; otherwise deliveries are recorded as
@@ -7,26 +12,19 @@ import type { Alert } from "@/lib/types";
 
 const MAX_DELIVERIES_PER_ALERT = 500;
 
-type FollowerRow = { id: string; email: string | null; field_id: string };
+type FollowerRow = {
+  id: string;
+  email: string | null;
+  email_enabled?: boolean;
+  field_id: string;
+  manage_token?: string;
+  notification_level?: string;
+};
 
-export function dedupeFollowerEmails(rows: FollowerRow[]) {
-  const seen = new Set<string>();
-  const result: Array<{ followId: string; email: string }> = [];
-  for (const row of rows) {
-    const email = (row.email || "").trim().toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || seen.has(email)) continue;
-    seen.add(email);
-    result.push({ followId: row.id, email });
-  }
-  return result.slice(0, MAX_DELIVERIES_PER_ALERT);
-}
-
-export function buildAlertEmail(alert: Pick<Alert, "title" | "message" | "alertType" | "alertPriority">, venueName: string) {
-  const prefix = alert.alertPriority === "urgent" ? "[URGENT] " : alert.alertType === "weather" ? "[Weather] " : "";
-  return {
-    subject: prefix + alert.title + " — " + venueName,
-    text: alert.message + "\n\n— " + venueName + " via GameDay OS\nYou get these because you followed a field at this venue."
-  };
+function publicAppUrl() {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "";
 }
 
 function getAdminClient() {
@@ -124,24 +122,35 @@ export async function deliverAlertToFollowers(alert: Alert): Promise<{ audience:
 
     const { data: follows } = await supabase
       .from("follows")
-      .select("id,email,field_id")
+      .select("id,email,email_enabled,field_id,manage_token,notification_level")
       .in("field_id", fieldIds)
+      .eq("email_enabled", true)
       .not("email", "is", null);
-    const followerRecipients = dedupeFollowerEmails((follows ?? []) as FollowerRow[]);
-    const guardianEmails = await guardianEmailsForFields(supabase, fieldIds);
+    const eligibleFollows = ((follows ?? []) as FollowerRow[]).filter((follow) => shouldDeliverAlert(
+      follow.notification_level === "critical_only" ? "critical_only" : "all_updates",
+      alert,
+    ));
+    const followerRecipients = dedupeFollowerEmails(eligibleFollows, MAX_DELIVERIES_PER_ALERT);
+    // Team-linked guardians do not have Venue preferences yet. Send only
+    // safety/closure alerts until Team exposes an explicit opt-in.
+    const guardianEmails = shouldDeliverAlert("critical_only", alert)
+      ? await guardianEmailsForFields(supabase, fieldIds)
+      : [];
     const seen = new Set(followerRecipients.map((item) => item.email));
     const recipients = [
       ...followerRecipients,
-      ...guardianEmails.filter((email) => !seen.has(email)).map((email) => ({ followId: "", email }))
+      ...guardianEmails.filter((email) => !seen.has(email)).map((email) => ({ followId: "", email, manageToken: null })),
     ].slice(0, MAX_DELIVERIES_PER_ALERT);
     if (!recipients.length) return { audience: 0, sent: 0 };
 
     const { data: venue } = await supabase.from("venues").select("name").eq("id", alert.venueId).maybeSingle();
-    const email = buildAlertEmail(alert, venue?.name || "Your venue");
-
     let sent = 0;
     const rows = [];
     for (const recipient of recipients) {
+      const manageUrl = recipient.manageToken && publicAppUrl()
+        ? `${publicAppUrl()}/follow/${recipient.manageToken}`
+        : undefined;
+      const email = buildAlertEmail(alert, venue?.name || "Your venue", manageUrl);
       const result = await sendViaResend(recipient.email, email.subject, email.text);
       if (result.sent) sent += 1;
       rows.push({
@@ -160,4 +169,39 @@ export async function deliverAlertToFollowers(alert: Alert): Promise<{ audience:
     console.error("Alert delivery fan-out failed", error);
     return { audience: 0, sent: 0 };
   }
+}
+
+export async function getAlertDeliverySummary(): Promise<AlertDeliverySummary> {
+  let supabase: ReturnType<typeof getSupabaseAdminClient>;
+  try {
+    supabase = getSupabaseAdminClient();
+  } catch {
+    return { audience: 0, failed: 0, skippedNoProvider: 0, sent: 0 };
+  }
+
+  const scope = await getOrganizationDataScope();
+  let alertIds: string[] | null = null;
+  if (scope) {
+    if (scope.venueIds.size === 0) return { audience: 0, failed: 0, skippedNoProvider: 0, sent: 0 };
+    const { data: alerts, error: alertError } = await supabase
+      .from("alerts")
+      .select("id")
+      .in("venue_id", [...scope.venueIds]);
+    if (alertError) throw new Error(alertError.message);
+    alertIds = (alerts ?? []).map((alert) => alert.id);
+    if (alertIds.length === 0) return { audience: 0, failed: 0, skippedNoProvider: 0, sent: 0 };
+  }
+
+  let query = supabase.from("alert_deliveries").select("status").order("created_at", { ascending: false }).limit(1000);
+  if (alertIds) query = query.in("alert_id", alertIds);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const statuses = data ?? [];
+  return {
+    audience: statuses.length,
+    failed: statuses.filter((row) => row.status === "failed").length,
+    skippedNoProvider: statuses.filter((row) => row.status === "skipped_no_provider").length,
+    sent: statuses.filter((row) => row.status === "sent").length,
+  };
 }

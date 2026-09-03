@@ -1,6 +1,12 @@
 import { VenueForm } from "./venue-form";
+import { redirect } from "next/navigation";
+import { canManageVenueSettings, managesAllVenues } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 
-export default function NewVenuePage() {
+export default async function NewVenuePage() {
+  const ctx = await getSessionContext();
+  if (!canManageVenueSettings(ctx) || !managesAllVenues(ctx)) redirect(getRoleHome(ctx));
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <div>

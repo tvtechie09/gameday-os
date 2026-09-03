@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireServerActionPermission } from "@/lib/access/server-action";
 import { createScoreboardProfile, updateScoreboardProfile } from "@/lib/services/scoreboards";
 import type { ScoreboardProfile } from "@/lib/types";
 import { readScoreboardProfileFormData } from "./form-utils";
@@ -27,7 +28,8 @@ export async function createScoreboardProfileAction(formData: FormData): Promise
   }
 
   try {
-    const profile = await createScoreboardProfile(parsed.data);
+    const actorUserId = await requireServerActionPermission("device.manage", "venue", parsed.data.venue_id);
+    const profile = await createScoreboardProfile(parsed.data, actorUserId);
     revalidateScoreboardSurfaces(profile.fieldId);
     return { profile };
   } catch (error) {
@@ -44,7 +46,8 @@ export async function updateScoreboardProfileAction(id: string, formData: FormDa
   }
 
   try {
-    const profile = await updateScoreboardProfile(id, parsed.data);
+    const actorUserId = await requireServerActionPermission("device.manage", "venue", parsed.data.venue_id);
+    const profile = await updateScoreboardProfile(id, parsed.data, actorUserId);
     revalidateScoreboardSurfaces(profile.fieldId);
     return { profile };
   } catch (error) {

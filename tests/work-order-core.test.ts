@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { issueLifecycle, orderIssues, resolveIssueStage, rollupIssues } from "../src/lib/services/work-order-core.ts";
+import {
+  canTransitionWorkOrder,
+  issueLifecycle,
+  issueStageLabel,
+  orderIssues,
+  primaryWorkOrderAction,
+  resolveIssueStage,
+  rollupIssues,
+  workOrderAgeLabel,
+  workOrderAuditPresentation,
+  workOrderPriorityPresentation,
+} from "../src/lib/services/work-order-core.ts";
 import type { WorkOrder } from "../src/lib/services/work-orders.ts";
 
 const NOW = Date.parse("2026-07-25T18:00:00.000Z");
@@ -10,6 +21,7 @@ const minsAhead = (m: number) => new Date(NOW + m * 60_000).toISOString();
 function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
   return {
     id: "w1",
+    venueId: "V1",
     fieldId: "F1",
     title: "Sprinkler head broken",
     detail: null,
@@ -17,6 +29,7 @@ function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
     status: "open",
     reportedBy: null,
     createdAt: minsAgo(60),
+    updatedAt: minsAgo(60),
     closedAt: null,
     assignedRole: null,
     assignedToUserId: null,
@@ -27,18 +40,27 @@ function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
     source: "manual",
     gameId: null,
     assetId: null,
+    issueType: "maintenance",
+    systemKey: null,
+    detectedAt: minsAgo(60),
+    assignedAt: null,
+    startedAt: null,
+    metadata: {},
     ...overrides,
   };
 }
 
 // ---- stage derivation ------------------------------------------------------
 
-test("stage: derived from assignment + acknowledgement, not a new status value", () => {
+test("stage: honors explicit lifecycle states and legacy lifecycle columns", () => {
   assert.equal(resolveIssueStage(order()), "open");
   assert.equal(resolveIssueStage(order({ assignedRole: "grounds" })), "assigned");
   assert.equal(resolveIssueStage(order({ assignedToUserId: "u1" })), "assigned");
   assert.equal(resolveIssueStage(order({ assignedRole: "grounds", acknowledgedAt: minsAgo(10) })), "acknowledged");
   assert.equal(resolveIssueStage(order({ status: "in_progress" })), "in_progress");
+  assert.equal(resolveIssueStage(order({ status: "assigned" })), "assigned");
+  assert.equal(resolveIssueStage(order({ status: "acknowledged" })), "acknowledged");
+  assert.equal(resolveIssueStage(order({ status: "resolved" })), "resolved");
   assert.equal(resolveIssueStage(order({ status: "done" })), "resolved");
 });
 
@@ -49,6 +71,55 @@ test("stage: a legacy row with every lifecycle column null is simply open", () =
 
 test("stage: closedAt alone counts as resolved even if status lagged", () => {
   assert.equal(resolveIssueStage(order({ status: "open", closedAt: minsAgo(5) })), "resolved");
+});
+
+test("visible lifecycle uses plain language without changing backend values", () => {
+  assert.deepEqual(
+    ["open", "assigned", "acknowledged", "in_progress", "resolved"].map((stage) => issueStageLabel(stage as Parameters<typeof issueStageLabel>[0])),
+    ["New", "Assigned", "Acknowledged", "In progress", "Resolved"],
+  );
+});
+
+test("state transitions accept only the sequential lifecycle and reopen", () => {
+  assert.equal(canTransitionWorkOrder("open", "assigned"), true);
+  assert.equal(canTransitionWorkOrder("assigned", "acknowledged"), true);
+  assert.equal(canTransitionWorkOrder("acknowledged", "in_progress"), true);
+  assert.equal(canTransitionWorkOrder("in_progress", "resolved"), true);
+  assert.equal(canTransitionWorkOrder("resolved", "open"), true);
+  assert.equal(canTransitionWorkOrder("open", "resolved"), false);
+  assert.equal(canTransitionWorkOrder("resolved", "in_progress"), false);
+});
+
+test("next action advances one step for the authorized owner", () => {
+  const viewer = { canManage: false, canWork: true, userId: "u1" };
+  assert.equal(primaryWorkOrderAction(order(), viewer), "claim");
+  assert.equal(primaryWorkOrderAction(order({ status: "assigned", assignedToUserId: "u1" }), viewer), "acknowledge");
+  assert.equal(primaryWorkOrderAction(order({ status: "acknowledged", acknowledgedBy: "u1" }), viewer), "start");
+  assert.equal(primaryWorkOrderAction(order({ status: "in_progress", assignedToUserId: "u1" }), viewer), "resolve");
+  assert.equal(primaryWorkOrderAction(order({ status: "resolved" }), viewer), "view");
+});
+
+test("next action does not let staff advance another teammate's work", () => {
+  const anotherWorker = { canManage: false, canWork: true, userId: "u2" };
+  assert.equal(primaryWorkOrderAction(order({ status: "assigned", assignedToUserId: "u1" }), anotherWorker), "view");
+  assert.equal(primaryWorkOrderAction(order({ status: "acknowledged", acknowledgedBy: "u1" }), anotherWorker), "view");
+  assert.equal(primaryWorkOrderAction(order({ status: "in_progress", assignedToUserId: "u1" }), anotherWorker), "view");
+  assert.equal(primaryWorkOrderAction(order(), { ...anotherWorker, canWork: false }), "view");
+  assert.equal(primaryWorkOrderAction(order({ status: "assigned", assignedToUserId: "u1" }), { ...anotherWorker, canManage: true }), "acknowledge");
+});
+
+test("priority and age presentation collapse technical levels for scanning", () => {
+  assert.deepEqual(workOrderPriorityPresentation("low"), { label: "Normal", tone: "neutral" });
+  assert.deepEqual(workOrderPriorityPresentation("high"), { label: "Important", tone: "warning" });
+  assert.deepEqual(workOrderPriorityPresentation("urgent"), { label: "Urgent", tone: "danger" });
+  assert.equal(workOrderAgeLabel(minsAgo(22), NOW), "Reported 22 min ago");
+  assert.equal(workOrderAgeLabel(minsAgo(120), NOW), "Reported 2 hrs ago");
+});
+
+test("audit presentation turns canonical events into actor-readable history", () => {
+  assert.equal(workOrderAuditPresentation({ action: "work_order.assigned", actorName: "Pat", createdAt: minsAgo(20), metadata: { assignee_name: "Alex" } }), "Assigned to Alex by Pat");
+  assert.equal(workOrderAuditPresentation({ action: "work_order.note_added", actorName: "Alex", createdAt: minsAgo(10), metadata: { note: "Waiting for cable" } }), "Alex added a note: Waiting for cable");
+  assert.equal(workOrderAuditPresentation({ action: "work_order.resolved", actorName: "Alex", createdAt: minsAgo(1), metadata: { resolution_note: "Replaced cable" } }), "Resolved by Alex: Replaced cable");
 });
 
 // ---- lifecycle flags -------------------------------------------------------

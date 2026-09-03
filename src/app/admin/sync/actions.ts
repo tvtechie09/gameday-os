@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { importSyncQueueItem, updateSyncQueueReviewStatus } from "@/lib/services/sync-engine";
+import { requireServerActionPermission } from "@/lib/access/server-action";
 
 function revalidateSyncPaths() {
   revalidatePath("/admin/sync");
@@ -11,6 +12,7 @@ function revalidateSyncPaths() {
 }
 
 export async function approveSyncQueueItemAction(formData: FormData) {
+  await requireServerActionPermission("integration.webhook.manage");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await updateSyncQueueReviewStatus(id, "approved");
@@ -18,6 +20,7 @@ export async function approveSyncQueueItemAction(formData: FormData) {
 }
 
 export async function rejectSyncQueueItemAction(formData: FormData) {
+  await requireServerActionPermission("integration.webhook.manage");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await updateSyncQueueReviewStatus(id, "rejected");
@@ -25,6 +28,7 @@ export async function rejectSyncQueueItemAction(formData: FormData) {
 }
 
 export async function importSyncQueueItemAction(formData: FormData) {
+  await requireServerActionPermission("integration.webhook.manage");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await importSyncQueueItem(id);

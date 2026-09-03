@@ -9,16 +9,16 @@ not committed numbers. Nothing here is implemented — see "Do not build billing
 
 > **Free to record. Paid to operate. Rev-share to monetize.**
 
-- **Recording the truth is free** — roster, registration, waivers, schedules, the
-  Game record, families seeing their kid's stuff.
-- **Operating a complex on game day is paid** — Command Center, attention queue,
+- **Aggregating the truth is free** — authorized roster relationships, provider
+  schedules, venue game state, and families seeing their game-day context.
+- **Operating a complex on game day is paid** — Today, Fields, Schedule, attention,
   systems health, staff coordination.
 - **Making the venue more money is the upside** — the Revenue Engine, where we can
   *prove* the ROI.
 
-Why "free to record": our moat is owning the **permanent record**. Every record we
-hold makes the platform stronger. Charging people to create records is charging for
-the very thing that makes us valuable. We give it away, permanently.
+Why "free to aggregate": our moat is the trusted operational history and Family
+experience around systems of record, not duplicating provider registration or
+payment records.
 
 ---
 
@@ -32,7 +32,7 @@ has a purchase order.
 
 So the shape of the business is:
 
-- **GameDay Venue OS = the paying product.** The Command Center makes the venue
+- **GameDay Venue OS = the paying product.** The daily operating workflow makes the venue
   depend on us every operating day.
 - **GameDay Team = the free network.** It's what pulls families and leagues in,
   feeds games into the shared record, and makes the venue unquittable.
@@ -50,7 +50,7 @@ Tiered by **field count** (the honest unit of both size and value):
 
 | Tier | Size | List (anchor to test) | Includes |
 |---|---|---|---|
-| Single park | 1–4 fields | $500/mo | Command Center, public field pages, alerts |
+| Single park | 1–4 fields | $500/mo | Home, Today, Fields, Schedule, public field pages, alerts |
 | Complex | 5–12 fields | $1,000/mo | + officials, work orders, bookings/permits, storm response |
 | Flagship | 13+ fields | $2,000/mo | + systems health, device integrations, multi-field ops |
 | District | multi-venue | TBD, not priced yet | + cross-venue reporting |
@@ -73,10 +73,10 @@ inside the sponsor's payment flow. No money custody, ever
 
 ### 3. League / club tier — the secondary line
 
-For orgs running multiple teams: divisions & standings, compliance/verification,
-registration at scale, season rollover (Continuity), Ops Assistant, the treasurer
-console. Charge **per team per season**, or a few dollars **per registered player**.
-Small, predictable, scales with their size.
+For orgs running multiple teams: venue-linked schedules, game-day context,
+compliance/verification, season continuity, and operations assistance. Validate a
+flat per-team or organization price; never meter provider registrations or take a
+share of youth-sports payments.
 
 ### 4. Founding Venue Program (the first three)
 
@@ -119,8 +119,8 @@ lose-it-if-you-leave lock is the retention hook.
   pages, alerts, Family Hub, Data Passport.
 - Public field pages / QR / live score — this is how families discover us *at the
   venue*.
-- A single team's roster + registration — a coach can run a team for free. This is
-  the wedge.
+- A single team's authorized roster context, schedule, and Family experience. The
+  registration provider remains the system of record.
 
 ---
 
@@ -191,7 +191,7 @@ per-venue one.
 
 ## What to validate next
 
-Take the Command Center + a Revenue Engine Proof-of-Performance report to a real GM
+Take the consolidated venue operating workflow + a Revenue Engine Proof-of-Performance report to a real GM
 (Wintrust Crossroads) and ask exactly two questions:
 
 1. **"What would you pay for this per month?"**

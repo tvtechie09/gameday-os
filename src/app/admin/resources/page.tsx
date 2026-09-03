@@ -51,9 +51,10 @@ export default async function ResourcesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Inventory</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Devices &amp; Cameras</h1>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Venue Systems</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Track venue and field resources for operations and public field pages.
+            Track scoreboards, cameras, audio profiles, and other resources used by operations and public field pages.
+            Listed systems are inventory unless a connected integration explicitly reports live status.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">

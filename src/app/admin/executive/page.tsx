@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
@@ -19,10 +20,15 @@ import { getResources } from "@/lib/services/resources";
 import { getRecentSessionEvents, getSessionEventTypeLabel } from "@/lib/services/session-events";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAnalytics } from "@/lib/services/sponsor-analytics";
-import { getSponsors } from "@/lib/services/sponsors";
+import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
 import { getSyncJobs, getSyncQueueItems } from "@/lib/services/sync-engine";
 import { getVenueAssets } from "@/lib/services/venue-assets";
 import { getVenues } from "@/lib/services/venues";
+import { canManageVenueSettings, managesAllVenues } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
+import { getSessionContext } from "@/lib/access/session";
+import { scopeReportData } from "@/lib/access/report-scope";
 import { getVolunteerRoles } from "@/lib/services/volunteer-roles";
 import { getDistrictReport, type DistrictReport } from "@/lib/services/district-report";
 import type {
@@ -34,6 +40,7 @@ import type {
   Session,
   SessionEvent,
   Sponsor,
+  SponsorAssignment,
   SponsorAnalyticsSummary,
   SyncJob,
   SyncQueueItem,
@@ -202,26 +209,33 @@ function buildRecentActivity({
 }
 
 export default async function ExecutiveDashboardPage() {
+  const ctx = await getSessionContext();
+  if (!canManageVenueSettings(ctx)) redirect(getRoleHome(ctx));
+
   const now = new Date();
   const [
-    venues,
-    fields,
-    sessions,
-    sponsors,
-    activeAlerts,
-    resources,
-    activations,
-    volunteerRoles,
-    externalSources,
-    syncJobs,
-    syncQueueItems,
-    sessionEvents,
-    venueAssets,
+    scopedVenueData,
+    allVenues,
+    allFields,
+    allSessions,
+    allSponsors,
+    allSponsorAssignments,
+    allActiveAlerts,
+    allResources,
+    allActivations,
+    allVolunteerRoles,
+    allExternalSources,
+    allSyncJobs,
+    allSyncQueueItems,
+    allSessionEvents,
+    allVenueAssets,
   ] = await Promise.all([
+    getScopedVenuesAndFields(),
     safeLoad<Venue>("venues", getVenues),
     safeLoad<Field>("fields", getFields),
     safeLoad<Session>("sessions", getSessions),
     safeLoad<Sponsor>("sponsors", getSponsors),
+    safeLoad<SponsorAssignment>("sponsor assignments", getSponsorAssignments),
     safeLoad<Alert>("active alerts", getActiveAlerts),
     safeLoad<Resource>("resources", getResources),
     safeLoad<ResourceActivation>("resource activations", getResourceActivations),
@@ -233,7 +247,31 @@ export default async function ExecutiveDashboardPage() {
     safeLoad<VenueAsset>("venue assets", getVenueAssets),
   ]);
 
-  const districtReport: DistrictReport = await getDistrictReport().catch(() => ({
+  const scoped = scopeReportData({
+    authorizedVenues: scopedVenueData.venues,
+    venues: allVenues,
+    fields: allFields,
+    sessions: allSessions,
+    sponsors: allSponsors,
+    sponsorAssignments: allSponsorAssignments,
+    alerts: allActiveAlerts,
+    resources: allResources,
+    activations: allActivations,
+    volunteerRoles: allVolunteerRoles,
+    externalSources: allExternalSources,
+    syncJobs: allSyncJobs,
+    syncQueueItems: allSyncQueueItems,
+    sessionEvents: allSessionEvents,
+    venueAssets: allVenueAssets,
+    unrestricted: managesAllVenues(ctx),
+  });
+  const {
+    venues, fields, sessions, sponsors, alerts: activeAlerts, resources,
+    activations, volunteerRoles, externalSources, syncJobs, syncQueueItems,
+    sessionEvents, venueAssets,
+  } = scoped;
+
+  const districtReport: DistrictReport = managesAllVenues(ctx) ? await getDistrictReport().catch(() => ({
     available: false,
     divisions: 0,
     teams: 0,
@@ -241,7 +279,7 @@ export default async function ExecutiveDashboardPage() {
     pendingVerifications: 0,
     upcomingBookings: 0,
     openWorkOrders: 0,
-  }));
+  })) : { available: false, divisions: 0, teams: 0, players: 0, pendingVerifications: 0, upcomingBookings: 0, openWorkOrders: 0 };
 
   const sponsorAnalyticsResult = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), "all").then(
     (data) => ({ available: true, data }),
@@ -294,16 +332,16 @@ export default async function ExecutiveDashboardPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-          <Link className="ui-button ui-button-primary" href="/admin/command-center">
-            Game Day
+          <Link className="ui-button ui-button-primary" href="/today">
+            Today
           </Link>
           {primaryVenueDisplayUrl ? (
             <Link className="ui-button ui-button-secondary" href={primaryVenueDisplayUrl}>
               Venue Display
             </Link>
           ) : null}
-          <Link className="ui-button ui-button-secondary" href="/admin/command-center">
-            Command Center
+          <Link className="ui-button ui-button-secondary" href="/admin/fields">
+            Fields
           </Link>
           <Link className="ui-button ui-button-secondary" href="/admin/system-health">
             System Health
@@ -320,7 +358,7 @@ export default async function ExecutiveDashboardPage() {
       <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard href="/admin/venues" icon={BarChart3} label="Venues" note="Configured venue profiles" value={venues.length} />
         <SummaryCard href="/admin/fields" icon={Activity} label="Fields" note="Operational field inventory" value={fields.length} />
-        <SummaryCard href="/admin/command-center" icon={Radio} label="Active Games" note="Live or in-window sessions" value={activeGames.length} />
+        <SummaryCard href="/today" icon={Radio} label="Active Games" note="Live or in-window sessions" value={activeGames.length} />
         <SummaryCard href="/admin/sessions" icon={CalendarDays} label="Games Today" note="Sessions scheduled today" value={gamesToday.length} />
         <SummaryCard href="/admin/sponsors" icon={HandHeart} label="Sponsor Impressions" note={sponsorAnalyticsAvailable ? `${totalSponsorClicks} total sponsor clicks` : "Analytics are not available in this environment"} value={sponsorAnalyticsAvailable ? totalSponsorImpressions : "—"} />
         <SummaryCard href="/admin/resources" icon={Database} label="Active Resources" note={`${activeActivations.length} live parent/operator activations`} value={activeResources.length} />

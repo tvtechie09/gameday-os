@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getVenue, updateVenue } from "@/lib/services/venues";
 import { getSessionContext } from "@/lib/access/session";
-import { venueInScope } from "@/lib/access/capabilities";
+import { canManageVenueSettings, venueInScope } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
 import { VENUE_TIMEZONE_OPTIONS } from "@/lib/venue-timezone";
 
 type EditVenuePageProps = {
@@ -16,6 +17,7 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
   const { venueId } = await params;
   const venue = await getVenue(venueId);
   const ctx = await getSessionContext();
+  if (!canManageVenueSettings(ctx)) redirect(getRoleHome(ctx));
   // Venue-scoped roles may only edit their own venue; out-of-scope venues read
   // as "not found" so their existence isn't leaked.
   const inScope = venue ? venueInScope(ctx, venue) : false;
@@ -26,7 +28,7 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
     // Defense in depth: re-verify scope on the write, not just the render.
     const actingCtx = await getSessionContext();
     const target = await getVenue(venueId);
-    if (!target || !venueInScope(actingCtx, target)) {
+    if (!actingCtx || !canManageVenueSettings(actingCtx) || !target || !venueInScope(actingCtx, target)) {
       redirect("/admin/venues");
     }
 
@@ -60,7 +62,7 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
         map_notes: mapNotes || null,
         primary_color: primaryColor || null,
         secondary_color: secondaryColor || null,
-      },
+      }, actingCtx.userId,
     );
     revalidatePath("/admin/venues");
     redirect("/admin/venues");
@@ -119,7 +121,7 @@ export default async function EditVenuePage({ params }: EditVenuePageProps) {
           </select>
           <span className="text-sm leading-6 text-[var(--muted)]">
             This venue&rsquo;s own clock. It sets when the operating day rolls over and how every game
-            time reads across the Command Center, schedule, and reports. Changing it re-dates
+            time reads across Today, Fields, Schedule, and reports. Changing it re-dates
             evening games, so only change it if the venue is genuinely in another zone.
           </span>
         </label>

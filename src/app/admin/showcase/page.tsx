@@ -223,16 +223,16 @@ export default async function ShowcasePage() {
       note: "Venue-wide display board for lobby screens, concession stands, websites, or OBS.",
     }] : []),
     {
-      href: "/admin/pilot-prep",
-      label: "Pilot Report",
-      note: "Readiness checklist and quick actions for pilot field testing.",
+      href: "/admin/pilot-launch",
+      label: "Pilot Launch",
+      note: "Guided setup, rehearsal evidence, support ownership, and launch approval.",
     },
   ];
 
   const previewCards = [
-    { href: "/admin/command-center", note: "Single operational view for games, alerts, resources, and volunteers.", title: "Command Center" },
+    { href: "/today", note: "Chronological view of changed, live, upcoming, and completed events.", title: "Today" },
     { href: "/admin/fields", note: "Field status and QR codes for operations staff.", title: "Fields" },
-    { href: "/admin/pilot-prep", note: "Pilot readiness checklist with links for setup, QR testing, and public experience checks.", title: "Pilot Report" },
+    { href: "/admin/pilot-launch", note: "Guided setup, rehearsal evidence, support ownership, and launch approval.", title: "Pilot Launch" },
     ...(firstVenue ? [{ href: getPublicVenueDisplayUrl(firstVenue.id), note: "TV, lobby, concession, website, or OBS venue display.", title: "Venue Display" }] : []),
     ...(firstField ? [{ href: getPublicFieldScoreboardUrl(firstField.id), note: "High-contrast scoreboard display for the selected demo field.", title: "Scoreboard Display" }] : []),
     ...(firstVenue ? [{ href: getPublicVenueUrl(firstVenue.id), note: "Parent-facing public venue page with fields, schedule, sponsors, and alerts.", title: "Public Venue Page" }] : []),
@@ -402,7 +402,7 @@ export default async function ShowcasePage() {
           <article className="ui-card p-5">
             <SectionHeader note="Fast launch buttons for a live client demo." title="Open Demo Views" />
             <div className="mt-5 grid gap-3">
-              <Link className="ui-button ui-button-primary" href="/admin/command-center">Command Center</Link>
+              <Link className="ui-button ui-button-primary" href="/today">Today</Link>
               <Link className="ui-button ui-button-secondary" href="/admin/fields">Fields</Link>
               {demoReadyLinks.map((link) => (
                 <div className="rounded-lg border border-[var(--line)] p-3" key={`${link.label}-${link.href}`}>

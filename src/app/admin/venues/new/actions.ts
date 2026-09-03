@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createVenue } from "@/lib/services/venues";
 import type { Venue } from "@/lib/types";
+import { canManageVenueSettings, managesAllVenues } from "@/lib/access/capabilities";
+import { getSessionContext } from "@/lib/access/session";
 
 export type CreateVenueResult = {
   venue?: Venue;
@@ -10,6 +12,8 @@ export type CreateVenueResult = {
 };
 
 export async function createVenueAction(formData: FormData): Promise<CreateVenueResult> {
+  const ctx = await getSessionContext();
+  if (!ctx || !canManageVenueSettings(ctx) || !managesAllVenues(ctx)) return { error: "You do not have permission to create venues." };
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
@@ -39,7 +43,7 @@ export async function createVenueAction(formData: FormData): Promise<CreateVenue
         map_notes: mapNotes || null,
         primary_color: primaryColor || null,
         secondary_color: secondaryColor || null,
-      },
+      }, ctx.userId,
     );
     revalidatePath("/admin/venues");
     return { venue };

@@ -48,7 +48,7 @@ export async function buildEndOfDay(ctx: AccessContext | null, dateOverride?: st
     timeZone,
     games,
     fields: venueFields,
-    workOrders: workOrders.filter((order) => fieldIds.has(order.fieldId)),
+    workOrders: workOrders.filter((order) => order.venueId === venue.id || (order.fieldId !== null && fieldIds.has(order.fieldId))),
     assets: assets.filter((asset) => asset.venueId === venue.id),
     actuals,
     now,

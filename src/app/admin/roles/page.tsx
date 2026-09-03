@@ -1,6 +1,10 @@
 import { getOrganizations } from "@/lib/services/organizations";
 import { getRoleAssignments, permissionMatrix, roleLabels, roleTypes } from "@/lib/services/roles";
 import type { RoleType } from "@/lib/types";
+import { redirect } from "next/navigation";
+import { canManagePermissions } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +23,9 @@ function roleBadgeClass(roleType: RoleType) {
 }
 
 export default async function RolesPage() {
+  const ctx = await getSessionContext();
+  if (!canManagePermissions(ctx)) redirect(getRoleHome(ctx));
+
   const [assignments, organizations] = await Promise.all([
     getRoleAssignments().catch((error: unknown) => {
       console.error("Failed to load role assignments", error);

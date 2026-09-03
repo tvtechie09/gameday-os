@@ -8,10 +8,13 @@ export default function FeedbackPage() {
       <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Feedback</p>
       <h1 className="mt-2 text-3xl font-black sm:text-4xl">Send feedback</h1>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-        Concern, complaint, or idea — it goes straight to the people building GameDay OS. Your name and role are attached automatically.
+        Tell the GameDay product team what was confusing, broken, or worth improving. This is for product feedback—not an urgent field, scoreboard, or facility issue.
+      </p>
+      <p className="mt-3 max-w-2xl rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+        Need something fixed at the venue? Use Work Orders so the on-site team can own and resolve it.
       </p>
       <div className="mt-6">
-        <FeedbackForm defaultRole="venue" />
+        <FeedbackForm />
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import type { FieldFollowSummary, FollowType } from "@/lib/types";
+import type { FieldFollowSummary, FollowPreferenceLevel, FollowType } from "@/lib/types";
 import { getOrganizationDataScope } from "./organization-data-scope";
 
 export type CreateFollowInput = {
@@ -8,6 +8,14 @@ export type CreateFollowInput = {
   followType: FollowType;
   displayName?: string | null;
   email?: string | null;
+  notificationLevel?: FollowPreferenceLevel;
+};
+
+export type FollowPreferences = {
+  email: string | null;
+  emailEnabled: boolean;
+  followType: FollowType;
+  notificationLevel: FollowPreferenceLevel;
 };
 
 function sanitizeText(value: string | null | undefined) {
@@ -31,21 +39,75 @@ function readFollowType(value: string): FollowType {
   return value === "session" ? "session" : "field";
 }
 
+function readNotificationLevel(value: string | null | undefined): FollowPreferenceLevel {
+  return value === "critical_only" ? "critical_only" : "all_updates";
+}
+
 export async function createFollow(input: CreateFollowInput) {
   const supabase = getSupabaseAdminClient();
   const followType = readFollowType(input.followType);
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase().slice(0, 254) : "";
-  const { error } = await supabase.from("follows").insert({
+  const validEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+  const { data, error } = await supabase.from("follows").insert({
     display_name: sanitizeText(input.displayName),
     field_id: input.fieldId,
     follow_type: followType,
     session_id: followType === "session" ? input.sessionId ?? null : null,
-    email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null,
-  });
+    email: validEmail,
+    email_enabled: Boolean(validEmail),
+    notification_level: readNotificationLevel(input.notificationLevel),
+  }).select("manage_token").single();
 
   if (error) {
     throw new Error(error.message);
   }
+
+  return { manageToken: data.manage_token };
+}
+
+export async function getFollowPreferences(manageToken: string): Promise<FollowPreferences | null> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("follows")
+    .select("email,email_enabled,follow_type,notification_level")
+    .eq("manage_token", manageToken)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  return {
+    email: data.email,
+    emailEnabled: data.email_enabled,
+    followType: readFollowType(data.follow_type),
+    notificationLevel: readNotificationLevel(data.notification_level),
+  };
+}
+
+export async function updateFollowPreferences(
+  manageToken: string,
+  input: { emailEnabled: boolean; notificationLevel: FollowPreferenceLevel },
+): Promise<FollowPreferences | null> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("follows")
+    .update({
+      email_enabled: input.emailEnabled,
+      notification_level: readNotificationLevel(input.notificationLevel),
+    })
+    .eq("manage_token", manageToken)
+    .select("email,email_enabled,follow_type,notification_level")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  return {
+    email: data.email,
+    emailEnabled: data.email_enabled,
+    followType: readFollowType(data.follow_type),
+    notificationLevel: readNotificationLevel(data.notification_level),
+  };
 }
 
 export async function getFollowCountSince(since: string): Promise<number> {

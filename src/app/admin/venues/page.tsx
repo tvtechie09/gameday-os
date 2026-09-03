@@ -7,6 +7,9 @@ import { getPublicAppUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } fro
 import { getVenues } from "@/lib/services/venues";
 import { getSessionContext } from "@/lib/access/session";
 import { managesAllVenues, venueInScope } from "@/lib/access/capabilities";
+import { canManageVenueSettings } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { redirect } from "next/navigation";
 import type { Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,7 @@ export default async function VenuesPage() {
   const appUrl = getPublicAppUrl();
   const publicUrlIsLocalhost = publicAppUrlPointsToLocalhost();
   const ctx = await getSessionContext();
+  if (!canManageVenueSettings(ctx)) redirect(getRoleHome(ctx));
   const canManageAll = managesAllVenues(ctx);
 
   try {
@@ -107,6 +111,9 @@ export default async function VenuesPage() {
                   </Link>
                   <Link href={`/admin/venues/${venue.id}/mode`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                     Venue Mode
+                  </Link>
+                  <Link href={`/admin/venues/${venue.id}/places`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
+                    Family Places
                   </Link>
                   <Link href={`/admin/venues/${venue.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold">
                     Edit

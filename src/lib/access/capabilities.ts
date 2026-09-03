@@ -7,6 +7,7 @@ import { permissionsForRole, roleLabels, type ExperienceRoleKey } from "./catalo
 
 export type AccessContext = {
   userId: string;
+  authUserId: string | null;
   email: string;
   displayName: string;
   roleKey: string;
@@ -15,12 +16,15 @@ export type AccessContext = {
   scopeId: string;
   venueId: string | null;
   venueName: string | null;
+  authorizedVenueIds: Set<string>;
   permissions: Set<string>;
+  isActive: boolean;
   isImpersonating: boolean;
 };
 
 export function buildAccessContext(input: {
   userId: string;
+  authUserId?: string | null;
   email: string;
   displayName: string;
   roleKey: string;
@@ -28,12 +32,15 @@ export function buildAccessContext(input: {
   scopeId: string;
   venueId?: string | null;
   venueName?: string | null;
+  authorizedVenueIds?: Iterable<string>;
   permissions?: Iterable<string>;
   isImpersonating?: boolean;
+  isActive?: boolean;
 }): AccessContext {
   const permissions = input.permissions ? new Set(input.permissions) : permissionsForRole(input.roleKey);
   return {
     userId: input.userId,
+    authUserId: input.authUserId ?? null,
     email: input.email,
     displayName: input.displayName,
     roleKey: input.roleKey,
@@ -42,7 +49,9 @@ export function buildAccessContext(input: {
     scopeId: input.scopeId,
     venueId: input.venueId ?? null,
     venueName: input.venueName ?? null,
+    authorizedVenueIds: new Set(input.authorizedVenueIds ?? (input.venueId ? [input.venueId] : [])),
     permissions,
+    isActive: input.isActive ?? true,
     isImpersonating: input.isImpersonating ?? false,
   };
 }
@@ -56,7 +65,7 @@ export function isSuperAdmin(ctx: AccessContext | null): boolean {
 }
 
 export function hasPermission(ctx: AccessContext | null, key: string): boolean {
-  return isSuperAdmin(ctx) || Boolean(ctx?.permissions.has(key));
+  return Boolean(ctx && ctx.isActive !== false && (isSuperAdmin(ctx) || ctx.permissions.has(key)));
 }
 
 function hasAny(ctx: AccessContext | null, keys: string[]): boolean {
@@ -90,10 +99,11 @@ export function managesAllVenues(ctx: AccessContext | null): boolean {
 // ctx.scopeId) -- zero for a using org, which is correct: it gets the
 // reservations console, not venue management.
 export function venueInScope(ctx: AccessContext | null, venue: { id: string; name: string; organizationId?: string | null }): boolean {
-  if (!ctx) return false;
+  if (!ctx || ctx.isActive === false) return false;
   if (managesAllVenues(ctx)) return true;
   if (ctx.scopeType === "organization") return Boolean(ctx.scopeId) && venue.organizationId === ctx.scopeId;
   if (ctx.scopeType !== "venue") return false;
+  if (ctx.authorizedVenueIds.has(venue.id)) return true;
   if (ctx.venueId && ctx.venueId === venue.id) return true;
   if (ctx.scopeId === venue.id) return true;
   return Boolean(ctx.scopeId) && slugifyName(venue.name) === ctx.scopeId;

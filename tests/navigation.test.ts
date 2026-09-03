@@ -3,7 +3,6 @@ import test from "node:test";
 import { buildNavigation, getRoleHome, guardForAdminPath } from "../src/lib/access/navigation.ts";
 import type { AccessContext } from "../src/lib/access/capabilities.ts";
 
-// Permission sets as granted in production (verified against role_permissions).
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   platform_admin: ["venue.field.manage", "venue.alert.send", "game.status.update", "tournament.manage", "device.manage", "venue.manage"],
   venue_director: ["venue.field.manage", "venue.alert.send", "game.status.update", "device.manage", "venue.manage"],
@@ -31,65 +30,73 @@ function ctxFor(roleKey: string): AccessContext {
   } as AccessContext;
 }
 
-function opsHrefs(roleKey: string): string[] {
-  const ops = buildNavigation(ctxFor(roleKey)).find((g) => g.key === "operations");
-  return (ops?.items ?? []).filter((i) => i.label === "Today's Operations").map((i) => i.href);
+function groupHrefs(roleKey: string, groupKey: string): string[] {
+  return buildNavigation(ctxFor(roleKey)).find((group) => group.key === groupKey)?.items.map((item) => item.href) ?? [];
 }
 
-const VENUE_OPERATORS = ["platform_admin", "venue_director", "venue_staff", "venue_tech_manager"];
-const OTHER_OPS_ROLES = ["tournament_director", "emergency_coordinator", "coach", "scorekeeper"];
+function navHrefs(roleKey: string): string[] {
+  return buildNavigation(ctxFor(roleKey)).flatMap((group) => group.items.map((item) => item.href));
+}
 
-test("venue operators get the Command Center as Today's Operations", () => {
-  for (const role of VENUE_OPERATORS) {
-    assert.deepEqual(opsHrefs(role), ["/admin/command-center"], `${role} should land on the Command Center`);
+test("Venue GM primary navigation is Home, Today, Fields, and Schedule", () => {
+  assert.deepEqual(groupHrefs("venue_director", "operations"), ["/admin", "/today", "/admin/fields", "/admin/sessions"]);
+  assert.equal(groupHrefs("venue_director", "operations").includes("/admin/command-center"), false);
+  assert.equal(groupHrefs("venue_director", "operations").includes("/admin/operations-center"), false);
+});
+
+test("Venue Staff sees Today and Fields but not Home or Schedule", () => {
+  assert.deepEqual(groupHrefs("venue_staff", "operations"), ["/today", "/admin/fields"]);
+  assert.equal(navHrefs("venue_staff").includes("/admin/sessions"), false);
+  assert.equal(guardForAdminPath("/admin/sessions")(ctxFor("venue_staff")), false);
+});
+
+test("supporting operational tools move under More", () => {
+  const more = buildNavigation(ctxFor("venue_director")).find((group) => group.key === "admin");
+  assert.equal(more?.label, "More");
+  for (const href of ["/admin/operations-center", "/admin/alerts", "/admin/fields/work-orders"]) {
+    assert.ok(more?.items.some((item) => item.href === href), `${href} should live under More`);
   }
 });
 
-test("non-operators with ops tasks keep /today and never see the Command Center", () => {
-  // A coach or scorekeeper satisfies canViewOpsTasks via game.status.update
-  // alone. They must not reach the venue's attention queue, officials, or work
-  // orders.
-  for (const role of OTHER_OPS_ROLES) {
-    assert.deepEqual(opsHrefs(role), ["/today"], `${role} should stay on /today`);
+test("non-venue roles do not gain the retired internal aggregate board", () => {
+  for (const role of ["tournament_director", "emergency_coordinator", "coach", "scorekeeper", "parent"]) {
+    assert.equal(navHrefs(role).includes("/admin/command-center"), false);
   }
 });
 
-test("exactly one Today's Operations entry renders for every role", () => {
-  for (const role of Object.keys(ROLE_PERMISSIONS)) {
-    const hrefs = opsHrefs(role);
-    assert.ok(hrefs.length <= 1, `${role} sees ${hrefs.length} competing entries: ${hrefs.join(", ")}`);
+test("Field Operations remains frontline while setup routes stay managed", () => {
+  const operationsGuard = guardForAdminPath("/admin/fields");
+  const workOrdersGuard = guardForAdminPath("/admin/fields/work-orders");
+  const disruptionGuard = guardForAdminPath("/admin/fields/f1/disruption");
+  const newFieldGuard = guardForAdminPath("/admin/fields/new");
+  for (const role of ["platform_admin", "venue_director", "venue_staff", "venue_tech_manager"]) {
+    assert.ok(operationsGuard(ctxFor(role)));
+    assert.ok(workOrdersGuard(ctxFor(role)));
+    assert.ok(disruptionGuard(ctxFor(role)));
   }
+  assert.equal(newFieldGuard(ctxFor("venue_staff")), false);
+  assert.equal(newFieldGuard(ctxFor("venue_director")), true);
 });
 
-test("a role with no ops permissions sees no Today's Operations entry", () => {
-  assert.deepEqual(opsHrefs("parent"), []);
-});
-
-// This is the regression that matters: nav visibility and the middleware guard
-// are supposed to share one source of truth. Before the Command Center had its
-// own guard entry it fell back to canAccessAdminWorkspace, which venue_staff
-// does NOT satisfy -- the link rendered and the route bounced.
-test("everyone who sees the Command Center link can actually open it", () => {
+test("legacy Command Center route guard retains its former audience for a safe redirect", () => {
   const guard = guardForAdminPath("/admin/command-center");
-  for (const role of Object.keys(ROLE_PERMISSIONS)) {
-    const linked = opsHrefs(role).includes("/admin/command-center");
-    if (linked) {
-      assert.ok(guard(ctxFor(role)), `${role} sees the link but the route guard rejects it`);
-    }
-  }
+  assert.equal(guard(ctxFor("venue_director")), true);
+  assert.equal(guard(ctxFor("venue_staff")), true);
+  assert.equal(guard(ctxFor("coach")), false);
 });
 
-test("the Command Center guard rejects roles that are not venue operators", () => {
-  const guard = guardForAdminPath("/admin/command-center");
-  for (const role of [...OTHER_OPS_ROLES, "parent"]) {
-    assert.equal(guard(ctxFor(role)), false, `${role} must not reach the Command Center by URL`);
-  }
+test("platform-only tools remain separate from customer More navigation", () => {
+  const platformAdmin = ctxFor("platform_admin");
+  platformAdmin.permissions.add("platform.devtools");
+  const groups = buildNavigation(platformAdmin);
+  assert.ok(groups.find((group) => group.key === "platform")?.items.some((item) => item.key === "marketplace"));
+  assert.equal(groups.find((group) => group.key === "admin")?.items.some((item) => item.key === "marketplace"), false);
 });
 
-test("getRoleHome sends venue operators to the Command Center, others to /today", () => {
+test("role homes align with the consolidated operating model", () => {
   assert.equal(getRoleHome(ctxFor("platform_admin")), "/admin");
-  assert.equal(getRoleHome(ctxFor("venue_director")), "/admin/command-center");
-  assert.equal(getRoleHome(ctxFor("venue_staff")), "/admin/command-center");
+  assert.equal(getRoleHome(ctxFor("venue_director")), "/admin");
+  assert.equal(getRoleHome(ctxFor("venue_staff")), "/today");
   assert.equal(getRoleHome(ctxFor("coach")), "/today");
   assert.equal(getRoleHome(null), "/dev-login");
 });
