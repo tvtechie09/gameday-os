@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
-import { venueInScope } from "@/lib/access/capabilities";
+import { canManageSchedule, isOrgScoped, venueInScope } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
 import { publicErrorMessage } from "@/lib/public-error";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { getPublicAppUrl, getPublicScoreboardUrl } from "@/lib/public-url";
@@ -42,6 +43,8 @@ function formatTimelineTime(value: string) {
 export const dynamic = "force-dynamic";
 
 export default async function SessionDashboardPage({ params }: SessionDashboardPageProps) {
+  const ctx = await getSessionContext();
+  if (!canManageSchedule(ctx) || isOrgScoped(ctx)) redirect(getRoleHome(ctx));
   const { sessionId } = await params;
   let errorMessage: string | null = null;
   let session: Awaited<ReturnType<typeof getSession>> = null;
@@ -71,7 +74,7 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
   }
 
   // Object-level authorization: don't expose another venue's session by URL.
-  if (session && venue && !venueInScope(await getSessionContext(), venue)) {
+  if (session && venue && !venueInScope(ctx, venue)) {
     notFound();
   }
 

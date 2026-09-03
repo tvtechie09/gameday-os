@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { requireScheduleAccess } from "@/lib/access/schedule-authorization";
 import { scheduleRoundRobin, type RoundRobinTeam } from "@/lib/round-robin";
 import { createSession } from "@/lib/services/sessions";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
@@ -60,6 +61,7 @@ export async function generateScheduleAction(formData: FormData): Promise<Genera
     const fields = scopedFields.filter((field) => fieldIds.includes(field.id)).map((field) => ({ id: field.id, name: field.name }));
     if (fields.length !== fieldIds.length) return { error: "One or more of those fields are not in your venue." };
     if (!fields.length) return { error: "Those fields were not found." };
+    await requireScheduleAccess({ fieldIds });
 
     const { matches, unscheduled } = scheduleRoundRobin(cleanTeams, fields, dates, { startTime, endTime, gameMinutes });
     let created = 0;

@@ -7,6 +7,10 @@ import { getTournaments } from "@/lib/services/tournaments";
 import { alertLevelFor, alertLevelPresentation, alertTypeLabel } from "@/lib/ui/status-presentation";
 import { AnnouncementActions } from "./announcement-actions";
 import { EndAllAnnouncements } from "./end-all-announcements";
+import { redirect } from "next/navigation";
+import { canSendAnnouncement } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +32,8 @@ function formatDateTime(value: string) {
 }
 
 export default async function AlertsPage({ searchParams }: AlertsPageProps) {
+  const ctx = await getSessionContext();
+  if (!canSendAnnouncement(ctx)) redirect(getRoleHome(ctx));
   const filters = await searchParams;
   const [allAlerts, scoped, allTournaments, scopedOrgIds] = await Promise.all([getAlerts(), getScopedVenuesAndFields(), getTournaments(), getScopedOrganizationIds()]);
   const venues = scoped.venues;

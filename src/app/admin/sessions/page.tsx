@@ -5,7 +5,7 @@ import { getRoleHome } from "@/lib/access/navigation";
 import { getSessionContext } from "@/lib/access/session";
 import { publicErrorMessage } from "@/lib/public-error";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
-import { getSessions } from "@/lib/services/sessions";
+import { getSessionsByFieldIds } from "@/lib/services/sessions";
 import { getTournaments } from "@/lib/services/tournaments";
 import { sessionMatchesQuery } from "@/lib/ui/session-search";
 import { fieldStatusPresentation, gameStatusPresentation } from "@/lib/ui/status-presentation";
@@ -64,7 +64,8 @@ export default async function SessionsPage({ searchParams }: SessionsPageProps) 
   let errorMessage: string | null = null;
 
   try {
-    const [scoped, allSessions, allTournaments] = await Promise.all([getScopedVenuesAndFields(), getSessions(), getTournaments()]);
+    const scoped = await getScopedVenuesAndFields();
+    const [allSessions, allTournaments] = await Promise.all([getSessionsByFieldIds(scoped.fields.map((field) => field.id)), getTournaments()]);
     venues = scoped.venues;
     fields = scoped.fields;
     sessions = allSessions;

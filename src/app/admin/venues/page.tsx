@@ -7,6 +7,9 @@ import { getPublicAppUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } fro
 import { getVenues } from "@/lib/services/venues";
 import { getSessionContext } from "@/lib/access/session";
 import { managesAllVenues, venueInScope } from "@/lib/access/capabilities";
+import { canManageVenueSettings } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { redirect } from "next/navigation";
 import type { Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,7 @@ export default async function VenuesPage() {
   const appUrl = getPublicAppUrl();
   const publicUrlIsLocalhost = publicAppUrlPointsToLocalhost();
   const ctx = await getSessionContext();
+  if (!canManageVenueSettings(ctx)) redirect(getRoleHome(ctx));
   const canManageAll = managesAllVenues(ctx);
 
   try {

@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildAccessContext } from "@/lib/access/capabilities";
+import { actorFromDevSession } from "@/lib/access/actor";
+import { resolveHostedActor } from "@/lib/access/hosted-actor";
 import { isDevLoginEnabled } from "@/lib/access/env";
 import { getRoleHome, guardForAdminPath } from "@/lib/access/navigation";
 import { decodeSession, sessionCookieName } from "@/lib/access/session-cookie";
 import { createSupabaseMiddlewareClient } from "@/lib/supabase/auth-middleware";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 function isAlwaysPublic(pathname: string): boolean {
   return pathname === "/login"
@@ -54,10 +56,10 @@ export async function proxy(request: NextRequest) {
   }
 
   const devPayload = devLogin ? await decodeSession(request.cookies.get(sessionCookieName)?.value) : null;
-  let authedUser: { id: string } | null = null;
+  let authedUser: { id: string; email: string } | null = null;
   if (supabase) {
     const { data: { user } } = await supabase.auth.getUser();
-    authedUser = user ? { id: user.id } : null;
+    authedUser = user ? { id: user.id, email: user.email ?? "" } : null;
   }
 
   if (!devPayload && !authedUser) {
@@ -66,17 +68,23 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname.startsWith("/admin") && devPayload) {
-    const ctx = buildAccessContext({
-      userId: devPayload.userId,
-      email: devPayload.email,
-      displayName: devPayload.displayName,
-      roleKey: devPayload.roleKey,
-      scopeType: devPayload.scopeType,
-      scopeId: devPayload.scopeId,
-      venueId: devPayload.venueId,
-      venueName: devPayload.venueName,
-    });
+  // Both authentication mechanisms now converge on one AccessContext before
+  // any route decision. Hosted resolution is DB-backed and fail-closed; being
+  // authenticated is never treated as being authorized.
+  let ctx = devPayload ? actorFromDevSession(devPayload) : null;
+  if (!ctx && authedUser) {
+    try {
+      ctx = await resolveHostedActor(authedUser, getSupabaseAdminClient());
+    } catch {
+      ctx = null;
+    }
+  }
+
+  if (!ctx) {
+    return NextResponse.redirect(new URL("/no-access", request.url));
+  }
+
+  if (pathname.startsWith("/admin")) {
     const guard = guardForAdminPath(pathname);
     if (!guard(ctx)) {
       const home = new URL(getRoleHome(ctx), request.url);

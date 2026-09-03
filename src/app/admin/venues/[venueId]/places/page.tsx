@@ -2,7 +2,8 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
-import { venueInScope } from "@/lib/access/capabilities";
+import { canManageVenueSettings, venueInScope } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
 import { createFamilyAmenity, getFamilyPlacesAdmin, getFamilyVenueStatusAdmin, setFamilyPlaceVisibility, setFamilyVenueStatus, type FamilyVenuePublicStatus } from "@/lib/services/family-places";
 import { getVenue } from "@/lib/services/venues";
 
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function FamilyPlacesAdminPage({ params }: { params: Promise<{ venueId: string }> }) {
   const { venueId } = await params;
   const [venue, ctx] = await Promise.all([getVenue(venueId), getSessionContext()]);
+  if (!canManageVenueSettings(ctx)) redirect(getRoleHome(ctx));
   if (!venue || !venueInScope(ctx, venue)) redirect("/admin/venues");
   const [rows, venueStatus] = await Promise.all([getFamilyPlacesAdmin(venueId), getFamilyVenueStatusAdmin(venueId)]);
 
@@ -21,7 +23,7 @@ export default async function FamilyPlacesAdminPage({ params }: { params: Promis
     "use server";
     const actingCtx = await getSessionContext();
     const target = await getVenue(venueId);
-    if (!actingCtx || !target || !venueInScope(actingCtx, target)) redirect("/admin/venues");
+    if (!actingCtx || !canManageVenueSettings(actingCtx) || !target || !venueInScope(actingCtx, target)) redirect("/admin/venues");
     const status = String(formData.get("status") || "unknown") as FamilyVenuePublicStatus;
     if (!publicStatuses.includes(status)) return;
     const effectiveAt = optionalDateTime(formData.get("effective_at"));
@@ -35,7 +37,7 @@ export default async function FamilyPlacesAdminPage({ params }: { params: Promis
     "use server";
     const actingCtx = await getSessionContext();
     const target = await getVenue(venueId);
-    if (!actingCtx || !target || !venueInScope(actingCtx, target)) redirect("/admin/venues");
+    if (!actingCtx || !canManageVenueSettings(actingCtx) || !target || !venueInScope(actingCtx, target)) redirect("/admin/venues");
     const name = String(formData.get("name") || "").trim();
     const amenityType = String(formData.get("amenity_type") || "other");
     if (!name || !amenityTypes.includes(amenityType)) return;
@@ -58,7 +60,7 @@ export default async function FamilyPlacesAdminPage({ params }: { params: Promis
     "use server";
     const actingCtx = await getSessionContext();
     const target = await getVenue(venueId);
-    if (!actingCtx || !target || !venueInScope(actingCtx, target)) redirect("/admin/venues");
+    if (!actingCtx || !canManageVenueSettings(actingCtx) || !target || !venueInScope(actingCtx, target)) redirect("/admin/venues");
     const sourceType = String(formData.get("source_type"));
     if (!isSourceType(sourceType)) return;
     await setFamilyPlaceVisibility({ venueId, sourceType, sourceId: String(formData.get("source_id")), parentVisible: formData.get("parent_visible") === "true" }, actingCtx.userId);

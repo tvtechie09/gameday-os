@@ -2,6 +2,10 @@ import Link from "next/link";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { AlertForm } from "./alert-form";
+import { redirect } from "next/navigation";
+import { canSendAnnouncement } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +16,8 @@ type NewAlertPageProps = {
 };
 
 export default async function NewAlertPage({ searchParams }: NewAlertPageProps) {
+  const ctx = await getSessionContext();
+  if (!canSendAnnouncement(ctx)) redirect(getRoleHome(ctx));
   const resolvedSearchParams = await searchParams;
   const [scoped, tournaments] = await Promise.all([getScopedVenuesAndFields(), getTournaments()]);
   const { venues, fields } = scoped;

@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { updateSessionGameState, type UpdateSessionGameStateInput } from "@/lib/services/sessions";
 import type { InningHalf, Session } from "@/lib/types";
+import { hasPermission } from "@/lib/access/capabilities";
+import { assertFieldInScope } from "@/lib/access/scoped-venue-data";
+import { getSessionContext } from "@/lib/access/session";
+import { getSession } from "@/lib/services/sessions";
 
 export type UpdateSessionStateResult = {
   session?: Session;
@@ -30,6 +34,12 @@ export async function updateSessionStateAction(
   const gameStatus = validGameStatuses.includes(data.game_status) ? data.game_status : "scheduled";
 
   try {
+    const ctx = await getSessionContext();
+    const current = await getSession(sessionId);
+    if (!ctx || !hasPermission(ctx, "game.score.update") || !current || current.fieldId !== fieldId) {
+      return { error: "You do not have permission to update this game." };
+    }
+    await assertFieldInScope(fieldId);
     const session = await updateSessionGameState(
       sessionId,
       {
@@ -46,7 +56,7 @@ export async function updateSessionStateAction(
         secondary_link_label: data.secondary_link_label,
         secondary_link_url: data.secondary_link_url,
         notes: data.notes,
-      },
+      }, ctx.userId,
     );
 
     revalidatePath("/admin/sessions");

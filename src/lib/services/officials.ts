@@ -54,6 +54,13 @@ export async function getOfficialsForSessions(sessionIds: string[]): Promise<Ses
   return (data ?? []).map(mapOfficial);
 }
 
+export async function getOfficial(id: string): Promise<SessionOfficial | null> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.from("session_officials").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapOfficial(data) : null;
+}
+
 // Double-booking check: same email on another session overlapping ±2h.
 export async function findOfficialConflicts(officialEmail: string, sessionId: string): Promise<string[]> {
   if (!officialEmail) return [];

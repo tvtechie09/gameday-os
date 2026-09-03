@@ -169,6 +169,7 @@ export const adminRouteGuards: Array<{ prefix: string; exact?: boolean; cap: (ct
   { prefix: "/admin/schema-audit", cap: isPlatformAdmin },
   { prefix: "/admin/system-health", cap: isPlatformAdmin },
   { prefix: "/admin/pilot-launch", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/executive", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/venues", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/sessions", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/tournaments", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },
