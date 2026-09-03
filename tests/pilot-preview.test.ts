@@ -110,3 +110,12 @@ test("pilot build info exposes only a safe runtime Supabase project reference", 
   assert.doesNotMatch(build, /SUPABASE_SERVICE_ROLE_KEY|ANON_KEY/);
   assert.match(shell, /pilotInfo\.stagingProjectRef/);
 });
+
+test("pilot branch hides and disables development login tooling", () => {
+  const build = readFileSync("src/lib/pilot-build.ts", "utf8");
+  const env = readFileSync("src/lib/access/env.ts", "utf8");
+  const login = readFileSync("src/app/login/page.tsx", "utf8");
+  assert.match(build, /VERCEL_GIT_COMMIT_REF === "security\/audit-remediation-2026-08-28"/);
+  assert.match(env, /if \(isPilotPreviewEnvironment\(\)\) return false/);
+  assert.match(login, /devLoginEnabled = isDevLoginEnabled\(\) && !pilotPreview/);
+});

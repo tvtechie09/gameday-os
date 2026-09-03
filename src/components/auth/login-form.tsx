@@ -11,7 +11,8 @@ import { AlertBanner, buttonStyles } from "@/components/ui/gameday-ui";
 export function LoginForm({
   next,
   devLoginEnabled,
-}: Readonly<{ next: string; devLoginEnabled: boolean }>) {
+  pilotPreview,
+}: Readonly<{ next: string; devLoginEnabled: boolean; pilotPreview: boolean }>) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -189,7 +190,7 @@ export function LoginForm({
       </button>
 
       <p className="text-sm leading-6 text-[var(--muted)]">
-        Use a real account. Demo role-switching is available in staging.
+        {pilotPreview ? "Use your individually assigned pilot account." : "Use a real account. Demo role-switching is available in staging."}
       </p>
 
       {devLoginEnabled ? (

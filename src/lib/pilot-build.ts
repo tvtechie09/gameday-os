@@ -6,7 +6,8 @@ export type PilotBuildInfo = {
 };
 
 export function isPilotPreviewEnvironment() {
-  return process.env.VERCEL_ENV === "preview" || process.env.PILOT_PREVIEW === "true";
+  return process.env.PILOT_PREVIEW === "true"
+    || (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "security/audit-remediation-2026-08-28");
 }
 
 export function getPilotBuildInfo(): PilotBuildInfo | null {
