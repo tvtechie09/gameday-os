@@ -1,8 +1,42 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+type PlatformIdentityRows = {
+  people: { id: string; organization_id: string | null; user_id: string | null; display_name: string; email: string | null; phone: string | null; person_type: string; notes: string | null; preferred_name: string | null; status: string; created_at: string; updated_at: string };
+  person_organization_links: { id: string; person_id: string; organization_id: string; status: string; first_seen_at: string; last_seen_at: string };
+  account_people: { id: string; auth_user_id: string; user_id: string | null; person_id: string; claimed_at: string; claim_method: string; verification_metadata: Json; created_at: string; updated_at: string };
+  person_source_identities: { id: string; organization_id: string; person_id: string | null; connection_id: string | null; provider: string; provider_connection_key: string; external_person_id: string; status: string; source_metadata: Json; source_updated_at: string | null; first_seen_at: string; last_seen_at: string; created_at: string; updated_at: string };
+  person_identifiers: { id: string; person_id: string; organization_id: string; source_identity_id: string | null; identifier_type: string; normalized_value: string; display_value: string; verification_status: string; first_seen_at: string; last_seen_at: string; created_at: string; updated_at: string };
+  person_relationships: { id: string; organization_id: string; subject_person_id: string; relationship_type: string; related_person_id: string | null; related_entity_type: string; related_entity_id: string; source_identity_id: string | null; status: string; source_updated_at: string | null; first_seen_at: string; last_seen_at: string; created_at: string; updated_at: string };
+  person_provenance_assertions: { id: string; organization_id: string; person_id: string; source_identity_id: string; fact_domain: string; fact_key: string; asserted_value: Json; value_hash: string; external_record_ref: string | null; source_timestamp: string | null; ingested_at: string; status: string; created_at: string; updated_at: string };
+  identity_resolution_cases: { id: string; organization_id: string; source_identity_id: string; candidate_person_id: string | null; outcome: string; review_status: string; reason_codes: string[]; evidence: Json; confidence: string; reviewed_by_user_id: string | null; reviewed_at: string | null; created_at: string; updated_at: string };
+  identity_separation_rules: { id: string; organization_id: string; source_identity_id: string; person_id: string; reason_code: string; decided_by_user_id: string | null; decided_at: string; active: boolean; created_at: string; updated_at: string };
+  identity_resolution_events: { id: string; organization_id: string; event_type: string; person_id: string | null; source_identity_id: string | null; previous_person_id: string | null; actor_type: string; actor_user_id: string | null; reason_codes: string[]; supporting_metadata: Json; created_at: string };
+  identity_authority_rules: { id: string; organization_id: string | null; fact_domain: string; fact_key: string; provider: string; priority: number; active: boolean; created_by_user_id: string | null; created_at: string; updated_at: string };
+  person_legacy_links: { id: string; person_id: string; legacy_system: string; legacy_tenant_key: string; legacy_person_id: string; created_at: string };
+};
+
+type PlatformIdentityTable<K extends keyof PlatformIdentityRows> = {
+  Row: PlatformIdentityRows[K];
+  Insert: Partial<PlatformIdentityRows[K]>;
+  Update: Partial<PlatformIdentityRows[K]>;
+  Relationships: [];
+};
+
 export type Database = {
   public: {
     Tables: {
+      people: PlatformIdentityTable<"people">;
+      person_organization_links: PlatformIdentityTable<"person_organization_links">;
+      account_people: PlatformIdentityTable<"account_people">;
+      person_source_identities: PlatformIdentityTable<"person_source_identities">;
+      person_identifiers: PlatformIdentityTable<"person_identifiers">;
+      person_relationships: PlatformIdentityTable<"person_relationships">;
+      person_provenance_assertions: PlatformIdentityTable<"person_provenance_assertions">;
+      identity_resolution_cases: PlatformIdentityTable<"identity_resolution_cases">;
+      identity_separation_rules: PlatformIdentityTable<"identity_separation_rules">;
+      identity_resolution_events: PlatformIdentityTable<"identity_resolution_events">;
+      identity_authority_rules: PlatformIdentityTable<"identity_authority_rules">;
+      person_legacy_links: PlatformIdentityTable<"person_legacy_links">;
       organizations: {
         Row: {
           id: string;

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getIntegrationProvider, type IntegrationMode, type IntegrationProviderKey } from "./integration-framework.ts";
+import { createIdentityState, resolvePersonAssertion, type IdentityState, type NormalizedPersonAssertion } from "./platform-identity.ts";
 
 export type DataConfidence = "HIGH" | "MEDIUM" | "LOW";
 export type IntegrationHealth = "HEALTHY" | "DEGRADED" | "STALE" | "ERROR" | "DISCONNECTED" | "DISABLED";
@@ -40,6 +41,7 @@ export type ProviderPayload = {
   events?: NormalizedEvent[];
   teams?: NormalizedTeam[];
   participants?: NormalizedParticipant[];
+  people?: NormalizedPersonAssertion[];
   venues?: NormalizedVenue[];
 };
 
@@ -237,15 +239,24 @@ export type PipelineState = {
   events: Map<string, NormalizedEvent>;
   conflicts: Map<string, ProviderConflict>;
   changes: Array<{ canonicalEntityId: string; fields: string[] }>;
+  identity: IdentityState;
 };
 
 export function createPipelineState(): PipelineState {
-  return { idempotencyKeys: new Set(), links: new Map(), events: new Map(), conflicts: new Map(), changes: [] };
+  return { idempotencyKeys: new Set(), links: new Map(), events: new Map(), conflicts: new Map(), changes: [], identity: createIdentityState() };
 }
 
 export function applyProviderPayload(state: PipelineState, payload: ProviderPayload, now = new Date().toISOString()) {
   if (state.idempotencyKeys.has(payload.idempotencyKey)) return { replay: true, created: 0, updated: 0, unchanged: 0, conflicts: 0, changes: 0 };
+  for (const person of payload.people ?? []) {
+    if (person.provider !== payload.provider || person.providerConnectionKey !== payload.integrationId || person.organizationId !== payload.organizationId) {
+      throw new Error("Provider person assertion scope does not match its integration payload.");
+    }
+  }
   state.idempotencyKeys.add(payload.idempotencyKey);
+  for (const person of payload.people ?? []) {
+    resolvePersonAssertion(state.identity, person, now);
+  }
   let created = 0, updated = 0, unchanged = 0, conflictCount = 0, changeCount = 0;
   for (const rawEvent of payload.events || []) {
     const event = normalizeEvent(payload.provider, rawEvent);
