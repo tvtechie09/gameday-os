@@ -15,6 +15,8 @@ import {
 } from "@/lib/services/field-operations-core";
 import type { FieldStatus } from "@/lib/types";
 import { setFieldOperationalStatusAction } from "./actions";
+import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
+import { durationBucket, outcomeForFailureCode } from "@/lib/pilot-telemetry-core";
 
 type FieldOperationsBoardProps = {
   items: FieldOperationItem[];
@@ -243,6 +245,8 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
   }
 
   function applyStatus(item: FieldOperationItem, status: FieldStatus) {
+    const startedAt = Date.now();
+    trackPilotEvent("pilot_field_action_started", { actionType: status });
     setConfirmation(null);
     setPendingFieldId(item.fieldId);
     startTransition(async () => {
@@ -253,6 +257,11 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
         result = { ok: false, code: "temporary" as const, message: `Couldn't update ${item.fieldName}. Check your connection and try again.` };
       }
       setMessage(result);
+      trackPilotEvent(result.ok ? "pilot_field_action_completed" : "pilot_field_action_failed", {
+        actionType: status,
+        durationBucket: durationBucket(Date.now() - startedAt),
+        outcome: result.ok ? "completed" : outcomeForFailureCode(result.code),
+      });
       setPendingFieldId(null);
       if (result.ok && result.updatedAt) {
         setStatusOverrides((current) => ({ ...current, [item.fieldId]: { status, updatedAt: result.updatedAt! } }));

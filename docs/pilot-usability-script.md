@@ -8,18 +8,32 @@ Target length: 25–35 minutes. Use a clearly marked disposable pilot venue and 
 
 “We are testing the product, not you. Please tell me what you expect before each tap. If something is confusing, keep going as you naturally would.”
 
-## Tasks
+## Venue GM tasks
 
-1. **Arrive:** “You just arrived at the venue. Tell me what is happening right now and where you would go first.”
-2. **Investigate:** “A parent says Field 7 is closed. Find out what is happening.”
-3. **Recover:** “The next game on Field 7 needs to move. Show me where you would start. Stop before confirming the move.”
-4. **Report:** “The scoreboard on Field 4 is not working. Report it.”
-5. **Take ownership:** “You are the staff member fixing the scoreboard. Take ownership of the problem and show what you would do next.”
-6. **Complete:** “You fixed it. Close out the work with a useful note.”
-7. **Find a game:** “Find the 3:00 PM game and tell me where it is.”
-8. **Communicate:** “Publish a short operational announcement for this test venue.”
-9. **Check attention:** “Show me whether anything currently needs attention.”
-10. **Public view:** “Pretend you are a parent who scanned the Field 7 QR code. Tell me what is happening now and next.”
+1. “You just arrived. Tell me what is happening right now.”
+2. “Show me which fields need attention.”
+3. “Find what is currently happening on Field 7.”
+4. “Show me what you would do if Field 7 had to close. Stop before confirming a destructive change.”
+5. “Find a future game and show me where you would change it.”
+6. “Find an active Work Order.”
+7. “Assign or review ownership of a Work Order.”
+8. “Publish an operational announcement for this test venue.”
+9. “Show me the overall venue status.”
+
+## Venue Staff tasks
+
+1. “Tell me what is happening now.”
+2. “Find Field 7.”
+3. “Identify a field that needs attention.”
+4. “Find a Work Order assigned to you.”
+5. “Claim or acknowledge work where applicable.”
+6. “Start the work.”
+7. “Resolve it with a useful note.”
+8. “Find the latest announcement.”
+
+## Public check
+
+“Pretend you are a parent who scanned the Field 7 QR code. Tell me what is happening now and next.”
 
 ## Failure prompts
 

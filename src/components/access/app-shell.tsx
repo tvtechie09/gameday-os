@@ -23,6 +23,8 @@ import type { NavGroup } from "@/lib/access/navigation";
 import { AppHeader } from "./app-header";
 import { BottomNavigation, type MobileNavItem } from "./bottom-navigation";
 import { Sheet } from "@/components/ui/overlays";
+import { PilotTelemetry } from "@/components/pilot/pilot-telemetry";
+import type { PilotBuildInfo } from "@/lib/pilot-build";
 
 const iconMap: Record<string, LucideIcon> = {
   Activity,
@@ -74,10 +76,11 @@ export type AppShellProps = {
   roleLabel: string;
   venueName: string | null;
   email: string;
+  pilotInfo: PilotBuildInfo | null;
   children: React.ReactNode;
 };
 
-export function AppShell({ navGroups, roleLabel, venueName, email, children }: Readonly<AppShellProps>) {
+export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, children }: Readonly<AppShellProps>) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const mobileItems = buildMobileNavigation(navGroups);
@@ -88,7 +91,7 @@ export function AppShell({ navGroups, roleLabel, venueName, email, children }: R
         <div className="min-w-0 px-5 py-6 lg:sticky lg:top-0">
           <Link className="mb-7 flex min-h-12 items-center gap-3 rounded-[var(--radius-md)] focus-visible:outline-2 focus-visible:outline-offset-2" href="/">
             <span className="grid h-11 w-11 place-items-center rounded-[var(--radius-md)] bg-white text-sm font-black text-[var(--black-soft)]">GD</span>
-            <span><span className="block text-base font-black">GameDay</span><span className="block text-xs font-semibold text-white/55">Venue operations</span></span>
+            <span><span className="flex items-center gap-2 text-base font-black">GameDay{pilotInfo ? <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-950">Pilot</span> : null}</span><span className="block text-xs font-semibold text-white/55">Venue operations</span></span>
           </Link>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Signed in as</p>
           <h2 className="mt-1 text-lg font-black leading-tight">{roleLabel}</h2>
@@ -141,7 +144,7 @@ export function AppShell({ navGroups, roleLabel, venueName, email, children }: R
       </aside>
 
       <div className="min-w-0">
-        <AppHeader onOpenMenu={() => setMoreOpen(true)} roleLabel={roleLabel} venueName={venueName} />
+        <AppHeader onOpenMenu={() => setMoreOpen(true)} pilotInfo={pilotInfo} roleLabel={roleLabel} venueName={venueName} />
         <div className="min-w-0 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</div>
       </div>
 
@@ -163,8 +166,15 @@ export function AppShell({ navGroups, roleLabel, venueName, email, children }: R
           <form action="/logout" method="post">
             <button className="min-h-12 w-full rounded-[var(--radius-md)] bg-[var(--black-soft)] px-4 text-sm font-extrabold text-white" type="submit">Sign out</button>
           </form>
+          {pilotInfo ? (
+            <section className="rounded-[var(--radius-md)] border border-amber-300 bg-amber-50 p-3 text-amber-950" aria-label="Pilot build information">
+              <p className="text-xs font-black uppercase tracking-[0.12em]">Staging Pilot</p>
+              <p className="mt-1 text-xs font-semibold">Build {pilotInfo.commit} · Non-production</p>
+            </section>
+          ) : null}
         </div>
       </Sheet>
+      <PilotTelemetry enabled={Boolean(pilotInfo?.enabled)} />
     </div>
   );
 }

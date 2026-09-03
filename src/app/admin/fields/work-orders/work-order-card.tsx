@@ -25,6 +25,8 @@ import {
   startWorkOrderAction,
   type WorkOrderActionResult,
 } from "./actions";
+import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
+import { durationBucket, outcomeForFailureCode, type PilotEventName } from "@/lib/pilot-telemetry-core";
 
 export type WorkOrderGameContext = {
   href: string;
@@ -91,8 +93,9 @@ export function WorkOrderCard({
   const priority = workOrderPriorityPresentation(order.priority);
   const primary = primaryWorkOrderAction(order, { canManage, canWork, userId: currentUserId });
 
-  function run(action: () => Promise<WorkOrderActionResult>, closeOnSuccess = false) {
+  function run(successEvent: PilotEventName | null, actionType: string, action: () => Promise<WorkOrderActionResult>, closeOnSuccess = false) {
     setMessage(null);
+    const startedAt = Date.now();
     startTransition(async () => {
       let result: WorkOrderActionResult;
       try {
@@ -101,6 +104,13 @@ export function WorkOrderCard({
         result = { ok: false, code: "temporary", message: "Couldn't update this work order. Check your connection and try again." };
       }
       setMessage(result);
+      if (successEvent || !result.ok) {
+        trackPilotEvent(result.ok ? successEvent! : "pilot_work_order_failed", {
+          actionType,
+          durationBucket: durationBucket(Date.now() - startedAt),
+          outcome: result.ok ? "completed" : outcomeForFailureCode(result.code),
+        });
+      }
       if (result.ok) {
         if (closeOnSuccess) setOverlay(null);
         router.refresh();
@@ -117,9 +127,9 @@ export function WorkOrderCard({
   ) : null;
 
   function runPrimary() {
-    if (primary === "claim") run(() => claimWorkOrderAction(order.id, order.updatedAt));
-    if (primary === "acknowledge") run(() => acknowledgeWorkOrderAction(order.id, order.updatedAt));
-    if (primary === "start") run(() => startWorkOrderAction(order.id, order.updatedAt));
+    if (primary === "claim") run("pilot_work_order_claimed", "claim", () => claimWorkOrderAction(order.id, order.updatedAt));
+    if (primary === "acknowledge") run("pilot_work_order_acknowledged", "acknowledge", () => acknowledgeWorkOrderAction(order.id, order.updatedAt));
+    if (primary === "start") run("pilot_work_order_started", "start", () => startWorkOrderAction(order.id, order.updatedAt));
     if (primary === "resolve") setOverlay("resolve");
   }
 
@@ -191,7 +201,7 @@ export function WorkOrderCard({
             {assignees.map((person) => <option key={person.id} value={person.id}>{person.displayName}{person.roleLabel ? ` · ${person.roleLabel}` : ""}</option>)}
           </select>
         </label>
-        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending || !assigneeId} onClick={() => run(() => assignWorkOrderAction(order.id, assigneeId, order.updatedAt), true)} type="button">{pending ? "Assigning…" : "Assign"}</button>
+        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending || !assigneeId} onClick={() => run(null, "assign", () => assignWorkOrderAction(order.id, assigneeId, order.updatedAt), true)} type="button">{pending ? "Assigning…" : "Assign"}</button>
       </Sheet> : null}
 
       {overlay === "resolve" ? <Sheet description={`${order.title} · ${fieldName}`} onClose={() => setOverlay(null)} open title="Resolve Work Order">
@@ -199,7 +209,7 @@ export function WorkOrderCard({
         <label className="grid gap-2 text-sm font-black">What was done? <span className="font-semibold text-[var(--muted)]">Optional</span>
           <textarea className="ui-input min-h-28" maxLength={2000} onChange={(event) => setResolutionNote(event.target.value)} placeholder="Replaced power supply" value={resolutionNote} />
         </label>
-        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending} onClick={() => run(() => resolveWorkOrderAction(order.id, order.updatedAt, resolutionNote), true)} type="button">{pending ? "Resolving…" : "Mark Resolved"}</button>
+        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending} onClick={() => run("pilot_work_order_resolved", "resolve", () => resolveWorkOrderAction(order.id, order.updatedAt, resolutionNote), true)} type="button">{pending ? "Resolving…" : "Mark Resolved"}</button>
       </Sheet> : null}
 
       {overlay === "note" ? <Sheet description="This note becomes part of the authoritative work-order history." onClose={() => setOverlay(null)} open title="Add Note">
@@ -207,17 +217,17 @@ export function WorkOrderCard({
         <label className="grid gap-2 text-sm font-black">Update
           <textarea className="ui-input min-h-28" maxLength={1000} onChange={(event) => setNote(event.target.value)} placeholder="Waiting for a replacement cable" value={note} />
         </label>
-        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending || !note.trim()} onClick={() => run(() => addWorkOrderNoteAction(order.id, note), true)} type="button">{pending ? "Saving…" : "Save Note"}</button>
+        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending || !note.trim()} onClick={() => run(null, "note", () => addWorkOrderNoteAction(order.id, note), true)} type="button">{pending ? "Saving…" : "Save Note"}</button>
       </Sheet> : null}
 
       {overlay === "escalate" ? <Modal description="This flags the work order as urgent for venue management. It does not send an automatic external notification." onClose={() => setOverlay(null)} open title="Escalate Work Order?">
         {overlayMessage}
-        <button className={buttonStyles("destructive", "w-full")} disabled={pending} onClick={() => run(() => escalateWorkOrderAction(order.id, order.updatedAt), true)} type="button">{pending ? "Escalating…" : "Escalate"}</button>
+        <button className={buttonStyles("destructive", "w-full")} disabled={pending} onClick={() => run(null, "escalate", () => escalateWorkOrderAction(order.id, order.updatedAt), true)} type="button">{pending ? "Escalating…" : "Escalate"}</button>
       </Modal> : null}
 
       {overlay === "reopen" ? <Modal description="The work order will return to New. Field status will not change." onClose={() => setOverlay(null)} open title="Reopen Work Order?">
         {overlayMessage}
-        <button className={buttonStyles("primary", "w-full")} disabled={pending} onClick={() => run(() => reopenWorkOrderAction(order.id, order.updatedAt), true)} type="button">{pending ? "Reopening…" : "Reopen"}</button>
+        <button className={buttonStyles("primary", "w-full")} disabled={pending} onClick={() => run(null, "reopen", () => reopenWorkOrderAction(order.id, order.updatedAt), true)} type="button">{pending ? "Reopening…" : "Reopen"}</button>
       </Modal> : null}
     </article>
   );

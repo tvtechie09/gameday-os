@@ -6,6 +6,8 @@ import { CheckCircle2 } from "lucide-react";
 import { Modal } from "@/components/ui/overlays";
 import { buttonStyles } from "@/components/ui/gameday-ui";
 import { moveAffectedGameAction, type MoveAffectedGameResult } from "../../actions";
+import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
+import { durationBucket } from "@/lib/pilot-telemetry-core";
 
 type FieldOption = { id: string; name: string; conflictMessage: string | null };
 
@@ -54,6 +56,8 @@ export function MoveGameForm({
 
   function submitMove() {
     if (!target) return;
+    const startedAt = Date.now();
+    trackPilotEvent("pilot_move_game_started", { actionType: "move_game", source: "field_disruption" });
     setResult(null);
     startTransition(async () => {
       let next: MoveAffectedGameResult;
@@ -68,6 +72,12 @@ export function MoveGameForm({
         next = { ok: false, message: "Couldn't move this game. Check your connection and try again." };
       }
       setResult(next);
+      trackPilotEvent(next.ok ? "pilot_move_game_completed" : "pilot_move_game_failed", {
+        actionType: "move_game",
+        durationBucket: durationBucket(Date.now() - startedAt),
+        outcome: next.ok ? "completed" : "failed",
+        source: "field_disruption",
+      });
       if (next.ok) setConfirming(false);
     });
   }

@@ -85,7 +85,7 @@ async function resolveWeatherCoordinates(venueId: string): Promise<WeatherCoordi
   const longitude = profile?.longitude;
 
   if (!profile || !isFiniteCoordinate(latitude) || !isFiniteCoordinate(longitude)) {
-    console.error("Weather API missing venue coordinates", {
+    console.info("Weather API unavailable because optional venue coordinates are not configured", {
       address: venue.address,
       city: venue.city ?? null,
       profileCount: profiles.length,

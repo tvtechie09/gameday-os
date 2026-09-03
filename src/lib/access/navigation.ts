@@ -106,7 +106,7 @@ export const navItems: NavItem[] = [
   // Your own account (2FA). Every signed-in user gets this -- it only ever acts
   // on the caller's own Supabase user, so there's no capability to gate on.
   { key: "account", href: "/admin/account", label: "Your Account", icon: "ShieldCheck", group: "admin", stage: "supporting", cap: (ctx) => Boolean(ctx) },
-  { key: "feedback", href: "/admin/feedback", label: "Send Feedback", icon: "Bell", group: "admin", stage: "supporting", cap: canAccessAdminWorkspace },
+  { key: "feedback", href: "/admin/feedback", label: "Send Feedback", icon: "Bell", group: "admin", stage: "supporting", cap: (ctx) => canViewOpsTasks(ctx) && !isOrgScoped(ctx) },
 ];
 
 const groupLabels: Record<NavGroupKey, string> = {
@@ -188,7 +188,7 @@ export const adminRouteGuards: Array<{ prefix: string; exact?: boolean; cap: (ct
   { prefix: "/admin/notifications", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/sponsors", cap: (ctx) => hasPermission(ctx, "sponsor.manage") },
   { prefix: "/admin/account", cap: (ctx) => Boolean(ctx) },
-  { prefix: "/admin/feedback", cap: canAccessAdminWorkspace },
+  { prefix: "/admin/feedback", cap: (ctx) => canViewOpsTasks(ctx) && !isOrgScoped(ctx) },
 ];
 
 export function guardForAdminPath(pathname: string): (ctx: AccessContext | null) => boolean {

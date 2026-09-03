@@ -6,6 +6,8 @@ import { alertScopes, alertTypes, alertVisibilities, getAlertScopeLabel } from "
 import { alertTypeLabel } from "@/lib/ui/status-presentation";
 import type { AlertPriority, AlertScope, AlertType, Field, Tournament, Venue } from "@/lib/types";
 import { createAlertAction } from "../actions";
+import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
+import { durationBucket } from "@/lib/pilot-telemetry-core";
 
 type Message = { kind: "success" | "error"; text: string };
 type AlertFormInitialValues = { alertPriority?: AlertPriority; alertScope?: AlertScope; alertType?: AlertType; message?: string; title?: string };
@@ -26,12 +28,15 @@ export function AlertForm({ fields, initialValues, tournaments, venues }: { fiel
     if (isSaving) return;
     setIsSaving(true);
     setMessage(null);
+    const startedAt = Date.now();
     const result = await createAlertAction(new FormData(event.currentTarget)).catch(() => ({ error: "Couldn't publish this announcement. Check your connection and try again." }));
     if (result.error) {
+      trackPilotEvent("pilot_announcement_failed", { actionType: "publish", durationBucket: durationBucket(Date.now() - startedAt), outcome: "failed" });
       setMessage({ kind: "error", text: result.error });
       setIsSaving(false);
       return;
     }
+    trackPilotEvent("pilot_announcement_published", { actionType: "publish", durationBucket: durationBucket(Date.now() - startedAt), outcome: "completed" });
     setMessage({ kind: "success", text: "Announcement published. Opening announcements…" });
     formRef.current?.reset();
     router.push("/admin/alerts");

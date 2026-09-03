@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { buttonStyles } from "@/components/ui/gameday-ui";
 import { createWorkOrderAction, type WorkOrderActionResult } from "./actions";
+import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
+import { durationBucket, outcomeForFailureCode } from "@/lib/pilot-telemetry-core";
 
 type FieldOption = { id: string; name: string; venueName: string };
 
@@ -25,6 +27,7 @@ export function WorkOrderForm({
     <form
       action={(formData) => {
         setResult(null);
+        const startedAt = Date.now();
         startTransition(async () => {
           let next: WorkOrderActionResult;
           try {
@@ -33,6 +36,11 @@ export function WorkOrderForm({
             next = { ok: false, code: "temporary", message: "Couldn't create the work order. Check your connection and try again." };
           }
           setResult(next);
+          trackPilotEvent(next.ok ? "pilot_work_order_created" : "pilot_work_order_failed", {
+            actionType: "create",
+            durationBucket: durationBucket(Date.now() - startedAt),
+            outcome: next.ok ? "completed" : outcomeForFailureCode(next.code),
+          });
           if (next.ok && next.workOrderId) {
             formRef.current?.reset();
             const query = initialFieldId ? `?fieldId=${encodeURIComponent(initialFieldId)}` : "";
