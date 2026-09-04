@@ -57,6 +57,7 @@ const platformAdminPermissions: string[] = [
   "media.manage",
   "media.publish",
   "identity.role.manage",
+  "identity.review",
   "integration.api.read",
   "integration.api.write",
   "integration.webhook.manage",

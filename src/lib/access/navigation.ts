@@ -13,6 +13,7 @@ import {
   canManageSchedule,
   canManageTournaments,
   canManageUsers,
+  canReviewIdentities,
   canManageVenueSettings,
   canSendAnnouncement,
   canOpenCloseField,
@@ -94,6 +95,7 @@ export const navItems: NavItem[] = [
   { key: "organizations", href: "/admin/organizations", label: "Organizations", icon: "Users", group: "admin", stage: "supporting", cap: isPlatformAdmin },
   { key: "integrations", href: "/admin/integrations", label: "Schedule Imports", icon: "Database", group: "admin", stage: "supporting", cap: canManageIntegrations },
   { key: "users", href: "/admin/identity/people", label: "People & Access", icon: "Users", group: "admin", stage: "supporting", cap: canManageUsers },
+  { key: "identity-review", href: "/admin/identity/review", label: "Identity Review", icon: "ShieldCheck", group: "admin", stage: "supporting", cap: canReviewIdentities },
   { key: "permissions", href: "/admin/roles", label: "Roles & Permissions", icon: "ShieldCheck", group: "admin", stage: "supporting", cap: canManagePermissions },
   // canViewBilling (not the stricter canManageBilling) so an org-scoped
   // president sees their own org's plan/invoices read-only, matching what
@@ -162,6 +164,7 @@ export const adminRouteGuards: Array<{ prefix: string; exact?: boolean; cap: (ct
   { prefix: "/admin/marketplace", cap: canViewDevTools },
   { prefix: "/admin/billing", cap: canViewBilling },
   { prefix: "/admin/roles", cap: canManagePermissions },
+  { prefix: "/admin/identity/review", cap: canReviewIdentities },
   { prefix: "/admin/identity", cap: canManageUsers },
   { prefix: "/admin/integrations", cap: canManageIntegrations },
   { prefix: "/admin/organizations", cap: isPlatformAdmin },

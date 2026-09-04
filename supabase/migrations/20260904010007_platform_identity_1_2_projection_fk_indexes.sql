@@ -1,0 +1,5 @@
+create index if not exists platform_domain_person_projection_canonical_person_idx
+  on public.platform_domain_person_projections (canonical_person_id);
+
+create index if not exists platform_domain_relationship_projection_subject_person_idx
+  on public.platform_domain_relationship_projections (subject_person_id);

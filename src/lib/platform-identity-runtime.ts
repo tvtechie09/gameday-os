@@ -39,7 +39,7 @@ export type NormalizedProviderPersonInput = {
     legacyTenantKey: string;
     legacyPersonId: string;
   };
-  sourceMetadata?: Record<string, string | number | boolean | null>;
+  sourceMetadata?: Record<string, unknown>;
   sourceUpdatedAt?: string;
 };
 
@@ -55,6 +55,17 @@ export type PersistentIdentityResolution = {
 type RpcClient = Pick<SupabaseClient, "rpc">;
 
 function safeInput(input: NormalizedProviderPersonInput): NormalizedProviderPersonInput {
+  const reviewIdentifiers = input.identifiers.map((identifier) => {
+    const value = identifier.value.trim();
+    const maskedValue = identifier.type === "email"
+      ? (value.split("@")[0]?.slice(0, 1) || "*") + "***@" + (value.split("@")[1] || "unknown")
+      : "***-***-" + value.replace(/\D/g, "").slice(-4).padStart(4, "*");
+    return {
+      type: identifier.type,
+      maskedValue,
+      verificationStatus: identifier.verificationStatus ?? "unverified",
+    };
+  });
   return {
     ...input,
     provider: input.provider.trim().toLowerCase(),
@@ -67,7 +78,19 @@ function safeInput(input: NormalizedProviderPersonInput): NormalizedProviderPers
         ? "unverified"
         : identifier.verificationStatus ?? "unverified",
     })),
-    sourceMetadata: input.sourceMetadata ?? {},
+    sourceMetadata: {
+      ...(input.sourceMetadata ?? {}),
+      reviewDisplayName: input.displayName.trim(),
+      reviewIdentifiers,
+      reviewRelationships: (input.relationships ?? []).map((relationship) => ({
+        relationshipType: relationship.relationshipType,
+      })),
+      ...(input.legacyPersonMapping ? {
+        reviewLegacySystem: input.legacyPersonMapping.legacySystem,
+        reviewLegacyTenantKey: input.legacyPersonMapping.legacyTenantKey,
+        reviewLegacyPersonId: input.legacyPersonMapping.legacyPersonId,
+      } : {}),
+    },
   };
 }
 

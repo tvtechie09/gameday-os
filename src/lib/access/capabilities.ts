@@ -134,6 +134,10 @@ export function canManageUsers(ctx: AccessContext | null): boolean {
   return hasPermission(ctx, "platform.users.manage");
 }
 
+export function canReviewIdentities(ctx: AccessContext | null): boolean {
+  return hasPermission(ctx, "identity.review");
+}
+
 export function canManagePermissions(ctx: AccessContext | null): boolean {
   return hasPermission(ctx, "platform.permissions.manage");
 }
