@@ -76,10 +76,13 @@ export default async function IdentityReviewDetailPage({ params, searchParams }:
           <p className="mt-2 text-sm text-[var(--muted)]">Select only one candidate proposed by GameDay.</p>
           <div className="mt-4 grid gap-3">
             {reviewCase.candidatePeople.map((candidate) => (
-              <label className="flex cursor-pointer gap-3 rounded-lg border border-[var(--line)] p-4" key={candidate.personId}>
-                <input className="mt-1 size-5" name="candidatePersonId" required type="radio" value={candidate.personId} />
-                <span><strong className="block text-lg">{candidate.displayName}</strong><span className="mt-1 block text-sm text-[var(--muted)]">{candidate.identifiers.map((identifier) => identifier.maskedValue + " · " + identifier.verificationStatus.replaceAll("_", " ")).join(" · ") || "No contact identifier displayed"}</span><span className="mt-1 block text-xs font-bold uppercase tracking-[0.1em] text-[var(--muted)]">Sources: {candidate.provenanceProviders.join(", ") || "GameDay"}</span>{candidate.keepSeparate ? <span className="mt-2 block text-sm font-bold">Existing keep-separate decision</span> : null}</span>
-              </label>
+              <div className="rounded-lg border border-[var(--line)] p-4" key={candidate.personId}>
+                <label className="flex cursor-pointer gap-3">
+                  <input className="mt-1 size-5" name="candidatePersonId" required type="radio" value={candidate.personId} />
+                  <span><strong className="block text-lg">{candidate.displayName}</strong><span className="mt-1 block text-sm text-[var(--muted)]">{candidate.identifiers.map((identifier) => identifier.maskedValue + " · " + identifier.verificationStatus.replaceAll("_", " ")).join(" · ") || "No contact identifier displayed"}</span><span className="mt-1 block text-xs font-bold uppercase tracking-[0.1em] text-[var(--muted)]">Sources: {candidate.provenanceProviders.join(", ") || "GameDay"}</span>{candidate.keepSeparate ? <span className="mt-2 block text-sm font-bold">Existing keep-separate decision</span> : null}</span>
+                </label>
+                <Link className="mt-3 inline-block text-sm font-bold text-[var(--accent-strong)] underline" href={"/admin/identity/truth/" + candidate.personId + "?organizationId=" + encodeURIComponent(reviewCase.organizationId)}>View Identity &amp; Sources</Link>
+              </div>
             ))}
           </div>
           <input name="organizationId" type="hidden" value={reviewCase.organizationId} />

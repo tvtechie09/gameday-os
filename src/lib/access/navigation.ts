@@ -164,6 +164,7 @@ export const adminRouteGuards: Array<{ prefix: string; exact?: boolean; cap: (ct
   { prefix: "/admin/marketplace", cap: canViewDevTools },
   { prefix: "/admin/billing", cap: canViewBilling },
   { prefix: "/admin/roles", cap: canManagePermissions },
+  { prefix: "/admin/identity/truth", cap: canReviewIdentities },
   { prefix: "/admin/identity/review", cap: canReviewIdentities },
   { prefix: "/admin/identity", cap: canManageUsers },
   { prefix: "/admin/integrations", cap: canManageIntegrations },

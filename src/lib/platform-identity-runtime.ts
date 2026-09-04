@@ -121,15 +121,18 @@ export function createPlatformIdentityRuntime(client: RpcClient = getSupabaseAdm
         p_fact_domain: input.factDomain,
         p_fact_key: input.factKey,
       });
-      if (error) throw new Error(`Platform identity projection failed: ${error.message}`);
+      if (error) throw new Error(`Platform identity Truth query failed: ${error.message}`);
       return data as unknown as null | {
-        effectiveValue: unknown;
-        sourceProvider: string;
-        authorityReason: string;
-        lastUpdatedAt: string;
-        provenanceRecordId: string;
-        hasConflict: boolean;
-        hasOpenReview: boolean;
+        domain: string;
+        key: string;
+        label: string;
+        effectiveValue: unknown | null;
+        effectiveProvider: string | null;
+        reasonCode: string;
+        conflictState: string;
+        effectiveAt: string | null;
+        assertions: Array<{ provider: string; value: unknown; timestamp: string; humanConfirmed: boolean }>;
+        history: Array<{ provider: string; value: unknown; timestamp: string; status: string; humanConfirmed: boolean }>;
       };
     },
 
