@@ -48,6 +48,8 @@ The review decision RPC locks the case and checks `review_status` plus an expect
 
 Confirmed links preserve source identity, identifiers, provenance, and audit history. The source link wins on every later provider sync. Human confirmation is therefore durable and cannot be undone by heuristic matching.
 
+The canonical decision transaction stops at a durable projection intent. It atomically commits the source-to-person link, resolved review state, administrator audit event, and deduplicated queue item. Legacy/domain mapping materialization and compatibility projection occur only after a worker claims that queue item in a later transaction. A projection exception therefore cannot undo the link, reopen the review, or repeat the administrator decision.
+
 ## Keep-separate behavior
 
 Keep Separate creates or reactivates a separation rule for each proposed candidate, resolves the case as rejected, and retains all evidence. Repeated provider ingestion filters those candidates before matching, preventing the rejected pair from returning as the same proposed link. It never deletes either person or the incoming source identity.
@@ -69,6 +71,8 @@ Lifecycle states are `PENDING`, `PROCESSING`, `RETRY`, `COMPLETED`, and `FAILED`
 The deduplication key is the identity event, target domain, and operation type. Worker retries always re-read canonical source/person/legacy-link state; queued snapshots are never authoritative. Completed work can be safely replayed because projection writes upsert the stable domain identity mapping. Authorized administrators may retry failed work without editing payloads or changing canonical identity.
 
 Retry delay is bounded and deterministic. Temporary database/dependency failures become `RETRY`; exhausted attempts become `FAILED`. Organization mismatch, missing explicit mapping, and invalid domain references fail immediately with safe error codes. Browser-visible errors never contain stack traces or raw PII.
+
+Projection failure is intentionally not an identity-resolution failure. The queue records `RETRY` or `FAILED` independently while the canonical link, resolved review, and administrator audit remain committed. Authorized retry changes only queue execution state. Once the downstream condition is corrected, the worker rereads canonical state and brings the domain projection to the authoritative final state without recreating the human decision.
 
 ## Team and Family projection boundaries
 

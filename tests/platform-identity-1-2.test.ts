@@ -14,6 +14,7 @@ import { canReviewIdentityOrganization, explainIdentityReason, projectionStatusL
 const migration = readFileSync(new URL("../supabase/migrations/20260904004035_platform_identity_1_2_review_projection.sql", import.meta.url), "utf8");
 const roleCompatibilityMigration = readFileSync(new URL("../supabase/migrations/20260904005857_platform_identity_1_2_admin_role_compatibility.sql", import.meta.url), "utf8");
 const projectionIndexMigration = readFileSync(new URL("../supabase/migrations/20260904010007_platform_identity_1_2_projection_fk_indexes.sql", import.meta.url), "utf8");
+const projectionSafetyMigration = readFileSync(new URL("../supabase/migrations/20260904121709_platform_identity_1_2_projection_safety_boundary.sql", import.meta.url), "utf8");
 const service = readFileSync(new URL("../src/lib/services/platform-identity-review.ts", import.meta.url), "utf8");
 const actions = readFileSync(new URL("../src/app/admin/identity/review/actions.ts", import.meta.url), "utf8");
 const listPage = readFileSync(new URL("../src/app/admin/identity/review/page.tsx", import.meta.url), "utf8");
@@ -131,6 +132,29 @@ describe("Platform Identity 1.2 projection queue", () => {
     assert.equal(queued.attemptCount, 0);
   });
 
+  test("keeps a confirmed canonical decision resolved while projection fails and retries", () => {
+    const canonical = { personId: null as string | null, reviewStatus: "open", auditEvents: 0 };
+    canonical.personId = "person-a";
+    canonical.reviewStatus = "confirmed";
+    canonical.auditEvents += 1;
+
+    const state: ProjectionQueueState = { items: [] };
+    const queued = enqueueProjection(state, item());
+    claimProjection(state, "worker-a", 1);
+    failProjection(queued, "worker-a", "LEGACY_MAPPING_REQUIRED", false, 1);
+
+    assert.deepEqual(canonical, { personId: "person-a", reviewStatus: "confirmed", auditEvents: 1 });
+    assert.equal(queued.status, "FAILED");
+    assert.equal(queued.lastErrorCode, "LEGACY_MAPPING_REQUIRED");
+
+    retryProjection(queued);
+    claimProjection(state, "worker-b", 2);
+    completeProjection(queued, "worker-b", { organizationId: "org-a", canonicalPersonId: canonical.personId });
+
+    assert.deepEqual(canonical, { personId: "person-a", reviewStatus: "confirmed", auditEvents: 1 });
+    assert.equal(queued.status, "COMPLETED");
+  });
+
   test("fails permanently after the bounded attempt limit", () => {
     const state: ProjectionQueueState = { items: [] };
     const queued = enqueueProjection(state, item());
@@ -154,6 +178,12 @@ describe("Platform Identity 1.2 projection queue", () => {
     assert.match(migration, /person_source_identities s/);
     assert.match(migration, /platform_domain_person_projections/);
     assert.doesNotMatch(migration, /update public\.gdt_(people|players|guardian_relationships)/);
+  });
+
+  test("materializes domain mapping only in the separately claimed projection transaction", () => {
+    assert.doesNotMatch(projectionSafetyMigration.match(/create or replace function public\.review_platform_identity_case[\s\S]*?\$\$;/)?.[0] ?? "", /insert into public\.person_legacy_links/);
+    assert.match(projectionSafetyMigration, /create or replace function public\.apply_platform_identity_projection[\s\S]*insert into public\.person_legacy_links/);
+    assert.match(actions, /processPlatformIdentityProjectionQueue\(\{ maxItems: 5 \}\)\.catch\(\(\) => null\)/);
   });
 
   test("admin projection labels stay subtle", () => {
