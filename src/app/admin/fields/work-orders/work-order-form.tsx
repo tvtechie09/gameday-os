@@ -6,6 +6,7 @@ import { buttonStyles } from "@/components/ui/gameday-ui";
 import { createWorkOrderAction, type WorkOrderActionResult } from "./actions";
 import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
 import { durationBucket, outcomeForFailureCode } from "@/lib/pilot-telemetry-core";
+import { offlineMutationMessage } from "@/lib/client-network";
 
 type FieldOption = { id: string; name: string; venueName: string };
 
@@ -35,6 +36,8 @@ export function WorkOrderForm({
     <form
       action={(formData) => {
         setResult(null);
+        const offlineMessage = offlineMutationMessage("work order");
+        if (offlineMessage) { setResult({ ok: false, code: "temporary", message: offlineMessage }); return; }
         const startedAt = Date.now();
         startTransition(async () => {
           let next: WorkOrderActionResult;

@@ -27,6 +27,7 @@ import {
 } from "./actions";
 import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
 import { durationBucket, outcomeForFailureCode, type PilotEventName } from "@/lib/pilot-telemetry-core";
+import { offlineMutationMessage } from "@/lib/client-network";
 
 export type WorkOrderGameContext = {
   href: string;
@@ -96,6 +97,8 @@ export function WorkOrderCard({
 
   function run(successEvent: PilotEventName | null, actionType: string, action: () => Promise<WorkOrderActionResult>, closeOnSuccess = false) {
     setMessage(null);
+    const offlineMessage = offlineMutationMessage("work order");
+    if (offlineMessage) { setMessage({ ok: false, code: "temporary", message: offlineMessage }); return; }
     const startedAt = Date.now();
     startTransition(async () => {
       let result: WorkOrderActionResult;

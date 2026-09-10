@@ -6,12 +6,16 @@ import {
   type VenueNotificationPreference,
 } from "@/lib/notification-preferences-core";
 import { saveNotificationPreferencesAction, type NotificationPreferenceActionResult } from "./actions";
+import { offlineMutationMessage } from "@/lib/client-network";
 
 const initialState: NotificationPreferenceActionResult = {};
 
 export function NotificationPreferencesForm({ preferences, canSave }: { preferences: VenueNotificationPreference[]; canSave: boolean }) {
   const [state, action, pending] = useActionState(
-    async (_state: NotificationPreferenceActionResult, formData: FormData) => saveNotificationPreferencesAction(formData),
+    async (_state: NotificationPreferenceActionResult, formData: FormData): Promise<NotificationPreferenceActionResult> => {
+      const offlineMessage = offlineMutationMessage("notification preference");
+      return offlineMessage ? { error: offlineMessage } : saveNotificationPreferencesAction(formData);
+    },
     initialState,
   );
 

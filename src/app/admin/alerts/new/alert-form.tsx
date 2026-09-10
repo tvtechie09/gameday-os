@@ -8,6 +8,7 @@ import type { AlertPriority, AlertScope, AlertType, Field, Tournament, Venue } f
 import { createAlertAction } from "../actions";
 import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
 import { durationBucket } from "@/lib/pilot-telemetry-core";
+import { offlineMutationMessage } from "@/lib/client-network";
 
 type Message = { kind: "success" | "error"; text: string };
 type AlertFormInitialValues = { alertPriority?: AlertPriority; alertScope?: AlertScope; alertType?: AlertType; message?: string; title?: string };
@@ -26,6 +27,8 @@ export function AlertForm({ fields, initialValues, tournaments, venues }: { fiel
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
+    const offlineMessage = offlineMutationMessage("announcement");
+    if (offlineMessage) { setMessage({ kind: "error", text: offlineMessage }); return; }
     setIsSaving(true);
     setMessage(null);
     const startedAt = Date.now();

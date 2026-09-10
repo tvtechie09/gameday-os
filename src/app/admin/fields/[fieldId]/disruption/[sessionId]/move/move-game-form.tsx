@@ -8,6 +8,7 @@ import { buttonStyles } from "@/components/ui/gameday-ui";
 import { moveAffectedGameAction, type MoveAffectedGameResult } from "../../actions";
 import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
 import { durationBucket } from "@/lib/pilot-telemetry-core";
+import { offlineMutationMessage } from "@/lib/client-network";
 
 type FieldOption = { id: string; name: string; conflictMessage: string | null };
 
@@ -56,6 +57,8 @@ export function MoveGameForm({
 
   function submitMove() {
     if (!target) return;
+    const offlineMessage = offlineMutationMessage("game move");
+    if (offlineMessage) { setResult({ ok: false, message: offlineMessage }); return; }
     const startedAt = Date.now();
     trackPilotEvent("pilot_move_game_started", { actionType: "move_game", source: "field_disruption" });
     setResult(null);

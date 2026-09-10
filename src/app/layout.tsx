@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { SiteHeader } from "@/components/site-header";
 import { ToastProvider } from "@/components/toast-provider";
+import { ConnectionStatus } from "@/components/connection-status";
 import "./globals.css";
 
 const inter = Inter({
@@ -27,6 +28,7 @@ export default function RootLayout({
           <SiteHeader />
           <div id="main-content" tabIndex={-1}>{children}</div>
           <ToastProvider />
+          <ConnectionStatus />
         </div>
       </body>
     </html>

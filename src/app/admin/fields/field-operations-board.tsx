@@ -18,6 +18,7 @@ import type { FieldStatus } from "@/lib/types";
 import { setFieldOperationalStatusAction } from "./actions";
 import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
 import { durationBucket, outcomeForFailureCode } from "@/lib/pilot-telemetry-core";
+import { offlineMutationMessage } from "@/lib/client-network";
 
 type FieldOperationsBoardProps = {
   items: FieldOperationItem[];
@@ -248,6 +249,8 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
   }
 
   function applyStatus(item: FieldOperationItem, status: FieldStatus) {
+    const offlineMessage = offlineMutationMessage("field status");
+    if (offlineMessage) { setMessage({ ok: false, message: offlineMessage }); return; }
     const startedAt = Date.now();
     trackPilotEvent("pilot_field_action_started", { actionType: status });
     setConfirmation(null);

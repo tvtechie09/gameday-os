@@ -44,8 +44,10 @@ export function UniversalSearchSheet({ enabled, onClose, onOpen, open }: { enabl
       return;
     }
     const controller = new AbortController();
+    let timedOut = false;
     const timer = window.setTimeout(async () => {
       setLoading(true); setError("");
+      const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 8000);
       if (enabled) trackPilotEvent("search_submitted", { actionType: queryBucket(trimmed.length) });
       try {
         const response = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { credentials: "same-origin", signal: controller.signal });
@@ -55,9 +57,11 @@ export function UniversalSearchSheet({ enabled, onClose, onOpen, open }: { enabl
         setResults(next); setActiveIndex(0);
         if (!next.length && enabled) trackPilotEvent("search_no_results", { actionType: queryBucket(trimmed.length) });
       } catch (requestError) {
-        if ((requestError as Error).name !== "AbortError") setError("Search is temporarily unavailable. Try again.");
+        if (timedOut) setError("Search took too long. Check your connection and try again.");
+        else if ((requestError as Error).name !== "AbortError") setError("Search is temporarily unavailable. Try again.");
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        window.clearTimeout(timeout);
+        if (!controller.signal.aborted || timedOut) setLoading(false);
       }
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };

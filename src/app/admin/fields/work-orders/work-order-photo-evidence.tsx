@@ -5,6 +5,7 @@ import { buttonStyles } from "@/components/ui/gameday-ui";
 import type { WorkOrderPhoto } from "@/lib/services/work-order-photos";
 import { addWorkOrderPhotoAction, removeWorkOrderPhotoAction, type WorkOrderActionResult } from "./actions";
 import { useRouter } from "next/navigation";
+import { offlineMutationMessage } from "@/lib/client-network";
 
 const purposeLabels = { report: "Problem", progress: "In progress", resolution: "After repair" } as const;
 
@@ -34,6 +35,8 @@ export function WorkOrderPhotoEvidence({
 
   function upload(formData: FormData) {
     setResult(null);
+    const offlineMessage = offlineMutationMessage("photo");
+    if (offlineMessage) { setResult({ ok: false, code: "temporary", message: offlineMessage }); return; }
     startTransition(async () => {
       const next = await addWorkOrderPhotoAction(formData).catch(() => ({ ok: false, code: "temporary", message: "Could not upload the photo. Check your connection and try again." } as WorkOrderActionResult));
       setResult(next);
@@ -47,6 +50,8 @@ export function WorkOrderPhotoEvidence({
 
   function remove(mediaId: string) {
     setResult(null);
+    const offlineMessage = offlineMutationMessage("photo removal");
+    if (offlineMessage) { setResult({ ok: false, code: "temporary", message: offlineMessage }); return; }
     startTransition(async () => {
       const next = await removeWorkOrderPhotoAction(workOrderId, mediaId).catch(() => ({ ok: false, code: "temporary", message: "Could not remove the photo. Try again." } as WorkOrderActionResult));
       setResult(next);
