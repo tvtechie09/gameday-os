@@ -70,8 +70,11 @@ These are the immediately preceding verified results and will be rerun after any
 | 4 — Post-migration staging verification | PASS | Schema postflight passed; RC 1.0A enabled leaked-password protection, cleared the related advisor warning, and accepted the reviewed `btree_gist` placement for this RC. |
 | 5 — Environment parity | PASS | Preview is protected, targets staging project `oiyitfatarrhnussyxfu`, disables dev login, uses an explicit server-side Pilot marker, preserves normal Supabase Auth, and passed hosted route, runtime-log, and client-asset isolation checks on exact commit `7de1142`. |
 | 6 — Hosted Auth setup and authentication | PASS | Existing synthetic GM and Staff identities authenticated normally, resolved to their intended Crossroads actors and roles, signed out cleanly, and passed the negative-auth, dev-login, runtime-log, and secret-isolation checks described below. |
-| 7 — Hosted Venue GM authorization matrix | NOT TESTED / INTENTIONALLY SKIPPED | The RC was paused before GM authentication or route testing. No Phase 7 acceptance result exists. |
-| 8+ | NOT STARTED | Resume at Phase 7, then run Phases 7 and 8 contiguously with freshly generated temporary staging credentials. |
+| 7 — Hosted Venue GM authorization matrix | PASS | Normal Auth, allowed and denied direct routes, Crossroads scoping, search, Reports, object access, and runtime behavior passed on the protected Preview. |
+| 8 — Hosted Venue Staff authorization matrix | PASS | Normal Auth, staff workflows, direct-route denials, manager-control denials, Crossroads scoping, search, and runtime behavior passed. |
+| 9 — Cross-venue isolation | PASS | GM and Staff Riverside probes through routes, query parameters, search, Reports, fields, sessions, announcements, and venue surfaces exposed no private Riverside data. |
+| 10 — Object-level authorization | PASS | Authorized Crossroads objects resolved; Riverside, unrelated-organization, invalid-ID, and parameter-substitution probes failed closed without scope widening or 5xx responses. |
+| 11+ | NOT STARTED | Next gate: Phase 11 — Identity Projection Worker Proof. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -316,6 +319,67 @@ The first click of each responsive-shell sign-out control did not navigate becau
 - **Temporary hosted credentials:** invalidated after the pause; zero active sessions remain for the two synthetic accounts.
 - **Next resume point:** Phase 7 — Hosted GM Authorization Matrix.
 - On resume, generate fresh distinct temporary GM and Staff credentials, authenticate normally again, and run Phases 7 and 8 contiguously. Phases 0–6 do not need to be repeated unless the RC code, protected Preview, staging target, Auth configuration, fixture assignments, or another material environment assumption changes.
+
+This pause marker is retained as historical evidence. The RC subsequently resumed without repeating Phases 0–6 and completed Phases 7–10 as recorded below.
+
+## Phases 7–10 — Hosted authorization acceptance
+
+Evidence type: **protected Preview behavior, normal staging Auth, direct-route and object probes, deployment-scoped runtime review, staging credential-cleanup postflight, and focused local regression tests**, recorded 2026-09-10.
+
+### Fixed environment and identity boundary
+
+- Protected Preview: `https://gameday-g8k298dnc-gamedayos.vercel.app`.
+- Deployment: `dpl_6ipbjRJzkGbDTjNZruPsZWRp3DCQ`, READY, Preview target only, exact application commit `7de1142185a2be7d22ad5e2bd6ed5294575fce79`.
+- Supabase: staging project `oiyitfatarrhnussyxfu` (`gameday-os-staging`). Production was not accessed or changed.
+- Both existing synthetic users were reused. The GM retained exactly one approved `venue_director` assignment and the Staff user retained exactly one approved `venue_staff` assignment, both scoped to Crossroads. Neither user had a platform role or unexpected assignment.
+- Hosted sessions used normal Supabase email/password Auth. `/dev-login` and `/api/dev-login/login` continued to fail closed to normal login.
+- The Preview continued to display the server-derived `PILOT` marker. No credential or secret value was recorded.
+
+### Phase 7 — Venue GM authorization matrix
+
+The authenticated Venue GM resolved to Crossroads and exposed the canonical capability set: `venue.manage`, `venue.staff.manage`, `venue.field.manage`, `venue.device.control`, `venue.alert.send`, `venue.emergency.override`, `device.manage`, `device.control`, `sponsor.manage`, `media.manage`, `audit.review`, `identity.role.manage`, `game.status.update`, and `tournament.game.delay`. The `identity.role.manage` capability did not grant the platform Roles surface, which separately requires platform permission management.
+
+Allowed navigation and direct-route checks passed for Home, Today, Fields, Schedule, Work Orders, Venue Status, Announcements, End of Day, account, Reports, Venue Settings, the authorized Crossroads public venue page, the authorized Crossroads field-control page, the authorized Crossroads session detail/edit entry points, and field disruption review. The role-specific Getting Started guide and navigation matched the GM job.
+
+Direct probes of Platform Admin, Roles, Identity, Organizations, Billing, Developer, Impersonation, and platform onboarding routes redirected to the authorized Venue home. Universal Search returned only authorized Crossroads fields, games, teams, and the safe Work Order; Riverside searches returned no Riverside result. A Reports request carrying a Riverside `venueId` remained scoped to Crossroads. The GM actor and venue context remained stable across allowed and denied probes.
+
+The disruption page was authorized and correctly reported no remaining games affected. The only safe Crossroads session fixture was historical, so the canonical move entry could not perform a live reversible move. This is fixture coverage debt, not an authorization failure.
+
+### Phase 8 — Venue Staff authorization matrix
+
+The authenticated Venue Staff user resolved to Crossroads with exactly `venue.field.manage`, `venue.alert.send`, `device.control`, and `game.status.update`. The Staff navigation was limited to Today, Fields, Venue Status, Announcements, Work Orders, account, and Feedback; its Getting Started guide contained no Schedule or manager task.
+
+Allowed navigation and direct-route checks passed for Today, Fields, Work Orders, the authorized Work Order detail, Venue Status, Announcements, account, the Crossroads public venue page, permitted field status actions, and disruption review. The authorized Work Order exposed Add Note and Add Photo but did not expose Reopen or another manager-only control. Staff search results stayed operational and Crossroads-scoped and did not expose Schedule links.
+
+Direct probes of Home/admin, Schedule, Venue Settings, Roles, Reports, Identity, Organizations, Billing, Developer, platform onboarding, field creation, scoreboards, resources, integrations, and full field setup/control redirected to Today. Riverside searches produced no Riverside field, session, or Schedule link.
+
+### Phase 9 — Cross-venue isolation
+
+Riverside probes used its known venue, field, and session identifiers through direct URLs, query parameters, Universal Search, Reports, Fields, Schedule, Work Orders, Announcements, disruption, private venue-mode, and public venue-map surfaces. Neither role received private Riverside field, schedule, Work Order, announcement, identity, or management data. No safe Riverside Work Order or announcement fixture existed, so those object-detail cases are supported by route/query probes and focused automated coverage rather than a live Riverside object.
+
+The public Riverside venue route intentionally returned public venue information and no management terms or private content. Some unauthorized or missing GM venue-mode/announcement routes rendered a shell without private content instead of an explicit redirect or 404; this is a denial-UX limitation, not data exposure.
+
+### Phase 10 — Object-level authorization
+
+Known authorized Crossroads field, session, Work Order, disruption, and public-map identifiers resolved for the appropriate role. Known Riverside field and session identifiers, unrelated-organization targets, privacy/identity/reconciliation targets, and invalid object identifiers failed closed through direct paths and parameter substitution. Staff manager-only routes returned to Today. Invalid sessions produced a safe not-found state, invalid Work Orders returned 404, and no probe produced an internal error or 5xx response.
+
+The query-parameter matrix covered `venueId`, `organizationId`, `fieldId`, `gameId`, and `workOrderId` on Today, Schedule, Fields, Work Orders, Announcements, and Reports. None widened venue or organization scope.
+
+### Runtime, regression, and credential cleanup
+
+- Browser console review for both roles found no warning or error, hydration failure, redirect loop, missing-column error, or uncaught exception.
+- Deployment-scoped review found no error, warning, or fatal entry during the acceptance window. It did not expose a secret, private integration value, password, token, or cookie.
+- Focused local authorization regression ran 81 tests across hosted parity, tenant isolation, venue scope, navigation, Universal Search, Work Orders, field disruption, legacy reconciliation, and Platform Identity; all 81 passed.
+- No application code changed. The accepted complete baseline remains 707/707 tests with TypeScript, client readiness, Webpack production build, and hosted build passing; lint remains at zero errors with the one pre-existing warning.
+- No operational staging record was mutated during Phases 7–10. The unavailable historical game-movement fixture was not forced into an artificial mutation.
+- After acceptance, both temporary staging passwords were replaced with distinct unrecoverable values generated inside PostgreSQL and both Auth sessions were deleted. Postflight returned two target users, two distinct hashes, both prior temporary passwords invalid, two recently updated Auth rows, two active profiles, both expected approved Crossroads assignments, zero platform assignments, zero unexpected assignments, and zero active sessions.
+- Profiles, roles, venue assignments, user metadata, memberships, and production remained unchanged. The credential-bearing SQL was removed from the editor after verification. No credential-bearing file, environment file, screenshot, log entry, documentation entry, or Git artifact was created or retained.
+
+### Phases 7–10 decision
+
+**PHASES 7–10 PASS.** The GM and Staff matrices, cross-venue isolation, and object-level authorization passed on the protected staging Preview. The documented fixture and denial-UX limitations do not expose data and do not block the RC from advancing.
+
+The next gate is **Phase 11 — Identity Projection Worker Proof**. It was not started by this acceptance run.
 
 ## Release boundary
 
