@@ -1,189 +1,114 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
-import { canViewCommandCenter } from "@/lib/access/capabilities";
+import { canManageVenueSettings } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { buildEndOfDay, type EndOfDayReport } from "@/lib/services/end-of-day";
-import { PrintDownloadButton } from "@/components/print-download-button";
 import { timeZoneAbbreviation } from "@/lib/venue-timezone";
 
 export const dynamic = "force-dynamic";
 
 function formatDate(date: string, timeZone: string) {
-  // date is a venue-local YYYY-MM-DD; anchor at noon so the label can't slip a day.
   return new Intl.DateTimeFormat("en", { dateStyle: "full", timeZone }).format(new Date(date + "T12:00:00Z"));
 }
 
-function formatGeneratedAt(iso: string, timeZone: string) {
-  return new Intl.DateTimeFormat("en", { timeStyle: "short", timeZone }).format(new Date(iso));
+function attentionCount(report: EndOfDayReport) {
+  return report.carryOver.openIssues.length
+    + report.carryOver.flaggedFields.length
+    + report.carryOver.unfinishedGames.length
+    + report.carryOver.activeAnnouncements.length
+    + report.carryOver.devicesOffline
+    + report.carryOver.devicesUnknown;
 }
 
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
+function Item({ title, detail, href }: { title: string; detail: string; href: string }) {
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-white p-3">
-      <p className={`text-2xl font-black leading-none tabular-nums ${tone ?? ""}`}>{value}</p>
-      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">{label}</p>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mt-7 break-inside-avoid">
-      <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">{title}</h2>
-      <div className="mt-3">{children}</div>
-    </section>
+    <li>
+      <Link className="block min-h-16 rounded-lg border border-[var(--line)] bg-white p-4 transition hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--accent-soft)]" href={href}>
+        <span className="block font-black">{title}</span>
+        <span className="mt-1 block text-sm leading-5 text-[var(--muted)]">{detail}</span>
+      </Link>
+    </li>
   );
 }
 
 export default async function EndOfDayPage({ searchParams }: { searchParams?: Promise<{ date?: string }> }) {
   const ctx = await getSessionContext();
-  if (!canViewCommandCenter(ctx)) {
-    redirect(getRoleHome(ctx));
-  }
+  if (!canManageVenueSettings(ctx)) redirect(getRoleHome(ctx));
 
   const params = await searchParams;
-  // Accept only a YYYY-MM-DD override so a GM can pull yesterday's close.
-  const requested = params?.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : undefined;
-  const report: EndOfDayReport = await buildEndOfDay(ctx, requested);
-  const { games, schedule, issues, carryOver } = report;
+  const report = await buildEndOfDay(ctx, params?.date);
+  const attention = attentionCount(report);
+  const { carryOver } = report;
 
   return (
-    <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
-        <Link className="text-sm font-bold text-[var(--accent-strong)]" href="/today">
-          ← Today
-        </Link>
-        <PrintDownloadButton />
-      </div>
+    <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <Link className="text-sm font-bold text-[var(--accent-strong)]" href="/today">← Today</Link>
 
-      <header className="mt-5 border-b-2 border-[var(--foreground)] pb-4">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">End-of-day operations report</p>
-        <h1 className="mt-2 text-3xl font-black sm:text-4xl">{report.venueName ?? "No venue in scope"}</h1>
-        <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-          {formatDate(report.date, report.timeZone)} · generated {formatGeneratedAt(report.generatedAt, report.timeZone)} {timeZoneAbbreviation(report.timeZone)}
+      <header className="mt-5">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">End of Day</p>
+        <h1 className="mt-2 text-3xl font-black sm:text-4xl">Anything to handle before you leave?</h1>
+        <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
+          {report.venueName ?? "No venue in scope"} · {formatDate(report.date, report.timeZone)} · {timeZoneAbbreviation(report.timeZone)}
         </p>
       </header>
 
-      <Section title="The day">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <Stat label="Scheduled" value={games.scheduled} />
-          <Stat label="Completed" value={games.completed} tone="text-emerald-600" />
-          <Stat label="Cancelled" value={games.cancelled} />
-          <Stat label="Postponed" value={games.postponed} />
-          <Stat label="Unfinished" value={games.unfinished} tone={games.unfinished > 0 ? "text-red-700" : undefined} />
-        </div>
-      </Section>
+      <form className="mt-5 flex flex-wrap items-end gap-3" method="get">
+        <label className="text-sm font-bold" htmlFor="closeout-date">
+          View a recent day
+          <input className="mt-1 block min-h-11 rounded-lg border border-[var(--line)] bg-white px-3" defaultValue={report.date} id="closeout-date" name="date" type="date" />
+        </label>
+        <button className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-black" type="submit">View</button>
+      </form>
 
-      <Section title="Schedule performance">
-        {schedule.measured === 0 ? (
-          <p className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4 text-sm font-semibold text-[var(--muted)]">
-            No recorded first-pitch times for this day, so start accuracy can&apos;t be measured. Games started from the
-            Today&apos;s game controls record it automatically.
-          </p>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="Started on time" value={schedule.startedOnTime} tone="text-emerald-600" />
-              <Stat label="Started late" value={schedule.startedLate} tone={schedule.startedLate > 0 ? "text-amber-700" : undefined} />
-              <Stat label="Avg start delay" value={`${schedule.averageStartDelayMin}m`} />
-              <Stat label="Worst delay" value={`${schedule.worstStartDelayMin}m`} tone={schedule.worstStartDelayMin > 20 ? "text-red-700" : undefined} />
-            </div>
-            <p className="mt-2 text-xs font-semibold text-[var(--muted)]">
-              Measured against actual first pitch for {schedule.measured} game{schedule.measured === 1 ? "" : "s"}
-              {schedule.worstStartField ? ` · worst: ${schedule.worstStartField}` : ""}
-            </p>
-          </>
-        )}
-      </Section>
+      {attention === 0 ? (
+        <section className="mt-7 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+          <h2 className="text-xl font-black text-emerald-950">You&apos;re all set for today.</h2>
+          <p className="mt-2 text-sm leading-6 text-emerald-900">No open work, flagged fields, unfinished games, active announcements, or system health gaps need attention.</p>
+        </section>
+      ) : (
+        <section className="mt-7">
+          <h2 className="text-xl font-black">Needs attention</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{attention} item{attention === 1 ? "" : "s"} to review on the owning screen.</p>
+          <ul className="mt-4 grid gap-3">
+            {carryOver.openIssues.map((issue) => (
+              <Item href={`/admin/fields/work-orders/${issue.id}`} key={`work-${issue.id}`} title={issue.title} detail={`${issue.fieldName} · ${issue.stage.replace("_", " ")}${issue.isOverdue ? " · overdue" : issue.assignedRole ? ` · ${issue.assignedRole}` : " · nobody assigned"}`} />
+            ))}
+            {carryOver.flaggedFields.map((field) => (
+              <Item href="/admin/fields" key={`field-${field.id}`} title={`${field.name} is ${field.status}`} detail="Review the field on Field Operations before tomorrow." />
+            ))}
+            {carryOver.unfinishedGames.map((game) => (
+              <Item href={`/admin/sessions/${game.id}`} key={`game-${game.id}`} title={`${game.label} needs a final state`} detail={`${game.fieldName} · scheduled ${game.scheduledStartLabel} · ${game.status}`} />
+            ))}
+            {carryOver.activeAnnouncements.map((announcement) => (
+              <Item href={`/admin/alerts/${announcement.id}/edit`} key={`announcement-${announcement.id}`} title={announcement.title} detail={`${announcement.priority} announcement still active for this date.`} />
+            ))}
+            {carryOver.devicesOffline > 0 ? <Item href="/admin/assets" title={`${carryOver.devicesOffline} system${carryOver.devicesOffline === 1 ? "" : "s"} offline or unhealthy`} detail="Review trusted asset health before leaving." /> : null}
+            {carryOver.devicesUnknown > 0 ? <Item href="/admin/assets" title={`${carryOver.devicesUnknown} system${carryOver.devicesUnknown === 1 ? " has" : "s have"} never reported`} detail="Verify on site; unknown is not treated as healthy." /> : null}
+          </ul>
+        </section>
+      )}
 
-      <Section title="Issues">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <Stat label="Opened today" value={issues.openedToday} />
-          <Stat label="Resolved today" value={issues.resolvedToday} tone="text-emerald-600" />
-          <Stat label="Still open" value={issues.stillOpen} tone={issues.stillOpen > 0 ? "text-amber-700" : undefined} />
-          <Stat label="Overdue" value={issues.overdue} tone={issues.overdue > 0 ? "text-red-700" : undefined} />
-          <Stat label="Unassigned" value={issues.unowned} tone={issues.unowned > 0 ? "text-amber-700" : undefined} />
-        </div>
-      </Section>
-
-      <Section title="Carries into tomorrow">
-        <div className="grid gap-4">
-          {carryOver.openIssues.length > 0 ? (
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.1em] text-[var(--muted)]">Open issues</p>
-              <ul className="mt-2 grid gap-1.5">
-                {carryOver.openIssues.map((issue) => (
-                  <li key={issue.id} className="text-sm font-semibold">
-                    <b>{issue.fieldName}</b> — {issue.title}{" "}
-                    <span className="text-xs text-[var(--muted)]">
-                      ({issue.stage.replace("_", " ")}
-                      {issue.assignedRole ? ` · ${issue.assignedRole}` : " · nobody assigned"})
-                    </span>
-                    {issue.isOverdue ? <span className="ml-1 text-xs font-bold text-red-700">overdue</span> : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {carryOver.unfinishedGames.length > 0 ? (
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.1em] text-red-800">Games without a final</p>
-              <ul className="mt-2 grid gap-1.5">
-                {carryOver.unfinishedGames.map((game) => (
-                  <li key={game.id} className="text-sm font-semibold">
-                    <b>{game.fieldName}</b> — {game.label}{" "}
-                    <span className="text-xs text-[var(--muted)]">({game.status} · scheduled {game.scheduledStartLabel})</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {carryOver.flaggedFields.length > 0 ? (
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.1em] text-[var(--muted)]">Fields still flagged</p>
-              <p className="mt-1 text-sm font-semibold">
-                {carryOver.flaggedFields.map((field) => `${field.name} (${field.status})`).join(" · ")}
-              </p>
-            </div>
-          ) : null}
-
-          {carryOver.devicesOffline > 0 || carryOver.devicesUnknown > 0 ? (
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.1em] text-[var(--muted)]">Systems</p>
-              <p className="mt-1 text-sm font-semibold">
-                {carryOver.devicesOffline} offline · {carryOver.devicesUnknown} never reported
-              </p>
-            </div>
-          ) : null}
-
-          {carryOver.openIssues.length === 0 &&
-          carryOver.unfinishedGames.length === 0 &&
-          carryOver.flaggedFields.length === 0 &&
-          carryOver.devicesOffline === 0 &&
-          carryOver.devicesUnknown === 0 ? (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">
-              Nothing carries over. The venue is clear for tomorrow.
-            </p>
-          ) : null}
-        </div>
-      </Section>
-
-      <Section title="Notes">
-        <ul className="grid gap-1.5">
-          {report.notes.map((note) => (
-            <li key={note} className="text-sm leading-6 text-[var(--muted)]">
-              {note}
-            </li>
-          ))}
+      <section className="mt-8 border-t border-[var(--line)] pt-6">
+        <h2 className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted)]">Today at a glance</h2>
+        <ul className="mt-3 grid gap-2 text-sm font-semibold sm:grid-cols-2">
+          <li>{report.games.completed} of {report.games.scheduled} games completed</li>
+          <li>{report.fields.clear} of {report.fields.total} fields clear</li>
+          <li>{report.issues.resolvedToday} Work Order{report.issues.resolvedToday === 1 ? "" : "s"} resolved</li>
+          <li>{report.schedule.measured} game start{report.schedule.measured === 1 ? "" : "s"} measured</li>
         </ul>
-      </Section>
+        {report.notes.length > 0 ? (
+          <details className="mt-5 rounded-lg border border-[var(--line)] bg-white p-4">
+            <summary className="cursor-pointer font-black">Closeout notes</summary>
+            <ul className="mt-3 grid gap-2 text-sm leading-6 text-[var(--muted)]">
+              {report.notes.map((note) => <li key={note}>{note}</li>)}
+            </ul>
+          </details>
+        ) : null}
+      </section>
 
-      <p className="mt-8 border-t border-[var(--line)] pt-4 text-xs font-semibold text-[var(--muted)]">
-        Generated by GameDay OS from the game record. Start-time accuracy reflects only games with a recorded first
-        pitch; counts are exact.
+      <p className="mt-6 text-xs leading-5 text-[var(--muted)]">
+        This is a read-only checklist. It does not close the venue, change games, dismiss announcements, or hide unresolved work. Dates are limited to the most recent 14 venue-local days.
       </p>
     </section>
   );

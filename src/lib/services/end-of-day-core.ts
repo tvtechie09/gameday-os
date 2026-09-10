@@ -1,10 +1,10 @@
 import type { GameRecord } from "@/lib/game-engine/game-service";
 import type { WorkOrder } from "@/lib/services/work-orders";
-import type { Field, VenueAsset } from "@/lib/types";
+import type { Alert, Field, VenueAsset } from "@/lib/types";
 // Value imports use relative paths with an explicit .ts extension — the `@/`
 // alias only resolves under the bundler, and these pure cores are run directly
 // by `node --test`. Type-only imports above are erased, so they can use `@/`.
-import { gameLabel, isSameVenueDay, timeLabel } from "./command-center-core.ts";
+import { gameLabel, isSameVenueDay, timeLabel, venueDateString } from "./command-center-core.ts";
 import { DEFAULT_VENUE_TIMEZONE } from "../venue-timezone.ts";
 import { issueLifecycle, resolveIssueStage, type IssueStage } from "./work-order-core.ts";
 
@@ -57,8 +57,9 @@ export type EndOfDayIssues = {
 
 export type EndOfDayCarryOver = {
   openIssues: Array<{ id: string; title: string; fieldName: string; stage: IssueStage; assignedRole: string | null; isOverdue: boolean }>;
-  flaggedFields: Array<{ name: string; status: string }>;
+  flaggedFields: Array<{ id: string; name: string; status: string }>;
   unfinishedGames: Array<{ id: string; label: string; fieldName: string; status: string; scheduledStartLabel: string }>;
+  activeAnnouncements: Array<{ id: string; title: string; priority: string }>;
   devicesOffline: number;
   devicesUnknown: number;
 };
@@ -75,6 +76,7 @@ export type EndOfDayReport = {
   schedule: EndOfDaySchedule;
   issues: EndOfDayIssues;
   carryOver: EndOfDayCarryOver;
+  fields: { total: number; clear: number };
   // Plain-language caveats and follow-ups. Never fabricate certainty: if a
   // number couldn't be measured, this says so.
   notes: string[];
@@ -87,6 +89,7 @@ export type EndOfDayInput = {
   fields: Field[];
   workOrders: WorkOrder[];
   assets: VenueAsset[];
+  alerts?: Alert[];
   // ACTUAL first-pitch / final times from the game_events ledger. Absent or
   // empty (pre-engine data) => start-delay stats report as unmeasured rather
   // than silently falling back to the scheduled time, which would show a
@@ -103,6 +106,7 @@ const FLAGGED_FIELD_STATUSES = new Set(["delayed", "closed", "maintenance"]);
 
 export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
   const { games, fields, workOrders, assets, date, now } = input;
+  const alerts = input.alerts ?? [];
   const actuals = input.actuals ?? new Map();
   const timeZone = input.timeZone ?? DEFAULT_VENUE_TIMEZONE;
   const fieldName = new Map(fields.map((field) => [field.id, field.name]));
@@ -203,8 +207,11 @@ export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
   // ---- carry-over --------------------------------------------------------
   const carryOver: EndOfDayCarryOver = {
     openIssues,
-    flaggedFields: fields.filter((f) => FLAGGED_FIELD_STATUSES.has(f.status)).map((f) => ({ name: f.name, status: f.status })),
+    flaggedFields: fields.filter((f) => FLAGGED_FIELD_STATUSES.has(f.status)).map((f) => ({ id: f.id, name: f.name, status: f.status })),
     unfinishedGames,
+    activeAnnouncements: alerts
+      .filter((alert) => alert.isActive && venueDateString(Date.parse(alert.startTime), timeZone) <= date && venueDateString(Date.parse(alert.endTime), timeZone) >= date)
+      .map((alert) => ({ id: alert.id, title: alert.title, priority: alert.alertPriority })),
     devicesOffline: assets.filter((a) => a.status === "offline" || a.status === "maintenance_needed").length,
     devicesUnknown: assets.filter((a) => a.status === "unknown").length,
   };
@@ -229,6 +236,12 @@ export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
   if (carryOver.devicesUnknown > 0) {
     notes.push(`${carryOver.devicesUnknown} device(s) have never reported — verify them on site rather than treating them as healthy.`);
   }
+  if (carryOver.devicesOffline > 0) {
+    notes.push(`${carryOver.devicesOffline} device(s) are offline or need maintenance.`);
+  }
+  if (carryOver.activeAnnouncements.length > 0) {
+    notes.push(`${carryOver.activeAnnouncements.length} operational announcement(s) remain active for this day.`);
+  }
   if (notes.length === 0) {
     notes.push("Clean close: every game finished, no issues carried over, no fields flagged.");
   }
@@ -242,6 +255,16 @@ export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
     schedule,
     issues,
     carryOver,
+    fields: { total: fields.length, clear: fields.length - carryOver.flaggedFields.length },
     notes,
   };
+}
+
+export function resolveEndOfDayDate(requested: string | undefined, today: string, recentDays = 14): string {
+  if (!requested || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) return today;
+  const requestedMs = Date.parse(requested + "T00:00:00Z");
+  const todayMs = Date.parse(today + "T00:00:00Z");
+  if (!Number.isFinite(requestedMs) || !Number.isFinite(todayMs)) return today;
+  const ageDays = Math.floor((todayMs - requestedMs) / 86_400_000);
+  return ageDays >= 0 && ageDays <= recentDays ? requested : today;
 }

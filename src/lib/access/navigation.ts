@@ -86,6 +86,7 @@ export const navItems: NavItem[] = [
   { key: "venue-status", href: "/admin/operations-center", label: "Venue Status", icon: "Gauge", group: "admin", stage: "supporting", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { key: "announcements", href: "/admin/alerts", label: "Announcements", icon: "Bell", group: "admin", stage: "supporting", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
   { key: "work-orders", href: "/admin/fields/work-orders", label: "Work Orders", icon: "ClipboardCheck", group: "admin", stage: "supporting", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "end-of-day", href: "/admin/command-center/end-of-day", label: "End of Day", icon: "ClipboardCheck", group: "admin", stage: "supporting", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { key: "tournaments", href: "/admin/tournaments", label: "Tournament Operations", icon: "Trophy", group: "admin", stage: "supporting", cap: (ctx) => canManageTournaments(ctx) && !isOrgScoped(ctx) },
   { key: "scoreboards", href: "/admin/scoreboards", label: "Scoreboards", icon: "Gauge", group: "admin", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
   { key: "devices", href: "/admin/resources", label: "Venue Systems", icon: "Radio", group: "admin", stage: "supporting", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
@@ -156,6 +157,7 @@ export const adminRouteGuards: Array<{ prefix: string; exact?: boolean; cap: (ct
   // Must match the nav cap exactly. Without this the route falls back to
   // canAccessAdminWorkspace, which venue_staff does not satisfy -- they would see
   // the nav link and get bounced.
+  { prefix: "/admin/command-center/end-of-day", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/command-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/operations-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/impersonation", cap: canImpersonate },

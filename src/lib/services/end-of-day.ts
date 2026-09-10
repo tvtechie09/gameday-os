@@ -6,9 +6,10 @@ import { getWorkOrders, type WorkOrder } from "@/lib/services/work-orders";
 import { getVenueAssets } from "@/lib/services/venue-assets";
 import { venueDateString } from "@/lib/services/command-center-core";
 import { DEFAULT_VENUE_TIMEZONE } from "@/lib/venue-timezone";
-import { buildEndOfDayReport, type EndOfDayReport } from "@/lib/services/end-of-day-core";
+import { buildEndOfDayReport, resolveEndOfDayDate, type EndOfDayReport } from "@/lib/services/end-of-day-core";
 import type { AccessContext } from "@/lib/access/capabilities";
 import type { Field, Session, VenueAsset } from "@/lib/types";
+import { getAlerts } from "@/lib/services/alerts";
 
 // IO for the end-of-day operations report. Assembly only — every calculation
 // lives in the dependency-free end-of-day-core (same split as command-center).
@@ -21,17 +22,19 @@ export async function buildEndOfDay(ctx: AccessContext | null, dateOverride?: st
   // computed until we know which clock the venue runs on.
   const venue = await resolveActingVenue(ctx);
   const timeZone = venue?.timezone ?? DEFAULT_VENUE_TIMEZONE;
-  const date = dateOverride || venueDateString(now, timeZone);
+  const today = venueDateString(now, timeZone);
+  const date = resolveEndOfDayDate(dateOverride, today);
 
   if (!venue) {
     return buildEndOfDayReport({ venueName: null, date, timeZone, games: [], fields: [], workOrders: [], assets: [], now });
   }
 
-  const [allSessions, allFields, workOrders, assets] = await Promise.all([
+  const [allSessions, allFields, workOrders, assets, alerts] = await Promise.all([
     getSessions().catch(() => [] as Session[]),
     getFields().catch(() => [] as Field[]),
     getWorkOrders().catch(() => [] as WorkOrder[]),
     getVenueAssets().catch(() => [] as VenueAsset[]),
+    getAlerts().catch(() => []),
   ]);
 
   const venueFields = allFields.filter((field) => field.venueId === venue.id);
@@ -50,6 +53,7 @@ export async function buildEndOfDay(ctx: AccessContext | null, dateOverride?: st
     fields: venueFields,
     workOrders: workOrders.filter((order) => order.venueId === venue.id || (order.fieldId !== null && fieldIds.has(order.fieldId))),
     assets: assets.filter((asset) => asset.venueId === venue.id),
+    alerts: alerts.filter((alert) => alert.venueId === venue.id),
     actuals,
     now,
   });

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildEndOfDayReport, ON_TIME_GRACE_MIN } from "../src/lib/services/end-of-day-core.ts";
+import { buildEndOfDayReport, ON_TIME_GRACE_MIN, resolveEndOfDayDate } from "../src/lib/services/end-of-day-core.ts";
 import type { GameRecord } from "../src/lib/game-engine/game-service.ts";
 import type { WorkOrder } from "../src/lib/services/work-orders.ts";
-import type { Field, VenueAsset } from "../src/lib/types.ts";
+import type { Alert, Field, VenueAsset } from "../src/lib/types.ts";
 
 // 2026-07-25 18:00Z == 1:00 PM Chicago, so "today" at the venue is 2026-07-25.
 const NOW = Date.parse("2026-07-25T18:00:00.000Z");
@@ -60,6 +60,28 @@ function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
     assignedAt: null,
     startedAt: null,
     metadata: {},
+    ...overrides,
+  };
+}
+
+function alert(overrides: Partial<Alert> = {}): Alert {
+  return {
+    id: "alert-1",
+    organizationId: "O1",
+    title: "Lightning hold",
+    message: "Wait for all clear.",
+    alertType: "weather",
+    alertScope: "venue",
+    alertPriority: "urgent",
+    alertVisibility: "public",
+    venueId: "V1",
+    tournamentId: null,
+    fieldId: null,
+    startTime: "2026-07-25T16:00:00.000Z",
+    endTime: "2026-07-26T02:00:00.000Z",
+    isActive: true,
+    createdAt: "2026-07-25T16:00:00.000Z",
+    updatedAt: "2026-07-25T16:00:00.000Z",
     ...overrides,
   };
 }
@@ -211,6 +233,35 @@ test("flagged fields and device health carry into tomorrow", () => {
   assert.ok(report.notes.some((n) => /still flagged/.test(n)));
   // "unknown" must never be reported as healthy.
   assert.ok(report.notes.some((n) => /never reported/.test(n)));
+});
+
+test("active announcements overlapping the venue-local day require review", () => {
+  const report = buildEndOfDayReport({
+    ...base,
+    games: [],
+    alerts: [alert(), alert({ id: "inactive", isActive: false }), alert({ id: "tomorrow", startTime: "2026-07-27T16:00:00.000Z", endTime: "2026-07-27T18:00:00.000Z" })],
+    timeZone: "America/Chicago",
+  });
+  assert.deepEqual(report.carryOver.activeAnnouncements.map((item) => item.id), ["alert-1"]);
+  assert.ok(report.notes.some((note) => /announcement/.test(note)));
+});
+
+test("recent historical dates are accepted and future or stale dates fall back", () => {
+  assert.equal(resolveEndOfDayDate("2026-07-24", DATE), "2026-07-24");
+  assert.equal(resolveEndOfDayDate("2026-07-26", DATE), DATE);
+  assert.equal(resolveEndOfDayDate("2026-07-01", DATE), DATE);
+  assert.equal(resolveEndOfDayDate("not-a-date", DATE), DATE);
+});
+
+test("alert overlap follows the venue day across the fall DST boundary", () => {
+  const report = buildEndOfDayReport({
+    ...base,
+    date: "2026-11-01",
+    games: [],
+    alerts: [alert({ startTime: "2026-11-02T03:30:00.000Z", endTime: "2026-11-02T04:30:00.000Z" })],
+    timeZone: "America/New_York",
+  });
+  assert.equal(report.carryOver.activeAnnouncements.length, 1);
 });
 
 // ---- clean close -----------------------------------------------------------
