@@ -67,8 +67,8 @@ These are the immediately preceding verified results and will be rerun after any
 | 1 — Staging access | PASS | Exact project `oiyitfatarrhnussyxfu` resolved as healthy `gameday-os-staging`. |
 | 2 — Staging migration reconciliation | PASS | Exact forward-only staging manifest documented below. |
 | 3 — Exact staging migration application | PASS | Four approved additive migrations applied to staging only; hosted history recorded all four. |
-| 4 — Post-migration staging verification | BLOCKED | Schema postflight passed, but the security advisor reports leaked-password protection disabled. Absolute stop rule invoked. |
-| 5+ | NOT TESTED | Not started because Phase 4 exposed a P1 authentication-security blocker. |
+| 4 — Post-migration staging verification | PASS | Schema postflight passed; RC 1.0A enabled leaked-password protection, cleared the related advisor warning, and accepted the reviewed `btree_gist` placement for this RC. |
+| 5+ | NOT TESTED | Not started. This narrowly scoped RC 1.0A task stops after clearing Phase 4. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -159,9 +159,58 @@ Performance advisor:
 
 These performance findings were recorded and not changed because this is a release-validation sprint, the new-table postflight is valid, and speculative remediation is outside scope.
 
-### Absolute stop
+### Original absolute stop
 
-The sequential queue stopped at Phase 4 because leaked-password protection is disabled. Phases 5–59 were not started. Specifically, no Vercel environment inspection, preview deployment, hosted Auth acceptance, GM/Staff mutation, SportsEngine feed retrieval, responsive/browser acceptance, production inventory, production migration planning, or production access followed this finding.
+The original sequential queue stopped at Phase 4 because leaked-password protection was disabled. Phases 5–59 were not started. Specifically, no Vercel environment inspection, preview deployment, hosted Auth acceptance, GM/Staff mutation, SportsEngine feed retrieval, responsive/browser acceptance, production inventory, production migration planning, or production access followed that finding. RC 1.0A subsequently addressed and revalidated this gate as documented below.
+
+## RC 1.0A — Authentication security remediation and Phase 4 revalidation
+
+Evidence type: **staging hosted configuration and read-only post-remediation verification**, recorded 2026-09-10.
+
+### Staging and Auth configuration
+
+- The exact target was reconfirmed as Supabase project `oiyitfatarrhnussyxfu`, named `gameday-os-staging`. No local or production project was used.
+- Leaked-password protection was **disabled before** remediation and is **enabled after** remediation. The setting was saved through the normal Supabase Auth configuration interface and then reopened to verify persistence.
+- Minimum password length has no explicit override displayed in the dashboard. The interface identifies six characters as the platform minimum/default behavior and recommends eight or more; this evidence must not be read as an explicit eight-character staging policy.
+- No additional required password character-class option is selected.
+- Secure email change is enabled.
+- Secure password change is disabled, and requiring the current password when updating a password is disabled. These settings were recorded, not broadened into an Auth redesign.
+- No GM or Staff password was reset. Existing synthetic credentials were not safely available in this session, so lightweight hosted authentication is deferred to the normal Phase 6 acceptance gate.
+
+### Security advisor rerun
+
+The post-remediation security advisor returned:
+
+- Error-level findings: **0**.
+- Warning findings: **1**, the pre-existing `btree_gist` extension-in-public finding.
+- Informational findings: **108**, all `rls_enabled_no_policy` notices.
+- The leaked-password warning is no longer present. See [Supabase password security](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- No new error-level finding appeared.
+
+### Read-only `btree_gist` dependency audit
+
+- Extension: `btree_gist`, version `1.7`, owned by `supabase_admin`, currently installed in `public`, and marked relocatable by PostgreSQL.
+- Extension-owned inventory: 26 operator classes, 12 operators, 26 operator families, 188 functions, and 12 types. No extension-owned `SECURITY DEFINER` function was found.
+- Current GameDay dependency: exclusion constraint `public.field_slot_claims.field_slot_claims_no_overlap` and its backing index. The constraint excludes overlapping confirmed time ranges on a field: UUID equality uses `public.gist_uuid_ops` from `btree_gist`, while the range overlap uses `pg_catalog.range_ops`.
+- Repository provenance: `supabase/migrations/20260717090000_field_reservations.sql` enables the extension and defines the overlap constraint. No Team/Family migration references it.
+- The application schema therefore requires the extension for database-enforced prevention of overlapping confirmed field reservations.
+- The intended `extensions` schema exists. In the current privilege inventory, `PUBLIC`, `anon`, `authenticated`, and `service_role` have schema usage but not schema creation on `public`; only the database owner can create there. The same browser roles do not have create privilege on `extensions`.
+- Classification: **ACCEPTABLE FOR RC**. The warning identifies schema-placement hygiene, but the required extension does not create a practical browser-role security exposure under the verified schema privileges. Relocation is technically possible, yet changing a live extension that backs an active exclusion constraint/index is unnecessary release-candidate churn. Any future relocation should be a separately reviewed forward-only maintenance change with dependent-constraint validation. No schema was changed in RC 1.0A. See [Supabase database lint 0014](https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public).
+
+### Service-role exposure recheck
+
+- A tracked-repository scan found no literal service-role/secret credential and no `NEXT_PUBLIC_` service-role or secret variable name. Server-only references to `SUPABASE_SERVICE_ROLE_KEY` remain in server modules; documentation contains names/placeholders only.
+- The existing compiled client-static output contains no `SUPABASE_SERVICE_ROLE_KEY`, `service_role`, or `sb_secret_` marker.
+- The currently deployed pre-RC Venue preview response contains no service-role variable name or `sb_secret_` marker. This preview predates the RC branch and is supporting exposure evidence only, not RC deployment evidence.
+- Preview runtime-log searches over the available seven-day window returned no match for the service-role variable name or secret-key prefix.
+- The connected Vercel project metadata exposed no publicly named service-role/secret variable. No credential value was retrieved, copied, stored, printed into this record, or committed.
+- No client analytics integration contains or receives the service-role credential in the reviewed repository paths. Browser-role Supabase access continues to use the public anonymous/publishable key boundary.
+
+### Phase 4 decision and resume marker
+
+**Phase 4: PASS.** Leaked-password protection is enabled and its advisor warning is cleared; the advisor has zero error-level findings; `btree_gist` has been explicitly audited and accepted for this RC; and no new Auth or security regression was identified by the scoped checks.
+
+Release Candidate 1.0 may resume at **Phase 5**, starting from the post-Phase-4 state recorded here. Phase 5 and all later phases remain unexecuted by RC 1.0A. Phase 6 must perform GM and Staff hosted-auth smoke because credentials were intentionally not retrieved or reset here.
 
 ## Release boundary
 
