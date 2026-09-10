@@ -28,6 +28,10 @@ export const pilotEventNames = [
   "search_submitted",
   "search_result_opened",
   "search_no_results",
+  "onboarding_shown",
+  "onboarding_completed",
+  "onboarding_dismissed",
+  "onboarding_reopened",
 ] as const;
 
 export type PilotEventName = (typeof pilotEventNames)[number];

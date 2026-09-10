@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { buildNavigation } from "@/lib/access/navigation";
 import { getImpersonatorContext, resolveSession } from "@/lib/access/session";
 import { getPilotBuildInfo } from "@/lib/pilot-build";
+import { buildVenueOnboarding } from "@/lib/first-use-onboarding-core";
 import { AppShell } from "./app-shell";
 import { ImpersonationBanner } from "./impersonation-banner";
 
@@ -23,13 +24,14 @@ export async function AppFrame({ children }: Readonly<{ children: React.ReactNod
     Promise.resolve(buildNavigation(ctx)),
     ctx.isImpersonating ? getImpersonatorContext() : Promise.resolve(null),
   ]);
+  const onboarding = buildVenueOnboarding(ctx.roleKey, navGroups);
 
   return (
     <>
       {ctx.isImpersonating && impersonator ? (
         <ImpersonationBanner roleLabel={ctx.roleLabel} venueName={ctx.venueName} adminEmail={impersonator.email} />
       ) : null}
-      <AppShell navGroups={navGroups} roleLabel={ctx.roleLabel} venueName={ctx.venueName} email={ctx.email} pilotInfo={pilotInfo}>
+      <AppShell navGroups={navGroups} roleLabel={ctx.roleLabel} venueName={ctx.venueName} email={ctx.email} pilotInfo={pilotInfo} onboarding={onboarding} onboardingUserId={ctx.authUserId ?? ctx.userId}>
         {children}
       </AppShell>
     </>

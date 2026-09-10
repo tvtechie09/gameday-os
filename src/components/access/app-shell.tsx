@@ -18,6 +18,7 @@ import {
   Sparkles,
   Trophy,
   Users,
+  CircleHelp,
   type LucideIcon,
 } from "lucide-react";
 import type { NavGroup } from "@/lib/access/navigation";
@@ -27,6 +28,8 @@ import { Sheet } from "@/components/ui/overlays";
 import { PilotTelemetry } from "@/components/pilot/pilot-telemetry";
 import type { PilotBuildInfo } from "@/lib/pilot-build";
 import { UniversalSearchSheet } from "@/components/universal-search";
+import { FirstUseOnboarding } from "@/components/first-use-onboarding";
+import type { OnboardingModel } from "@/lib/first-use-onboarding-core";
 
 const iconMap: Record<string, LucideIcon> = {
   Activity,
@@ -79,13 +82,16 @@ export type AppShellProps = {
   venueName: string | null;
   email: string;
   pilotInfo: PilotBuildInfo | null;
+  onboarding: OnboardingModel | null;
+  onboardingUserId: string;
   children: React.ReactNode;
 };
 
-export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, children }: Readonly<AppShellProps>) {
+export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, onboarding, onboardingUserId, children }: Readonly<AppShellProps>) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [onboardingReopenToken, setOnboardingReopenToken] = useState(0);
   const mobileItems = buildMobileNavigation(navGroups);
 
   useEffect(() => {
@@ -145,6 +151,8 @@ export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, ch
             ))}
           </nav>
 
+          {onboarding ? <button className="mt-6 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-bold text-white/65 transition hover:bg-white/10 hover:text-white" onClick={() => setOnboardingReopenToken((value) => value + 1)} type="button"><CircleHelp aria-hidden="true" className="h-4 w-4" />Getting Started</button> : null}
+
           <form action="/logout" method="post" className="mt-8">
             <button
               type="submit"
@@ -176,6 +184,7 @@ export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, ch
               </div>
             </section>
           ))}
+          {onboarding ? <button className="flex min-h-12 items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left text-sm font-extrabold hover:bg-[var(--background-strong)]" onClick={() => { setMoreOpen(false); setOnboardingReopenToken((value) => value + 1); }} type="button"><CircleHelp aria-hidden="true" className="h-5 w-5" />Getting Started</button> : null}
           <form action="/logout" method="post">
             <button className="min-h-12 w-full rounded-[var(--radius-md)] bg-[var(--black-soft)] px-4 text-sm font-extrabold text-white" type="submit">Sign out</button>
           </form>
@@ -190,6 +199,7 @@ export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, ch
       </Sheet>
       <PilotTelemetry enabled={Boolean(pilotInfo?.enabled)} />
       <UniversalSearchSheet enabled={Boolean(pilotInfo?.enabled)} onClose={() => setSearchOpen(false)} onOpen={() => setSearchOpen(true)} open={searchOpen} />
+      <FirstUseOnboarding model={onboarding} reopenToken={onboardingReopenToken} telemetryEnabled={Boolean(pilotInfo?.enabled)} userId={onboardingUserId} />
     </div>
   );
 }
