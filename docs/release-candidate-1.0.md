@@ -68,7 +68,8 @@ These are the immediately preceding verified results and will be rerun after any
 | 2 — Staging migration reconciliation | PASS | Exact forward-only staging manifest documented below. |
 | 3 — Exact staging migration application | PASS | Four approved additive migrations applied to staging only; hosted history recorded all four. |
 | 4 — Post-migration staging verification | PASS | Schema postflight passed; RC 1.0A enabled leaked-password protection, cleared the related advisor warning, and accepted the reviewed `btree_gist` placement for this RC. |
-| 5+ | NOT TESTED | Not started. This narrowly scoped RC 1.0A task stops after clearing Phase 4. |
+| 5 — Environment parity | BLOCKED | Preview targets the correct staging Supabase project, but its global Preview configuration enables `NEXT_PUBLIC_ENABLE_DEV_LOGIN=true` and lacks an RC-branch pilot marker override. An RC preview from the current branch would therefore expose the dev-login role selector. |
+| 6+ | NOT TESTED | Not started because Phase 5 exposed a P1 hosted-auth bypass risk for the intended RC preview. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -211,6 +212,40 @@ The post-remediation security advisor returned:
 **Phase 4: PASS.** Leaked-password protection is enabled and its advisor warning is cleared; the advisor has zero error-level findings; `btree_gist` has been explicitly audited and accepted for this RC; and no new Auth or security regression was identified by the scoped checks.
 
 Release Candidate 1.0 may resume at **Phase 5**, starting from the post-Phase-4 state recorded here. Phase 5 and all later phases remain unexecuted by RC 1.0A. Phase 6 must perform GM and Staff hosted-auth smoke because credentials were intentionally not retrieved or reset here.
+
+## Phase 5 — Environment parity
+
+Evidence type: **Vercel configuration names/scopes, one explicitly revealed public project URL, deployed-preview behavior, and repository implementation review**, recorded 2026-09-10. Secret values were not revealed or retrieved.
+
+### Preview/staging findings
+
+| Requirement | Result | Evidence |
+| --- | --- | --- |
+| Public Supabase target | Correct target | `NEXT_PUBLIC_SUPABASE_URL` is Preview-scoped and resolves to authorized staging project `oiyitfatarrhnussyxfu` (`gameday-os-staging`). |
+| Browser-safe Supabase key | Present | `NEXT_PUBLIC_SUPABASE_ANON_KEY` is Preview-scoped. Its value was not recorded. |
+| Service-role credential | Present, server-only | `SUPABASE_SERVICE_ROLE_KEY` is Preview-scoped, unprefixed, and classified as a secret. No `NEXT_PUBLIC_` service-role variable exists. |
+| Session/server secrets | Partially present | `SESSION_COOKIE_SECRET` is present for Preview and Production and is server-only. No Preview-scoped `CRON_SECRET` was found. |
+| Work Order storage | Correct target | Work Order photo storage is Supabase-backed; the Preview public URL and service-role configuration target staging, and the verified private `work-order-evidence` bucket exists there. |
+| SportsEngine calendar | Missing | No Preview-scoped `SPORTSENGINE_KELLY_GREEN_WEBCAL_URL` or equivalent private calendar-feed variable was found. OAuth-oriented SportsEngine variables are also absent from the inspected inventory. |
+| Analytics/feedback | Staging-targeted by shared data boundary | The current feedback and sponsor-analytics server paths use the configured Supabase URL/service role. No separate cross-environment analytics credential was found. |
+| Pilot marker | Wrong for current RC branch | `PILOT_PREVIEW` is absent. The implementation recognizes Vercel Preview as Pilot only for Git branch `security/audit-remediation-2026-08-28`; the current RC branch is `codex/production-readiness-2.0c`. |
+| Dev-login gate | **P1 wrong configuration for intended RC preview** | `NEXT_PUBLIC_ENABLE_DEV_LOGIN` is Preview-scoped and set to `true`. The currently deployed pre-RC preview redirects `/dev-login` to normal `/login` only because its legacy branch activates the hard-coded Pilot exception. A new preview from the current RC branch would not activate that exception and would expose the unauthenticated demo-role selector and signed dev session workflow. |
+
+### Production name/presence inspection
+
+Read-only name/scope inspection found Production-scoped Supabase public, publishable/anonymous, service-role/secret, JWT, and database connection variables. `SESSION_COOKIE_SECRET`, `OPENWEATHER_API_KEY`, and `NEXT_PUBLIC_APP_URL` are shared across Production and Preview. Production values and target identifiers were not revealed, so their target correctness remains **unknown**. No production setting, deployment, database, or data was changed.
+
+### Phase 5 stop decision
+
+**Phase 5: BLOCKED.** The intended RC Preview branch would enable the dev-login role selector because the global Preview variable is `true` while the Pilot override is limited to a different legacy branch. This is a P1 hosted-auth bypass risk and violates the requirement that RC acceptance use normal hosted Supabase Auth. The global stop rule was invoked immediately; Phases 6–58 were not started.
+
+Required remediation before resuming Phase 5:
+
+1. Disable or remove `NEXT_PUBLIC_ENABLE_DEV_LOGIN` for Preview.
+2. Configure the Pilot marker so the intended RC Preview branch is explicitly recognized without enabling dev-login; prefer the existing server-only `PILOT_PREVIEW=true` mechanism rather than adding another client-visible bypass flag.
+3. Redeploy the protected RC Preview and prove `/dev-login` and `/api/dev-login/login` fail closed while normal hosted Auth remains available.
+4. Supply the private SportsEngine WebCal configuration only when Phase 22 is ready, Preview-only and server-only. Do not expose its value or place it in Production.
+5. Reinspect production target correctness later under the authorized production read-only gate; current Phase 5 evidence establishes presence only.
 
 ## Release boundary
 
