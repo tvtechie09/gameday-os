@@ -70,7 +70,8 @@ These are the immediately preceding verified results and will be rerun after any
 | 4 — Post-migration staging verification | PASS | Schema postflight passed; RC 1.0A enabled leaked-password protection, cleared the related advisor warning, and accepted the reviewed `btree_gist` placement for this RC. |
 | 5 — Environment parity | PASS | Preview is protected, targets staging project `oiyitfatarrhnussyxfu`, disables dev login, uses an explicit server-side Pilot marker, preserves normal Supabase Auth, and passed hosted route, runtime-log, and client-asset isolation checks on exact commit `7de1142`. |
 | 6 — Hosted Auth setup and authentication | PASS | Existing synthetic GM and Staff identities authenticated normally, resolved to their intended Crossroads actors and roles, signed out cleanly, and passed the negative-auth, dev-login, runtime-log, and secret-isolation checks described below. |
-| 7+ | NOT TESTED | Phase 6 is complete. Phase 7 is the next authorized sequential gate and was not started by the Phase 6 work. |
+| 7 — Hosted Venue GM authorization matrix | NOT TESTED / INTENTIONALLY SKIPPED | The RC was paused before GM authentication or route testing. No Phase 7 acceptance result exists. |
+| 8+ | NOT STARTED | Resume at Phase 7, then run Phases 7 and 8 contiguously with freshly generated temporary staging credentials. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -301,11 +302,20 @@ The first click of each responsive-shell sign-out control did not navigate becau
 - Aggregated runtime errors returned no error cluster for the reviewed window.
 - The reviewed browser surfaces and runtime entries exposed no service-role key, session secret, private integration URL, development credential, password, token, or cookie contents.
 - Focused local regression: 23/23 tests passed across `dev-login-environment`, `hosted-authorization-parity`, and `session-cookie` coverage. No application or Auth code changed, so the previously accepted 707/707 full suite, TypeScript, client-readiness, lint, local Webpack build, and hosted Turbopack build remain the code baseline rather than being re-run for this documentation-only phase.
-- Credential cleanup approach **B** is in effect: the two temporary staging passwords remain valid only for the contiguous RC hosted authorization/lifecycle phases and must be invalidated immediately after those phases. Both browser sessions were signed out. Plaintext credentials remain absent from files, documentation, Git, logs, screenshots, and persistent environment variables; the SQL editor was scrubbed to a credential-free placeholder after execution.
+- The original credential cleanup approach **B** was ended when hosted acceptance ceased to be contiguous. Both temporary staging passwords were invalidated after the pause by replacing them with distinct, unrecoverable random values generated inside PostgreSQL. Read-only postflight confirmed exactly two target Auth users, two distinct recently updated password hashes, the same two active expected Crossroads role assignments, and zero active Auth sessions. Profiles, roles, venue assignments, and metadata were not changed. Plaintext credentials remain absent from files, documentation, Git, logs, screenshots, and persistent environment variables; the SQL editor was scrubbed and saved with a credential-free placeholder after execution.
 
 ### Phase 6 decision
 
-**Phase 6: PASS.** Both existing synthetic staging Venue identities authenticated through normal Supabase Auth, resolved to the intended Crossroads actor and role, and signed out cleanly. Invalid credentials failed safely, hosted dev login remained unavailable, and no session, secret, schema, or runtime regression appeared. Phase 7 is next and was not started here.
+**Phase 6: PASS.** Both existing synthetic staging Venue identities authenticated through normal Supabase Auth, resolved to the intended Crossroads actor and role, and signed out cleanly. Invalid credentials failed safely, hosted dev login remained unavailable, and no session, secret, schema, or runtime regression appeared.
+
+### RC pause marker after Phase 6
+
+- **Phase 6:** PASS.
+- **Phase 7:** NOT TESTED / intentionally skipped.
+- **Phase 8+:** NOT STARTED.
+- **Temporary hosted credentials:** invalidated after the pause; zero active sessions remain for the two synthetic accounts.
+- **Next resume point:** Phase 7 — Hosted GM Authorization Matrix.
+- On resume, generate fresh distinct temporary GM and Staff credentials, authenticate normally again, and run Phases 7 and 8 contiguously. Phases 0–6 do not need to be repeated unless the RC code, protected Preview, staging target, Auth configuration, fixture assignments, or another material environment assumption changes.
 
 ## Release boundary
 
