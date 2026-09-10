@@ -42,9 +42,9 @@ These are the immediately preceding verified results and will be rerun after any
 - Production Supabase project: unknown/not inspected. Production inventory is gated until staging acceptance passes.
 - Venue Vercel project: `gameday-os` (`prj_fQmKMpCszNFolQAxEqzycx5ZYAo7`).
 - Team Vercel project: `game-day-team` (`prj_npnRcoVRFlnnK6DcspfcD5N3w73a`).
-- Latest known Venue preview: `https://gameday-37st643uc-gamedayos.vercel.app`, READY, commit `02b1f301655954be72da85cfe215a3465af5cc61`.
+- Release-candidate Venue preview: `https://gameday-g8k298dnc-gamedayos.vercel.app`, READY, Preview deployment `dpl_6ipbjRJzkGbDTjNZruPsZWRp3DCQ`, commit `7de1142185a2be7d22ad5e2bd6ed5294575fce79`.
 - Latest known Team preview: `https://game-day-team-9a8mm1hs1-gamedayos.vercel.app`, READY, commit `17be3db3ed4f510fce4148890f4a5f1fb01ac64d`.
-- Both previews predate the release-candidate HEADs and are not release-candidate evidence.
+- The Team preview still predates the release-candidate HEAD. The Venue preview is protected release-candidate evidence for Phase 5 only.
 
 ### Current known blockers entering the sprint
 
@@ -68,8 +68,8 @@ These are the immediately preceding verified results and will be rerun after any
 | 2 — Staging migration reconciliation | PASS | Exact forward-only staging manifest documented below. |
 | 3 — Exact staging migration application | PASS | Four approved additive migrations applied to staging only; hosted history recorded all four. |
 | 4 — Post-migration staging verification | PASS | Schema postflight passed; RC 1.0A enabled leaked-password protection, cleared the related advisor warning, and accepted the reviewed `btree_gist` placement for this RC. |
-| 5 — Environment parity | BLOCKED | Preview targets the correct staging Supabase project, but its global Preview configuration enables `NEXT_PUBLIC_ENABLE_DEV_LOGIN=true` and lacks an RC-branch pilot marker override. An RC preview from the current branch would therefore expose the dev-login role selector. |
-| 6+ | NOT TESTED | Not started because Phase 5 exposed a P1 hosted-auth bypass risk for the intended RC preview. |
+| 5 — Environment parity | PASS | Preview is protected, targets staging project `oiyitfatarrhnussyxfu`, disables dev login, uses an explicit server-side Pilot marker, preserves normal Supabase Auth, and passed hosted route, runtime-log, and client-asset isolation checks on exact commit `7de1142`. |
+| 6+ | NOT TESTED | Phase 5 is complete. Phase 6 is the next authorized sequential gate; it was not started by the Phase 5 work. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -235,17 +235,39 @@ Evidence type: **Vercel configuration names/scopes, one explicitly revealed publ
 
 Read-only name/scope inspection found Production-scoped Supabase public, publishable/anonymous, service-role/secret, JWT, and database connection variables. `SESSION_COOKIE_SECRET`, `OPENWEATHER_API_KEY`, and `NEXT_PUBLIC_APP_URL` are shared across Production and Preview. Production values and target identifiers were not revealed, so their target correctness remains **unknown**. No production setting, deployment, database, or data was changed.
 
-### Phase 5 stop decision
+### Phase 5 remediation and hosted acceptance
 
-**Phase 5: BLOCKED.** The intended RC Preview branch would enable the dev-login role selector because the global Preview variable is `true` while the Pilot override is limited to a different legacy branch. This is a P1 hosted-auth bypass risk and violates the requirement that RC acceptance use normal hosted Supabase Auth. The global stop rule was invoked immediately; Phases 6–58 were not started.
+The P1 dev-login exposure was corrected in commit `7de1142185a2be7d22ad5e2bd6ed5294575fce79` (`fix(venue): disable dev login in pilot previews`). The application now requires explicit local development, an explicit enable flag, no Vercel environment, and no Pilot marker before dev login can be used. Pilot classification no longer depends on a legacy branch name.
 
-Required remediation before resuming Phase 5:
+Preview configuration after remediation:
 
-1. Disable or remove `NEXT_PUBLIC_ENABLE_DEV_LOGIN` for Preview.
-2. Configure the Pilot marker so the intended RC Preview branch is explicitly recognized without enabling dev-login; prefer the existing server-only `PILOT_PREVIEW=true` mechanism rather than adding another client-visible bypass flag.
-3. Redeploy the protected RC Preview and prove `/dev-login` and `/api/dev-login/login` fail closed while normal hosted Auth remains available.
-4. Supply the private SportsEngine WebCal configuration only when Phase 22 is ready, Preview-only and server-only. Do not expose its value or place it in Production.
-5. Reinspect production target correctness later under the authorized production read-only gate; current Phase 5 evidence establishes presence only.
+- `NEXT_PUBLIC_ENABLE_DEV_LOGIN=false` for Preview.
+- `PILOT_PREVIEW=true` for Preview only.
+- `NEXT_PUBLIC_SUPABASE_URL` resolves to authorized staging project `oiyitfatarrhnussyxfu`.
+- Supabase service-role and session credentials remain unprefixed, server-only secrets.
+- No private SportsEngine WebCal credential is configured; that remains a later provider-acceptance limitation.
+
+During configuration, `PILOT_PREVIEW` was initially created with Vercel's default Production scope and immediately corrected to Preview scope before the release-candidate deployment was created. No production deployment, alias, database, migration, or data change occurred, and the final scope used by this release is Preview only.
+
+Protected Preview evidence:
+
+- Deployment `dpl_6ipbjRJzkGbDTjNZruPsZWRp3DCQ` is READY, has no production target, and is sourced from branch `codex/production-readiness-2.0c` at exact commit `7de1142185a2be7d22ad5e2bd6ed5294575fce79`.
+- `/dev-login` redirects to `/login?next=%2Fdev-login` and renders only the normal email/password sign-in experience; no dev role selector is present.
+- Direct `GET /api/dev-login/login` redirects to `/login?next=%2Fapi%2Fdev-login%2Flogin`.
+- A crafted synthetic `POST /api/dev-login/login` returns `307` to the same normal-login path and does not create a dev session.
+- A synthetic invalid login exercised normal Supabase Auth and returned the expected invalid-credential response without an auth redirect loop.
+- Thirteen loaded client assets were scanned. The authorized staging project reference was present; no `sb_secret_`, service-role, session-secret, private SportsEngine, database-URL, or `service_role` credential pattern was found.
+- Deployment-scoped runtime logs contained 200/307 traffic only for the acceptance probes, with no warning, error, fatal, or 5xx result and no matches for the reviewed secret patterns.
+- Browser console review found no warning or error entries.
+- All temporary protection-cookie and downloaded-asset artifacts were deleted immediately after testing.
+
+Local regression evidence for the remediation: 24 focused tests passed; the complete Venue suite passed 707/707; TypeScript, client-readiness, and the production Webpack build passed; lint reported zero errors and the one pre-existing warning in `src/components/auth/set-password-form.tsx`. The default Turbopack build remains unsuitable in this external worktree because its dependency symlink is outside the inferred filesystem root; the Vercel-hosted Turbopack build itself completed successfully.
+
+### Phase 5 decision
+
+**Phase 5: PASS.** The exact reviewed commit is available on the protected, non-production Preview; the Preview targets the authorized staging project; dev login fails closed at both page and API boundaries; normal Supabase Auth remains available; and the scoped hosted isolation checks found no secret exposure. Phase 6 is next and was not started here.
+
+Remaining later-phase limits: provide and accept the private SportsEngine WebCal configuration only at the authorized provider gate, and inspect production target correctness only under the later production read-only gate.
 
 ## Release boundary
 
