@@ -74,9 +74,9 @@ These are the immediately preceding verified results and will be rerun after any
 | 8 — Hosted Venue Staff authorization matrix | PASS | Normal Auth, staff workflows, direct-route denials, manager-control denials, Crossroads scoping, search, and runtime behavior passed. |
 | 9 — Cross-venue isolation | PASS | GM and Staff Riverside probes through routes, query parameters, search, Reports, fields, sessions, announcements, and venue surfaces exposed no private Riverside data. |
 | 10 — Object-level authorization | PASS | Authorized Crossroads objects resolved; Riverside, unrelated-organization, invalid-ID, and parameter-substitution probes failed closed without scope widening or 5xx responses. |
-| 11 — Identity Projection Worker Proof | BLOCKED | Queue primitives and action-triggered processing exist, but no independent scheduled/triggered worker exists in the Venue or Team Vercel configuration, Supabase Cron, or staging Edge Functions. Phase 11 stopped before synthetic mutation. |
-| 12 — Projection Monitoring | NOT STARTED | The Phase 11 P1 worker-availability stop condition prevents Phase 12 acceptance. |
-| 13+ | NOT STARTED | Do not begin until the Phase 11 worker blocker is remediated and Phases 11–12 are rerun. |
+| 11 — Identity Projection Worker Proof | PASS | A staging-only, database-native Supabase Cron worker now drains bounded batches through the existing service-only queue RPCs. Scheduled success, retry, terminal failure, idempotence, concurrency, stale-lease recovery, canonical-decision safety, and cross-organization denial passed. |
+| 12 — Projection Monitoring | PASS WITH P1 PRODUCTION ALERTING REQUIREMENT | A service-only, PII-free health summary and worker run history are implemented and validated. Active production alert delivery is intentionally not configured in this staging-only sprint and is required before production. |
+| 13+ | NOT STARTED | Next exact gate: Phase 13. Do not begin without separate authorization. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -425,6 +425,55 @@ Evidence type: **repository implementation audit, staging schema/function/queue 
 The run stopped at Phase 11.3 before creating a synthetic fixture or exercising hosted success, transient retry, terminal failure, concurrency, stale-claim, unlink/relink, relationship, or account-claim scenarios. Phase 12 was not started.
 
 Required remediation is a separately reviewed, authenticated, server-only projection worker scheduled against staging, with bounded batches, current claim/apply/fail RPCs, a single-purpose secret, runtime logging, backlog/stale-item health visibility, and a non-customer staging alert destination. After it is deployed, rerun Phase 11 from the queue baseline and proceed to Phase 12 only if the complete hosted worker matrix passes.
+
+## Phase 11A — Durable Identity Projection Scheduler and Worker Availability
+
+Evidence type: **implemented migration, focused regression, and hosted staging acceptance**, recorded 2026-09-10. This section supersedes the earlier Phase 11 blocked decision while preserving that decision as historical evidence.
+
+### Architecture and security boundary
+
+- Staging migration `20260910222026_durable_identity_projection_scheduler.sql` enables `pg_cron` in `pg_catalog`, creates one every-minute job named `gameday-identity-projection-worker`, and calls `run_platform_identity_projection_worker(10)` directly inside PostgreSQL. No HTTP endpoint, `pg_net`, Vercel secret, Redis, Kafka, BullMQ, Edge Function, or second domain worker was added.
+- Each run claims at most ten items; the function rejects batch sizes outside 1–25. It delegates claim, apply, and fail behavior to the existing canonical queue RPCs and retains their leases, dedupe keys, five-attempt bound, backoff, current-state revalidation, and organization checks.
+- `LEGACY_MAPPING_REQUIRED` is classified as retryable configuration debt by `20260910222658_identity_projection_retry_classification.sql`. Permanent canonical-state and scope failures remain terminal.
+- Worker execution and the health RPC are `SECURITY INVOKER`, executable by `service_role` only, and revoked from `public`, `anon`, and `authenticated`. The worker-run table is forced-RLS and deliberately has no browser policy. Its records and function results contain only aggregate counts, timestamps, status, and safe error codes.
+- `pg_cron` 1.6.4 is installed only in staging. `pg_net` remains absent. One active job targets the staging `postgres` database. Production was not inspected, migrated, scheduled, or changed.
+
+### Hosted acceptance matrix
+
+- **Scheduled success:** a canonical synthetic mapping entered `PENDING`; without a manual processor call, the next Cron run changed it to `COMPLETED` with attempt count one and exactly one active projection.
+- **Idempotence:** re-registering the same logical mapping through the official function preserved the completed queue item and single projection.
+- **Transient retry and decision safety:** an administrator-confirmed `LINKED` review was committed, its synthetic downstream legacy mapping was temporarily unavailable, and Cron moved projection to `RETRY` with safe code `LEGACY_MAPPING_REQUIRED`. The review stayed confirmed, the canonical source link and truth summary stayed resolved, and the link audit remained exactly once. Restoring the mapping through the canonical registration path allowed a later scheduled run to complete on attempt two.
+- **Permanent failure:** changing current canonical source state through the official confirmation path caused the obsolete queued mapping to end `FAILED` with `CANONICAL_STATE_CHANGED`, attempt one, and zero projection. The new current mapping was repaired and completed independently.
+- **Concurrency:** two trusted workers competed for one item. Aggregate evidence showed two runs, one total claim, one completion, one empty run, and exactly one projection.
+- **Stale lease:** an intentionally abandoned 30-second claim remained `PROCESSING` until expiry, then a scheduled run reclaimed and completed it on attempt two without duplicate projection or lock failure.
+- **Cross-organization isolation:** attempting to enqueue an organization A source against an organization B person failed with `PROJECTION_SCOPE_DENIED`; no queue row was created.
+- A final privileged invariant check confirmed the success, retry/recovery, permanent failure, canonical review/truth preservation, concurrency, stale recovery, cross-organization denial, health, and Cron-run assertions together.
+
+### Runtime, advisors, and cleanup
+
+- At the final acceptance snapshot, Cron had 23 successful and zero failed runs; maximum observed duration was 43.864 ms. Worker history had 26 successful and zero failed executions. Later empty runs are expected and remain bounded.
+- Supabase security advisors reported no new worker vulnerability. The worker-run table has the expected informational `rls_enabled_no_policy` finding because browser access is intentionally denied by forced RLS and grants. Performance advisors reported no worker-specific finding.
+- Synthetic provider `gameday_rc_test` fixtures were retired after proof: ten source identities are stale, all associated synthetic people are archived, organization links/relationships/domain projections are inactive, legacy links are removed, and no fixture queue item remains claimable. Historical evidence remains six completed items and one intentional terminal failure; the complete queue contains eleven completed and one failed item.
+
+### Phase 11 redecision
+
+**PHASE 11 PASS.** A real, independent, staging-only scheduler now executes the existing queue safely and the full required hosted matrix passed. The implementation preserves the committed canonical identity decision when projection fails and confines retries to downstream projection state.
+
+## Phase 12 — Projection Monitoring
+
+Evidence type: **implemented health surface and hosted staging validation**, recorded 2026-09-10.
+
+- `get_platform_identity_projection_health()` returns only `pendingCount`, `oldestPendingAt`, `oldestPendingAgeSeconds`, `retryCount`, `failedCount`, `staleProcessingCount`, last successful/failed worker timestamps, last run status, and a safe error code. It is service-only and contains no names, email, phone, source metadata, provider credentials, or queue payload.
+- Worker history records aggregate claimed/completed/retry/failed counts and safe status. Cron history in `cron.job_run_details` supplies scheduled start/end status and duration.
+- Operational thresholds for production readiness are: warning when oldest pending age exceeds five minutes; critical at fifteen minutes; immediate attention for any stale processing item; warning for any retry item persisting beyond its next eligibility; immediate attention for any terminal failed item; and critical if no successful worker run occurs for three consecutive one-minute intervals.
+- Recovery runbook: confirm the Cron job is active and recent run history is succeeding; read the service-only aggregate health result; inspect only authorized queue metadata for safe error codes; repair mapping/configuration without changing canonical identity; use the existing authorized retry action for eligible failed projection work; verify one eventual projection and no duplicate; escalate code or schema faults through a forward-only migration. Never reopen a confirmed identity review merely because projection failed.
+- Staging monitoring is observable through the service-only health RPC plus worker/Cron history. No customer-facing dashboard or alert destination was added.
+
+### Phase 12 decision
+
+**PHASE 12 PASS WITH P1 PRODUCTION ALERTING REQUIREMENT.** The health contract, privacy boundary, execution history, thresholds, and recovery procedure are sufficient for this staging RC gate. Before production activation, connect the aggregate thresholds to an authenticated non-customer operations alert destination and prove delivery plus recovery. That missing active alert does not require changing the worker or canonical queue design.
+
+The next exact gate is **Phase 13**. It was not started.
 
 ## Release boundary
 
