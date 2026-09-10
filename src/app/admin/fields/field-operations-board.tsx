@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useDeferredValue, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Search, ShieldAlert, Wrench } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, List, Map as MapIcon, Search, ShieldAlert, Wrench } from "lucide-react";
 import { AlertBanner, buttonStyles, StatusChip, type StatusTone } from "@/components/ui/gameday-ui";
 import { Modal, Sheet } from "@/components/ui/overlays";
 import {
@@ -228,12 +229,14 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
   const [pendingFieldId, setPendingFieldId] = useState<string | null>(null);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, { status: FieldStatus; updatedAt: string }>>({});
   const [pending, startTransition] = useTransition();
+  const [view, setView] = useState<"list" | "map">("list");
 
   const effectiveItems = items.map((item) => effectiveItem(item, statusOverrides[item.fieldId]));
   const summary = summarizeFieldOperations(effectiveItems);
   const visibleItems = effectiveItems.filter((item) => fieldOperationMatchesFilter(item, filter) && fieldOperationMatchesQuery(item, deferredQuery));
   const selected = effectiveItems.find((item) => item.fieldId === selectedId) ?? null;
   const venueGroups = [...new Map(visibleItems.map((item) => [item.venueId, { id: item.venueId, name: item.venueName }])).values()];
+  const hasMap = items.some((item) => item.mapImageUrl && item.mapX !== null && item.mapY !== null);
 
   function requestStatus(item: FieldOperationItem, status: FieldStatus) {
     setMessage(null);
@@ -290,6 +293,10 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
       </section>
 
       <section className="mt-5" aria-label="Field filters">
+        <div aria-label="Field view" className="mb-3 inline-grid grid-cols-2 rounded-lg border border-[var(--line)] bg-white p-1">
+          <button aria-pressed={view === "list"} className={`inline-flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-black ${view === "list" ? "bg-[var(--black-soft)] text-white" : "text-[var(--foreground)]"}`} onClick={() => setView("list")} type="button"><List aria-hidden="true" className="h-4 w-4" />List</button>
+          <button aria-pressed={view === "map"} className={`inline-flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-black ${view === "map" ? "bg-[var(--black-soft)] text-white" : "text-[var(--foreground)]"}`} onClick={() => setView("map")} type="button"><MapIcon aria-hidden="true" className="h-4 w-4" />Map</button>
+        </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {filters.map((option) => (
             <button aria-pressed={filter === option.key} className={`min-h-12 shrink-0 rounded-full px-4 text-sm font-black ring-1 ring-inset ${filter === option.key ? "bg-[var(--black-soft)] text-white ring-[var(--black-soft)]" : "bg-white text-[var(--foreground)] ring-[var(--line)]"}`} key={option.key} onClick={() => setFilter(option.key)} type="button">
@@ -306,16 +313,34 @@ export function FieldOperationsBoard({ items, canConfigure, canManageSchedule, c
 
       {!selected && message ? <AlertBanner className="mt-4" title={message.ok ? "Field updated" : "Field not updated"} tone={message.ok ? "success" : "danger"}>{message.message}</AlertBanner> : null}
 
-      {venueGroups.length > 0 ? (
+      {view === "map" && !hasMap ? (
+        <div className="mt-6 rounded-xl border border-dashed border-[var(--line)] bg-white p-6 text-center"><h2 className="text-lg font-black">Venue map not configured</h2><p className="mt-2 text-sm font-semibold text-[var(--muted)]">The field list remains available. A venue director can add a diagram and optional marker positions in venue and field settings.</p><button className={buttonStyles("secondary", "mt-4")} onClick={() => setView("list")} type="button">Return to list</button></div>
+      ) : venueGroups.length > 0 ? (
         <div className="mt-6 grid gap-8">
           {venueGroups.map((venue) => {
             const venueItems = visibleItems.filter((item) => item.venueId === venue.id);
+            const mapImageUrl = venueItems.find((item) => item.mapImageUrl)?.mapImageUrl;
+            const mappedItems = venueItems.filter((item) => item.mapX !== null && item.mapY !== null);
             return (
               <section key={venue.id}>
                 <div className="flex items-end justify-between gap-3"><div><h2 className="text-xl font-black">{venue.name}</h2><p className="mt-1 text-sm font-semibold text-[var(--muted)]">{venueItems.length} field{venueItems.length === 1 ? "" : "s"} shown in physical order</p></div></div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {venueItems.map((item) => <FieldCard canUpdateStatus={canUpdateStatus} item={item} key={item.fieldId} onOpen={() => { setSelectedId(item.fieldId); setMessage(null); }} onStatus={requestStatus} pendingFieldId={pendingFieldId} />)}
-                </div>
+                {view === "map" && mapImageUrl ? (
+                  <div className="mt-4">
+                    <div className="relative overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--background)]">
+                      <Image alt={`${venue.name} venue map`} className="h-auto w-full object-contain" height={720} src={mapImageUrl} unoptimized width={960} />
+                      {mappedItems.map((item) => {
+                        const status = statusView(item.status);
+                        return <button aria-label={`${item.fieldName}, ${status.label}. View details`} className="absolute min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-white bg-[var(--black-soft)] px-2 py-1 text-[0.65rem] font-black leading-tight text-white shadow-lg focus-visible:outline-4 focus-visible:outline-[var(--accent)]" key={item.fieldId} onClick={() => { setSelectedId(item.fieldId); setMessage(null); }} style={{ left: `${item.mapX}%`, top: `${item.mapY}%` }} title={`${status.label}${item.currentGame ? ` · Current: ${item.currentGame.label}` : item.nextGame ? ` · Next: ${item.nextGame.startLabel}` : ""}`} type="button"><span className="block">{item.mapLabel ?? item.fieldName}</span><span className="block text-[0.55rem] uppercase text-white/80">{status.label}</span></button>;
+                      })}
+                    </div>
+                    {mappedItems.length < venueItems.length ? <p className="mt-3 text-sm font-semibold text-[var(--muted)]">{venueItems.length - mappedItems.length} field{venueItems.length - mappedItems.length === 1 ? " has" : "s have"} no map marker and remain available in List view.</p> : null}
+                    {venueItems[0]?.mapNotes ? <p className="mt-3 whitespace-pre-wrap rounded-lg bg-white p-3 text-sm font-semibold text-[var(--muted)]">{venueItems[0].mapNotes}</p> : null}
+                  </div>
+                ) : (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {venueItems.map((item) => <FieldCard canUpdateStatus={canUpdateStatus} item={item} key={item.fieldId} onOpen={() => { setSelectedId(item.fieldId); setMessage(null); }} onStatus={requestStatus} pendingFieldId={pendingFieldId} />)}
+                  </div>
+                )}
               </section>
             );
           })}

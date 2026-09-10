@@ -26,6 +26,10 @@ export type FieldOperationItem = {
   fieldName: string;
   sportType: string;
   mapLabel: string | null;
+  mapX: number | null;
+  mapY: number | null;
+  mapImageUrl: string | null;
+  mapNotes: string | null;
   status: FieldStatus;
   updatedAt: string;
   currentGame: FieldOperationGame | null;
@@ -114,6 +118,10 @@ export function buildFieldOperationItems(input: {
       fieldName: field.name,
       sportType: field.sportType,
       mapLabel: field.mapLabel,
+      mapX: field.mapX,
+      mapY: field.mapY,
+      mapImageUrl: input.venue.mapImageUrl,
+      mapNotes: input.venue.mapNotes,
       status: field.status,
       updatedAt: field.updatedAt,
       currentGame,

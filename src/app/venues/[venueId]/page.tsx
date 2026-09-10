@@ -372,25 +372,23 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <h2 className="text-2xl font-black">Venue Map</h2>
               {venue?.mapImageUrl ? (
-                <div className="mt-5 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--background)]">
-                  <div className="relative min-w-[520px] sm:min-w-0">
+                <div className="mt-5 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)]">
+                  <div className="relative">
                     <Image alt={`${venue.name} venue map`} className="h-auto w-full object-contain" height={720} src={venue.mapImageUrl} unoptimized width={960} />
-                    {fields.filter((field) => field.mapX !== null && field.mapY !== null).map((field) => (
-                      <div
-                        className="absolute -translate-x-1/2 -translate-y-full"
-                        key={field.id}
+                    {fieldSummaries.filter(({ field }) => field.mapX !== null && field.mapY !== null).map((summary) => (
+                      <Link
+                        aria-label={`${summary.field.name}, ${fieldStatusPresentation(summary.field.status).label}. View field`}
+                        className="absolute min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-white bg-[var(--black-soft)] px-2 py-1 text-center text-[0.65rem] font-black leading-tight text-white shadow focus-visible:outline-4 focus-visible:outline-[var(--accent)]"
+                        href={`/fields/${summary.field.id}`}
+                        key={summary.field.id}
                         style={{
-                          left: `${field.mapX}%`,
-                          top: `${field.mapY}%`,
+                          left: `${summary.field.mapX}%`,
+                          top: `${summary.field.mapY}%`,
                         }}
                       >
-                        <div className="grid justify-items-center">
-                          <span className="mb-1 max-w-28 rounded-md bg-[var(--black-soft)] px-2 py-1 text-center text-xs font-black text-white shadow">
-                            {field.mapLabel ?? field.name}
-                          </span>
-                          <span className="h-5 w-5 rounded-full border-4 border-white bg-red-600 shadow" />
-                        </div>
-                      </div>
+                        <span className="block">{summary.field.mapLabel ?? summary.field.name}</span>
+                        <span className="block text-[0.55rem] uppercase text-white/80">{fieldStatusPresentation(summary.field.status).label}</span>
+                      </Link>
                     ))}
                   </div>
                 </div>
