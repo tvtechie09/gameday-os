@@ -168,6 +168,7 @@ export default async function IdentityPage() {
           <p className="mt-1 text-sm text-[var(--muted)]">{permissionsMatrix.length} platform roles</p>
         </Link>
         {isPlatformAdmin(ctx) && !ctx?.isImpersonating ? <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/privacy"><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Privacy</p><h2 className="mt-2 text-xl font-black">Export &amp; impact</h2><p className="mt-1 text-sm text-[var(--muted)]">Read-only scope and erasure preview</p></Link> : null}
+        {isPlatformAdmin(ctx) && !ctx?.isImpersonating ? <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/reconciliation"><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Migration preview</p><h2 className="mt-2 text-xl font-black">Legacy reconciliation</h2><p className="mt-1 text-sm text-[var(--muted)]">Classify Team/Family records without writes</p></Link> : null}
       </section>
 
       <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://getgamedayos.com/schemas/legacy-identity-reconciliation-manifest-v1.json",
+  "title": "GameDay legacy identity reconciliation preview",
+  "type": "object",
+  "required": ["format", "generatedAt", "stateId", "organizationId", "page", "pageSize", "decisions", "counts", "projectedReviewVolume", "executionEnabled"],
+  "properties": {
+    "format": { "const": "gameday-legacy-reconciliation-manifest-v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "stateId": { "type": "string", "minLength": 1 },
+    "organizationId": { "type": ["string", "null"] },
+    "page": { "type": "integer", "minimum": 1 },
+    "pageSize": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "executionEnabled": { "const": false },
+    "projectedReviewVolume": { "type": "integer", "minimum": 0 },
+    "counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["legacyPersonId", "organizationId", "classification", "canonicalCandidateId", "reasonCode", "relationshipProjectionCount", "fingerprint"],
+        "properties": {
+          "legacyPersonId": { "type": "string" },
+          "organizationId": { "type": ["string", "null"] },
+          "classification": { "enum": ["ALREADY_MAPPED", "DETERMINISTIC_LINK", "POSSIBLE_MATCH", "DISTINCT_NEW_PERSON", "ORG_MAPPING_REQUIRED", "CONFLICTING_STRONG_IDENTIFIER", "SOURCE_KEY_REQUIRED", "SKIP_INACTIVE"] },
+          "canonicalCandidateId": { "type": ["string", "null"] },
+          "reasonCode": { "type": "string" },
+          "relationshipProjectionCount": { "type": "integer", "minimum": 0 },
+          "fingerprint": { "type": "string", "pattern": "^gameday-legacy-reconciliation-v1:" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}
