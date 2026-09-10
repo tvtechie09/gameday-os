@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
-import type { Notification, NotificationType } from "@/lib/types";
+import type { Notification, NotificationType, VenueNotificationCategory, VenueNotificationPriority } from "@/lib/types";
+import { notificationCategoryForType, shouldShowVenueNotification, type VenueNotificationPreference } from "@/lib/notification-preferences-core";
 import { getOrganizationDataScope } from "./organization-data-scope";
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
@@ -12,11 +13,14 @@ export type CreateNotificationInput = {
   venue_id?: string | null;
   field_id?: string | null;
   session_id?: string | null;
+  category?: VenueNotificationCategory;
+  priority?: VenueNotificationPriority;
+  dedupe_key?: string | null;
 };
 
 export const notificationTypes: NotificationType[] = ["alert", "field_status", "session_status", "resource", "volunteer", "sponsor"];
 
-const notificationSelect = "id,notification_type,title,message,venue_id,field_id,session_id,created_at";
+const notificationSelect = "id,notification_type,title,message,venue_id,field_id,session_id,category,priority,dedupe_key,created_at";
 
 function readNotificationType(value: string): NotificationType {
   return notificationTypes.find((type) => type === value) ?? "alert";
@@ -36,6 +40,8 @@ function mapNotification(row: NotificationRow): Notification {
     venueId: readOptionalText(row.venue_id),
     fieldId: readOptionalText(row.field_id),
     sessionId: readOptionalText(row.session_id),
+    category: (row.category || notificationCategoryForType(readNotificationType(row.notification_type))) as VenueNotificationCategory,
+    priority: row.priority === "urgent" ? "urgent" : "normal",
     createdAt: row.created_at,
   };
 }
@@ -75,7 +81,7 @@ export function getNotificationTypeClass(type: NotificationType) {
   return classes[type];
 }
 
-export async function getNotifications(type?: NotificationType | "all"): Promise<Notification[]> {
+export async function getNotifications(type?: NotificationType | "all", preferences?: VenueNotificationPreference[]): Promise<Notification[]> {
   const supabase = getSupabaseAdminClient();
   const scope = await getOrganizationDataScope();
   let query = supabase
@@ -93,7 +99,13 @@ export async function getNotifications(type?: NotificationType | "all"): Promise
     throw new Error(error.message);
   }
 
-  return (data ?? []).map(mapNotification).filter((notification) => isNotificationInScope(notification, scope));
+  const scoped = (data ?? []).map(mapNotification).filter((notification) => isNotificationInScope(notification, scope));
+  if (!preferences) return scoped;
+  return scoped.filter((notification) => shouldShowVenueNotification({
+    category: notification.category,
+    priority: notification.priority,
+    preferences,
+  }));
 }
 
 export async function createNotification(data: CreateNotificationInput): Promise<Notification> {
@@ -107,9 +119,22 @@ export async function createNotification(data: CreateNotificationInput): Promise
       venue_id: readOptionalText(data.venue_id),
       field_id: readOptionalText(data.field_id),
       session_id: readOptionalText(data.session_id),
+      category: data.category ?? notificationCategoryForType(data.notification_type),
+      priority: data.priority ?? "normal",
+      dedupe_key: readOptionalText(data.dedupe_key),
     })
     .select(notificationSelect)
     .single();
+
+  if (error && data.dedupe_key && error.code === "23505") {
+    const { data: existing, error: existingError } = await supabase
+      .from("notifications")
+      .select(notificationSelect)
+      .eq("notification_type", data.notification_type)
+      .eq("dedupe_key", data.dedupe_key)
+      .single();
+    if (!existingError && existing) return mapNotification(existing);
+  }
 
   if (error) {
     throw new Error(error.message);

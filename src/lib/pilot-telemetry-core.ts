@@ -32,6 +32,9 @@ export const pilotEventNames = [
   "onboarding_completed",
   "onboarding_dismissed",
   "onboarding_reopened",
+  "notification_preferences_opened",
+  "notification_preference_changed",
+  "notification_delivery_failed",
 ] as const;
 
 export type PilotEventName = (typeof pilotEventNames)[number];

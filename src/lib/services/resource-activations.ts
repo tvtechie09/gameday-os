@@ -190,6 +190,8 @@ export async function updateResourceActivationStatus(id: string, status: Resourc
   const activation = mapActivation(data);
   if (status === "active") {
     await safelyCreateNotification({
+      category: "work_updates",
+      dedupe_key: `resource:${activation.id}:active:${activation.updatedAt}`,
       field_id: activation.fieldId,
       message: `${activation.displayName} activated ${getAttachmentOptionLabel(activation.activationType).toLowerCase()}.`,
       notification_type: "resource",
@@ -224,6 +226,8 @@ export async function assignResourceActivationToSession(id: string, sessionId: s
 
   const activation = mapActivation(data);
   await safelyCreateNotification({
+    category: "work_updates",
+    dedupe_key: `resource:${activation.id}:assigned:${activation.updatedAt}`,
     field_id: activation.fieldId,
     message: `${activation.displayName} activated ${getAttachmentOptionLabel(activation.activationType).toLowerCase()} for a session.`,
     notification_type: "resource",

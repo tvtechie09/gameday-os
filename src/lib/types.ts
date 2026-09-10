@@ -60,6 +60,8 @@ export type PilotLaunchStatus = "setup" | "rehearsal" | "approved" | "live" | "p
 export type PilotRehearsalStatus = "pending" | "passed" | "failed" | "blocked";
 export type PilotIncidentSeverity = "low" | "normal" | "high" | "urgent";
 export type NotificationType = "alert" | "field_status" | "session_status" | "resource" | "volunteer" | "sponsor";
+export type VenueNotificationCategory = "game_changes" | "field_venue_changes" | "work_updates" | "announcements";
+export type VenueNotificationPriority = "normal" | "urgent";
 export type SyncJobStatus = "pending" | "running" | "completed" | "failed";
 export type SyncQueueReviewStatus = "pending" | "approved" | "rejected" | "imported";
 export type RoleType = "super_admin" | "organization_admin" | "field_operator" | "volunteer" | "read_only";
@@ -538,6 +540,8 @@ export interface Notification {
   venueId: string | null;
   fieldId: string | null;
   sessionId: string | null;
+  category: VenueNotificationCategory;
+  priority: VenueNotificationPriority;
   createdAt: string;
 }
 

@@ -149,6 +149,8 @@ export async function updateVolunteerRoleStatus(id: string, status: VolunteerRol
   const role = mapVolunteerRole(data);
   if (status === "approved") {
     await safelyCreateNotification({
+      category: "work_updates",
+      dedupe_key: `volunteer:${role.id}:approved:${role.updatedAt}`,
       field_id: role.fieldId,
       message: `${role.displayName} was approved as ${getVolunteerRoleLabel(role.roleType).toLowerCase()}.`,
       notification_type: "volunteer",

@@ -1395,6 +1395,9 @@ export type Database = {
           venue_id: string | null;
           field_id: string | null;
           session_id: string | null;
+          category: string;
+          priority: string;
+          dedupe_key: string | null;
           created_at: string;
         };
         Insert: {
@@ -1405,6 +1408,9 @@ export type Database = {
           venue_id?: string | null;
           field_id?: string | null;
           session_id?: string | null;
+          category?: string;
+          priority?: string;
+          dedupe_key?: string | null;
           created_at?: string;
         };
         Update: {
@@ -1415,6 +1421,9 @@ export type Database = {
           venue_id?: string | null;
           field_id?: string | null;
           session_id?: string | null;
+          category?: string;
+          priority?: string;
+          dedupe_key?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -1437,6 +1446,47 @@ export type Database = {
             columns: ["session_id"];
             isOneToOne: false;
             referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      venue_notification_preferences: {
+        Row: {
+          id: string;
+          auth_user_id: string;
+          venue_id: string;
+          category: string;
+          channel: string;
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          auth_user_id: string;
+          venue_id: string;
+          category: string;
+          channel?: string;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          auth_user_id?: string;
+          venue_id?: string;
+          category?: string;
+          channel?: string;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_notification_preferences_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
             referencedColumns: ["id"];
           },
         ];

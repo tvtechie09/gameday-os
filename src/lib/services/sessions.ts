@@ -123,6 +123,8 @@ async function recordAutomaticStatusEvents(previousStatus: Session["status"] | n
       sessionId: nextSession.id,
     });
     await safelyCreateNotification({
+      category: "game_changes",
+      dedupe_key: `session:${nextSession.id}:active:${nextSession.updatedAt}`,
       field_id: nextSession.fieldId,
       message: `${nextSession.title} is now live.`,
       notification_type: "session_status",
@@ -139,6 +141,8 @@ async function recordAutomaticStatusEvents(previousStatus: Session["status"] | n
       sessionId: nextSession.id,
     });
     await safelyCreateNotification({
+      category: "game_changes",
+      dedupe_key: `session:${nextSession.id}:final:${nextSession.updatedAt}`,
       field_id: nextSession.fieldId,
       message: `${nextSession.title} was marked final.`,
       notification_type: "session_status",

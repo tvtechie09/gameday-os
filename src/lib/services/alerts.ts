@@ -272,11 +272,14 @@ export async function createAlert(data: CreateAlertInput): Promise<Alert> {
 
   const mappedAlert = mapAlert(alert);
   await safelyCreateNotification({
+    category: "announcements",
+    dedupe_key: `alert:${mappedAlert.id}`,
     field_id: mappedAlert.fieldId,
     message: mappedAlert.message,
     notification_type: "alert",
     title: mappedAlert.title,
     venue_id: mappedAlert.venueId,
+    priority: mappedAlert.alertPriority === "urgent" ? "urgent" : "normal",
   });
 
   // Reach followers who left an email; best-effort and never blocks creation.

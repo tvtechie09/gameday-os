@@ -262,6 +262,8 @@ export async function updateField(id: string, data: UpdateFieldInput, actorUserI
 
   const mappedField = mapField(field);
   await safelyCreateNotification({
+    category: "field_venue_changes",
+    dedupe_key: `field:${mappedField.id}:${mappedField.status}:${mappedField.updatedAt}`,
     field_id: mappedField.id,
     message: `${mappedField.name} is now ${getFieldStatusLabel(mappedField.status).toLowerCase()}.`,
     notification_type: "field_status",

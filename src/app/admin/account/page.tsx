@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { getRoleHome } from "@/lib/access/navigation";
 import { getSessionContext } from "@/lib/access/session";
 import { MfaPanel } from "@/components/auth/mfa-panel";
+import { defaultVenueNotificationPreferences } from "@/lib/notification-preferences-core";
+import { getVenueNotificationPreferences } from "@/lib/services/notification-preferences";
+import { recordPilotEvent } from "@/lib/services/pilot-telemetry";
+import { NotificationPreferencesForm } from "./notification-preferences-form";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +16,10 @@ export default async function AccountPage() {
   if (!ctx) {
     redirect(getRoleHome(ctx));
   }
+  const preferences = ctx.venueId
+    ? await getVenueNotificationPreferences(ctx).catch(() => defaultVenueNotificationPreferences(ctx.roleKey))
+    : null;
+  if (preferences) void recordPilotEvent(ctx, "notification_preferences_opened");
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
@@ -27,6 +35,17 @@ export default async function AccountPage() {
           <MfaPanel />
         </div>
       </section>
+
+      {preferences ? (
+        <section className="mt-6 rounded-lg border border-[var(--line)] bg-white p-5">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--accent-strong)]">Notifications</p>
+          <h2 className="mt-1 text-xl font-black">What reaches your event inbox</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            These choices apply only to you at {ctx.venueName ?? "this venue"}. They do not change operational announcements or another person&apos;s settings.
+          </p>
+          <NotificationPreferencesForm canSave={Boolean(ctx.authUserId)} preferences={preferences} />
+        </section>
+      ) : null}
     </section>
   );
 }

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getNotificationTypeClass, getNotificationTypeLabel, getNotifications, notificationTypes } from "@/lib/services/notifications";
 import type { NotificationType } from "@/lib/types";
 import { getAlertDeliverySummary } from "@/lib/services/alert-delivery";
+import { getSessionContext } from "@/lib/access/session";
+import { getVenueNotificationPreferences } from "@/lib/services/notification-preferences";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +27,10 @@ function formatDateTime(value: string) {
 export default async function NotificationsPage({ searchParams }: NotificationsPageProps) {
   const resolvedSearchParams = await searchParams;
   const selectedType = readNotificationType(resolvedSearchParams?.type);
+  const ctx = await getSessionContext();
+  const preferences = ctx?.venueId ? await getVenueNotificationPreferences(ctx).catch(() => undefined) : undefined;
   const [notifications, delivery] = await Promise.all([
-    getNotifications(selectedType),
+    getNotifications(selectedType, preferences),
     getAlertDeliverySummary(),
   ]);
 

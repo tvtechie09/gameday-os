@@ -237,7 +237,22 @@ create table if not exists public.notifications (
   venue_id uuid references public.venues(id) on delete set null,
   field_id uuid references public.fields(id) on delete set null,
   session_id uuid references public.sessions(id) on delete set null,
+  category text not null check (category in ('game_changes', 'field_venue_changes', 'work_updates', 'announcements')),
+  priority text not null default 'normal' check (priority in ('normal', 'urgent')),
+  dedupe_key text,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.venue_notification_preferences (
+  id uuid primary key default gen_random_uuid(),
+  auth_user_id uuid not null,
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  category text not null check (category in ('game_changes', 'field_venue_changes', 'work_updates', 'announcements')),
+  channel text not null default 'in_app' check (channel = 'in_app'),
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (auth_user_id, venue_id, category, channel)
 );
 
 create table if not exists public.external_sources (
@@ -413,6 +428,8 @@ create index if not exists notifications_type_created_at_idx on public.notificat
 create index if not exists notifications_venue_id_idx on public.notifications(venue_id);
 create index if not exists notifications_field_id_idx on public.notifications(field_id);
 create index if not exists notifications_session_id_idx on public.notifications(session_id);
+create unique index if not exists notifications_type_dedupe_key_idx on public.notifications(notification_type, dedupe_key);
+create index if not exists venue_notification_preferences_venue_user_idx on public.venue_notification_preferences(venue_id, auth_user_id);
 create index if not exists external_sources_venue_id_idx on public.external_sources(venue_id);
 create index if not exists external_sources_organization_id_idx on public.external_sources(organization_id);
 create index if not exists external_sources_source_type_idx on public.external_sources(source_type);
@@ -463,6 +480,13 @@ alter table public.tournaments enable row level security;
 alter table public.sessions enable row level security;
 alter table public.session_events enable row level security;
 alter table public.notifications enable row level security;
+alter table public.notifications force row level security;
+alter table public.venue_notification_preferences enable row level security;
+alter table public.venue_notification_preferences force row level security;
+revoke all on table public.notifications from anon, authenticated;
+grant all on table public.notifications to service_role;
+revoke all on table public.venue_notification_preferences from anon, authenticated;
+grant all on table public.venue_notification_preferences to service_role;
 alter table public.external_sources enable row level security;
 alter table public.sync_jobs enable row level security;
 alter table public.sync_queue enable row level security;
@@ -562,14 +586,6 @@ create policy "Public can read session events"
 
 create policy "Public can create session events"
   on public.session_events for insert
-  with check (true);
-
-create policy "Public can read notifications"
-  on public.notifications for select
-  using (true);
-
-create policy "Public can create notifications"
-  on public.notifications for insert
   with check (true);
 
 create policy "Public can read external sources"
