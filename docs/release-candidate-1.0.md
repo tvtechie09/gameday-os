@@ -74,7 +74,9 @@ These are the immediately preceding verified results and will be rerun after any
 | 8 — Hosted Venue Staff authorization matrix | PASS | Normal Auth, staff workflows, direct-route denials, manager-control denials, Crossroads scoping, search, and runtime behavior passed. |
 | 9 — Cross-venue isolation | PASS | GM and Staff Riverside probes through routes, query parameters, search, Reports, fields, sessions, announcements, and venue surfaces exposed no private Riverside data. |
 | 10 — Object-level authorization | PASS | Authorized Crossroads objects resolved; Riverside, unrelated-organization, invalid-ID, and parameter-substitution probes failed closed without scope widening or 5xx responses. |
-| 11+ | NOT STARTED | Next gate: Phase 11 — Identity Projection Worker Proof. |
+| 11 — Identity Projection Worker Proof | BLOCKED | Queue primitives and action-triggered processing exist, but no independent scheduled/triggered worker exists in the Venue or Team Vercel configuration, Supabase Cron, or staging Edge Functions. Phase 11 stopped before synthetic mutation. |
+| 12 — Projection Monitoring | NOT STARTED | The Phase 11 P1 worker-availability stop condition prevents Phase 12 acceptance. |
+| 13+ | NOT STARTED | Do not begin until the Phase 11 worker blocker is remediated and Phases 11–12 are rerun. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -380,6 +382,49 @@ The query-parameter matrix covered `venueId`, `organizationId`, `fieldId`, `game
 **PHASES 7–10 PASS.** The GM and Staff matrices, cross-venue isolation, and object-level authorization passed on the protected staging Preview. The documented fixture and denial-UX limitations do not expose data and do not block the RC from advancing.
 
 The next gate is **Phase 11 — Identity Projection Worker Proof**. It was not started by this acceptance run.
+
+## Phase 11 — Identity Projection Worker Proof
+
+Evidence type: **repository implementation audit, staging schema/function/queue inspection, scheduler inventory, and focused local regression**, recorded 2026-09-10.
+
+### Implemented queue architecture
+
+- `platform_identity_projection_queue` is the database-backed queue. It stores organization, canonical person, source identity, originating identity event, operation, target domain, stable dedupe key, minimized context, status, attempt count, availability, lease ownership, safe error code, and lifecycle timestamps.
+- Lifecycle states are `PENDING`, `PROCESSING`, `RETRY`, `COMPLETED`, and `FAILED`. Supported operations are `ENSURE_PERSON_MAPPING`, `SYNC_RELATIONSHIPS`, and `CLEANUP_SOURCE_MAPPING`; the implemented target domain is `team_family`.
+- Enqueue validates organization ownership and uses a unique `dedupe_key`. Claims use `FOR UPDATE SKIP LOCKED`, increment attempts, and create a 120-second lease by default. Expired claims return to `RETRY` below five attempts and become `FAILED` at the fifth attempt.
+- Retry backoff is deterministic exponential delay starting at 60 seconds and capped at 3,600 seconds. Authorized manual retry resets attempts and availability without editing the payload or canonical identity.
+- Apply re-reads current source, person-organization, legacy-link, and relationship state. Person and relationship projections use stable upserts; cross-organization source state and stale canonical state fail closed. Projection failure remains transactionally separate from the committed canonical link, resolved review, and administrator audit.
+- Queue tables and RPCs are service-only. Hosted privilege inspection confirmed `anon` and `authenticated` cannot execute claim, apply, fail, or retry; `service_role` can. The functions are `SECURITY INVOKER`.
+- Venue's server worker entry point is `processPlatformIdentityProjectionQueue` in `src/lib/services/platform-identity-review.ts`. It drains at most 25 items per call and is currently invoked in batches of five only after administrator resolution or retry actions. Team's `processProjectionQueue` is similarly invoked as part of the Studio Director identity import request path.
+- Existing administrator detail pages expose per-person/per-review projection status, attempt count, safe error code, and an authorized retry action for failed items. No independent bounded queue-health dashboard or alert was evaluated because Phase 12 was not reached.
+
+### Scheduler and hosted staging evidence
+
+- Venue `vercel.json` configures only `/api/weather/auto-check` at `0 12 * * *`; it has no identity projection worker route or cron.
+- Team `vercel.json` configures only `/api/cron/family-reminders` at `0 14 * * *`; it has no identity projection worker route or cron.
+- Staging project `oiyitfatarrhnussyxfu` has neither the `pg_cron` nor `pg_net` extension installed, so no database Cron job can drain the queue.
+- Staging has zero deployed Supabase Edge Functions, including no projection worker.
+- The protected RC Preview therefore has an action-triggered in-request queue processor, not an active independent scheduled or durable triggered worker. Work that remains `PENDING`/`RETRY` after the initiating request, or becomes eligible after backoff/lease expiry, has no guaranteed future execution unless another administrator/import action happens to invoke the processor.
+
+### Safe staging baseline
+
+- Queue state is five `COMPLETED` items, each with one attempt. `PENDING`, `PROCESSING`, `RETRY`, and `FAILED` counts are zero.
+- The inspection returned only status counts and schema/function metadata; no personal payload, provider secret, credential, or raw identity data was read.
+- No synthetic person, source mapping, review, relationship, queue item, or domain projection was created. No staging data or configuration was changed, and production was not accessed.
+
+### Focused regression
+
+- Venue Platform Identity 1.2–1.3 focused suite: 32/32 passed.
+- Team Platform Identity boundary focused suite: 8/8 passed.
+- No application code changed. The accepted Venue 707/707 and Team 674/674 full-suite baselines, TypeScript, lint, builds, and client-readiness remain the release baseline and were not rerun.
+
+### Phase 11 decision and stop
+
+**PHASE 11 BLOCKED — P1 worker availability.** The queue schema, service-only security boundary, leases, bounded retry, idempotent apply, stale-claim recovery, cross-organization checks, canonical-decision separation, and action-triggered processors are implemented. However, there is no real scheduled or durable triggered worker in either application or in hosted staging. The Phase 11 acceptance contract explicitly requires such a worker and forbids faking readiness through manual queue mutation.
+
+The run stopped at Phase 11.3 before creating a synthetic fixture or exercising hosted success, transient retry, terminal failure, concurrency, stale-claim, unlink/relink, relationship, or account-claim scenarios. Phase 12 was not started.
+
+Required remediation is a separately reviewed, authenticated, server-only projection worker scheduled against staging, with bounded batches, current claim/apply/fail RPCs, a single-purpose secret, runtime logging, backlog/stale-item health visibility, and a non-customer staging alert destination. After it is deployed, rerun Phase 11 from the queue baseline and proceed to Phase 12 only if the complete hosted worker matrix passes.
 
 ## Release boundary
 
