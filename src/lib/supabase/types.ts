@@ -374,6 +374,77 @@ export type Database = {
           },
         ];
       };
+      work_order_photos: {
+        Row: {
+          id: string;
+          work_order_id: string;
+          venue_id: string;
+          uploader_actor_user_id: string | null;
+          storage_key: string;
+          purpose: string;
+          mime_type: string;
+          byte_size: number;
+          created_at: string;
+          removed_at: string | null;
+          removed_by_actor_user_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          work_order_id: string;
+          venue_id: string;
+          uploader_actor_user_id?: string | null;
+          storage_key: string;
+          purpose: string;
+          mime_type: string;
+          byte_size: number;
+          created_at?: string;
+          removed_at?: string | null;
+          removed_by_actor_user_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          work_order_id?: string;
+          venue_id?: string;
+          uploader_actor_user_id?: string | null;
+          storage_key?: string;
+          purpose?: string;
+          mime_type?: string;
+          byte_size?: number;
+          created_at?: string;
+          removed_at?: string | null;
+          removed_by_actor_user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_order_photos_work_order_id_fkey";
+            columns: ["work_order_id"];
+            isOneToOne: false;
+            referencedRelation: "field_work_orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "work_order_photos_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "work_order_photos_uploader_actor_user_id_fkey";
+            columns: ["uploader_actor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "work_order_photos_removed_by_actor_user_id_fkey";
+            columns: ["removed_by_actor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       billing_accounts: {
         Row: {
           id: string;

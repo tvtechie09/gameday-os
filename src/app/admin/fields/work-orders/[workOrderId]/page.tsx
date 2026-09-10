@@ -12,6 +12,8 @@ import { getSession } from "@/lib/services/sessions";
 import { getWorkOrder, getWorkOrderHistory, getWorkOrderPeople } from "@/lib/services/work-orders";
 import { fieldStatusPresentation, gameStatusPresentation } from "@/lib/ui/status-presentation";
 import { WorkOrderCard, type WorkOrderGameContext } from "../work-order-card";
+import { listWorkOrderPhotos } from "@/lib/services/work-order-photos";
+import { WorkOrderPhotoEvidence } from "../work-order-photo-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +25,18 @@ function formatTimestamp(value: string, timeZone: string) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(value));
 }
 
-export default async function WorkOrderDetailPage({ params }: { params: Promise<{ workOrderId: string }> }) {
+export default async function WorkOrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ workOrderId: string }>;
+  searchParams?: Promise<{ photo?: string }>;
+}) {
   const ctx = await getSessionContext();
   if (!ctx || !canViewCommandCenter(ctx) || isOrgScoped(ctx)) redirect(getRoleHome(ctx));
 
   const { workOrderId } = await params;
+  const query = await searchParams;
   const scoped = await getScopedVenuesAndFields();
   const order = await getWorkOrder(workOrderId);
   if (!order || !scoped.venues.some((venue) => venue.id === order.venueId)) notFound();
@@ -36,10 +45,11 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   const venue = scoped.venues.find((candidate) => candidate.id === order.venueId);
   if (!venue) notFound();
 
-  const [people, history, relatedSession] = await Promise.all([
+  const [people, history, relatedSession, photos] = await Promise.all([
     getWorkOrderPeople([order.venueId], order.assignedToUserId ? [order.assignedToUserId] : []),
     getWorkOrderHistory(order.id),
     order.gameId ? getSession(order.gameId) : Promise.resolve(null),
+    listWorkOrderPhotos(order).catch(() => []),
   ]);
   const session = relatedSession && scoped.fields.some((candidate) => candidate.id === relatedSession.fieldId) ? relatedSession : null;
   const gameStatus = session ? gameStatusPresentation(session.status, session.lifecycleStatus) : null;
@@ -60,6 +70,14 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
     <PageShell size="default">
       <Link className="inline-flex min-h-11 items-center gap-2 text-sm font-black text-[var(--accent-strong)]" href={listHref}><ArrowLeft aria-hidden="true" className="h-4 w-4" />Back to Work Orders</Link>
       <PageTitle description={`${venue.name} · ${fieldName}`} eyebrow="Work order" title={order.title} />
+
+      {query?.photo === "failed" ? (
+        <div className="mt-5">
+          <AlertBanner title="Work Order saved; photo not uploaded" tone="warning">
+            The operational record is safe. Add the photo again below when the connection is stable.
+          </AlertBanner>
+        </div>
+      ) : null}
 
       {resolved ? (
         <div className="mt-5">
@@ -101,6 +119,13 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
           <div className="sm:col-span-2"><dt className="font-black text-[var(--muted)]">Details</dt><dd className="mt-1 whitespace-pre-wrap font-semibold leading-6">{order.detail || "No additional details were provided."}</dd></div>
         </dl>
       </section>
+
+      <WorkOrderPhotoEvidence
+        photos={photos}
+        removableIds={photos.filter((photo) => canManageVenueSettings(ctx) || photo.uploaderActorUserId === ctx.userId).map((photo) => photo.id)}
+        resolved={resolved}
+        workOrderId={order.id}
+      />
 
       <section className="mt-6 rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
         <h2 className="flex items-center gap-2 text-lg font-black"><History aria-hidden="true" className="h-5 w-5 text-[var(--accent-strong)]" />History</h2>

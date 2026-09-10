@@ -107,6 +107,8 @@ export function workOrderAuditPresentation(event: WorkOrderAuditEvent): string {
     "work_order.escalated": `Escalated for management attention by ${event.actorName}`,
     "work_order.note_added": note ? `${event.actorName} added a note: ${note}` : `${event.actorName} added a note`,
     "work_order.reopened": `Reopened by ${event.actorName}`,
+    "work_order.photo_added": `${event.actorName} added photo evidence`,
+    "work_order.photo_removed": `${event.actorName} removed photo evidence; the audit record remains`,
   };
   return messages[event.action] ?? `Updated by ${event.actorName}`;
 }

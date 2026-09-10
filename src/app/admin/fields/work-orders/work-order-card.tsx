@@ -86,6 +86,7 @@ export function WorkOrderCard({
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [message, setMessage] = useState<WorkOrderActionResult | null>(null);
   const [resolutionNote, setResolutionNote] = useState("");
+  const [resolutionPhoto, setResolutionPhoto] = useState<File | null>(null);
   const [note, setNote] = useState("");
   const [assigneeId, setAssigneeId] = useState(assignees[0]?.id ?? "");
   const [pending, startTransition] = useTransition();
@@ -209,7 +210,10 @@ export function WorkOrderCard({
         <label className="grid gap-2 text-sm font-black">What was done? <span className="font-semibold text-[var(--muted)]">Optional</span>
           <textarea className="ui-input min-h-28" maxLength={2000} onChange={(event) => setResolutionNote(event.target.value)} placeholder="Replaced power supply" value={resolutionNote} />
         </label>
-        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending} onClick={() => run("pilot_work_order_resolved", "resolve", () => resolveWorkOrderAction(order.id, order.updatedAt, resolutionNote), true)} type="button">{pending ? "Resolving…" : "Mark Resolved"}</button>
+        <label className="mt-4 grid gap-2 text-sm font-black">After-repair photo <span className="font-semibold text-[var(--muted)]">Optional · up to 8 MB</span>
+          <input accept="image/jpeg,image/png,image/webp" capture="environment" className="ui-input min-h-11 py-2" disabled={pending} onChange={(event) => setResolutionPhoto(event.target.files?.[0] ?? null)} type="file" />
+        </label>
+        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending} onClick={() => run("pilot_work_order_resolved", "resolve", () => resolveWorkOrderAction(order.id, order.updatedAt, resolutionNote, resolutionPhoto), true)} type="button">{pending ? "Resolving…" : "Mark Resolved"}</button>
       </Sheet> : null}
 
       {overlay === "note" ? <Sheet description="This note becomes part of the authoritative work-order history." onClose={() => setOverlay(null)} open title="Add Note">

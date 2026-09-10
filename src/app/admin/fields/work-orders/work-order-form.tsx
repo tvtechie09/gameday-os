@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { buttonStyles } from "@/components/ui/gameday-ui";
 import { createWorkOrderAction, type WorkOrderActionResult } from "./actions";
 import { trackPilotEvent } from "@/components/pilot/pilot-telemetry";
@@ -22,6 +22,14 @@ export function WorkOrderForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [result, setResult] = useState<WorkOrderActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+
+  function preview(file: File | undefined) {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+  }
 
   return (
     <form
@@ -43,8 +51,11 @@ export function WorkOrderForm({
           });
           if (next.ok && next.workOrderId) {
             formRef.current?.reset();
-            const query = initialFieldId ? `?fieldId=${encodeURIComponent(initialFieldId)}` : "";
-            router.push(`/admin/fields/work-orders/${next.workOrderId}${query}`);
+            setPreviewUrl(null);
+            const query = new URLSearchParams();
+            if (initialFieldId) query.set("fieldId", initialFieldId);
+            if (next.photoWarning) query.set("photo", "failed");
+            router.push(`/admin/fields/work-orders/${next.workOrderId}${query.size ? `?${query}` : ""}`);
           }
         });
       }}
@@ -90,6 +101,12 @@ export function WorkOrderForm({
           Details <span className="font-semibold text-[var(--muted)]">Optional</span>
           <textarea className="ui-input min-h-24" maxLength={1000} name="detail" placeholder="Location, symptoms, or anything the next person needs to know" />
         </label>
+
+        <label className="grid gap-2 text-sm font-black sm:col-span-3">
+          Photo <span className="font-semibold text-[var(--muted)]">Optional · JPEG, PNG, or WebP · up to 8 MB</span>
+          <input accept="image/jpeg,image/png,image/webp" capture="environment" className="ui-input min-h-12 py-2" disabled={pending} name="photo" onChange={(event) => preview(event.target.files?.[0])} type="file" />
+        </label>
+        {previewUrl ? <div aria-label="Selected photo preview" className="h-40 rounded-lg bg-slate-100 bg-contain bg-center bg-no-repeat sm:col-span-3" role="img" style={{ backgroundImage: `url(${previewUrl})` }} /> : null}
       </div>
 
       <button className={buttonStyles("primary", "w-full sm:w-fit")} disabled={pending} type="submit">{pending ? "Creating…" : "Create Work Order"}</button>

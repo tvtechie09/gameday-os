@@ -20,12 +20,15 @@ import {
   WorkOrderConflictError,
   type WorkOrder,
 } from "@/lib/services/work-orders";
+import { getWorkOrderPhotoRecord, removeWorkOrderPhoto, uploadWorkOrderPhoto } from "@/lib/services/work-order-photos";
+import { isWorkOrderPhotoPurpose, validateWorkOrderPhotoDescriptor, WorkOrderPhotoValidationError } from "@/lib/work-order-photo-core";
 
 export type WorkOrderActionResult = {
   ok: boolean;
   message: string;
   code?: "conflict" | "missing" | "permission" | "temporary";
   workOrderId?: string;
+  photoWarning?: boolean;
 };
 
 type AuthorizedOrder = {
@@ -74,6 +77,7 @@ async function auditWorkOrder(order: WorkOrder, ctx: AccessContext, action: stri
 }
 
 function failure(error: unknown, fallback: string): WorkOrderActionResult {
+  if (error instanceof WorkOrderPhotoValidationError) return { ok: false, message: error.message };
   if (error instanceof WorkOrderConflictError) return { ok: false, code: "conflict", message: error.message };
   if (error instanceof PermissionDeniedError || error instanceof OrganizationScopeError) {
     return { ok: false, code: "permission", message: publicErrorMessage(error, "You don't have permission to update this work order.") };
@@ -92,6 +96,9 @@ export async function createWorkOrderAction(formData: FormData): Promise<WorkOrd
     const fieldId = String(formData.get("fieldId") || "");
     const title = String(formData.get("title") || "").trim();
     if (!fieldId || !title) return { ok: false, message: "Field and a short description are required." };
+    const photoValue = formData.get("photo");
+    const photo = photoValue instanceof File && photoValue.size > 0 ? photoValue : null;
+    if (photo) validateWorkOrderPhotoDescriptor(photo);
     await assertFieldInScope(fieldId);
     const order = await createWorkOrder({
       fieldId,
@@ -101,8 +108,17 @@ export async function createWorkOrderAction(formData: FormData): Promise<WorkOrd
       reportedBy: ctx.displayName || ctx.email,
     });
     await auditWorkOrder(order, ctx, "work_order.created", { title: order.title });
+    let photoWarning = false;
+    if (photo) {
+      try {
+        const media = await uploadWorkOrderPhoto({ order, ctx, file: photo, purpose: "report" });
+        await auditWorkOrder(order, ctx, "work_order.photo_added", { media_id: media.id, purpose: "report" });
+      } catch {
+        photoWarning = true;
+      }
+    }
     revalidateWorkOrder(order);
-    return { ok: true, message: "Work order created.", workOrderId: order.id };
+    return { ok: true, message: photoWarning ? "Work order created, but the photo did not upload. Add it again from the work order." : "Work order created.", workOrderId: order.id, photoWarning };
   } catch (error) {
     return failure(error, "Unable to create the work order.");
   }
@@ -165,19 +181,63 @@ export async function startWorkOrderAction(id: string, expectedUpdatedAt: string
   }
 }
 
-export async function resolveWorkOrderAction(id: string, expectedUpdatedAt: string, resolutionNote: string): Promise<WorkOrderActionResult> {
+export async function resolveWorkOrderAction(id: string, expectedUpdatedAt: string, resolutionNote: string, photo?: File | null): Promise<WorkOrderActionResult> {
   try {
     const { ctx, order } = await authorizeOrder(id);
     if (order.assignedToUserId && order.assignedToUserId !== ctx.userId && !canManageVenueSettings(ctx)) {
       throw new PermissionDeniedError("Another teammate owns this work order.");
     }
     const note = resolutionNote.trim();
+    if (photo && photo.size > 0) validateWorkOrderPhotoDescriptor(photo);
     const updated = await resolveWorkOrder(id, expectedUpdatedAt, note || null);
     await auditWorkOrder(updated, ctx, "work_order.resolved", { resolution_note: note || null });
+    let photoWarning = false;
+    if (photo && photo.size > 0) {
+      try {
+        const media = await uploadWorkOrderPhoto({ order: updated, ctx, file: photo, purpose: "resolution" });
+        await auditWorkOrder(updated, ctx, "work_order.photo_added", { media_id: media.id, purpose: "resolution" });
+      } catch {
+        photoWarning = true;
+      }
+    }
     revalidateWorkOrder(updated);
-    return { ok: true, message: "Work order resolved." };
+    return { ok: true, message: photoWarning ? "Work order resolved, but the optional photo did not upload." : "Work order resolved.", photoWarning };
   } catch (error) {
     return failure(error, "Unable to resolve the work order.");
+  }
+}
+
+export async function addWorkOrderPhotoAction(formData: FormData): Promise<WorkOrderActionResult> {
+  try {
+    const workOrderId = String(formData.get("workOrderId") ?? "");
+    const purposeValue = formData.get("purpose");
+    const file = formData.get("photo");
+    if (!isWorkOrderPhotoPurpose(purposeValue)) return { ok: false, message: "Choose what this photo shows." };
+    if (!(file instanceof File) || file.size <= 0) return { ok: false, message: "Choose a photo first." };
+    const { ctx, order } = await authorizeOrder(workOrderId);
+    const media = await uploadWorkOrderPhoto({ order, ctx, file, purpose: purposeValue });
+    await auditWorkOrder(order, ctx, "work_order.photo_added", { media_id: media.id, purpose: purposeValue });
+    revalidateWorkOrder(order);
+    return { ok: true, message: "Photo added." };
+  } catch (error) {
+    return failure(error, "Unable to add the photo.");
+  }
+}
+
+export async function removeWorkOrderPhotoAction(workOrderId: string, mediaId: string): Promise<WorkOrderActionResult> {
+  try {
+    const { ctx, order } = await authorizeOrder(workOrderId);
+    const photo = await getWorkOrderPhotoRecord(mediaId, order);
+    if (!photo) return { ok: false, code: "missing", message: "This photo is no longer available." };
+    if (photo.uploaderActorUserId !== ctx.userId && !canManageVenueSettings(ctx)) {
+      throw new PermissionDeniedError("Only the uploader or venue management can remove this photo.");
+    }
+    await removeWorkOrderPhoto(mediaId, order, ctx);
+    await auditWorkOrder(order, ctx, "work_order.photo_removed", { media_id: mediaId, purpose: photo.purpose });
+    revalidateWorkOrder(order);
+    return { ok: true, message: "Photo removed. Its audit history was preserved." };
+  } catch (error) {
+    return failure(error, "Unable to remove the photo.");
   }
 }
 
