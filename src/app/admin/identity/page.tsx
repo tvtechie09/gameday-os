@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { isPlatformAdmin } from "@/lib/access/capabilities";
+import { getSessionContext } from "@/lib/access/session";
 import { permissionsMatrix } from "@/lib/identity-permissions-matrix";
 import {
   getIdentityFamilies,
@@ -33,6 +35,7 @@ function scopeLabel(value: string) {
 }
 
 export default async function IdentityPage() {
+  const ctx = await getSessionContext();
   const [roles, users, memberships, assignments, invites, accessRequests, approvals] = await Promise.all([
     getIdentityRoles().catch((error: unknown) => {
       console.error("Failed to load Identity Platform roles", error);
@@ -164,6 +167,7 @@ export default async function IdentityPage() {
           <h2 className="mt-2 text-xl font-black">Identity Matrix</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">{permissionsMatrix.length} platform roles</p>
         </Link>
+        {isPlatformAdmin(ctx) && !ctx?.isImpersonating ? <Link className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm transition hover:border-[var(--accent)]" href="/admin/identity/privacy"><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Privacy</p><h2 className="mt-2 text-xl font-black">Export &amp; impact</h2><p className="mt-1 text-sm text-[var(--muted)]">Read-only scope and erasure preview</p></Link> : null}
       </section>
 
       <section className="mt-8 rounded-lg border border-[var(--line)] bg-white p-5">
