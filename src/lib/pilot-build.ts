@@ -5,9 +5,20 @@ export type PilotBuildInfo = {
   stagingProjectRef: string | null;
 };
 
+type PilotEnvironment = {
+  PILOT_PREVIEW?: string;
+  VERCEL_ENV?: string;
+};
+
+export function isPilotPreviewEnvironmentForEnvironment(env: PilotEnvironment) {
+  return env.PILOT_PREVIEW === "true" && env.VERCEL_ENV !== "production";
+}
+
 export function isPilotPreviewEnvironment() {
-  return process.env.PILOT_PREVIEW === "true"
-    || (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "security/audit-remediation-2026-08-28");
+  return isPilotPreviewEnvironmentForEnvironment({
+    PILOT_PREVIEW: process.env.PILOT_PREVIEW,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+  });
 }
 
 export function getPilotBuildInfo(): PilotBuildInfo | null {
