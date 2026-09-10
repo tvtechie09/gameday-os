@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import {
   Home,
   MapPin,
   Radio,
+  Search,
   ShieldCheck,
   Sparkles,
   Trophy,
@@ -25,6 +26,7 @@ import { BottomNavigation, type MobileNavItem } from "./bottom-navigation";
 import { Sheet } from "@/components/ui/overlays";
 import { PilotTelemetry } from "@/components/pilot/pilot-telemetry";
 import type { PilotBuildInfo } from "@/lib/pilot-build";
+import { UniversalSearchSheet } from "@/components/universal-search";
 
 const iconMap: Record<string, LucideIcon> = {
   Activity,
@@ -83,7 +85,17 @@ export type AppShellProps = {
 export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, children }: Readonly<AppShellProps>) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const mobileItems = buildMobileNavigation(navGroups);
+
+  useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setSearchOpen(true); }
+      if (event.key === "/" && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) { event.preventDefault(); setSearchOpen(true); }
+    };
+    window.addEventListener("keydown", openSearch);
+    return () => window.removeEventListener("keydown", openSearch);
+  }, []);
 
   return (
     <div className="mx-auto grid min-h-dvh w-full max-w-[1440px] min-w-0 bg-[var(--background)] lg:grid-cols-[280px_1fr]">
@@ -103,6 +115,7 @@ export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, ch
             </p>
           ) : null}
 
+          <button className="mt-5 flex min-h-11 w-full items-center gap-3 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-left text-sm font-bold text-white/80 hover:bg-white/15" onClick={() => setSearchOpen(true)} type="button"><Search aria-hidden="true" className="h-4 w-4" /><span className="flex-1">Search GameDay</span><kbd className="text-[10px] text-white/45">⌘K</kbd></button>
           <nav className="mt-6 grid gap-5" aria-label="Primary navigation">
             {navGroups.map((group) => (
               <section key={group.key}>
@@ -144,7 +157,7 @@ export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, ch
       </aside>
 
       <div className="min-w-0">
-        <AppHeader onOpenMenu={() => setMoreOpen(true)} pilotInfo={pilotInfo} roleLabel={roleLabel} venueName={venueName} />
+        <AppHeader onOpenMenu={() => setMoreOpen(true)} onOpenSearch={() => setSearchOpen(true)} pilotInfo={pilotInfo} roleLabel={roleLabel} venueName={venueName} />
         <div className="min-w-0 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</div>
       </div>
 
@@ -176,6 +189,7 @@ export function AppShell({ navGroups, roleLabel, venueName, email, pilotInfo, ch
         </div>
       </Sheet>
       <PilotTelemetry enabled={Boolean(pilotInfo?.enabled)} />
+      <UniversalSearchSheet enabled={Boolean(pilotInfo?.enabled)} onClose={() => setSearchOpen(false)} onOpen={() => setSearchOpen(true)} open={searchOpen} />
     </div>
   );
 }

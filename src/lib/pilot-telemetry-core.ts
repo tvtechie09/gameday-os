@@ -24,6 +24,10 @@ export const pilotEventNames = [
   "pilot_announcement_flow_opened",
   "pilot_announcement_published",
   "pilot_announcement_failed",
+  "search_opened",
+  "search_submitted",
+  "search_result_opened",
+  "search_no_results",
 ] as const;
 
 export type PilotEventName = (typeof pilotEventNames)[number];

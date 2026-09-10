@@ -1,10 +1,10 @@
 "use client";
 
-import { MapPin, Menu } from "lucide-react";
+import { MapPin, Menu, Search } from "lucide-react";
 import { IconButton } from "@/components/ui/gameday-ui";
 import type { PilotBuildInfo } from "@/lib/pilot-build";
 
-export function AppHeader({ onOpenMenu, pilotInfo, roleLabel, venueName }: Readonly<{ onOpenMenu: () => void; pilotInfo: PilotBuildInfo | null; roleLabel: string; venueName: string | null }>) {
+export function AppHeader({ onOpenMenu, onOpenSearch, pilotInfo, roleLabel, venueName }: Readonly<{ onOpenMenu: () => void; onOpenSearch: () => void; pilotInfo: PilotBuildInfo | null; roleLabel: string; venueName: string | null }>) {
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-white/95 px-4 py-2 backdrop-blur lg:hidden">
       <div className="mx-auto flex min-h-12 max-w-5xl items-center justify-between gap-3">
@@ -18,9 +18,7 @@ export function AppHeader({ onOpenMenu, pilotInfo, roleLabel, venueName }: Reado
             </p>
           </div>
         </div>
-        <IconButton aria-label="Open navigation menu" onClick={onOpenMenu}>
-          <Menu className="h-5 w-5" aria-hidden="true" />
-        </IconButton>
+        <div className="flex items-center gap-1"><IconButton aria-label="Search GameDay" onClick={onOpenSearch}><Search className="h-5 w-5" aria-hidden="true" /></IconButton><IconButton aria-label="Open navigation menu" onClick={onOpenMenu}><Menu className="h-5 w-5" aria-hidden="true" /></IconButton></div>
       </div>
     </header>
   );
