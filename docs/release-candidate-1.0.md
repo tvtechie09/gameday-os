@@ -44,7 +44,7 @@ These are the immediately preceding verified results and will be rerun after any
 - Team Vercel project: `game-day-team` (`prj_npnRcoVRFlnnK6DcspfcD5N3w73a`).
 - Release-candidate Venue preview: `https://gameday-g8k298dnc-gamedayos.vercel.app`, READY, Preview deployment `dpl_6ipbjRJzkGbDTjNZruPsZWRp3DCQ`, commit `7de1142185a2be7d22ad5e2bd6ed5294575fce79`.
 - Latest known Team preview: `https://game-day-team-9a8mm1hs1-gamedayos.vercel.app`, READY, commit `17be3db3ed4f510fce4148890f4a5f1fb01ac64d`.
-- The Team preview still predates the release-candidate HEAD. The Venue preview is protected release-candidate evidence for Phase 5 only.
+- The Team preview still predates the release-candidate HEAD. The Venue preview is protected release-candidate evidence for Phases 5 and 6 only.
 
 ### Current known blockers entering the sprint
 
@@ -69,7 +69,8 @@ These are the immediately preceding verified results and will be rerun after any
 | 3 — Exact staging migration application | PASS | Four approved additive migrations applied to staging only; hosted history recorded all four. |
 | 4 — Post-migration staging verification | PASS | Schema postflight passed; RC 1.0A enabled leaked-password protection, cleared the related advisor warning, and accepted the reviewed `btree_gist` placement for this RC. |
 | 5 — Environment parity | PASS | Preview is protected, targets staging project `oiyitfatarrhnussyxfu`, disables dev login, uses an explicit server-side Pilot marker, preserves normal Supabase Auth, and passed hosted route, runtime-log, and client-asset isolation checks on exact commit `7de1142`. |
-| 6+ | NOT TESTED | Phase 5 is complete. Phase 6 is the next authorized sequential gate; it was not started by the Phase 5 work. |
+| 6 — Hosted Auth setup and authentication | PASS | Existing synthetic GM and Staff identities authenticated normally, resolved to their intended Crossroads actors and roles, signed out cleanly, and passed the negative-auth, dev-login, runtime-log, and secret-isolation checks described below. |
+| 7+ | NOT TESTED | Phase 6 is complete. Phase 7 is the next authorized sequential gate and was not started by the Phase 6 work. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -268,6 +269,43 @@ Local regression evidence for the remediation: 24 focused tests passed; the comp
 **Phase 5: PASS.** The exact reviewed commit is available on the protected, non-production Preview; the Preview targets the authorized staging project; dev login fails closed at both page and API boundaries; normal Supabase Auth remains available; and the scoped hosted isolation checks found no secret exposure. Phase 6 is next and was not started here.
 
 Remaining later-phase limits: provide and accept the private SportsEngine WebCal configuration only at the authorized provider gate, and inspect production target correctness only under the later production read-only gate.
+
+## Phase 6 — Hosted Auth setup and authentication
+
+Evidence type: **staging hosted authentication, browser session behavior, deployment-scoped runtime logs, and focused local regression tests**, recorded 2026-09-10. No operational staging record or production system was changed.
+
+### Environment and fixture preflight
+
+- Deployment `dpl_6ipbjRJzkGbDTjNZruPsZWRp3DCQ` remained READY, non-production (`target: null`), and tied to exact reviewed commit `7de1142185a2be7d22ad5e2bd6ed5294575fce79` on `codex/production-readiness-2.0c`.
+- The protected Preview continued to display its server-derived `PILOT` marker and used the authorized staging Supabase project `oiyitfatarrhnussyxfu`. Normal hosted Auth resolved staging fixture data; production was not inspected or changed.
+- `/dev-login` continued to redirect to the normal login page. No development fixture chooser or successful dev-login session was available.
+- The existing synthetic Venue GM and Venue Staff Auth users were reused. Each had a confirmed Auth user, an active linked `public.users` profile, exactly one approved Crossroads assignment, and the expected `venue_director` or `venue_staff` role. Neither current fixture has an `account_people` row; that canonical identity claim is not required by the current hosted actor resolver, which follows Auth user to profile to approved role assignment. No assignment, profile, venue scope, role, or identity metadata was modified.
+- Prior temporary credentials were unavailable by design, so a reset was required. Two distinct policy-compliant temporary passwords were applied only to the two existing synthetic staging Auth accounts. The reset changed password hashes and Auth update timestamps only. No credential value was written to this document, chat, repository, persistent environment file, browser screenshot, or runtime log.
+
+### Hosted authentication results
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Venue GM normal Auth | PASS | Normal email/password sign-in reached the authenticated Venue shell with `Venue GM`, the Crossroads venue context, and the `PILOT` marker. No platform-admin substitution or redirect loop appeared. |
+| Venue GM session/sign-out | PASS | The authenticated shell and assigned venue data proved a usable hosted actor session. Normal sign-out returned the browser to `/login`; the GM actor shell was no longer present. No token or cookie value was read or recorded. |
+| Venue Staff normal Auth | PASS | Normal email/password sign-in reached `/today` with `Venue Staff`, the Crossroads venue context, and the `PILOT` marker. No development login path or redirect loop was involved. |
+| Venue Staff session/sign-out | PASS | The authenticated Staff shell loaded with the active assigned role and venue. Normal sign-out returned the browser to `/login`; the Staff actor shell was no longer present. No token or cookie value was read or recorded. |
+| Invalid credentials | PASS | One bounded invalid-credential attempt remained on `/login`, showed the normal generic failure state, created no actor shell, exposed no raw internal error, and did not fall back to dev login. |
+| Missing/inactive assignment | NOT HOSTED-TESTED | No dedicated safe invalid-assignment staging identity was identified, and a valid fixture was not mutated. The focused fail-closed hosted-actor regression test passed instead. |
+
+The first click of each responsive-shell sign-out control did not navigate because duplicate desktop/mobile controls were present in the rendered DOM. Selecting the visible control explicitly completed each normal sign-out. This is an automation-selector observation, not evidence of a user-facing sign-out defect.
+
+### Runtime, isolation, and regression evidence
+
+- Deployment-scoped Preview logs for the acceptance window showed successful page/function responses and the expected login/logout redirects. There was no unexpected 5xx, warning, fatal entry, missing-schema error, unknown-role fallback, auth redirect loop, or successful dev-login activity.
+- Aggregated runtime errors returned no error cluster for the reviewed window.
+- The reviewed browser surfaces and runtime entries exposed no service-role key, session secret, private integration URL, development credential, password, token, or cookie contents.
+- Focused local regression: 23/23 tests passed across `dev-login-environment`, `hosted-authorization-parity`, and `session-cookie` coverage. No application or Auth code changed, so the previously accepted 707/707 full suite, TypeScript, client-readiness, lint, local Webpack build, and hosted Turbopack build remain the code baseline rather than being re-run for this documentation-only phase.
+- Credential cleanup approach **B** is in effect: the two temporary staging passwords remain valid only for the contiguous RC hosted authorization/lifecycle phases and must be invalidated immediately after those phases. Both browser sessions were signed out. Plaintext credentials remain absent from files, documentation, Git, logs, screenshots, and persistent environment variables; the SQL editor was scrubbed to a credential-free placeholder after execution.
+
+### Phase 6 decision
+
+**Phase 6: PASS.** Both existing synthetic staging Venue identities authenticated through normal Supabase Auth, resolved to the intended Crossroads actor and role, and signed out cleanly. Invalid credentials failed safely, hosted dev login remained unavailable, and no session, secret, schema, or runtime regression appeared. Phase 7 is next and was not started here.
 
 ## Release boundary
 
