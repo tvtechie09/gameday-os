@@ -76,8 +76,9 @@ These are the immediately preceding verified results and will be rerun after any
 | 10 — Object-level authorization | PASS | Authorized Crossroads objects resolved; Riverside, unrelated-organization, invalid-ID, and parameter-substitution probes failed closed without scope widening or 5xx responses. |
 | 11 — Identity Projection Worker Proof | PASS | A staging-only, database-native Supabase Cron worker now drains bounded batches through the existing service-only queue RPCs. Scheduled success, retry, terminal failure, idempotence, concurrency, stale-lease recovery, canonical-decision safety, and cross-organization denial passed. |
 | 12 — Projection Monitoring | PASS WITH P1 PRODUCTION ALERTING REQUIREMENT | A service-only, PII-free health summary and worker run history are implemented and validated. Active production alert delivery is intentionally not configured in this staging-only sprint and is required before production. |
-| 13 — Work Order Photo Storage Security | BLOCKED / PARTIALLY VERIFIED | Hosted bucket privacy, database grants, empty-state health, anonymous denial, GM/Staff read-only controls, and the implementation/test baseline passed. Upload, signed-URL, object-isolation, and deletion acceptance require a user-confirmed synthetic browser workflow. |
-| 14–15 | NOT STARTED | Phase 14 remains gated on a complete Phase 13 hosted object matrix; Phase 15 remains gated on Phase 14. |
+| 13 — Work Order Photo Storage Security | PASS | Private bucket/grants, anonymous and unrelated-user denial, GM/Staff and cross-venue object authorization, signed-URL expiry/renewal, safe keys/audits, and final reconciliation passed against real synthetic staging objects. |
+| 14 — Work Order Photo Lifecycle | PASS | Canonical upload/read/remove, five-photo concurrency enforcement, invalid/oversized failure safety, resolution with/without media, Staff ownership controls, and final cleanup passed. A rejected-file retry defect was fixed and reaccepted on the protected Preview. |
+| 15 — Photo Metadata and Retention | PASS WITH P1 PRIVACY POLICY REQUIREMENT | Hosted download proved EXIF orientation, description, and GPS are retained byte-for-byte. Logical removal plus physical object deletion passed; policy approval for metadata stripping and retention periods remains required before production. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -476,41 +477,58 @@ Evidence type: **implemented health surface and hosted staging validation**, rec
 
 ## Phase 13 — Work Order Photo Storage Security
 
-Evidence type: **implemented controls, automated validation, hosted staging read-only validation, and incomplete hosted lifecycle acceptance**, recorded 2026-09-10.
+Evidence type: **implemented controls, automated validation, and hosted staging object-level acceptance**, completed 2026-09-11.
 
-- Protected Preview `https://gameday-dod12cdpv-gamedayos.vercel.app` was READY on deployment `dpl_AWK5vee5TZivb3nCNhYNocakFsZ1`, exact commit `1f945ee4e6aab13181d5bec9a758c64cf0b121ba`, and targeted staging project `oiyitfatarrhnussyxfu`.
-- The `work-order-evidence` bucket is private, limits objects to 8 MiB, and accepts only JPEG, PNG, and WebP.
-- The photo metadata table is forced-RLS and service-role-only. No `anon` or `authenticated` table grants and no browser-facing `storage.objects` policies exist.
-- Anonymous listing returned no objects. Anonymous public-object, signing, and upload requests failed. The bucket contained zero objects and the metadata table contained zero photo rows at the final snapshot.
-- Service-only storage health reported zero failed uploads, orphan objects, pending deletes, pending uploads, stale pending uploads, and active records missing objects.
-- Normal hosted Auth succeeded for the existing synthetic Venue GM and Venue Staff. Both could reach the appropriate Work Order photo surface; Staff remained excluded from manager-only navigation and controls. An existing resolved synthetic Work Order was inspected without mutation and contained no photos.
-- The implementation reserves metadata before upload, uses `PENDING`, `ACTIVE`, `DELETE_PENDING`, `REMOVED`, and `FAILED` lifecycle states, issues five-minute signed read URLs, serializes the five-photo limit on the parent Work Order row, restricts removal to the uploader or a venue manager, and records PII-free audit events. Automated coverage includes authorization, lifecycle recovery, deletion, reconciliation, and concurrent photo-limit behavior.
-- Full Venue validation passed: 719/719 tests, TypeScript, Webpack production build, and client-readiness. Lint reported zero errors and the one unchanged `no-location-assign` warning in `src/components/auth/set-password-form.tsx`.
-
-### Incomplete hosted acceptance
-
-No staged photo object existed. Completing the matrix would require creating a clearly labeled synthetic Work Order, uploading safe test media through the canonical browser workflow, and later removing it. Those browser submissions require a live user confirmation, so they were not performed while the user was unavailable. Consequently, the following remain unproven in hosted staging:
-
-- a known real object's anonymous enumeration denial;
-- signed-URL issuance, five-minute expiry, replacement, and non-reuse;
-- GM and Staff upload/removal authorization against real objects;
-- unrelated-user and cross-venue object isolation using real object identifiers;
-- the five-plus-concurrent-upload boundary and invalid, oversized, storage-failure, and database-failure recovery paths;
-- full upload-to-removal lifecycle, audit evidence, and reconciliation after cleanup;
-- downloaded-object EXIF/GPS behavior.
-
-### Credential and data cleanup
-
-- Both temporary synthetic staging credentials were invalidated after the hosted read-only checks, all sessions were revoked, and the prior temporary credentials no longer authenticate.
-- No replacement credential was retained, printed, committed, or written to a persistent environment file.
-- Temporary credential, environment, browser-bridge, and evidence artifacts were deleted. Git remained credential-free and clean before this evidence update.
-- No Work Order, photo, object, role, membership, venue assignment, unrelated staging record, production variable, production database, or production deployment was changed.
+- Final protected Preview: `https://gameday-os-git-codex-production-readiness-20c-gamedayos.vercel.app`, deployment `dpl_Eq4PqZ1fyEnRYpvBhRSNjeBoxTia`, READY on exact implementation commit `a23d9a1b7d14466e54b3f2ab20828755b2bd5e0c`, targeting only staging project `oiyitfatarrhnussyxfu`.
+- The `work-order-evidence` bucket remained private, limited to 8 MiB and JPEG/PNG/WebP. `work_order_photos` remained forced-RLS and service-role-only; `anon` and `authenticated` held no direct table grants and no browser-facing `storage.objects` policy existed.
+- Against a known real synthetic object, anonymous public fetch, signing, upload, and listing failed closed. An ordinary authenticated Staff JWT could not fetch/sign the authorized venue object's raw Storage path, could not fetch/sign a Riverside object, could not upload or replace, and a direct remove request was proven by read-after-write to be an RLS no-op. Listings returned zero.
+- The normal application path authorized the Crossroads GM and Staff through the Work Order/venue boundary. Staff could view signed photos, add evidence to an authorized Work Order, remove only their own evidence, and could not remove GM evidence. GM could add and remove authorized evidence. Riverside remained inaccessible; the one isolated temporary Riverside object was preflighted against an empty prefix, used only for denial probes, deleted exactly, and the prefix returned to empty.
+- Object keys contained only venue UUID, `work-orders`, Work Order UUID, random media UUID, and extension. No name, email, title, field label, signed URL, or credential appeared in a key or audit payload.
+- A GM-issued signed URL returned 200 in-browser, returned 400 after 310 seconds, and a refreshed authorized page issued a replacement URL that returned 200. The URL itself was never logged or persisted.
+- `work_order.photo_added` and `work_order.photo_removed` audits contained stable media identity and bounded operational metadata without object path, signed URL, token, password, service-role marker, binary content, or user PII.
 
 ### Phase 13 decision
 
-**PHASE 13 BLOCKED / PARTIALLY VERIFIED.** No critical storage-control failure was observed, and the static plus hosted read-only evidence is favorable. The phase cannot pass without the confirmed hosted object lifecycle and authorization matrix above. Phase 14 and Phase 15 were not started because their predecessor gate did not pass.
+**PHASE 13 PASS.** The private storage boundary, application authorization, direct Storage denial, cross-venue isolation, signed-URL expiry/renewal, key privacy, and audit safety all passed with real synthetic staging objects.
 
-The next exact gate remains **Phase 13 hosted photo lifecycle acceptance**. Resume by generating fresh temporary GM and Staff credentials, obtaining confirmation for the synthetic Work Order/upload submissions, completing the Phase 13 matrix contiguously, and cleaning up the synthetic evidence. Do not begin Phase 14 until Phase 13 passes, and do not begin Phase 16 in this sprint.
+## Phase 14 — Work Order Photo Lifecycle
+
+Evidence type: **hosted staging browser workflow, direct bounded negative probes, authoritative database reconciliation, and automated regression validation**, completed 2026-09-11.
+
+- Three clearly named synthetic Crossroads Field 4 Work Orders were used: `d6287ea3-51ef-43b9-b68a-c254f82de0c3` for the complete media lifecycle, `9970936c-37c4-4bb7-8200-07bd0ed4bbf8` for resolution without a photo and Staff ownership, and `363a82c1-beb2-4eef-88fd-12fa742e5ff6` for resolution-photo failure/retry. All three finished `resolved`.
+- Initial upload, preview/read, additional upload, authorized removal, resolution with an after-repair photo, and resolution without a photo passed through the canonical UI. Staff viewed GM evidence without a removal control, added one authorized photo, removed their own photo, and received the audit-preservation confirmation.
+- At four active photos, two isolated GM browser sessions submitted different valid JPEGs concurrently. The final active count was exactly five with no sixth active, pending, or failed row. A stale sixth submission also left the authoritative count at five.
+- A text file rejected with the specific image-format message after bypassing only the browser `accept` hint. An 8,388,613-byte JPEG was rejected safely by the hosted request boundary with a generic retry message. Neither failure created a photo row, storage object, audit event, false success, or Work Order state change.
+- The oversized resolution-photo attempt correctly left the Work Order in progress with no resolution/photo audit. It exposed one client-state defect: the visually cleared file input retained the rejected `File` in React state, so a no-photo retry required reload. Commit `a23d9a1b7d14466e54b3f2ab20828755b2bd5e0c` clears the file state and native input after every completed attempt while retaining the operator note.
+- The focused fix was reaccepted on the final protected Preview: oversized photo failed safely, the note remained, the file displayed `No file chosen`, and an immediate second `Mark Resolved` without reload succeeded. No browser exception, runtime error, or HTTP 500 appeared.
+- Final reconciliation: seven photo metadata rows were `REMOVED`, all seven physical objects were deleted, bucket object count was zero, and `PENDING`, `DELETE_PENDING`, `FAILED`, active-without-object, and orphan-object counts were all zero. Added and removed audit counts balanced 7:7. No unrelated staging record was changed.
+- Validation after the fix: 720/720 full tests; focused photo/resolution tests 23/23; TypeScript passed; Webpack production build passed; client-readiness passed; lint had zero errors and the one unchanged warning in `src/components/auth/set-password-form.tsx`.
+
+### Phase 14 decision
+
+**PHASE 14 PASS.** The complete upload/read/remove/resolution lifecycle, role boundary, concurrency limit, negative-input safety, compensation behavior, retry correction, and final cleanup passed.
+
+## Phase 15 — Photo Metadata and Retention
+
+Evidence type: **hosted staging byte comparison, downloaded-object metadata inspection, implementation review, and policy-gap documentation**, completed 2026-09-11.
+
+- The synthetic JPEG contained orientation `6`, description `GameDay RC synthetic photo 1`, and GPS coordinates `0°N, 0°E`. The downloaded stored object had an identical SHA-256 digest and retained the same EXIF orientation, description, and GPS values. Classification: **EXIF/GPS RETAINED**.
+- Resolution does not automatically delete evidence. Canonical removal marks the metadata row `REMOVED`, records remover/time and an audit event, and physically deletes the active object. Final hosted reconciliation proved no remaining objects or incomplete cleanup states.
+- Abandoned `PENDING`, `DELETE_PENDING`, `FAILED`, active-without-object, and orphan states are detectable by the service-only reconciliation/health path. The validated reserve-before-upload and delete-state transitions make failure retryable without exposing browser storage permissions.
+- The repository provides privacy export/impact preview only. No destructive privacy erasure, tenant-offboarding purge, backup deletion, legal-hold workflow, or approved retention schedule exists. Supabase backup/PITR retention was not inspected or changed in this staging-only phase.
+- P1 before production: approve whether operational uploads strip EXIF and precise GPS by default, plus explicit resolved/archive/offboarding/privacy-request retention and deletion periods, legal-hold exceptions, audit pseudonymization, and backup/PITR handling.
+
+### Phase 15 decision
+
+**PHASE 15 PASS WITH P1 PRIVACY POLICY REQUIREMENT.** Technical behavior is verified and cleanup is sound, but the current byte-preserving upload retains precise embedded metadata. Product/legal policy approval and the resulting implementation decision remain required before production.
+
+### Acceptance security cleanup
+
+- The two existing synthetic staging GM/Staff passwords were rotated again to distinct unknown random values after acceptance, and their remaining Auth session count was verified as zero. IDs, email addresses, app/user metadata, roles, memberships, and venue assignments were unchanged.
+- No temporary password, Supabase key, Vercel token, signed URL, or authenticated browser state was printed, documented, committed, or kept in a persistent environment file. Automated browser sessions were closed, the OS clipboard was cleared, and all credential-bearing and photo-fixture temporary artifacts were deleted.
+- Git remained free of environment and credential files. Production data, configuration, aliases, domains, deployments, and migrations remained untouched.
+
+The next exact gate is **Phase 16 — Hosted Work Order Lifecycle**. It was not started in this sprint.
 
 ## Release boundary
 
