@@ -76,7 +76,8 @@ These are the immediately preceding verified results and will be rerun after any
 | 10 — Object-level authorization | PASS | Authorized Crossroads objects resolved; Riverside, unrelated-organization, invalid-ID, and parameter-substitution probes failed closed without scope widening or 5xx responses. |
 | 11 — Identity Projection Worker Proof | PASS | A staging-only, database-native Supabase Cron worker now drains bounded batches through the existing service-only queue RPCs. Scheduled success, retry, terminal failure, idempotence, concurrency, stale-lease recovery, canonical-decision safety, and cross-organization denial passed. |
 | 12 — Projection Monitoring | PASS WITH P1 PRODUCTION ALERTING REQUIREMENT | A service-only, PII-free health summary and worker run history are implemented and validated. Active production alert delivery is intentionally not configured in this staging-only sprint and is required before production. |
-| 13+ | NOT STARTED | Next exact gate: Phase 13. Do not begin without separate authorization. |
+| 13 — Work Order Photo Storage Security | BLOCKED / PARTIALLY VERIFIED | Hosted bucket privacy, database grants, empty-state health, anonymous denial, GM/Staff read-only controls, and the implementation/test baseline passed. Upload, signed-URL, object-isolation, and deletion acceptance require a user-confirmed synthetic browser workflow. |
+| 14–15 | NOT STARTED | Phase 14 remains gated on a complete Phase 13 hosted object matrix; Phase 15 remains gated on Phase 14. |
 
 ## Phase 2 — Staging migration reconciliation
 
@@ -473,7 +474,43 @@ Evidence type: **implemented health surface and hosted staging validation**, rec
 
 **PHASE 12 PASS WITH P1 PRODUCTION ALERTING REQUIREMENT.** The health contract, privacy boundary, execution history, thresholds, and recovery procedure are sufficient for this staging RC gate. Before production activation, connect the aggregate thresholds to an authenticated non-customer operations alert destination and prove delivery plus recovery. That missing active alert does not require changing the worker or canonical queue design.
 
-The next exact gate is **Phase 13**. It was not started.
+## Phase 13 — Work Order Photo Storage Security
+
+Evidence type: **implemented controls, automated validation, hosted staging read-only validation, and incomplete hosted lifecycle acceptance**, recorded 2026-09-10.
+
+- Protected Preview `https://gameday-dod12cdpv-gamedayos.vercel.app` was READY on deployment `dpl_AWK5vee5TZivb3nCNhYNocakFsZ1`, exact commit `1f945ee4e6aab13181d5bec9a758c64cf0b121ba`, and targeted staging project `oiyitfatarrhnussyxfu`.
+- The `work-order-evidence` bucket is private, limits objects to 8 MiB, and accepts only JPEG, PNG, and WebP.
+- The photo metadata table is forced-RLS and service-role-only. No `anon` or `authenticated` table grants and no browser-facing `storage.objects` policies exist.
+- Anonymous listing returned no objects. Anonymous public-object, signing, and upload requests failed. The bucket contained zero objects and the metadata table contained zero photo rows at the final snapshot.
+- Service-only storage health reported zero failed uploads, orphan objects, pending deletes, pending uploads, stale pending uploads, and active records missing objects.
+- Normal hosted Auth succeeded for the existing synthetic Venue GM and Venue Staff. Both could reach the appropriate Work Order photo surface; Staff remained excluded from manager-only navigation and controls. An existing resolved synthetic Work Order was inspected without mutation and contained no photos.
+- The implementation reserves metadata before upload, uses `PENDING`, `ACTIVE`, `DELETE_PENDING`, `REMOVED`, and `FAILED` lifecycle states, issues five-minute signed read URLs, serializes the five-photo limit on the parent Work Order row, restricts removal to the uploader or a venue manager, and records PII-free audit events. Automated coverage includes authorization, lifecycle recovery, deletion, reconciliation, and concurrent photo-limit behavior.
+- Full Venue validation passed: 719/719 tests, TypeScript, Webpack production build, and client-readiness. Lint reported zero errors and the one unchanged `no-location-assign` warning in `src/components/auth/set-password-form.tsx`.
+
+### Incomplete hosted acceptance
+
+No staged photo object existed. Completing the matrix would require creating a clearly labeled synthetic Work Order, uploading safe test media through the canonical browser workflow, and later removing it. Those browser submissions require a live user confirmation, so they were not performed while the user was unavailable. Consequently, the following remain unproven in hosted staging:
+
+- a known real object's anonymous enumeration denial;
+- signed-URL issuance, five-minute expiry, replacement, and non-reuse;
+- GM and Staff upload/removal authorization against real objects;
+- unrelated-user and cross-venue object isolation using real object identifiers;
+- the five-plus-concurrent-upload boundary and invalid, oversized, storage-failure, and database-failure recovery paths;
+- full upload-to-removal lifecycle, audit evidence, and reconciliation after cleanup;
+- downloaded-object EXIF/GPS behavior.
+
+### Credential and data cleanup
+
+- Both temporary synthetic staging credentials were invalidated after the hosted read-only checks, all sessions were revoked, and the prior temporary credentials no longer authenticate.
+- No replacement credential was retained, printed, committed, or written to a persistent environment file.
+- Temporary credential, environment, browser-bridge, and evidence artifacts were deleted. Git remained credential-free and clean before this evidence update.
+- No Work Order, photo, object, role, membership, venue assignment, unrelated staging record, production variable, production database, or production deployment was changed.
+
+### Phase 13 decision
+
+**PHASE 13 BLOCKED / PARTIALLY VERIFIED.** No critical storage-control failure was observed, and the static plus hosted read-only evidence is favorable. The phase cannot pass without the confirmed hosted object lifecycle and authorization matrix above. Phase 14 and Phase 15 were not started because their predecessor gate did not pass.
+
+The next exact gate remains **Phase 13 hosted photo lifecycle acceptance**. Resume by generating fresh temporary GM and Staff credentials, obtaining confirmation for the synthetic Work Order/upload submissions, completing the Phase 13 matrix contiguously, and cleaning up the synthetic evidence. Do not begin Phase 14 until Phase 13 passes, and do not begin Phase 16 in this sprint.
 
 ## Release boundary
 

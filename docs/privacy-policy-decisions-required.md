@@ -12,5 +12,7 @@ Legal/business approval is required before GameDay enables deactivation or erasu
 8. Export response deadline, secure delivery method, request audit, download expiry, and requester notification.
 9. Whether optional profile notes, support feedback, photos containing people, and provider asserted values are exportable or redacted.
 10. Customer contract responsibilities when an organization is data controller and GameDay is processor.
+11. Whether uploaded operational photos must have EXIF and precise GPS metadata stripped. The current upload path stores original bytes and is therefore expected to retain embedded metadata; hosted confirmation remains outstanding. The recommended default is to remove precise location metadata unless an approved operational need requires it.
+12. When Work Order photos become eligible for logical removal and physical object deletion after resolution, archival, tenant offboarding, or a privacy request, including any litigation hold, audit, and backup exceptions.
 
 Until these decisions are approved, the implementation exposes export and impact preview only. There is no destructive endpoint, scheduled erasure, single-click action, or implied self-service right.
