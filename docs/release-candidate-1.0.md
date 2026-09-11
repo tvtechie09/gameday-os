@@ -555,6 +555,30 @@ Evidence type: **protected Preview browser workflow, real staging GM/Staff sessi
 
 The next exact gate is **Phase 17 — Field Mutation Smoke**. It was not started.
 
+## Phase 17 — Hosted Field Mutation Smoke
+
+Evidence type: **protected Preview browser workflow, normal staging Staff Auth, reversible field mutation, direct server-action safety probes, authoritative database/audit reconciliation, deployment-log review, and full automated validation**, completed 2026-09-11.
+
+- Environment parity passed on protected Preview `https://gameday-os-git-codex-production-readiness-20c-gamedayos.vercel.app`, final deployment `dpl_73e8naJGzSMitzmqgvRqNo3Wwztz`, READY at implementation commit `88f8ba5db5b6e7acd85014bbc8a4e88077648574` and targeting only staging project `oiyitfatarrhnussyxfu`. `/dev-login` redirected to normal login, the `PILOT` marker remained visible, and production was not accessed or changed.
+- Crossroads `Field 7` (`11111111-1111-4111-8111-111111111107`) was selected instead of Field 4. Its baseline was operational `open`, legacy health `Ready`, no active or future game, one historical final session, no unresolved Work Order, no map label/coordinates, and public label `FIELD OPEN` with no active alert and no next game.
+- The existing synthetic Venue Staff actor authenticated normally and retained its single approved Crossroads `venue_staff` assignment. Through the canonical Fields UI, Staff changed Field 7 from `open` to `delayed`. The authoritative row changed, Fields moved the item into `Needs Attention`, detail exposed the disruption-review link, public Field displayed the safe `DELAYED` state and guidance, and Universal Search returned `Field 7 delayed DELAYED`.
+- Today intentionally remained a schedule timeline with zero sessions and did not add a separate field-status projection. The public Venue page currently lists canonical field links but does not promise per-field status summaries. Map verification was N/A because Field 7 has no configured coordinates; the list remains the explicit accessible fallback.
+- The public Field page exposed no private Work Order, actor, audit, or operational metadata. Current/next game remained empty and public status returned to `FIELD OPEN` after reversal.
+- One audit acceptance defect was found: the original event recorded only the new `status`. Commit `88f8ba5db5b6e7acd85014bbc8a4e88077648574` now reads the prior authoritative status and records `old_status`, `new_status`, and the compatibility `status` value. Hosted retest produced the correct real Staff actor, Field 7 resource, Crossroads venue scope, timestamps, `open` to `delayed`, and `delayed` to `open` transitions. No service-role surrogate was used.
+- A Crossroads Staff replay against Riverside Field 2 returned a safe permission denial. Riverside remained `open`/`Ready` with its original timestamp and zero Phase 17 audit events. A nonexistent field ID failed safely at the same permission boundary without SQL or internal details.
+- Repeating the original action with its stale timestamp returned the existing conflict response and created no duplicate harmful audit. The independent second Staff session received the same conflict and could not silently overwrite newer state. A later normal UI stale-state revalidation converged to the authoritative state before another action.
+- A routed network abort before authoritative success left Field 7 `delayed`, retained the `Return to open` control, created no event, and remained retryable. The subsequent normal UI reversal returned the field to `open`.
+- Final baseline comparison passed: field identity, legacy health, operational status, historical/current/next games, Work Orders, every other field fingerprint, all session and Work Order fingerprints, and map configuration matched the preflight baseline. Only the required immutable field-status audit history was added.
+- Deployment-scoped error logs for the final Preview returned no error entries. Reviewed requests were successful 200/202 responses, with no unexpected 5xx, missing-schema message, authorization exception, secret exposure, or cross-venue write. Browser review found no application exception, hydration error, or false completed state; only the external Google One Tap/FedCM network warning seen in earlier hosted checks remained.
+- Focused field-operations regression passed 7/7. The complete Venue suite passed 721/721 after adding one audit-transition test. TypeScript, client-readiness, and Webpack production build passed. Lint remained at zero errors with the one unchanged `window.location.assign()` warning in `src/components/auth/set-password-form.tsx`. Turbopack local build remained unusable only because this worktree's `node_modules` symlink points outside its filesystem root; the required Webpack build passed and the hosted Vercel build completed READY.
+- Credential cleanup replaced the temporary Staff password with an unrecoverable random value held only in process and deleted its Auth sessions and refresh tokens. Postflight returned zero sessions, zero refresh tokens, and the unchanged approved Crossroads assignment. All temporary environment, script, HAR, cache, and browser artifacts were deleted; Git retained no credential file.
+
+### Phase 17 decision
+
+**PHASE 17 PASS.** The hosted Staff mutation, authoritative/internal/public projections, complete audit transition, cross-venue denial, invalid-ID safety, duplicate and stale-state behavior, network-failure safety, exact UI reversal, unrelated-record invariants, runtime review, and credential cleanup passed after one focused audit-evidence correction.
+
+The next exact gate is **Phase 18 — Field Disruption + Game Movement**. It was not started.
+
 ## Release boundary
 
 - Production remains untouched.
