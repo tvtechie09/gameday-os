@@ -9,6 +9,7 @@ import {
 } from "../src/lib/work-order-photo-core.ts";
 
 const migration = readFileSync("supabase/migrations/20260910143000_work_order_photo_evidence_2_1c.sql", "utf8");
+const lifecycleMigration = readFileSync("supabase/migrations/20260911005547_harden_work_order_photo_lifecycle.sql", "utf8");
 const service = readFileSync("src/lib/services/work-order-photos.ts", "utf8");
 const actions = readFileSync("src/app/admin/fields/work-orders/actions.ts", "utf8");
 const form = readFileSync("src/app/admin/fields/work-orders/work-order-form.tsx", "utf8");
@@ -82,4 +83,29 @@ test("mobile UI offers camera input, preview, pending state, and duplicate prote
 test("resolution without a photo remains supported", () => {
   assert.match(actions, /photo\?: File \| null/);
   assert.match(actions, /if \(photo && photo\.size > 0\)/);
+});
+
+test("the five-photo limit is serialized at the Work Order row", () => {
+  assert.match(lifecycleMigration, /from public\.field_work_orders[\s\S]+for update/);
+  assert.match(lifecycleMigration, /storage_status in \('PENDING', 'ACTIVE'\)/);
+  assert.match(lifecycleMigration, /v_active_count >= 5/);
+  assert.match(lifecycleMigration, /WORK_ORDER_PHOTO_LIMIT_REACHED/);
+});
+
+test("storage upload is reserved before object creation", () => {
+  const reserveAt = service.indexOf('storage_status: "PENDING"');
+  const uploadAt = service.indexOf(".upload(storageKey, bytes");
+  assert.ok(reserveAt >= 0 && uploadAt > reserveAt);
+  assert.match(service, /storage_status: "ACTIVE"/);
+  assert.match(service, /STORAGE_UPLOAD_FAILED/);
+  assert.match(service, /PHOTO_FINALIZE_FAILED/);
+});
+
+test("incomplete object cleanup remains private, bounded, and detectable", () => {
+  assert.match(service, /reconcileIncompletePhotoStorage/);
+  assert.match(service, /\.limit\(WORK_ORDER_PHOTO_MAX_COUNT\)/);
+  assert.match(service, /DELETE_PENDING/);
+  assert.match(lifecycleMigration, /get_work_order_photo_storage_health/);
+  assert.match(lifecycleMigration, /orphanObjectCount/);
+  assert.match(lifecycleMigration, /revoke all on function public\.get_work_order_photo_storage_health\(\)[\s\S]+from public, anon, authenticated/);
 });

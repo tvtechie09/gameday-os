@@ -232,10 +232,15 @@ export async function removeWorkOrderPhotoAction(workOrderId: string, mediaId: s
     if (photo.uploaderActorUserId !== ctx.userId && !canManageVenueSettings(ctx)) {
       throw new PermissionDeniedError("Only the uploader or venue management can remove this photo.");
     }
-    await removeWorkOrderPhoto(mediaId, order, ctx);
+    const removed = await removeWorkOrderPhoto(mediaId, order, ctx);
     await auditWorkOrder(order, ctx, "work_order.photo_removed", { media_id: mediaId, purpose: photo.purpose });
     revalidateWorkOrder(order);
-    return { ok: true, message: "Photo removed. Its audit history was preserved." };
+    return {
+      ok: true,
+      message: removed.storageCleanupPending
+        ? "Photo removed from the Work Order. Private storage cleanup is pending."
+        : "Photo removed. Its audit history was preserved.",
+    };
   } catch (error) {
     return failure(error, "Unable to remove the photo.");
   }

@@ -384,6 +384,9 @@ export type Database = {
           purpose: string;
           mime_type: string;
           byte_size: number;
+          storage_status: string;
+          storage_error_code: string | null;
+          storage_updated_at: string;
           created_at: string;
           removed_at: string | null;
           removed_by_actor_user_id: string | null;
@@ -397,6 +400,9 @@ export type Database = {
           purpose: string;
           mime_type: string;
           byte_size: number;
+          storage_status?: string;
+          storage_error_code?: string | null;
+          storage_updated_at?: string;
           created_at?: string;
           removed_at?: string | null;
           removed_by_actor_user_id?: string | null;
@@ -410,6 +416,9 @@ export type Database = {
           purpose?: string;
           mime_type?: string;
           byte_size?: number;
+          storage_status?: string;
+          storage_error_code?: string | null;
+          storage_updated_at?: string;
           created_at?: string;
           removed_at?: string | null;
           removed_by_actor_user_id?: string | null;
