@@ -56,6 +56,16 @@ test("weak-network failures preserve operator notes and never render optimistic 
   assert.doesNotMatch(card, /setResolutionNote\(""\)/);
 });
 
+test("a completed resolution attempt clears rejected file state without discarding the note", () => {
+  assert.match(card, /const resolutionPhotoRef = useRef<HTMLInputElement>\(null\)/);
+  assert.match(card, /function clearResolutionPhoto\(\)/);
+  assert.match(card, /setResolutionPhoto\(null\)/);
+  assert.match(card, /resolutionPhotoRef\.current\.value = ""/);
+  assert.match(card, /ref=\{resolutionPhotoRef\}/);
+  assert.match(card, /true, clearResolutionPhoto/);
+  assert.doesNotMatch(card, /setResolutionNote\(""\)/);
+});
+
 test("field context survives creation, list, detail, and return navigation", () => {
   assert.match(fieldsBoard, /work-orders\?fieldId=/);
   assert.match(fieldsPage, /initialSelectedId/);

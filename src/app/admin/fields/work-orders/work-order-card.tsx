@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { AlertTriangle, ChevronDown, Clock3, MapPin, UserRound } from "lucide-react";
 import { Modal, Sheet } from "@/components/ui/overlays";
 import { AlertBanner, StatusChip, buttonStyles } from "@/components/ui/gameday-ui";
@@ -88,6 +88,7 @@ export function WorkOrderCard({
   const [message, setMessage] = useState<WorkOrderActionResult | null>(null);
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolutionPhoto, setResolutionPhoto] = useState<File | null>(null);
+  const resolutionPhotoRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState("");
   const [assigneeId, setAssigneeId] = useState(assignees[0]?.id ?? "");
   const [pending, startTransition] = useTransition();
@@ -95,7 +96,18 @@ export function WorkOrderCard({
   const priority = workOrderPriorityPresentation(order.priority);
   const primary = primaryWorkOrderAction(order, { canManage, canWork, userId: currentUserId });
 
-  function run(successEvent: PilotEventName | null, actionType: string, action: () => Promise<WorkOrderActionResult>, closeOnSuccess = false) {
+  function clearResolutionPhoto() {
+    setResolutionPhoto(null);
+    if (resolutionPhotoRef.current) resolutionPhotoRef.current.value = "";
+  }
+
+  function run(
+    successEvent: PilotEventName | null,
+    actionType: string,
+    action: () => Promise<WorkOrderActionResult>,
+    closeOnSuccess = false,
+    onSettled?: (result: WorkOrderActionResult) => void,
+  ) {
     setMessage(null);
     const offlineMessage = offlineMutationMessage("work order");
     if (offlineMessage) { setMessage({ ok: false, code: "temporary", message: offlineMessage }); return; }
@@ -107,6 +119,7 @@ export function WorkOrderCard({
       } catch {
         result = { ok: false, code: "temporary", message: "Couldn't update this work order. Check your connection and try again." };
       }
+      onSettled?.(result);
       setMessage(result);
       if (successEvent || !result.ok) {
         trackPilotEvent(result.ok ? successEvent! : "pilot_work_order_failed", {
@@ -208,15 +221,15 @@ export function WorkOrderCard({
         <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending || !assigneeId} onClick={() => run(null, "assign", () => assignWorkOrderAction(order.id, assigneeId, order.updatedAt), true)} type="button">{pending ? "Assigning…" : "Assign"}</button>
       </Sheet> : null}
 
-      {overlay === "resolve" ? <Sheet description={`${order.title} · ${fieldName}`} onClose={() => setOverlay(null)} open title="Resolve Work Order">
+      {overlay === "resolve" ? <Sheet description={`${order.title} · ${fieldName}`} onClose={() => { clearResolutionPhoto(); setOverlay(null); }} open title="Resolve Work Order">
         {overlayMessage}
         <label className="grid gap-2 text-sm font-black">What was done? <span className="font-semibold text-[var(--muted)]">Optional</span>
           <textarea className="ui-input min-h-28" maxLength={2000} onChange={(event) => setResolutionNote(event.target.value)} placeholder="Replaced power supply" value={resolutionNote} />
         </label>
         <label className="mt-4 grid gap-2 text-sm font-black">After-repair photo <span className="font-semibold text-[var(--muted)]">Optional · up to 8 MB</span>
-          <input accept="image/jpeg,image/png,image/webp" capture="environment" className="ui-input min-h-11 py-2" disabled={pending} onChange={(event) => setResolutionPhoto(event.target.files?.[0] ?? null)} type="file" />
+          <input accept="image/jpeg,image/png,image/webp" capture="environment" className="ui-input min-h-11 py-2" disabled={pending} onChange={(event) => setResolutionPhoto(event.target.files?.[0] ?? null)} ref={resolutionPhotoRef} type="file" />
         </label>
-        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending} onClick={() => run("pilot_work_order_resolved", "resolve", () => resolveWorkOrderAction(order.id, order.updatedAt, resolutionNote, resolutionPhoto), true)} type="button">{pending ? "Resolving…" : "Mark Resolved"}</button>
+        <button className={buttonStyles("primary", "mt-5 w-full")} disabled={pending} onClick={() => run("pilot_work_order_resolved", "resolve", () => resolveWorkOrderAction(order.id, order.updatedAt, resolutionNote, resolutionPhoto), true, clearResolutionPhoto)} type="button">{pending ? "Resolving…" : "Mark Resolved"}</button>
       </Sheet> : null}
 
       {overlay === "note" ? <Sheet description="This note becomes part of the authoritative work-order history." onClose={() => setOverlay(null)} open title="Add Note">
