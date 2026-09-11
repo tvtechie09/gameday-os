@@ -7,6 +7,7 @@ import {
   fieldOperationMatchesQuery,
   summarizeFieldOperations,
 } from "../src/lib/services/field-operations-core.ts";
+import { buildFieldStatusAuditMetadata } from "../src/lib/services/field-status-core.ts";
 import type { Field, Session, Venue } from "../src/lib/types.ts";
 import type { WorkOrder } from "../src/lib/services/work-orders.ts";
 
@@ -137,4 +138,12 @@ test("Field Operations implementation keeps bulk reads, contextual confirmation,
   assert.match(actions, /assertFieldInScope/);
   assert.match(actions, /updateFieldStatus\(fieldId, status, ctx\.userId, expectedUpdatedAt\)/);
   assert.match(audit, /Pre-implementation workflow audit/);
+});
+
+test("field status audit metadata preserves the complete transition", () => {
+  assert.deepEqual(buildFieldStatusAuditMetadata("open", "delayed"), {
+    old_status: "open",
+    new_status: "delayed",
+    status: "delayed",
+  });
 });

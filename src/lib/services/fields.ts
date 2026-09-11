@@ -3,6 +3,7 @@ import type { Database, Json } from "@/lib/supabase/types";
 import type { Field, FieldStatus, PlaySurfaceLayoutRole } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
+import { buildFieldStatusAuditMetadata } from "./field-status-core";
 import { safelyCreateNotification } from "./notifications";
 
 type FieldRow = Database["public"]["Tables"]["fields"]["Row"];
@@ -289,7 +290,7 @@ export async function updateFieldStatus(id: string, status: FieldStatus, actorUs
   const supabase = getSupabaseAdminClient();
   const { data: existingField, error: existingFieldError } = await supabase
     .from("fields")
-    .select("venue_id")
+    .select("venue_id,field_status,status")
     .eq("id", id)
     .single();
 
@@ -317,11 +318,12 @@ export async function updateFieldStatus(id: string, status: FieldStatus, actorUs
   if (!field) throw new FieldStatusConflictError();
 
   const mappedField = mapField(field);
+  const previousStatus = readFieldStatus(existingField.field_status ?? existingField.status);
 
   await safelyLogAudit({
     action: "field.status.updated",
     actorUserId: actor,
-    metadata: { status },
+    metadata: buildFieldStatusAuditMetadata(previousStatus, mappedField.status),
     resourceId: mappedField.id,
     resourceType: "field",
     scopeId: mappedField.venueId,
