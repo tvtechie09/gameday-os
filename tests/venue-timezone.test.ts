@@ -20,6 +20,8 @@ test("session create, edit, Schedule, and public field surfaces use venue time",
   const schedulePage = readFileSync("src/app/admin/sessions/page.tsx", "utf8");
   const publicFieldPage = readFileSync("src/app/fields/[fieldId]/page.tsx", "utf8");
   assert.match(createAction, /venueLocalDateTimeToIso/);
+  assert.match(createAction, /action: "session\.schedule\.created"/);
+  assert.match(createAction, /actorUserId: ctx\.userId/);
   assert.match(editPage, /venueDateTimeLocalValue/);
   assert.match(editPage, /venueLocalDateTimeToIso/);
   assert.match(schedulePage, /venueGroup\.venue\.timezone/);
