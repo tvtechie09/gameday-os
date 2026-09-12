@@ -8,6 +8,7 @@ import type { SessionLinkLabel, SessionSportType } from "@/lib/types";
 import { canManageSchedule, isOrgScoped } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { getSessionContext } from "@/lib/access/session";
+import { venueDateTimeLocalValue, venueLocalDateTimeToIso } from "@/lib/venue-timezone";
 
 type EditSessionPageProps = {
   params: Promise<{ sessionId: string }>;
@@ -15,10 +16,6 @@ type EditSessionPageProps = {
 
 const linkLabels: SessionLinkLabel[] = ["GameChanger", "SidelineHD", "YouTube", "SportsEngine", "TeamSnap", "Other"];
 const sportTypes: SessionSportType[] = ["baseball", "softball", "soccer", "football", "lacrosse", "basketball", "volleyball", "other"];
-
-function toDateTimeLocal(value: string) {
-  return new Date(value).toISOString().slice(0, 16);
-}
 
 function readOptionalText(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
@@ -61,10 +58,13 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
 
     const actingScope = await getScopedVenuesAndFields();
     const currentSession = await getSession(sessionId);
+    const targetField = actingScope.fields.find((field) => field.id === fieldId);
+    const targetVenue = targetField ? actingScope.venues.find((venue) => venue.id === targetField.venueId) : null;
     if (
       !currentSession
       || !actingScope.fields.some((field) => field.id === currentSession.fieldId)
-      || !actingScope.fields.some((field) => field.id === fieldId)
+      || !targetField
+      || !targetVenue
     ) {
       redirect("/admin/sessions");
     }
@@ -76,8 +76,8 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
       sport_type: sportTypes.find((type) => type === sportType) ?? "baseball",
       home_team: homeTeam,
       away_team: awayTeam,
-      start_time: new Date(startTime).toISOString(),
-      end_time: endTime ? new Date(endTime).toISOString() : null,
+      start_time: venueLocalDateTimeToIso(startTime, targetVenue.timezone),
+      end_time: endTime ? venueLocalDateTimeToIso(endTime, targetVenue.timezone) : null,
       status: status === "active" || status === "final" ? status : "scheduled",
       is_demo: formData.get("is_demo") === "on",
       primary_link_label: readLinkLabel(formData, "primary_link_label"),
@@ -105,6 +105,8 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
       </section>
     );
   }
+  const sessionField = scoped.fields.find((field) => field.id === session.fieldId)!;
+  const sessionVenue = scoped.venues.find((venue) => venue.id === sessionField.venueId)!;
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
@@ -161,11 +163,11 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2">
             <span className="text-sm font-bold">Start date/time</span>
-            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={toDateTimeLocal(session.startTime)} name="start_time" required type="datetime-local" />
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={venueDateTimeLocalValue(session.startTime, sessionVenue.timezone)} name="start_time" required type="datetime-local" />
           </label>
           <label className="grid gap-2">
             <span className="text-sm font-bold">End date/time</span>
-            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={session.endTime ? toDateTimeLocal(session.endTime) : ""} name="end_time" type="datetime-local" />
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={session.endTime ? venueDateTimeLocalValue(session.endTime, sessionVenue.timezone) : ""} name="end_time" type="datetime-local" />
           </label>
         </div>
         <div className="grid gap-5 sm:grid-cols-2">

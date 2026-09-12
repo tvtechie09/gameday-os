@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createSession } from "@/lib/services/sessions";
 import type { Session } from "@/lib/types";
 import { requireScheduleAccess } from "@/lib/access/schedule-authorization";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
+import { venueLocalDateTimeToIso } from "@/lib/venue-timezone";
 
 export type CreateSessionResult = {
   session?: Session;
@@ -49,6 +51,10 @@ export async function createSessionAction(formData: FormData): Promise<CreateSes
 
   try {
     await requireScheduleAccess({ fieldIds: [fieldId] });
+    const scoped = await getScopedVenuesAndFields();
+    const field = scoped.fields.find((candidate) => candidate.id === fieldId);
+    const venue = field ? scoped.venues.find((candidate) => candidate.id === field.venueId) : null;
+    if (!field || !venue) return { error: "Choose a field in your venue." };
     const session = await createSession({
       field_id: fieldId,
       tournament_id: tournamentId || null,
@@ -56,8 +62,8 @@ export async function createSessionAction(formData: FormData): Promise<CreateSes
       sport_type: sportType as Session["sportType"],
       home_team: homeTeam,
       away_team: awayTeam,
-      start_time: new Date(startTime).toISOString(),
-      end_time: endTime ? new Date(endTime).toISOString() : null,
+      start_time: venueLocalDateTimeToIso(startTime, venue.timezone),
+      end_time: endTime ? venueLocalDateTimeToIso(endTime, venue.timezone) : null,
       is_demo: formData.get("is_demo") === "on",
       status: status as Session["status"],
       primary_link_label: readLinkLabel(formData, "primary_link_label"),

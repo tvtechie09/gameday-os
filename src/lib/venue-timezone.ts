@@ -52,3 +52,46 @@ export function timeZoneAbbreviation(timeZone: string, at: Date = new Date()): s
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(at);
   return parts.find((part) => part.type === "timeZoneName")?.value ?? "";
 }
+
+function zoneOffsetMinutes(ms: number, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: normalizeVenueTimezone(timeZone),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(ms));
+  const read = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+  let hour = read("hour");
+  if (hour === 24) hour = 0;
+  const localAsUtc = Date.UTC(read("year"), read("month") - 1, read("day"), hour, read("minute"));
+  return Math.round((localAsUtc - ms) / 60_000);
+}
+
+export function venueLocalDateTimeToIso(value: string, timeZone: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value.trim());
+  if (!match) throw new Error("Enter a valid local date and time.");
+  const [, year, month, day, hour, minute] = match;
+  const utcGuess = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  let instant = utcGuess - zoneOffsetMinutes(utcGuess, timeZone) * 60_000;
+  instant = utcGuess - zoneOffsetMinutes(instant, timeZone) * 60_000;
+  const iso = new Date(instant).toISOString();
+  if (venueDateTimeLocalValue(iso, timeZone) !== value) throw new Error("That local time does not exist in the venue timezone.");
+  return iso;
+}
+
+export function venueDateTimeLocalValue(value: string, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: normalizeVenueTimezone(timeZone),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  const read = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${read("year")}-${read("month")}-${read("day")}T${read("hour")}:${read("minute")}`;
+}

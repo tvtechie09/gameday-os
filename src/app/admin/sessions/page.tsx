@@ -24,16 +24,16 @@ export const dynamic = "force-dynamic";
 
 type SessionsPageProps = { searchParams?: Promise<{ q?: string }> };
 
-function formatSessionTime(value: string) {
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+function formatSessionTime(value: string, timeZone: string) {
+  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(value));
 }
 
-function formatSessionDate(value: string) {
-  return new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric" }).format(new Date(value));
+function formatSessionDate(value: string, timeZone: string) {
+  return new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric", timeZone }).format(new Date(value));
 }
 
-function formatSessionClock(value: string) {
-  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
+function formatSessionClock(value: string, timeZone: string) {
+  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone }).format(new Date(value));
 }
 
 function formatUpdatedAt(value: string) {
@@ -87,7 +87,7 @@ export default async function SessionsPage({ searchParams }: SessionsPageProps) 
       fieldName: field?.name ?? "",
       venueName: venue?.name ?? "",
       tournamentName: session.tournamentId ? tournamentsById.get(session.tournamentId)?.name : null,
-      startLabel: formatSessionTime(session.startTime),
+      startLabel: formatSessionTime(session.startTime, venue?.timezone ?? "America/Chicago"),
       sportType: session.sportType,
     }, query);
   }) : sessions;
@@ -139,7 +139,7 @@ export default async function SessionsPage({ searchParams }: SessionsPageProps) 
                         return (
                           <GameDayCard
                             key={session.id}
-                            date={formatSessionDate(session.startTime)}
+                            date={formatSessionDate(session.startTime, venueGroup.venue.timezone)}
                             details={<div className="grid gap-2"><p className="capitalize text-[var(--muted)]">{session.sportType}{tournamentName ? ` · ${tournamentName}` : ""}</p>{session.status !== "scheduled" ? <p className="font-bold">{session.homeTeam} <span className="tabular-nums">{session.homeScore}</span> · {session.awayTeam} <span className="tabular-nums">{session.awayScore}</span></p> : null}<p className="text-[var(--muted)]">{formatInning(session)} · Count {session.balls}-{session.strikes} · {session.outs} outs</p><p className="text-xs font-semibold text-[var(--muted)]">Updated {formatUpdatedAt(session.updatedAt)}</p></div>}
                             eventName={session.title || `${session.homeTeam} vs ${session.awayTeam}`}
                             fieldStatus={fieldGroup.field.status === "open" ? undefined : fieldStatusPresentation(fieldGroup.field.status).label.replace("FIELD ", "")}
@@ -147,7 +147,7 @@ export default async function SessionsPage({ searchParams }: SessionsPageProps) 
                             opponent={`${session.homeTeam} vs ${session.awayTeam}`}
                             primaryAction={<Link className={buttonStyles("primary")} href={`/admin/sessions/${session.id}`}>Open game</Link>}
                             secondaryActions={<Link className={buttonStyles("secondary")} href={`/admin/sessions/${session.id}/edit`}>Edit game</Link>}
-                            startTime={formatSessionClock(session.startTime)}
+                            startTime={formatSessionClock(session.startTime, venueGroup.venue.timezone)}
                             status={status.label}
                             statusTone={status.tone}
                             venue={venueGroup.venue.name}

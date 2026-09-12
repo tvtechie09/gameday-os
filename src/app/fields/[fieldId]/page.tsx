@@ -33,23 +33,26 @@ function currentProjectionTime() {
   return Date.now();
 }
 
-function formatSessionTime(value: string) {
+function formatSessionTime(value: string, timeZone: string) {
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone,
   }).format(new Date(value));
 }
 
-function formatTimeOnly(value: string) {
+function formatTimeOnly(value: string, timeZone: string) {
   return new Intl.DateTimeFormat("en", {
     timeStyle: "short",
+    timeZone,
   }).format(new Date(value));
 }
 
-function formatAlertTime(value: string) {
+function formatAlertTime(value: string, timeZone: string) {
   return new Intl.DateTimeFormat("en", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone,
   }).format(new Date(value));
 }
 
@@ -85,9 +88,9 @@ function getPublicRecentUpdates(alerts: Alert[]) {
   }).slice(0, 5);
 }
 
-function groupSessionsByTime(sessions: Session[]) {
+function groupSessionsByTime(sessions: Session[], timeZone: string) {
   return sessions.reduce<Array<{ time: string; sessions: Session[] }>>((groups, session) => {
-    const time = formatTimeOnly(session.startTime);
+    const time = formatTimeOnly(session.startTime, timeZone);
     const existingGroup = groups.find((group) => group.time === time);
 
     if (existingGroup) {
@@ -145,7 +148,7 @@ function TournamentBadge({ tournament }: { tournament: Tournament }) {
   );
 }
 
-function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; showState?: boolean; title: string }) {
+function AlertStack({ alerts, showState = false, timeZone, title }: { alerts: Alert[]; showState?: boolean; timeZone: string; title: string }) {
   if (alerts.length === 0) {
     return null;
   }
@@ -166,7 +169,7 @@ function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; sho
           <h2 className="mt-1 text-2xl font-black leading-tight">{alert.title}</h2>
           <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-7">{alert.message}</p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.12em] opacity-75">
-            Posted {formatAlertTime(alert.createdAt)} · {formatRelativeUpdate(alert.updatedAt)}
+            Posted {formatAlertTime(alert.createdAt, timeZone)} · {formatRelativeUpdate(alert.updatedAt)}
           </p>
         </article>
       ))}
@@ -226,7 +229,7 @@ function FieldStatusBanner({ field }: { field: Field }) {
   );
 }
 
-function SessionCard({ session }: { session: Session }) {
+function SessionCard({ session, timeZone }: { session: Session; timeZone: string }) {
   const baseballSoftballSport = isBaseballSoftballSport(session);
 
   return (
@@ -252,7 +255,7 @@ function SessionCard({ session }: { session: Session }) {
               {formatPeriod(session)} · {session.gameStatus}
             </p>
           )}
-          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{formatSessionTime(session.startTime)}</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{formatSessionTime(session.startTime, timeZone)}</p>
         </div>
         <span className="w-fit rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
           {session.status}
@@ -276,7 +279,7 @@ function SessionBadge({ label }: { label: SessionBadgeLabel }) {
   );
 }
 
-function CompactSessionRow({ session, badge }: { session: Session; badge?: SessionBadgeLabel | null }) {
+function CompactSessionRow({ session, badge, timeZone }: { session: Session; badge?: SessionBadgeLabel | null; timeZone: string }) {
   return (
     <article className="rounded-lg border border-[var(--line)] bg-white p-3 shadow-sm sm:p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -293,7 +296,7 @@ function CompactSessionRow({ session, badge }: { session: Session; badge?: Sessi
           </p>
         </div>
         <div className="text-left sm:text-right">
-          <p className="text-sm font-black">{formatTimeOnly(session.startTime)}</p>
+          <p className="text-sm font-black">{formatTimeOnly(session.startTime, timeZone)}</p>
           <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">{session.status}</p>
         </div>
       </div>
@@ -354,7 +357,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
   const shouldShowNextUpcoming = Boolean(nextUpcomingSession && nextUpcomingSession.id !== currentSession?.id);
   const upcomingSessions = projection.upcoming.slice(0, 5);
   const todaysSchedule = projection.today;
-  const todayScheduleGroups = groupSessionsByTime(todaysSchedule);
+  const timeZone = venue?.timezone ?? "America/Chicago";
+  const todayScheduleGroups = groupSessionsByTime(todaysSchedule, timeZone);
   const gameLinks = currentSession ? getGameLinks(currentSession) : [];
   const tournamentsById = new Map(tournaments.map((tournament) => [tournament.id, tournament]));
   const currentTournament = currentSession?.tournamentId ? tournamentsById.get(currentSession.tournamentId) ?? null : null;
@@ -477,7 +481,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                   <div className="rounded-lg bg-[var(--background)] p-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">{currentSessionBadge === "LIVE NOW" ? "Live now" : "Next game"}</p>
                     <p className="mt-1 truncate text-sm font-black">{currentSession ? currentSession.title : "Not scheduled"}</p>
-                    {currentSession ? <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{formatTimeOnly(currentSession.startTime)}</p> : null}
+                    {currentSession ? <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{formatTimeOnly(currentSession.startTime, timeZone)}</p> : null}
                   </div>
                 </div>
                 <nav aria-label="Field page shortcuts" className="mt-3 grid grid-cols-3 gap-2">
@@ -493,13 +497,13 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
 
             {field ? <FieldStatusBanner field={field} /> : null}
 
-            <AlertStack alerts={weatherAlerts} showState title="Active Alerts" />
+            <AlertStack alerts={weatherAlerts} showState timeZone={timeZone} title="Active Alerts" />
 
             {venue ? <WeatherOperationsStatusCard venueId={venue.id} /> : null}
 
             {venue ? <WeatherStatusCard compact venueId={venue.id} /> : null}
 
-            <AlertStack alerts={otherAlerts} showState title="Venue Announcements" />
+            <AlertStack alerts={otherAlerts} showState timeZone={timeZone} title="Venue Announcements" />
 
             <section
               className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-4 shadow-lg sm:p-6" : "rounded-lg border-2 bg-white p-4 shadow-md sm:p-6"}
@@ -519,7 +523,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     <span className="rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent-strong)]">
                       {currentSession.sportType}
                     </span>
-                    <p className="text-sm font-semibold text-[var(--muted)]">{formatSessionTime(currentSession.startTime)}</p>
+                    <p className="text-sm font-semibold text-[var(--muted)]">{formatSessionTime(currentSession.startTime, timeZone)}</p>
                   </div>
                   {currentTournament ? <TournamentBadge tournament={currentTournament} /> : null}
                   <div className="mt-5 rounded-lg border border-[var(--line)] bg-white p-3 shadow-sm sm:p-5">
@@ -621,7 +625,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               <section className="rounded-lg border border-[var(--line)] bg-white p-5">
                 <h2 className="text-lg font-black">Next Game</h2>
                 <div className="mt-4">
-                  <CompactSessionRow badge="NEXT GAME" session={nextUpcomingSession} />
+                  <CompactSessionRow badge="NEXT GAME" session={nextUpcomingSession} timeZone={timeZone} />
                 </div>
               </section>
             ) : null}
@@ -634,7 +638,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     <div key={group.time} className="rounded-lg bg-[var(--background)] p-3">
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{group.time}</p>
                       <div className="mt-3 grid gap-3">
-                        {group.sessions.map((session) => <CompactSessionRow badge={session.id === activeSession?.id ? "LIVE NOW" : session.id === nextUpcomingSession?.id ? "NEXT GAME" : null} key={session.id} session={session} />)}
+                        {group.sessions.map((session) => <CompactSessionRow badge={session.id === activeSession?.id ? "LIVE NOW" : session.id === nextUpcomingSession?.id ? "NEXT GAME" : null} key={session.id} session={session} timeZone={timeZone} />)}
                       </div>
                     </div>
                   ))
@@ -694,7 +698,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </section>
             ) : null}
 
-            <AlertStack alerts={recentUpdates} showState title="Recent updates" />
+            <AlertStack alerts={recentUpdates} showState timeZone={timeZone} title="Recent updates" />
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5" id="directions">
               <h2 className="text-lg font-black">Find This Field</h2>
