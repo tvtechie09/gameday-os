@@ -14,7 +14,7 @@ type Message = { kind: "success" | "error"; text: string };
 type AlertFormInitialValues = { alertPriority?: AlertPriority; alertScope?: AlertScope; alertType?: AlertType; message?: string; title?: string };
 const controlClass = "min-h-12 min-w-0 w-full rounded-lg border border-[var(--line)] bg-white px-3 text-base outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]";
 
-export function AlertForm({ fields, initialValues, tournaments, venues }: { fields: Field[]; initialValues?: AlertFormInitialValues; tournaments: Tournament[]; venues: Venue[] }) {
+export function AlertForm({ fields, initialValues, submissionId, tournaments, venues }: { fields: Field[]; initialValues?: AlertFormInitialValues; submissionId: string; tournaments: Tournament[]; venues: Venue[] }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const initialVenueId = venues.length === 1 ? venues[0].id : "";
@@ -47,6 +47,7 @@ export function AlertForm({ fields, initialValues, tournaments, venues }: { fiel
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="mt-8 grid min-w-0 gap-5 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4 sm:p-6">
+      <input name="submission_id" type="hidden" value={submissionId} />
       {message ? <div className={message.kind === "success" ? "rounded-lg border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800" : "rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800"} role={message.kind === "error" ? "alert" : "status"}>{message.text}</div> : null}
       <label className="grid gap-2"><span className="text-sm font-bold">Update title</span><input className={controlClass} defaultValue={initialValues?.title ?? ""} disabled={isSaving} name="title" placeholder="Lightning delay" required /></label>
       <label className="grid gap-2"><span className="text-sm font-bold">What should people know?</span><textarea className={`${controlClass} min-h-28 py-3`} defaultValue={initialValues?.message ?? ""} disabled={isSaving} name="message" placeholder="Games are paused until the all-clear." required /></label>

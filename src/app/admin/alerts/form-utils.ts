@@ -1,11 +1,12 @@
 import type { AlertPriority, AlertScope, AlertType, AlertVisibility } from "@/lib/types";
+import { DEFAULT_VENUE_TIMEZONE, venueLocalDateTimeToIso } from "@/lib/venue-timezone";
 
 const validAlertTypes: AlertType[] = ["info", "weather", "delay", "emergency", "parking", "concession", "field_closure"];
 const validAlertScopes: AlertScope[] = ["venue", "field", "tournament", "global"];
 const validAlertPriorities: AlertPriority[] = ["low", "normal", "high", "urgent"];
 const validAlertVisibilities: AlertVisibility[] = ["public", "admin_only"];
 
-export function readAlertFormData(formData: FormData) {
+export function readAlertFormData(formData: FormData, timeZone = DEFAULT_VENUE_TIMEZONE) {
   const title = String(formData.get("title") ?? "").trim();
   const message = String(formData.get("message") ?? "").trim();
   const alertType = String(formData.get("alert_type") ?? "info").trim();
@@ -18,6 +19,7 @@ export function readAlertFormData(formData: FormData) {
   const startTime = String(formData.get("start_time") ?? "").trim();
   const endTime = String(formData.get("end_time") ?? "").trim();
   const isActive = formData.get("is_active") === "on";
+  const submissionId = String(formData.get("submission_id") ?? "").trim();
 
   if (!title || !message || !venueId || !startTime || !endTime) {
     return { error: "Title, message, venue, start time, and end time are required." };
@@ -39,8 +41,22 @@ export function readAlertFormData(formData: FormData) {
     return { error: "Choose a valid alert visibility." };
   }
 
+  if (submissionId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId)) {
+    return { error: "Refresh the page and try publishing again." };
+  }
+
+  let normalizedStartTime: string;
+  let normalizedEndTime: string;
+  try {
+    normalizedStartTime = venueLocalDateTimeToIso(startTime, timeZone);
+    normalizedEndTime = venueLocalDateTimeToIso(endTime, timeZone);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Choose a valid publish window." };
+  }
+
   return {
     data: {
+      id: submissionId || undefined,
       title,
       message,
       alert_type: alertType as AlertType,
@@ -50,8 +66,8 @@ export function readAlertFormData(formData: FormData) {
       venue_id: venueId,
       tournament_id: tournamentId || null,
       field_id: fieldId || null,
-      start_time: new Date(startTime).toISOString(),
-      end_time: new Date(endTime).toISOString(),
+      start_time: normalizedStartTime,
+      end_time: normalizedEndTime,
       is_active: isActive,
     },
   };

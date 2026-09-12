@@ -8,14 +8,13 @@ import { readAlertFormData } from "../../form-utils";
 import { canSendAnnouncement } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { getSessionContext } from "@/lib/access/session";
+import { safelyLogAudit } from "@/lib/services/identity";
+import { getVenueTimezone } from "@/lib/services/venues";
+import { venueDateTimeLocalValue } from "@/lib/venue-timezone";
 
 type EditAlertPageProps = {
   params: Promise<{ alertId: string }>;
 };
-
-function toDateTimeLocal(value: string) {
-  return new Date(value).toISOString().slice(0, 16);
-}
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +28,10 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
   async function updateAlertAction(formData: FormData) {
     "use server";
     const actingCtx = await getSessionContext();
-    if (!canSendAnnouncement(actingCtx)) redirect(getRoleHome(actingCtx));
+    if (!actingCtx || !canSendAnnouncement(actingCtx)) redirect(getRoleHome(actingCtx));
 
-    const parsed = readAlertFormData(formData);
+    const venueId = String(formData.get("venue_id") ?? "").trim();
+    const parsed = readAlertFormData(formData, await getVenueTimezone(venueId));
     if ("error" in parsed) {
       return;
     }
@@ -49,7 +49,16 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
     }
     await assertVenueInScope(parsed.data.venue_id);
 
-    await updateAlert(alertId, parsed.data);
+    const updated = await updateAlert(alertId, parsed.data);
+    await safelyLogAudit({
+      action: "announcement.updated",
+      actorUserId: actingCtx.userId,
+      metadata: { previousPriority: current.alertPriority, priority: updated.alertPriority, previousState: current.isActive ? "published" : "inactive", state: updated.isActive ? "published" : "inactive", visibility: updated.alertVisibility },
+      resourceId: updated.id,
+      resourceType: "alert",
+      scopeId: updated.venueId,
+      scopeType: "venue",
+    });
     revalidatePath("/admin/alerts");
     revalidatePath("/admin/tournaments");
     revalidatePath("/fields/[fieldId]", "page");
@@ -71,6 +80,7 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
       </section>
     );
   }
+  const alertVenue = venues.find((venue) => venue.id === alert.venueId)!;
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -144,11 +154,11 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2">
             <span className="text-sm font-bold">Start time</span>
-            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={toDateTimeLocal(alert.startTime)} name="start_time" required type="datetime-local" />
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={venueDateTimeLocalValue(alert.startTime, alertVenue.timezone)} name="start_time" required type="datetime-local" />
           </label>
           <label className="grid gap-2">
             <span className="text-sm font-bold">End time</span>
-            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={toDateTimeLocal(alert.endTime)} name="end_time" required type="datetime-local" />
+            <input className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={venueDateTimeLocalValue(alert.endTime, alertVenue.timezone)} name="end_time" required type="datetime-local" />
           </label>
         </div>
         <label className="flex items-center gap-3 rounded-lg bg-white p-4 text-sm font-bold">

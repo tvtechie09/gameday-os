@@ -8,6 +8,7 @@ import { safelyCreateNotification } from "./notifications";
 type AlertRow = Database["public"]["Tables"]["alerts"]["Row"];
 
 export type CreateAlertInput = {
+  id?: string;
   title: string;
   message: string;
   alert_type: AlertType;
@@ -21,6 +22,8 @@ export type CreateAlertInput = {
   end_time: string;
   is_active?: boolean;
 };
+
+export type CreateAlertResult = { alert: Alert; created: boolean };
 
 export type UpdateAlertInput = CreateAlertInput;
 
@@ -243,12 +246,28 @@ export async function getAlert(id: string): Promise<Alert | null> {
   return data ? mapAlert(data) : null;
 }
 
-export async function createAlert(data: CreateAlertInput): Promise<Alert> {
+function isSameSubmission(alert: Alert, data: CreateAlertInput) {
+  return alert.title === data.title
+    && alert.message === data.message
+    && alert.alertType === data.alert_type
+    && alert.alertScope === readAlertScope(data.alert_scope)
+    && alert.alertPriority === readAlertPriority(data.alert_priority)
+    && alert.alertVisibility === readAlertVisibility(data.alert_visibility)
+    && alert.venueId === data.venue_id
+    && alert.tournamentId === readOptionalText(data.tournament_id)
+    && alert.fieldId === readOptionalText(data.field_id)
+    && new Date(alert.startTime).getTime() === new Date(data.start_time).getTime()
+    && new Date(alert.endTime).getTime() === new Date(data.end_time).getTime()
+    && alert.isActive === (data.is_active ?? true);
+}
+
+export async function createAlertWithResult(data: CreateAlertInput): Promise<CreateAlertResult> {
   const supabase = getSupabaseAdminClient();
   const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: alert, error } = await supabase
     .from("alerts")
     .insert({
+      ...(data.id ? { id: data.id } : {}),
       organization_id: organizationId,
       title: data.title,
       message: data.message,
@@ -265,6 +284,11 @@ export async function createAlert(data: CreateAlertInput): Promise<Alert> {
     })
     .select(alertSelect)
     .single();
+
+  if (error?.code === "23505" && data.id) {
+    const existing = await getAlert(data.id);
+    if (existing && isSameSubmission(existing, data)) return { alert: existing, created: false };
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -287,7 +311,11 @@ export async function createAlert(data: CreateAlertInput): Promise<Alert> {
     void deliverAlertToFollowers(mappedAlert);
   }
 
-  return mappedAlert;
+  return { alert: mappedAlert, created: true };
+}
+
+export async function createAlert(data: CreateAlertInput): Promise<Alert> {
+  return (await createAlertWithResult(data)).alert;
 }
 
 export async function updateAlert(id: string, data: UpdateAlertInput): Promise<Alert> {

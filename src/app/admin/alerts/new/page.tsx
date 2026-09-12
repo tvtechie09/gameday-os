@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { canSendAnnouncement } from "@/lib/access/capabilities";
 import { getRoleHome } from "@/lib/access/navigation";
 import { getSessionContext } from "@/lib/access/session";
+import { randomUUID } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export default async function NewAlertPage({ searchParams }: NewAlertPageProps) 
         } : undefined}
         tournaments={tournaments}
         venues={venues}
+        submissionId={randomUUID()}
       />
     </section>
   );
