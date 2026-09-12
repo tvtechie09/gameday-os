@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { normalizeSearchText, searchCandidates, type UniversalSearchCandidate } from "../src/lib/universal-search-core.ts";
+import { formatSearchDateTime, normalizeSearchText, searchCandidates, type UniversalSearchCandidate } from "../src/lib/universal-search-core.ts";
 
 const candidates: UniversalSearchCandidate[] = [
   { type: "field", title: "Field 7", subtitle: "North pod · delayed", href: "/admin/fields?fieldId=crossroads-7", status: "delayed", relevance: 0, identifier: "7", current: true },
@@ -21,6 +21,13 @@ test("short field identifiers and Work Order identifiers rank deterministically"
   assert.equal(searchCandidates(candidates, "Field 7")[0]?.title, "Field 7");
   assert.equal(searchCandidates(candidates, "Work Order 104")[0]?.href, "/admin/fields/work-orders/wo-104");
   assert.deepEqual(searchCandidates(candidates, "nothing-here"), []);
+});
+
+test("search formats schedule times using each field's venue timezone", () => {
+  const instant = "2026-09-12T17:15:00.000Z";
+  assert.equal(formatSearchDateTime(instant, "America/Chicago"), "Sep 12, 12:15 PM");
+  assert.equal(formatSearchDateTime(instant, "America/Los_Angeles"), "Sep 12, 10:15 AM");
+  assert.equal(formatSearchDateTime("not-a-date", "America/Chicago"), "Scheduled game");
 });
 
 test("Venue search source scopes queries before ranking and keeps Staff out of Schedule", () => {

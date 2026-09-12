@@ -2,24 +2,20 @@ import "server-only";
 
 import { canManageSchedule, canViewCommandCenter, isOrgScoped, managesAllVenues, type AccessContext } from "@/lib/access/capabilities";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import { searchCandidates, type UniversalSearchCandidate, type UniversalSearchResult } from "@/lib/universal-search-core";
+import { formatSearchDateTime, searchCandidates, type UniversalSearchCandidate, type UniversalSearchResult } from "@/lib/universal-search-core";
+import { DEFAULT_VENUE_TIMEZONE, normalizeVenueTimezone } from "@/lib/venue-timezone";
 
 const SOURCE_LIMIT = 120;
 
 type FieldSearchRow = { id: string; venue_id: string; name: string; field_status: string | null; status: string | null; map_label: string | null };
 type SessionSearchRow = { id: string; field_id: string; title: string; home_team: string; away_team: string; start_time: string; status: string; lifecycle_status: string | null };
 type WorkOrderSearchRow = { id: string; venue_id: string; field_id: string | null; title: string; status: string; created_at: string };
+type VenueSearchRow = { id: string; timezone: string | null };
 
 function scopedVenueIds(ctx: AccessContext): string[] | null {
   if (managesAllVenues(ctx)) return null;
   if (isOrgScoped(ctx)) return [];
   return Array.from(new Set([...ctx.authorizedVenueIds, ...(ctx.venueId ? [ctx.venueId] : [])])).filter(Boolean);
-}
-
-function shortDateTime(value: string) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "Scheduled game";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
 }
 
 export async function searchVenue(ctx: AccessContext, query: string): Promise<UniversalSearchResult[]> {
@@ -36,6 +32,18 @@ export async function searchVenue(ctx: AccessContext, query: string): Promise<Un
   if (fieldError) throw new Error("Search source unavailable.");
   const fields = (fieldData ?? []) as FieldSearchRow[];
   const fieldIds = fields.map((field) => field.id);
+  const sourceVenueIds = Array.from(new Set(fields.map((field) => field.venue_id)));
+  const { data: venueData, error: venueError } = sourceVenueIds.length
+    ? await supabase.from("venues").select("id,timezone").in("id", sourceVenueIds)
+    : { data: [], error: null };
+  if (venueError) throw new Error("Search source unavailable.");
+  const timeZoneByVenueId = new Map(
+    ((venueData ?? []) as VenueSearchRow[]).map((venue) => [venue.id, normalizeVenueTimezone(venue.timezone)]),
+  );
+  const fieldTimeZoneById = new Map(fields.map((field) => [
+    field.id,
+    timeZoneByVenueId.get(field.venue_id) ?? DEFAULT_VENUE_TIMEZONE,
+  ]));
   const candidates: UniversalSearchCandidate[] = [];
 
   if (canViewCommandCenter(ctx)) {
@@ -97,18 +105,20 @@ export async function searchVenue(ctx: AccessContext, query: string): Promise<Un
     const teams = new Map<string, UniversalSearchCandidate>();
     for (const session of (sessionData ?? []) as SessionSearchRow[]) {
       const fieldName = fieldById.get(session.field_id) ?? "Field";
+      const timeZone = fieldTimeZoneById.get(session.field_id) ?? DEFAULT_VENUE_TIMEZONE;
+      const formattedStart = formatSearchDateTime(session.start_time, timeZone);
       const title = session.title || `${session.home_team} vs ${session.away_team}`;
       const current = session.status === "active" || (Date.parse(session.start_time) >= now - 86_400_000 && Date.parse(session.start_time) <= now + 14 * 86_400_000);
       candidates.push({
         type: "game",
         title,
-        subtitle: `${shortDateTime(session.start_time)} · ${fieldName}`,
+        subtitle: `${formattedStart} · ${fieldName}`,
         href: `/admin/sessions/${encodeURIComponent(session.id)}`,
         status: session.lifecycle_status ?? session.status,
         relevance: 0,
         icon: "game",
         identifier: session.id,
-        secondary: [session.home_team, session.away_team, fieldName, shortDateTime(session.start_time)],
+        secondary: [session.home_team, session.away_team, fieldName, formattedStart],
         current,
       });
       for (const teamName of [session.home_team, session.away_team].filter(Boolean)) {

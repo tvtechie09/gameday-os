@@ -1,3 +1,5 @@
+import { normalizeVenueTimezone } from "./venue-timezone.ts";
+
 export const UNIVERSAL_SEARCH_RESULT_TYPES = ["field", "game", "work_order", "team", "player"] as const;
 
 export type UniversalSearchResultType = typeof UNIVERSAL_SEARCH_RESULT_TYPES[number];
@@ -22,6 +24,18 @@ export const SEARCH_RESULT_TYPE_ORDER: UniversalSearchResultType[] = ["field", "
 
 export function normalizeSearchText(value: string): string {
   return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+export function formatSearchDateTime(value: string, timeZone: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Scheduled game";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: normalizeVenueTimezone(timeZone),
+  }).format(date);
 }
 
 function compact(value: string) {
