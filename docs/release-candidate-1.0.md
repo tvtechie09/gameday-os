@@ -579,6 +579,20 @@ Evidence type: **protected Preview browser workflow, normal staging Staff Auth, 
 
 The next exact gate is **Phase 18 — Field Disruption + Game Movement**. It was not started.
 
+## Phase 18 — Hosted Field Disruption + Game Movement
+
+Evidence type: **protected Preview and staging fixture preflight only**, recorded 2026-09-12.
+
+- The protected Preview remained READY on non-production deployment `dpl_73e8naJGzSMitzmqgvRqNo3Wwztz`, built from Phase 17 application commit `88f8ba5db5b6e7acd85014bbc8a4e88077648574`. `/dev-login` redirected to normal login. The accepted staging target remained `oiyitfatarrhnussyxfu`; production was not accessed or changed.
+- Crossroads currently has two fields, Field 4 and Field 7, both operationally `open` with legacy health `Ready`. Field 7 is otherwise a valid same-venue destination and has no overlapping session at the retained Semifinal time.
+- No existing Crossroads session is suitable for this gate on the current venue day. The only non-final rows are `Celtics vs Tigers`, dated 2026-09-01 and still carrying historical `live` state, and `Semifinal` (`22222222-2222-4222-8222-222222222232`), scheduled on Field 4 from `2026-09-01T20:34:44.118Z` to `2026-09-01T22:34:44.118Z`.
+- The implemented disruption projection intentionally considers only the current venue day. Delaying Field 4 on 2026-09-12 therefore cannot identify the historical Semifinal as an affected current/next game or expose its canonical move entry point. Forcing that row into the current day would add an out-of-scope schedule-time mutation and would violate the requirement to select an existing suitable fixture and preserve its exact start/end time.
+- Preflight stopped before credential creation, authentication, field mutation, session movement, audit/outbox creation, or any other staging write. No temporary password or credential-bearing environment file was created.
+
+### Phase 18 decision
+
+**PHASE 18 BLOCKED — no suitable current-day staging game fixture.** Resume Phase 18 only after separately authorizing creation of one clearly identified synthetic Crossroads scheduled session through the canonical Schedule UI, or after an appropriate existing current-day fixture becomes available. The fixture must have a conflict-free destination and a documented cleanup disposition. Phase 19 was not started.
+
 ## Release boundary
 
 - Production remains untouched.
