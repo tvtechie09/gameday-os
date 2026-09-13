@@ -24,10 +24,11 @@ type AlertsPageProps = {
   }>;
 };
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string, timeZone: string) {
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone,
   }).format(new Date(value));
 }
 
@@ -138,6 +139,7 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
         <div className="mt-8 grid gap-4">
           {visibleAlerts.map((alert) => {
             const level = alertLevelPresentation(alertLevelFor(alert.alertPriority, alert.alertType));
+            const venue = venuesById.get(alert.venueId);
             return (
             <article key={alert.id} className={`rounded-lg border p-5 ${getAlertTone(alert.alertType)}`}>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -151,12 +153,12 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
                   <h2 className="mt-2 text-xl font-black">{alert.title}</h2>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{alert.message}</p>
                   <p className="mt-3 text-sm font-semibold">
-                    {venuesById.get(alert.venueId)?.name ?? "Venue unavailable"}
+                    {venue?.name ?? "Venue unavailable"}
                     {alert.tournamentId ? ` · ${tournamentsById.get(alert.tournamentId)?.name ?? "Tournament unavailable"}` : ""}
                     {alert.fieldId ? ` · ${fieldsById.get(alert.fieldId)?.name ?? "Field unavailable"}` : ""}
                   </p>
                   <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] opacity-75">
-                    {formatDateTime(alert.startTime)} - {formatDateTime(alert.endTime)}
+                    {formatDateTime(alert.startTime, venue?.timezone ?? "America/Chicago")} - {formatDateTime(alert.endTime, venue?.timezone ?? "America/Chicago")}
                   </p>
                 </div>
                 <details className="rounded-lg border border-current/30 bg-white/60 sm:min-w-44">

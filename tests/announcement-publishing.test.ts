@@ -10,6 +10,9 @@ test("announcement publish window is interpreted on the venue clock", () => {
   assert.match(formUtils, /venueLocalDateTimeToIso\(endTime, timeZone\)/);
   assert.match(createActions, /getVenueTimezone\(venueId\)/);
   assert.match(editPage, /venueDateTimeLocalValue\(alert\.startTime, alertVenue\.timezone\)/);
+  const listPage = readFileSync("src/app/admin/alerts/page.tsx", "utf8");
+  assert.match(listPage, /timeZone,/);
+  assert.match(listPage, /formatDateTime\(alert\.startTime, venue\?\.timezone/);
 });
 
 test("announcement submission identity is validated and carried to persistence", () => {
