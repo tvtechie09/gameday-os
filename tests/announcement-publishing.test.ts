@@ -13,6 +13,11 @@ test("announcement publish window is interpreted on the venue clock", () => {
   const listPage = readFileSync("src/app/admin/alerts/page.tsx", "utf8");
   assert.match(listPage, /timeZone,/);
   assert.match(listPage, /formatDateTime\(alert\.startTime, venue\?\.timezone/);
+  const publicVenuePage = readFileSync("src/app/venues/[venueId]/page.tsx", "utf8");
+  const publicFieldPage = readFileSync("src/app/fields/[fieldId]/page.tsx", "utf8");
+  assert.match(publicVenuePage, /formatAlertTime\(alert\.createdAt, timeZone\)/);
+  assert.match(publicVenuePage, /timeZone=\{venue\?\.timezone \?\? "UTC"\}/);
+  assert.match(publicFieldPage, /formatAlertTime\(alert\.createdAt, timeZone\)/);
 });
 
 test("announcement submission identity is validated and carried to persistence", () => {

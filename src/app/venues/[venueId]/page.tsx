@@ -51,10 +51,11 @@ function formatTime(value: string) {
   }).format(new Date(value));
 }
 
-function formatAlertTime(value: string) {
+function formatAlertTime(value: string, timeZone: string) {
   return new Intl.DateTimeFormat("en", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone,
   }).format(new Date(value));
 }
 
@@ -134,7 +135,7 @@ function getPublicRecentUpdates(alerts: Alert[]) {
   }).slice(0, 5);
 }
 
-function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; showState?: boolean; title: string }) {
+function AlertStack({ alerts, showState = false, timeZone, title }: { alerts: Alert[]; showState?: boolean; timeZone: string; title: string }) {
   if (alerts.length === 0) {
     return null;
   }
@@ -155,7 +156,7 @@ function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; sho
           <h2 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{alert.title}</h2>
           <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-7">{alert.message}</p>
           <p className="mt-3 text-xs font-black uppercase tracking-[0.12em] opacity-75">
-            Posted {formatAlertTime(alert.createdAt)} · {formatRelativeUpdate(alert.updatedAt)}
+            Posted {formatAlertTime(alert.createdAt, timeZone)} · {formatRelativeUpdate(alert.updatedAt)}
           </p>
         </article>
       ))}
@@ -314,13 +315,13 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               </section>
             ) : null}
 
-            <AlertStack alerts={weatherAlerts} showState title="Venue status and weather" />
+            <AlertStack alerts={weatherAlerts} showState timeZone={venue?.timezone ?? "UTC"} title="Venue status and weather" />
 
             {venue ? <WeatherOperationsStatusCard venueId={venue.id} /> : null}
 
             {venue ? <WeatherStatusCard venueId={venue.id} /> : null}
 
-            <AlertStack alerts={otherAlerts} showState title="Venue announcements" />
+            <AlertStack alerts={otherAlerts} showState timeZone={venue?.timezone ?? "UTC"} title="Venue announcements" />
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -356,7 +357,7 @@ export default async function PublicVenuePage({ params }: PublicVenuePageProps) 
               </div>
             </section>
 
-            <AlertStack alerts={recentUpdates} showState title="Recent updates" />
+            <AlertStack alerts={recentUpdates} showState timeZone={venue?.timezone ?? "UTC"} title="Recent updates" />
 
             <section className="rounded-lg border border-[var(--line)] bg-white p-5 shadow-sm">
               <h2 className="text-2xl font-black">Fields</h2>
