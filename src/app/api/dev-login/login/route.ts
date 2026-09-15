@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   });
 
   // Was an inline copy of getRoleHome's old logic, which went stale the moment
-  // venue operators started landing on the Command Center instead of /today.
+  // venue operators land on their role-aware Home or Today surface.
   // Use the shared resolver so sign-in and the nav can't disagree.
   const sessionCookie = await encodeSession({
     userId: demoUser.id,

@@ -87,6 +87,18 @@ function getProposedSession(sourceData: unknown) {
   };
 }
 
+function getImportPlan(sourceData: unknown) {
+  if (!isRecord(sourceData)) {
+    return { changedFields: [] as string[], operation: "create" as const };
+  }
+  return {
+    changedFields: Array.isArray(sourceData.changed_fields)
+      ? sourceData.changed_fields.filter((field): field is string => typeof field === "string")
+      : [],
+    operation: sourceData.operation === "update" ? "update" as const : "create" as const,
+  };
+}
+
 function getFieldMatch(fieldId: string | null, fieldsById: Map<string, Field>) {
   return fieldId ? fieldsById.get(fieldId) ?? null : null;
 }
@@ -187,6 +199,7 @@ export default async function SyncReviewPage({ searchParams }: SyncReviewPagePro
           const preview = getSessionPreview(item.sourceData);
           const proposedSession = getProposedSession(item.sourceData);
           const sourceMetadata = getSourceMetadata(item.sourceData);
+          const importPlan = getImportPlan(item.sourceData);
           const fieldMatch = getFieldMatch(preview.fieldId, fieldsById);
           const venueMatch = getVenueMatch(fieldMatch, venuesById);
           const job = jobsById.get(item.syncJobId);
@@ -200,6 +213,9 @@ export default async function SyncReviewPage({ searchParams }: SyncReviewPagePro
                       {getSyncStatusLabel(item.reviewStatus)}
                     </span>
                     {job ? <span className="rounded-md bg-[var(--background)] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">{job.sourceType}</span> : null}
+                    <span className={`rounded-md px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${importPlan.operation === "update" ? "bg-blue-50 text-blue-800" : "bg-green-50 text-green-800"}`}>
+                      {importPlan.operation === "update" ? "Update existing event" : "Create new event"}
+                    </span>
                   </div>
                   <h2 className="mt-3 text-xl font-black">{preview.title}</h2>
                   <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{preview.homeTeam} vs. {preview.awayTeam}</p>
@@ -209,7 +225,7 @@ export default async function SyncReviewPage({ searchParams }: SyncReviewPagePro
                 <div className="flex flex-wrap gap-2">
                   <QueueActionButton action={approveSyncQueueItemAction} disabled={item.reviewStatus === "approved" || item.reviewStatus === "imported"} id={item.id} label="Approve" />
                   <QueueActionButton action={rejectSyncQueueItemAction} disabled={item.reviewStatus === "rejected" || item.reviewStatus === "imported"} id={item.id} label="Reject" />
-                  <QueueActionButton action={importSyncQueueItemAction} disabled={item.reviewStatus === "rejected" || item.reviewStatus === "imported"} id={item.id} label="Import" primary />
+                  <QueueActionButton action={importSyncQueueItemAction} disabled={item.reviewStatus === "rejected" || item.reviewStatus === "imported"} id={item.id} label={importPlan.operation === "update" ? "Apply Update" : "Create Event"} primary />
                 </div>
               </div>
 
@@ -236,6 +252,7 @@ export default async function SyncReviewPage({ searchParams }: SyncReviewPagePro
                     <div><dt className="font-bold text-[var(--muted)]">End</dt><dd className="font-semibold">{formatDateTime(proposedSession.endTime)}</dd></div>
                     <div><dt className="font-bold text-[var(--muted)]">Sport / Status</dt><dd className="font-semibold capitalize">{proposedSession.sportType ?? "baseball"} · {proposedSession.status ?? "scheduled"}</dd></div>
                     <div><dt className="font-bold text-[var(--muted)]">External Tracking</dt><dd className="break-all font-semibold">{proposedSession.externalSource ?? "external"} · {proposedSession.externalSourceId ?? "No ID"}</dd></div>
+                    {importPlan.changedFields.length > 0 ? <div><dt className="font-bold text-[var(--muted)]">Changed fields</dt><dd className="font-semibold capitalize">{importPlan.changedFields.join(", ")}</dd></div> : null}
                   </dl>
                 </section>
               </div>

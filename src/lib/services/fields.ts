@@ -39,6 +39,13 @@ function readCoordinate(value: number | null | undefined) {
 export const fieldStatuses: FieldStatus[] = ["open", "active", "delayed", "closed", "maintenance"];
 export const playSurfaceLayoutRoles: PlaySurfaceLayoutRole[] = ["standalone", "parent", "split_child", "overlay", "temporary"];
 
+export class FieldStatusConflictError extends Error {
+  constructor() {
+    super("This field changed while you were viewing it. We refreshed the latest status; review it and try again.");
+    this.name = "FieldStatusConflictError";
+  }
+}
+
 export function readFieldStatus(value: string | null | undefined): FieldStatus {
   if (value === "Ready") {
     return "open";
@@ -275,7 +282,7 @@ export async function updateField(id: string, data: UpdateFieldInput, actorUserI
   return mappedField;
 }
 
-export async function updateFieldStatus(id: string, status: FieldStatus, actorUserId?: string | null): Promise<Field> {
+export async function updateFieldStatus(id: string, status: FieldStatus, actorUserId?: string | null, expectedUpdatedAt?: string): Promise<Field> {
   const actor = assertActorUserId(actorUserId);
   const supabase = getSupabaseAdminClient();
   const { data: existingField, error: existingFieldError } = await supabase
@@ -290,19 +297,22 @@ export async function updateFieldStatus(id: string, status: FieldStatus, actorUs
 
   await requirePermission(actor, "venue.field.manage", "venue", existingField.venue_id);
 
-  const { data: field, error } = await supabase
+  let update = supabase
     .from("fields")
     .update({
       field_status: status,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id)
+    .eq("id", id);
+  if (expectedUpdatedAt) update = update.eq("updated_at", expectedUpdatedAt);
+  const { data: field, error } = await update
     .select(fieldSelect)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(error.message);
   }
+  if (!field) throw new FieldStatusConflictError();
 
   const mappedField = mapField(field);
 

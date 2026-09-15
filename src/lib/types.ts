@@ -8,6 +8,8 @@ export type VenueModeEndpointType = "qr_entry" | "equipment" | "location_provide
 export type VenueModeProviderKey = "manual" | "meraki" | "cisco_spaces" | "future_provider" | "other";
 export type VenueModeEndpointStatus = "not_configured" | "configured" | "active" | "offline" | "error";
 export type SessionStatus = "scheduled" | "active" | "final";
+export type SessionLifecycleStatus = "draft" | "scheduled" | "check_in" | "warmup" | "ready" | "live" | "delayed" | "suspended" | "postponed" | "cancelled" | "final" | "archived";
+export type GameDayTeamSyncStatus = "unlinked" | "linked" | "synced";
 export type InningHalf = "top" | "bottom";
 export type SessionLinkLabel = "GameChanger" | "SidelineHD" | "YouTube" | "SportsEngine" | "TeamSnap" | "Other";
 export type SessionSportType = "baseball" | "softball" | "soccer" | "football" | "lacrosse" | "basketball" | "volleyball" | "other";
@@ -36,6 +38,7 @@ export type VenueAssetType =
   | "other";
 export type VenueAssetStatus = "healthy" | "offline" | "maintenance_needed" | "unknown";
 export type VenueAssetIntegrationStatus = "not_configured" | "configured" | "connected" | "testing";
+export type VenueAssetConnectionHealth = "not_configured" | "online" | "degraded" | "offline" | "unknown";
 export type AudioMode = "none" | "parent_speaker" | "venue_pa" | "bluetooth_speaker" | "obs_audio" | "future_integration";
 export type AudioProfileStatus = "not_configured" | "configured" | "testing" | "active" | "offline";
 export type WeatherProfileStatus = "not_configured" | "configured" | "monitoring" | "paused" | "offline";
@@ -52,6 +55,10 @@ export type VolunteerRoleStatus = "requested" | "approved" | "active" | "ended" 
 export type ExternalSourceType = "sportsengine" | "hometeamsonline" | "teamsnap" | "gamechanger" | "csv" | "ical" | "other";
 export type ExternalSourceStatus = "connected" | "not_configured" | "error" | "paused" | "unknown";
 export type FollowType = "field" | "session";
+export type FollowPreferenceLevel = "critical_only" | "all_updates";
+export type PilotLaunchStatus = "setup" | "rehearsal" | "approved" | "live" | "paused";
+export type PilotRehearsalStatus = "pending" | "passed" | "failed" | "blocked";
+export type PilotIncidentSeverity = "low" | "normal" | "high" | "urgent";
 export type NotificationType = "alert" | "field_status" | "session_status" | "resource" | "volunteer" | "sponsor";
 export type SyncJobStatus = "pending" | "running" | "completed" | "failed";
 export type SyncQueueReviewStatus = "pending" | "approved" | "rejected" | "imported";
@@ -186,6 +193,7 @@ export interface Session {
   strikes: number;
   outs: number;
   gameStatus: SessionStatus;
+  lifecycleStatus: SessionLifecycleStatus;
   operationsStatus?: SessionOperationsStatus | null;
   scoreboardProfileId?: string | null;
   streamingProfile?: Record<string, unknown> | null;
@@ -200,6 +208,11 @@ export interface Session {
   externalSource: string | null;
   externalSourceId: string | null;
   externalSourceUrl: string | null;
+  gameDayTeamSeasonId: string | null;
+  gameDayHomeTeamSeasonId: string | null;
+  gameDayAwayTeamSeasonId: string | null;
+  gameDayTeamSyncStatus: GameDayTeamSyncStatus;
+  gameDayTeamLastSyncedAt: string | null;
   notes: string | null;
   updatedAt: string;
 }
@@ -385,6 +398,11 @@ export interface VenueAsset {
   mapY: number | null;
   status: VenueAssetStatus;
   integrationStatus: VenueAssetIntegrationStatus;
+  connectionHealth: VenueAssetConnectionHealth;
+  lastSeenAt: string | null;
+  healthMessage: string | null;
+  edgeDeviceId: string | null;
+  diagnosticSummary: Record<string, unknown>;
   notes: string | null;
   installationDate: string | null;
   warrantyEnd: string | null;
@@ -658,6 +676,54 @@ export interface FieldFollowSummary {
 export interface FieldPageViewSummary {
   fieldId: string;
   views: number;
+}
+
+export interface PilotLaunch {
+  id: string;
+  organizationId: string | null;
+  venueId: string;
+  status: PilotLaunchStatus;
+  targetLaunchDate: string | null;
+  primaryOwnerName: string;
+  primaryOwnerContact: string;
+  backupOwnerName: string;
+  backupOwnerContact: string;
+  escalationContact: string;
+  supportNotes: string;
+  goNoGoNotes: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  launchedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PilotRehearsalCheck {
+  id: string;
+  pilotLaunchId: string;
+  checkKey: string;
+  status: PilotRehearsalStatus;
+  notes: string;
+  completedBy: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PilotSupportIncident {
+  id: string;
+  pilotLaunchId: string;
+  venueId: string;
+  severity: PilotIncidentSeverity;
+  status: "open" | "resolved";
+  summary: string;
+  ownerName: string;
+  requiresDeveloper: boolean;
+  resolutionNotes: string;
+  reportedBy: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface IdentityRole {

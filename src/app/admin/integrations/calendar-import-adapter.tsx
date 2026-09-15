@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState, type ChangeEvent } from "react";
+import { classifyScheduleImport } from "@/lib/operational-event";
 import { getExternalSourceTypeLabel } from "@/lib/services/external-sources";
-import type { ExternalSource, Field, Session, SessionSportType, Venue } from "@/lib/types";
+import type { ExternalSource, Field, Session, SessionSportType, SyncJob, Venue } from "@/lib/types";
 import { fetchCalendarEventsAction, importCalendarSessionsAction, type CalendarImportEvent, type CalendarImportRow, type ImportCalendarResult } from "./import-actions";
 
 type EditableCalendarRow = CalendarImportEvent & {
@@ -21,6 +22,8 @@ type CalendarImportAdapterProps = {
   fields: Field[];
   sessions: Session[];
   sources: ExternalSource[];
+  syncJobs: SyncJob[];
+  pendingReviewCount: number;
   venues: Venue[];
 };
 
@@ -217,7 +220,7 @@ function buildImportRow(row: EditableCalendarRow): CalendarImportRow | null {
   };
 }
 
-export function CalendarImportAdapter({ fields, sessions, sources, venues }: CalendarImportAdapterProps) {
+export function CalendarImportAdapter({ fields, pendingReviewCount, sessions, sources, syncJobs, venues }: CalendarImportAdapterProps) {
   const importableSources = sources.filter((source) => source.sourceType === "sportsengine" || source.sourceType === "ical" || source.sourceType === "hometeamsonline" || source.sourceType === "other");
   const defaultSourceId = importableSources[0]?.id ?? "";
   const [importMode, setImportMode] = useState<ImportMode>("csv");
@@ -233,36 +236,39 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
 
   const venuesById = useMemo(() => new Map(venues.map((venue) => [venue.id, venue])), [venues]);
   const fieldsByVenueId = useMemo(() => new Map(venues.map((venue) => [venue.id, fields.filter((field) => field.venueId === venue.id)])), [fields, venues]);
-  const externalKeys = useMemo(() => new Set(sessions.flatMap((session) => {
-    if (!session.externalSource) return [];
-    return [
-      session.externalSourceId ? `${session.externalSource}|${session.externalSourceId}` : null,
-      session.externalSourceUrl ? `${session.externalSource}|url|${session.externalSourceUrl}` : null,
-    ].filter((key): key is string => Boolean(key));
-  })), [sessions]);
-
   const validatedRows = useMemo(() => rows.map((row) => {
     const errors = getRowErrors(row);
     const externalSourceName = getStoredExternalSourceName(selectedSource);
     const rowSourceUrl = row.sourceUrl || (feedUrl ? `${feedUrl}#${encodeURIComponent(row.sourceId)}` : null);
-    const duplicate = Boolean(
-      externalSourceName
-      && (
-        externalKeys.has(`${externalSourceName}|${row.sourceId}`)
-        || Boolean(rowSourceUrl && externalKeys.has(`${externalSourceName}|url|${rowSourceUrl}`))
-      ),
-    );
+    const decision = errors.length === 0 && externalSourceName ? classifyScheduleImport({
+      awayTeam: row.awayTeam || "TBD",
+      endTime: row.endTime,
+      externalSource: externalSourceName,
+      externalSourceId: row.sourceId,
+      externalSourceUrl: rowSourceUrl,
+      fieldId: row.fieldId,
+      homeTeam: row.homeTeam || row.title,
+      notes: row.notes,
+      sportType: row.sportType,
+      startTime: row.startTime,
+      title: row.title,
+    }, sessions) : null;
+    const decisionErrors = decision?.action === "conflict" ? [decision.reason] : [];
     return {
-      duplicate,
-      errors: duplicate ? [...errors, "Duplicate external event"] : errors,
-      importRow: duplicate ? null : buildImportRow(row),
+      decision,
+      errors: [...errors, ...decisionErrors],
+      importRow: decision?.action === "create" || decision?.action === "update" ? buildImportRow(row) : null,
       row,
     };
-  }), [externalKeys, feedUrl, rows, selectedSource]);
+  }), [feedUrl, rows, selectedSource, sessions]);
 
   const validRows = validatedRows.filter((row) => row.importRow);
-  const duplicateRows = validatedRows.filter((row) => row.duplicate);
-  const invalidRows = validatedRows.filter((row) => row.errors.length > 0 && !row.duplicate);
+  const newRows = validatedRows.filter((row) => row.decision?.action === "create");
+  const changedRows = validatedRows.filter((row) => row.decision?.action === "update");
+  const unchangedRows = validatedRows.filter((row) => row.decision?.action === "unchanged");
+  const invalidRows = validatedRows.filter((row) => row.errors.length > 0);
+  const importSourceIds = new Set(importableSources.map((source) => source.id));
+  const latestJob = syncJobs.find((job) => Boolean(job.sourceId && importSourceIds.has(job.sourceId))) ?? null;
   const adapterName = getAdapterName(selectedSource);
   const setupHelp = selectedSource?.sourceType === "hometeamsonline"
     ? "Export your schedule from HomeTeamsOnline or paste a public calendar feed URL if available."
@@ -358,6 +364,22 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
         </Link>
       </div>
 
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg bg-[var(--background)] p-4">
+          <p className="text-sm font-bold text-[var(--muted)]">Last schedule run</p>
+          <p className="mt-1 font-black">{latestJob ? formatDateTime(latestJob.createdAt) : "No runs yet"}</p>
+        </div>
+        <div className={`rounded-lg p-4 ${latestJob?.status === "failed" ? "bg-red-50" : "bg-[var(--background)]"}`}>
+          <p className="text-sm font-bold text-[var(--muted)]">Run status</p>
+          <p className="mt-1 font-black capitalize">{latestJob?.status ?? "Not started"}</p>
+        </div>
+        <div className={`rounded-lg p-4 ${pendingReviewCount > 0 ? "bg-amber-50" : "bg-green-50"}`}>
+          <p className="text-sm font-bold text-[var(--muted)]">Waiting for review</p>
+          <p className="mt-1 text-2xl font-black">{pendingReviewCount}</p>
+          {pendingReviewCount > 0 ? <Link className="mt-2 inline-flex text-sm font-black text-[var(--accent-strong)]" href="/admin/sync/review">Resolve queued events</Link> : null}
+        </div>
+      </div>
+
       {importableSources.length === 0 ? (
         <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-bold text-amber-950">Create a SportsEngine, iCal, HomeTeamsOnline, or Other integration source before importing a schedule.</p>
@@ -443,11 +465,12 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-5">
             <div className="rounded-lg bg-[var(--background)] p-4"><p className="text-sm font-bold text-[var(--muted)]">Total events</p><p className="mt-1 text-3xl font-black">{rows.length}</p></div>
-            <div className="rounded-lg bg-green-50 p-4"><p className="text-sm font-bold text-green-700">Valid rows</p><p className="mt-1 text-3xl font-black text-green-950">{validRows.length}</p></div>
+            <div className="rounded-lg bg-green-50 p-4"><p className="text-sm font-bold text-green-700">New events</p><p className="mt-1 text-3xl font-black text-green-950">{newRows.length}</p></div>
+            <div className="rounded-lg bg-blue-50 p-4"><p className="text-sm font-bold text-blue-700">Changes found</p><p className="mt-1 text-3xl font-black text-blue-950">{changedRows.length}</p></div>
             <div className="rounded-lg bg-red-50 p-4"><p className="text-sm font-bold text-red-700">Invalid rows</p><p className="mt-1 text-3xl font-black text-red-950">{invalidRows.length}</p></div>
-            <div className="rounded-lg bg-amber-50 p-4"><p className="text-sm font-bold text-amber-900">Duplicates skipped</p><p className="mt-1 text-3xl font-black text-amber-950">{duplicateRows.length + (summary?.skipped ?? 0)}</p></div>
+            <div className="rounded-lg bg-[var(--background)] p-4"><p className="text-sm font-bold text-[var(--muted)]">Already current</p><p className="mt-1 text-3xl font-black">{unchangedRows.length}</p></div>
           </div>
 
           <div className="grid gap-4">
@@ -459,7 +482,7 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
                     <h4 className="mt-1 text-lg font-black">{item.row.title}</h4>
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{item.row.location || "No location in feed"}</p>
                   </div>
-                  {item.errors.length > 0 ? <p className="rounded-md bg-red-50 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-red-800">Needs review</p> : <p className="rounded-md bg-green-50 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-green-800">Ready</p>}
+                  {item.errors.length > 0 ? <p className="rounded-md bg-red-50 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-red-800">Needs mapping</p> : item.decision?.action === "update" ? <p className="rounded-md bg-blue-50 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-blue-800">Update · {item.decision.changedFields.join(", ")}</p> : item.decision?.action === "unchanged" ? <p className="rounded-md bg-slate-100 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700">Already current</p> : <p className="rounded-md bg-green-50 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-green-800">New event</p>}
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <label className="grid gap-2">
@@ -503,11 +526,13 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
       {summary ? (
         <div className="mt-6 rounded-lg border border-[var(--line)] bg-white p-5">
           <h3 className="text-lg font-black">Sync summary</h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg bg-green-50 p-4"><p className="text-sm font-bold text-green-700">Queued for review</p><p className="mt-1 text-3xl font-black text-green-950">{summary.queued}</p></div>
-            <div className="rounded-lg bg-amber-50 p-4"><p className="text-sm font-bold text-amber-900">Skipped</p><p className="mt-1 text-3xl font-black text-amber-950">{summary.skipped}</p></div>
-            <div className="rounded-lg bg-red-50 p-4"><p className="text-sm font-bold text-red-700">Errors</p><p className="mt-1 text-3xl font-black text-red-950">{summary.errors.length}</p></div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <div className="rounded-lg bg-green-50 p-4"><p className="text-sm font-bold text-green-700">New queued</p><p className="mt-1 text-3xl font-black text-green-950">{summary.created}</p></div>
+            <div className="rounded-lg bg-blue-50 p-4"><p className="text-sm font-bold text-blue-700">Updates queued</p><p className="mt-1 text-3xl font-black text-blue-950">{summary.updated}</p></div>
+            <div className="rounded-lg bg-[var(--background)] p-4"><p className="text-sm font-bold text-[var(--muted)]">Already current</p><p className="mt-1 text-3xl font-black">{summary.skipped}</p></div>
+            <div className="rounded-lg bg-red-50 p-4"><p className="text-sm font-bold text-red-700">Conflicts</p><p className="mt-1 text-3xl font-black text-red-950">{summary.conflicts}</p></div>
           </div>
+          {summary.errors.length > 0 ? <ul className="mt-4 grid gap-1 text-sm font-semibold text-red-700">{summary.errors.map((error) => <li key={error}>{error}</li>)}</ul> : null}
           {summary.jobId ? (
             <Link className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/sync/review">
               Open Sync Review

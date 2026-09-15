@@ -3,20 +3,23 @@ import { LiveScore } from "./live-score";
 import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
-import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
-import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
+import { WeatherOperationsStatusCard } from "@/components/weather/weather-operations-status-card";
+import { getField, getFieldStatusClass } from "@/lib/services/fields";
+import { filterAlertsForFieldPage, getActiveAlerts, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getSessionsByFieldId } from "@/lib/services/sessions";
 import { getSponsorPlacementsForFieldPage } from "@/lib/services/sponsors";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getOrganization } from "@/lib/services/organizations";
 import { getVenue } from "@/lib/services/venues";
+import { projectFieldSessions } from "@/lib/services/session-projection-core";
 import type { Alert, Field, Organization, ResourceActivation, Session, SponsorPlacement, Tournament, Venue } from "@/lib/types";
 import { SponsorImpressionTracker, SponsorWebsiteLink } from "./sponsor-analytics";
 import { FieldPageViewTracker } from "./field-page-view-tracker";
 import { FollowButtons } from "./follow-buttons";
 import { ResourceActivationForm } from "./resource-activation-form";
 import { VolunteerRoleForm } from "./volunteer-role-form";
+import { alertLevelFor, alertLevelPresentation, fieldStatusPresentation } from "@/lib/ui/status-presentation";
 
 type FieldPageProps = {
   params: Promise<{
@@ -24,7 +27,11 @@ type FieldPageProps = {
   }>;
 };
 
-type SessionBadgeLabel = "LIVE NOW" | "NEXT GAME" | "FINAL";
+type SessionBadgeLabel = "LIVE NOW" | "NEXT GAME";
+
+function currentProjectionTime() {
+  return Date.now();
+}
 
 function formatSessionTime(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -58,79 +65,6 @@ function formatRelativeUpdate(value: string) {
 
   const diffDays = Math.floor(diffHours / 24);
   return `Updated ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-}
-
-function getActiveOrNextSession(sessions: Session[]) {
-  return (
-    getActiveSession(sessions)
-    ?? getNextUpcomingSession(sessions)
-    ?? sessions.find((session) => session.status === "final")
-    ?? sessions.find((session) => session.status === "scheduled")
-    ?? null
-  );
-}
-
-function isSessionActive(session: Session) {
-  const now = Date.now();
-  if (session.status === "active") {
-    return true;
-  }
-
-  if (!session.endTime) {
-    return false;
-  }
-
-  const startsAt = new Date(session.startTime).getTime();
-  const endsAt = new Date(session.endTime).getTime();
-  return startsAt <= now && now <= endsAt;
-}
-
-function getActiveSession(sessions: Session[]) {
-  return sessions.find(isSessionActive) ?? null;
-}
-
-function isSessionUpcoming(session: Session) {
-  return session.status === "scheduled" && new Date(session.startTime).getTime() > Date.now();
-}
-
-function getSessionBadge(session: Session): SessionBadgeLabel | null {
-  if (isSessionActive(session)) {
-    return "LIVE NOW";
-  }
-
-  if (isSessionUpcoming(session)) {
-    return "NEXT GAME";
-  }
-
-  if (session.status === "final") {
-    return "FINAL";
-  }
-
-  return null;
-}
-
-function getNextUpcomingSession(sessions: Session[]) {
-  return sessions
-    .filter(isSessionUpcoming)
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0] ?? null;
-}
-
-function getUpcomingSessions(sessions: Session[]) {
-  return sessions.filter((session) => session.status === "scheduled").slice(0, 5);
-}
-
-function getTodaysSchedule(sessions: Session[]) {
-  const today = new Date();
-  return sessions
-    .filter((session) => {
-      const sessionDate = new Date(session.startTime);
-      return (
-        sessionDate.getFullYear() === today.getFullYear()
-        && sessionDate.getMonth() === today.getMonth()
-        && sessionDate.getDate() === today.getDate()
-      );
-    })
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 }
 
 function getPublicRecentUpdates(alerts: Alert[]) {
@@ -222,7 +156,7 @@ function AlertStack({ alerts, showState = false, title }: { alerts: Alert[]; sho
       {alerts.map((alert) => (
         <article className={`rounded-lg border-2 p-4 shadow-md sm:p-6 ${getAlertTone(alert.alertType)}`} key={alert.id}>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.16em]">{getAlertLabel(alert.alertType)}</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em]">{alertLevelPresentation(alertLevelFor(alert.alertPriority, alert.alertType)).label}</p>
             {showState ? (
               <span className="rounded-md bg-white/80 px-2 py-1 text-xs font-black uppercase">
                 {isAlertActive(alert) ? "Active" : isAlertExpired(alert) ? "Expired" : "Cleared"}
@@ -285,7 +219,7 @@ function FieldStatusBanner({ field }: { field: Field }) {
 
   return (
     <section className={`rounded-lg border-2 p-5 shadow-sm sm:p-6 ${getFieldStatusClass(field.status)}`}>
-      <p className="text-xs font-black uppercase tracking-[0.16em]">{getFieldStatusLabel(field.status)}</p>
+      <p className="text-xs font-black uppercase tracking-[0.16em]">{fieldStatusPresentation(field.status).label}</p>
       <h2 className="mt-1 text-2xl font-black sm:text-3xl">{copy.title}</h2>
       <p className="mt-2 text-base font-semibold leading-7">{copy.message}</p>
     </section>
@@ -334,9 +268,7 @@ function SessionBadge({ label }: { label: SessionBadgeLabel }) {
       className={
         label === "LIVE NOW"
           ? "inline-flex min-h-8 w-fit items-center rounded-md bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
-          : label === "NEXT GAME"
-            ? "inline-flex min-h-8 w-fit items-center rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
-            : "inline-flex min-h-8 w-fit items-center rounded-md bg-[var(--black-soft)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
+          : "inline-flex min-h-8 w-fit items-center rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white"
       }
     >
       {label}
@@ -371,6 +303,7 @@ function CompactSessionRow({ session, badge }: { session: Session; badge?: Sessi
 
 export default async function PublicFieldPage({ params }: FieldPageProps) {
   const { fieldId } = await params;
+  const projectionNow = currentProjectionTime();
   let field: Field | null = null;
   let venue: Venue | null = null;
   let organization: Organization | null = null;
@@ -398,7 +331,8 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
       tournaments = tournamentResults;
       activeAlerts = alertResults;
       allAlerts = allAlertResults;
-      const activeOrNextSession = getActiveOrNextSession(sessionResults);
+      const earlyProjection = projectFieldSessions({ sessions: sessionResults, now: projectionNow, timeZone: venueResult?.timezone });
+      const activeOrNextSession = earlyProjection.current ?? earlyProjection.next;
       [sponsorPlacements, communityLinks] = await Promise.all([
         getSponsorPlacementsForFieldPage({
           venueId: field.venueId,
@@ -412,13 +346,14 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
     errorMessage = publicErrorMessage(error, "Unable to load field page.");
   }
 
-  const activeSession = getActiveSession(sessions);
-  const nextUpcomingSession = getNextUpcomingSession(sessions);
-  const currentSession = activeSession ?? nextUpcomingSession ?? getActiveOrNextSession(sessions);
-  const currentSessionBadge = currentSession ? getSessionBadge(currentSession) : null;
+  const projection = projectFieldSessions({ sessions, now: projectionNow, timeZone: venue?.timezone });
+  const activeSession = projection.current;
+  const nextUpcomingSession = projection.next;
+  const currentSession = activeSession ?? nextUpcomingSession;
+  const currentSessionBadge: SessionBadgeLabel | null = activeSession ? "LIVE NOW" : nextUpcomingSession ? "NEXT GAME" : null;
   const shouldShowNextUpcoming = Boolean(nextUpcomingSession && nextUpcomingSession.id !== currentSession?.id);
-  const upcomingSessions = getUpcomingSessions(sessions);
-  const todaysSchedule = getTodaysSchedule(sessions);
+  const upcomingSessions = projection.upcoming.slice(0, 5);
+  const todaysSchedule = projection.today;
   const todayScheduleGroups = groupSessionsByTime(todaysSchedule);
   const gameLinks = currentSession ? getGameLinks(currentSession) : [];
   const tournamentsById = new Map(tournaments.map((tournament) => [tournament.id, tournament]));
@@ -442,7 +377,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
     }))
     : [];
   const trackedSponsorIds = [...new Set(sponsorPlacements.map((placement) => placement.sponsorId))];
-  const topSessionLabel = currentSessionBadge === "FINAL" ? "Final score" : "Current / Next Game";
+  const topSessionLabel = "Current / Next Game";
   const primaryColor = venue?.primaryColor ?? organization?.primaryColor ?? "#166534";
   const secondaryColor = venue?.secondaryColor ?? organization?.secondaryColor ?? "#111827";
   const logoUrl = venue?.logoUrl ?? organization?.logoUrl;
@@ -467,6 +402,12 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
     ? { label: field.mapLabel ?? field.name, x: field.mapX, y: field.mapY }
     : null;
   const currentSessionIsBaseballSoftball = currentSession ? isBaseballSoftballSport(currentSession) : false;
+  const directionsQuery = venue
+    ? [venue.name, venue.address, venue.city, venue.state].filter(Boolean).join(", ")
+    : "";
+  const directionsUrl = directionsQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directionsQuery)}`
+    : "#directions";
 
   return (
     <section className="min-h-screen bg-white">
@@ -488,7 +429,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               </span>
               {field ? (
                 <span className={`rounded-md px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
-                  {getFieldStatusLabel(field.status)}
+                  {fieldStatusPresentation(field.status).label}
                 </span>
               ) : null}
             </div>
@@ -514,18 +455,37 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
             ) : null}
 
             {field ? (
-              <section className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">Current Status</p>
+              <section className="rounded-lg border border-[var(--line)] bg-white p-4 shadow-sm sm:p-5" id="game-day-overview">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent-strong)]">At a glance</p>
+                  <p className="text-xs font-bold text-[var(--muted)]">{formatRelativeUpdate(field.updatedAt)}</p>
+                </div>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="text-2xl font-black">{field.name}</h2>
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">{venue?.name ?? "Venue unavailable"}</p>
                   </div>
                   <span className={`w-fit rounded-md px-3 py-2 text-xs font-black uppercase tracking-[0.12em] ${getFieldStatusClass(field.status)}`}>
-                    {getFieldStatusLabel(field.status)}
+                    {fieldStatusPresentation(field.status).label}
                   </span>
                 </div>
-                <div className="mt-4 border-t border-[var(--line)] pt-4">
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className={publicAlerts.length > 0 ? "rounded-lg bg-red-50 p-3" : "rounded-lg bg-emerald-50 p-3"}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">Active alerts</p>
+                    <p className="mt-1 text-lg font-black">{publicAlerts.length > 0 ? publicAlerts.length : "None"}</p>
+                  </div>
+                  <div className="rounded-lg bg-[var(--background)] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--muted)]">{currentSessionBadge === "LIVE NOW" ? "Live now" : "Next game"}</p>
+                    <p className="mt-1 truncate text-sm font-black">{currentSession ? currentSession.title : "Not scheduled"}</p>
+                    {currentSession ? <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{formatTimeOnly(currentSession.startTime)}</p> : null}
+                  </div>
+                </div>
+                <nav aria-label="Field page shortcuts" className="mt-3 grid grid-cols-3 gap-2">
+                  <a className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-2 text-center text-xs font-black" href={directionsUrl} rel="noreferrer" target={directionsQuery ? "_blank" : undefined}>Directions</a>
+                  <a className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-2 text-center text-xs font-black" href="#updates">Get updates</a>
+                  <a className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-2 text-center text-xs font-black" href="#schedule">Schedule</a>
+                </nav>
+                <div className="mt-4 border-t border-[var(--line)] pt-4" id="updates">
                   <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} />
                 </div>
               </section>
@@ -535,12 +495,15 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
 
             <AlertStack alerts={weatherAlerts} showState title="Active Alerts" />
 
+            {venue ? <WeatherOperationsStatusCard venueId={venue.id} /> : null}
+
             {venue ? <WeatherStatusCard compact venueId={venue.id} /> : null}
 
             <AlertStack alerts={otherAlerts} showState title="Venue Announcements" />
 
             <section
               className={currentSessionBadge === "LIVE NOW" ? "rounded-lg border-2 bg-red-50 p-4 shadow-lg sm:p-6" : "rounded-lg border-2 bg-white p-4 shadow-md sm:p-6"}
+              id="current-game"
               style={currentSessionBadge === "LIVE NOW" ? undefined : accentStyle}
             >
               <div className="flex flex-wrap items-center gap-2">
@@ -658,12 +621,12 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
               <section className="rounded-lg border border-[var(--line)] bg-white p-5">
                 <h2 className="text-lg font-black">Next Game</h2>
                 <div className="mt-4">
-                  <CompactSessionRow badge={getSessionBadge(nextUpcomingSession)} session={nextUpcomingSession} />
+                  <CompactSessionRow badge="NEXT GAME" session={nextUpcomingSession} />
                 </div>
               </section>
             ) : null}
 
-            <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5">
+            <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5" id="schedule">
               <h2 className="text-xl font-black">Today&apos;s Schedule</h2>
               <div className="mt-4 grid gap-3">
                 {todayScheduleGroups.length > 0 ? (
@@ -671,7 +634,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                     <div key={group.time} className="rounded-lg bg-[var(--background)] p-3">
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">{group.time}</p>
                       <div className="mt-3 grid gap-3">
-                        {group.sessions.map((session) => <CompactSessionRow badge={getSessionBadge(session)} key={session.id} session={session} />)}
+                        {group.sessions.map((session) => <CompactSessionRow badge={session.id === activeSession?.id ? "LIVE NOW" : session.id === nextUpcomingSession?.id ? "NEXT GAME" : null} key={session.id} session={session} />)}
                       </div>
                     </div>
                   ))
@@ -733,7 +696,7 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
 
             <AlertStack alerts={recentUpdates} showState title="Recent updates" />
 
-            <section className="rounded-lg border border-[var(--line)] bg-white p-5">
+            <section className="rounded-lg border border-[var(--line)] bg-white p-5" id="directions">
               <h2 className="text-lg font-black">Find This Field</h2>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                 {field?.mapLabel ?? field?.name ?? "Field location"}
@@ -786,7 +749,6 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                   <CommunityLinks links={communityLinks} />
                   <ResourceActivationForm fieldId={fieldId} sessionId={currentSession?.id} venueId={venue.id} />
                   {currentSession ? <VolunteerRoleForm fieldId={fieldId} sessionId={currentSession.id} venueId={venue.id} /> : null}
-                  <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} />
                 </div>
               </details>
             ) : null}

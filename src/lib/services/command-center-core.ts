@@ -6,6 +6,10 @@ import type { AudioProfile, Field, VenueAsset } from "@/lib/types";
 // Relative + .ts: this core is executed directly by `node --test`, where the
 // "@/" alias does not resolve for VALUE imports (type imports are stripped).
 import { DEFAULT_VENUE_TIMEZONE } from "../venue-timezone.ts";
+import { logicalAssetHealth } from "./logical-asset-health-core.ts";
+import { projectFieldSessions } from "./session-projection-core.ts";
+export { isSameVenueDay, timeLabel, venueDateString } from "./session-projection-core.ts";
+import { timeLabel } from "./session-projection-core.ts";
 
 // Pure core of the GameDay Command Center — mode resolution, delay math, field
 // board, attention queue, and summary. Type-only imports keep this dependency-
@@ -48,6 +52,23 @@ export type AttentionItem = {
   action: string; // recommended action (human sentence)
   href: string | null; // one-click surface, when we have one
   fieldName: string | null;
+  fieldId?: string | null;
+  gameId?: string | null;
+  assetId?: string | null;
+  issueId?: string | null;
+  issueType?: WorkOrder["issueType"];
+  source?: "computed" | "manual" | "system";
+  systemKey?: string | null;
+  status?: string;
+  createdAt?: string;
+  assignedTo?: string | null;
+  acknowledged?: boolean;
+};
+
+export type FieldDeviceState = {
+  count: number;
+  label: string;
+  status: "online" | "offline" | "degraded" | "unknown" | "not_configured";
 };
 
 export type FieldBoardEntry = {
@@ -60,11 +81,16 @@ export type FieldBoardEntry = {
     scoreHome: number;
     scoreAway: number;
     lifecycleStatus: string;
+    startTime: string;
     startLabel: string;
     minutesBehind: number;
   } | null;
-  nextGame: { id: string; label: string; startLabel: string } | null;
+  nextGame: { id: string; label: string; startTime: string; startLabel: string } | null;
   officialsConfirmed: boolean;
+  staffCoverage: { confirmed: number; label: string };
+  devices: { scoreboard: FieldDeviceState; audio: FieldDeviceState; camera: FieldDeviceState };
+  unresolvedIssueCount: number;
+  weatherRisk: StormRiskLevel | null;
   recommendedAction: string | null;
 };
 
@@ -95,30 +121,6 @@ const TIER_RANK: Record<AttentionTier, number> = { urgent: 0, soon: 1, info: 2 }
 // per-venue timezones yet behaves exactly as it did before. Every venue-facing
 // caller should pass the venue's own zone: for a venue outside Central, the
 // default rolls the operating day at the wrong hour.
-export function venueDateString(now: number, timeZone: string = DEFAULT_VENUE_TIMEZONE): string {
-  // en-CA renders as YYYY-MM-DD, which is what listGamesForVenue's date filter wants.
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now));
-}
-
-// Does this timestamp fall on `date` AT THE VENUE?
-//
-// Never compare iso.slice(0,10) to this — that's the UTC date, and after ~7pm
-// Central (midnight UTC) an evening game rolls onto the next UTC day and silently
-// disappears from "today" — precisely when a venue is running games under lights.
-// The same trap reopens if a non-Central venue is measured against the default
-// zone, just at a different hour of the evening.
-export function isSameVenueDay(iso: string, date: string, timeZone: string = DEFAULT_VENUE_TIMEZONE): boolean {
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) return false;
-  return venueDateString(parsed.getTime(), timeZone) === date;
-}
-
-export function timeLabel(iso: string, timeZone: string = DEFAULT_VENUE_TIMEZONE): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone }).format(date);
-}
-
 export function gameLabel(game: Pick<GameRecord, "title" | "homeTeam" | "awayTeam">): string {
   return game.title || game.homeTeam + " vs " + game.awayTeam;
 }
@@ -157,15 +159,26 @@ function hasConfirmedOfficial(gameId: string, officials: SessionOfficial[]): boo
   return officials.some((o) => o.sessionId === gameId && o.status === "confirmed");
 }
 
+function deviceState(assets: VenueAsset[], match: (asset: VenueAsset) => boolean): FieldDeviceState {
+  const group = assets.filter(match);
+  if (group.length === 0) return { count: 0, label: "Not configured", status: "not_configured" };
+  const health = group.map((asset) => logicalAssetHealth(asset));
+  if (health.some((state) => state.status === "offline")) return { count: group.length, label: "Offline", status: "offline" };
+  if (health.some((state) => state.status === "degraded")) return { count: group.length, label: "Needs attention", status: "degraded" };
+  if (health.some((state) => state.status === "unknown")) return { count: group.length, label: "Not verified", status: "unknown" };
+  if (health.every((state) => state.status === "not_configured")) return { count: group.length, label: "Manual", status: "not_configured" };
+  return { count: group.length, label: "Online", status: "online" };
+}
+
+const unresolved = (order: WorkOrder) => order.status !== "resolved" && order.status !== "done" && !order.closedAt;
+
 // Which game owns a field right now, and which is queued behind it. Shared by
 // the field board and the schedule pulse so both can never disagree about what
 // "current" means.
-function fieldSlot(field: Field, games: GameRecord[], now: number): { games: GameRecord[]; current: GameRecord | undefined; next: GameRecord | undefined } {
-  const fieldGames = games.filter((g) => g.fieldId === field.id).sort((a, b) => a.startTime.localeCompare(b.startTime));
-  const current = fieldGames.find(isLive)
-    ?? fieldGames.find((g) => g.status === "scheduled" && now >= new Date(g.startTime).getTime());
-  const next = fieldGames.find((g) => g.status === "scheduled" && (!current || g.id !== current.id) && new Date(g.startTime).getTime() > now);
-  return { games: fieldGames, current, next };
+function fieldSlot(field: Field, games: GameRecord[], now: number, timeZone: string): { games: GameRecord[]; current: GameRecord | undefined; next: GameRecord | undefined } {
+  const fieldGames = games.filter((g) => g.fieldId === field.id);
+  const projection = projectFieldSessions({ sessions: fieldGames, now, timeZone });
+  return { games: projection.today, current: projection.current ?? undefined, next: projection.next ?? undefined };
 }
 
 export function buildFieldBoard(
@@ -174,9 +187,12 @@ export function buildFieldBoard(
   officials: SessionOfficial[],
   now: number,
   timeZone: string = DEFAULT_VENUE_TIMEZONE,
+  assets: VenueAsset[] = [],
+  workOrders: WorkOrder[] = [],
+  weather: WeatherSnapshot = null,
 ): FieldBoardEntry[] {
   return fields.map((field) => {
-    const { current, next } = fieldSlot(field, games, now);
+    const { current, next } = fieldSlot(field, games, now, timeZone);
 
     const behind = current ? minutesBehind(current, now) : 0;
     let recommendedAction: string | null = null;
@@ -185,6 +201,8 @@ export function buildFieldBoard(
       recommendedAction = `Running ${behind} min behind — consider moving the next game to ~${timeLabel(projected.toISOString(), timeZone)}.`;
     }
 
+    const fieldAssets = assets.filter((asset) => asset.fieldId === field.id);
+    const confirmed = next ? officials.filter((official) => official.sessionId === next.id && official.status === "confirmed").length : 0;
     return {
       fieldId: field.id,
       fieldName: field.name,
@@ -196,12 +214,21 @@ export function buildFieldBoard(
             scoreHome: current.homeScore,
             scoreAway: current.awayScore,
             lifecycleStatus: current.lifecycleStatus,
+            startTime: current.startTime,
             startLabel: timeLabel(current.startTime, timeZone),
             minutesBehind: behind,
           }
         : null,
-      nextGame: next ? { id: next.id, label: gameLabel(next), startLabel: timeLabel(next.startTime, timeZone) } : null,
+      nextGame: next ? { id: next.id, label: gameLabel(next), startTime: next.startTime, startLabel: timeLabel(next.startTime, timeZone) } : null,
       officialsConfirmed: next ? hasConfirmedOfficial(next.id, officials) : true,
+      staffCoverage: { confirmed, label: next ? (confirmed > 0 ? `${confirmed} confirmed` : "Coverage needed") : "No next game" },
+      devices: {
+        scoreboard: deviceState(fieldAssets, (asset) => asset.assetType === "scoreboard" || asset.assetCategory === "scoreboards"),
+        audio: deviceState(fieldAssets, (asset) => asset.assetType === "speaker" || asset.assetType === "audio_zone" || asset.assetCategory === "audio"),
+        camera: deviceState(fieldAssets, (asset) => asset.assetType === "camera" || asset.assetCategory === "video"),
+      },
+      unresolvedIssueCount: workOrders.filter((order) => order.fieldId === field.id && unresolved(order)).length,
+      weatherRisk: weather && weather.risk !== "clear" ? weather.risk : null,
       recommendedAction,
     };
   });
@@ -233,9 +260,13 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
   const items: AttentionItem[] = [];
   const fieldName = new Map(input.fields.map((f) => [f.id, f.name]));
   const timeZone = input.timeZone ?? DEFAULT_VENUE_TIMEZONE;
+  const persistedSystemKeys = new Set(input.workOrders.filter(unresolved).map((order) => order.systemKey).filter((key): key is string => Boolean(key)));
+  const addComputed = (item: AttentionItem & { systemKey: string }) => {
+    if (!persistedSystemKeys.has(item.systemKey)) items.push({ ...item, source: "computed", status: "detected", acknowledged: false });
+  };
 
   if (input.weather && input.weather.risk === "severe") {
-    items.push({
+    addComputed({
       id: "weather",
       tier: "urgent",
       title: "Severe weather detected near the venue",
@@ -243,9 +274,12 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
       action: "Clear the fields and post a weather hold.",
       href: "/admin/alerts/storm",
       fieldName: null,
+      fieldId: null,
+      issueType: "weather",
+      systemKey: "weather:severe",
     });
   } else if (input.weather && input.weather.risk === "caution") {
-    items.push({
+    addComputed({
       id: "weather",
       tier: "soon",
       title: "Weather is deteriorating",
@@ -253,11 +287,14 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
       action: "Review the storm assessment and pre-stage an advisory.",
       href: "/admin/alerts/storm",
       fieldName: null,
+      fieldId: null,
+      issueType: "weather",
+      systemKey: "weather:caution",
     });
   }
 
   for (const asset of input.assets.filter((a) => a.status === "offline")) {
-    items.push({
+    addComputed({
       id: `asset:${asset.id}`,
       tier: "urgent",
       title: `${asset.assetName} is offline`,
@@ -265,6 +302,10 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
       action: "Dispatch a technician or check the connection.",
       href: "/admin/assets",
       fieldName: asset.physicalLocation ?? null,
+      fieldId: asset.fieldId,
+      assetId: asset.id,
+      issueType: asset.assetType === "scoreboard" ? "scoreboard" : asset.assetType === "camera" ? "camera" : asset.assetCategory === "audio" ? "audio" : "device",
+      systemKey: `asset:${asset.id}:offline`,
     });
   }
 
@@ -301,7 +342,7 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
     const game = live ?? upcoming;
     if (!game) continue;
 
-    items.push({
+    addComputed({
       id: `audio:${profile.id}`,
       tier: "soon",
       title: `Audio is offline on ${fieldName.get(profile.fieldId) ?? "a field"}`,
@@ -311,13 +352,17 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
       action: "Check the speaker or switch this field to a backup audio mode.",
       href: `/admin/audio/${profile.id}/edit`,
       fieldName: fieldName.get(profile.fieldId) ?? null,
+      fieldId: profile.fieldId,
+      gameId: game.id,
+      issueType: "audio",
+      systemKey: `audio:${profile.id}:offline`,
     });
   }
 
   for (const game of input.games) {
     const behind = minutesBehind(game, input.now);
     if (behind >= LATE_ATTENTION_THRESHOLD_MIN) {
-      items.push({
+      addComputed({
         id: `late:${game.id}`,
         tier: "soon",
         title: `${gameLabel(game)} is running ${behind} minutes behind`,
@@ -325,14 +370,18 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
         action: "Adjust the next start time or notify waiting teams.",
         href: "/admin/operations-center",
         fieldName: fieldName.get(game.fieldId) ?? null,
+        fieldId: game.fieldId,
+        gameId: game.id,
+        issueType: "schedule",
+        systemKey: `schedule:${game.id}:late`,
       });
     }
   }
 
-  const board = buildFieldBoard(input.fields, input.games, input.officials, input.now, timeZone);
+  const board = buildFieldBoard(input.fields, input.games, input.officials, input.now, timeZone, input.assets, input.workOrders, input.weather);
   for (const entry of board) {
     if (entry.nextGame && !entry.officialsConfirmed) {
-      items.push({
+      addComputed({
         id: `umpire:${entry.fieldId}`,
         tier: "soon",
         title: `${entry.fieldName} has no confirmed official for the next game`,
@@ -340,12 +389,16 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
         action: "Assign or confirm an official.",
         href: "/admin/sessions/officials",
         fieldName: entry.fieldName,
+        fieldId: entry.fieldId,
+        gameId: entry.nextGame.id,
+        issueType: "staffing",
+        systemKey: `staffing:${entry.nextGame.id}:official`,
       });
     }
   }
 
   for (const field of input.fields.filter((f) => FIELD_ATTENTION_STATUSES.has(f.status))) {
-    items.push({
+    addComputed({
       id: `field:${field.id}`,
       tier: field.status === "closed" ? "urgent" : "soon",
       title: `${field.name} is ${field.status}`,
@@ -353,10 +406,13 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
       action: field.status === "maintenance" ? "Confirm the maintenance item and ETA." : "Resolve the delay or reopen the field.",
       href: "/admin/operations-center",
       fieldName: field.name,
+      fieldId: field.id,
+      issueType: "incident",
+      systemKey: `field:${field.id}:${field.status}`,
     });
   }
 
-  for (const order of input.workOrders.filter((o) => o.status !== "done" && !o.closedAt)) {
+  for (const order of input.workOrders.filter(unresolved)) {
     items.push({
       id: `workorder:${order.id}`,
       tier: order.priority === "urgent" ? "urgent" : order.priority === "high" ? "soon" : "info",
@@ -364,7 +420,18 @@ export function buildAttentionQueue(input: AttentionInputs): AttentionItem[] {
       why: order.detail || "Open field work order.",
       action: "Assign and track to completion.",
       href: "/admin/fields/work-orders",
-      fieldName: fieldName.get(order.fieldId) ?? null,
+      fieldName: order.fieldId ? fieldName.get(order.fieldId) ?? null : null,
+      fieldId: order.fieldId,
+      gameId: order.gameId,
+      assetId: order.assetId,
+      issueId: order.id,
+      issueType: order.issueType,
+      source: order.source === "system" ? "system" : "manual",
+      systemKey: order.systemKey,
+      status: order.status,
+      createdAt: order.detectedAt || order.createdAt,
+      assignedTo: order.assignedRole || order.assignedToUserId,
+      acknowledged: Boolean(order.acknowledgedAt),
     });
   }
 
@@ -457,7 +524,7 @@ export function buildSchedulePulse(input: SchedulePulseInput): SchedulePulse {
   // Worst-hit fields: the largest current delay on each field, biggest first.
   const worstFields = fields
     .map((field) => {
-      const { current } = fieldSlot(field, games, now);
+      const { current } = fieldSlot(field, games, now, timeZone);
       return { fieldName: field.name, minutesBehind: current ? minutesBehind(current, now) : 0 };
     })
     .filter((entry) => entry.minutesBehind > 0)
@@ -470,7 +537,7 @@ export function buildSchedulePulse(input: SchedulePulseInput): SchedulePulse {
   const closeAt = input.venueCloseIso ? new Date(input.venueCloseIso).getTime() : NaN;
 
   for (const field of fields) {
-    const { games: fieldGames, current, next } = fieldSlot(field, games, now);
+    const { games: fieldGames, current, next } = fieldSlot(field, games, now, timeZone);
     const behind = current ? minutesBehind(current, now) : 0;
 
     if (current && next && behind >= DOWNSTREAM_IMPACT_THRESHOLD_MIN) {
@@ -571,7 +638,7 @@ export type ModeChecklistInput = {
 
 export function buildModeChecklist(input: ModeChecklistInput): ModeChecklist {
   const { mode, fields, games, officials, assets, weather, workOrders, now } = input;
-  const openWorkOrders = workOrders.filter((o) => o.status !== "done" && !o.closedAt).length;
+  const openWorkOrders = workOrders.filter(unresolved).length;
   const flaggedFields = fields.filter((f) => FIELD_ATTENTION_STATUSES.has(f.status));
 
   let title: string;

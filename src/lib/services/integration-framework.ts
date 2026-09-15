@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getProviderEnvStatus, integrationProviders, type IntegrationConnectionStatus, type IntegrationProviderKey, type IntegrationProviderStatus, type IntegrationSyncStatus } from "@/lib/integration-framework";
+import { platformScopeSentinel } from "@/lib/access/demo-users";
 import { getCurrentOrganizationScope } from "@/lib/organization-scope";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";
@@ -143,10 +144,17 @@ async function requireScopePermission(actor: string, permissionKey: string, conn
   const venueId = connection?.venueId ?? fallbackScope?.venueId;
   const tournamentId = connection?.tournamentId ?? fallbackScope?.tournamentId;
   const organizationId = connection?.organizationId ?? fallbackScope?.organizationId;
-  if (venueId) return requirePermission(actor, permissionKey, "venue", venueId);
-  if (tournamentId) return requirePermission(actor, permissionKey, "tournament", tournamentId);
-  if (organizationId) return requirePermission(actor, permissionKey, "organization", organizationId);
-  throw new PermissionDeniedError("Integration connection is missing a permission scope.");
+  try {
+    if (venueId) return await requirePermission(actor, permissionKey, "venue", venueId);
+    if (tournamentId) return await requirePermission(actor, permissionKey, "tournament", tournamentId);
+    if (organizationId) return await requirePermission(actor, permissionKey, "organization", organizationId);
+    return await requirePermission(actor, permissionKey, "platform", platformScopeSentinel);
+  } catch (error) {
+    if (!(error instanceof PermissionDeniedError)) throw error;
+    // A real platform-scoped admin is the cross-tenant integration operator.
+    // Lower roles still require the exact connection object scope above.
+    return requirePermission(actor, permissionKey, "platform", platformScopeSentinel);
+  }
 }
 
 export async function getIntegrationSummaries(actorUserId: string): Promise<IntegrationSummary[]> {

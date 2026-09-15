@@ -3,7 +3,7 @@ import { listGamesForVenue } from "@/lib/game-engine/game-service";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getOfficialsForSessions, type SessionOfficial } from "@/lib/services/officials";
-import { getWorkOrders, type WorkOrder } from "@/lib/services/work-orders";
+import { createSystemWorkOrder, getWorkOrders, type WorkOrder } from "@/lib/services/work-orders";
 import { getVenueAssets } from "@/lib/services/venue-assets";
 import { getAudioProfiles } from "@/lib/services/audio-profiles";
 import { assessStormRisk } from "@/lib/services/storm-watch";
@@ -119,10 +119,32 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
   const officials = await getOfficialsForSessions(games.map((g) => g.id)).catch(() => [] as SessionOfficial[]);
 
   const weather: WeatherSnapshot = storm ? { risk: storm.risk, reasons: storm.reasons } : null;
-  const venueWorkOrders = workOrders.filter((o) => fieldIds.has(o.fieldId));
+  const venueWorkOrders = workOrders.filter((o) => o.venueId === venue.id || (o.fieldId !== null && fieldIds.has(o.fieldId)));
   const venueAssets = assets.filter((a) => a.venueId === venue.id);
   const venueAudioProfiles = audioProfiles.filter((p) => p.venueId === venue.id);
   const mode = resolveMode(games, now);
+  const initialAttention = buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, audioProfiles: venueAudioProfiles, weather, now, timeZone });
+  // Materialize actionable system exceptions into the same lightweight issue
+  // lifecycle staff uses for manual reports. The partial unique index makes
+  // this safe to run whenever the Command Center refreshes; healthy/normal
+  // signals stay computed and quiet, while urgent/soon exceptions become owned.
+  const generatedIssues = await Promise.all(initialAttention
+    .filter((item) => item.source === "computed" && item.tier !== "info" && item.systemKey && item.issueType)
+    .slice(0, 20)
+    .map((item) => createSystemWorkOrder({
+      venueId: venue.id,
+      fieldId: item.fieldId,
+      gameId: item.gameId,
+      assetId: item.assetId,
+      issueType: item.issueType!,
+      systemKey: item.systemKey!,
+      title: item.title,
+      detail: `${item.why} Recommended action: ${item.action}`,
+      priority: item.tier === "urgent" ? "urgent" : "high",
+      reportedBy: "GameDay OS",
+      metadata: { attention_item_id: item.id, href: item.href },
+    }).catch(() => null)));
+  const activeWorkOrders = [...venueWorkOrders, ...generatedIssues.filter((issue): issue is WorkOrder => Boolean(issue) && !venueWorkOrders.some((existing) => existing.id === issue!.id))];
 
   return {
     venueId: venue.id,
@@ -134,9 +156,9 @@ export async function buildCommandCenter(ctx: AccessContext | null): Promise<Com
     // No venue closing time is modeled yet, so curfew risk stays empty rather
     // than guessing a close hour.
     pulse: buildSchedulePulse({ fields: venueFields, games, now, timeZone }),
-    fields: buildFieldBoard(venueFields, games, officials, now, timeZone),
-    attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: venueWorkOrders, assets: venueAssets, audioProfiles: venueAudioProfiles, weather, now, timeZone }),
-    checklist: buildModeChecklist({ mode, fields: venueFields, games, officials, assets: venueAssets, weather, workOrders: venueWorkOrders, now }),
+    fields: buildFieldBoard(venueFields, games, officials, now, timeZone, venueAssets, activeWorkOrders, weather),
+    attention: buildAttentionQueue({ fields: venueFields, games, officials, workOrders: activeWorkOrders, assets: venueAssets, audioProfiles: venueAudioProfiles, weather, now, timeZone }),
+    checklist: buildModeChecklist({ mode, fields: venueFields, games, officials, assets: venueAssets, weather, workOrders: activeWorkOrders, now }),
     weather,
   };
 }

@@ -192,7 +192,7 @@ export function buildEndOfDayReport(input: EndOfDayInput): EndOfDayReport {
       openIssues.push({
         id: order.id,
         title: order.title,
-        fieldName: nameOf(order.fieldId),
+        fieldName: order.fieldId ? nameOf(order.fieldId) : "Venue-wide",
         stage: resolveIssueStage(order),
         assignedRole: order.assignedRole,
         isOverdue: life.isOverdue,

@@ -2,6 +2,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { ScoreboardConnectionType, ScoreboardIntegrationMode, ScoreboardProfile, ScoreboardStatus } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
+import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
 
 type ScoreboardProfileRow = Database["public"]["Tables"]["scoreboard_profiles"]["Row"];
 
@@ -192,7 +193,9 @@ export async function getScoreboardProfileForField(fieldId: string): Promise<Sco
   return data ? mapScoreboardProfile(data) : null;
 }
 
-export async function createScoreboardProfile(data: CreateScoreboardProfileInput): Promise<ScoreboardProfile> {
+export async function createScoreboardProfile(data: CreateScoreboardProfileInput, actorUserId?: string | null): Promise<ScoreboardProfile> {
+  const actor = assertActorUserId(actorUserId);
+  await requirePermission(actor, "device.manage", "venue", data.venue_id);
   const supabase = getSupabaseAdminClient();
   const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: profile, error } = await supabase
@@ -218,10 +221,14 @@ export async function createScoreboardProfile(data: CreateScoreboardProfileInput
     throw new Error(error.message);
   }
 
-  return mapScoreboardProfile(profile);
+  const mapped = mapScoreboardProfile(profile);
+  await safelyLogAudit({ action: "scoreboard.profile.created", actorUserId: actor, resourceId: mapped.id, resourceType: "scoreboard_profile", scopeId: mapped.venueId, scopeType: "venue" });
+  return mapped;
 }
 
-export async function updateScoreboardProfile(id: string, data: UpdateScoreboardProfileInput): Promise<ScoreboardProfile> {
+export async function updateScoreboardProfile(id: string, data: UpdateScoreboardProfileInput, actorUserId?: string | null): Promise<ScoreboardProfile> {
+  const actor = assertActorUserId(actorUserId);
+  await requirePermission(actor, "device.manage", "venue", data.venue_id);
   const supabase = getSupabaseAdminClient();
   const organizationId = await getOrganizationIdForVenue(data.venue_id);
   const { data: profile, error } = await supabase
@@ -249,7 +256,9 @@ export async function updateScoreboardProfile(id: string, data: UpdateScoreboard
     throw new Error(error.message);
   }
 
-  return mapScoreboardProfile(profile);
+  const mapped = mapScoreboardProfile(profile);
+  await safelyLogAudit({ action: "scoreboard.profile.updated", actorUserId: actor, resourceId: mapped.id, resourceType: "scoreboard_profile", scopeId: mapped.venueId, scopeType: "venue" });
+  return mapped;
 }
 
 async function getOrganizationIdForVenue(venueId: string) {

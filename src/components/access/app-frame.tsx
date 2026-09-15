@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { buildNavigation } from "@/lib/access/navigation";
 import { getImpersonatorContext, resolveSession } from "@/lib/access/session";
+import { getPilotBuildInfo } from "@/lib/pilot-build";
 import { AppShell } from "./app-shell";
 import { ImpersonationBanner } from "./impersonation-banner";
 
@@ -16,6 +17,7 @@ export async function AppFrame({ children }: Readonly<{ children: React.ReactNod
     redirect("/no-access");
   }
   const ctx = resolved.context;
+  const pilotInfo = getPilotBuildInfo();
 
   const [navGroups, impersonator] = await Promise.all([
     Promise.resolve(buildNavigation(ctx)),
@@ -27,7 +29,7 @@ export async function AppFrame({ children }: Readonly<{ children: React.ReactNod
       {ctx.isImpersonating && impersonator ? (
         <ImpersonationBanner roleLabel={ctx.roleLabel} venueName={ctx.venueName} adminEmail={impersonator.email} />
       ) : null}
-      <AppShell navGroups={navGroups} roleLabel={ctx.roleLabel} venueName={ctx.venueName} email={ctx.email}>
+      <AppShell navGroups={navGroups} roleLabel={ctx.roleLabel} venueName={ctx.venueName} email={ctx.email} pilotInfo={pilotInfo}>
         {children}
       </AppShell>
     </>

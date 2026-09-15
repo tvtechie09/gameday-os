@@ -7,6 +7,7 @@ import { getSponsorAssignments, getSponsors } from "./sponsors";
 import { getVenue } from "./venues";
 import { getProhibitedCategories } from "./sponsor-policy.ts";
 import { filterProhibitedPlacements } from "./sponsor-policy-core.ts";
+import { projectFieldSessions } from "./session-projection-core.ts";
 
 export type VenueDisplaySponsor = {
   assignment: SponsorAssignment;
@@ -33,30 +34,6 @@ export type VenueDisplayPayload = {
   sponsors: VenueDisplaySponsor[];
   venue: Venue | null;
 };
-
-function isToday(value: string, now: Date) {
-  const date = new Date(value);
-  return date.getFullYear() === now.getFullYear()
-    && date.getMonth() === now.getMonth()
-    && date.getDate() === now.getDate();
-}
-
-function isActiveSession(session: Session, now: Date) {
-  if (session.status === "active" || session.gameStatus === "active") {
-    return true;
-  }
-
-  if (!session.endTime) {
-    return false;
-  }
-
-  const timestamp = now.getTime();
-  return new Date(session.startTime).getTime() <= timestamp && timestamp <= new Date(session.endTime).getTime();
-}
-
-function isUpcomingSession(session: Session, now: Date) {
-  return session.status === "scheduled" && new Date(session.startTime).getTime() > now.getTime();
-}
 
 function getVenueSponsors({
   assignments,
@@ -119,7 +96,7 @@ export async function getVenueDisplayPayload(venueId: string): Promise<VenueDisp
     getSponsorAssignments(),
     getProhibitedCategories(venue.organizationId),
   ]);
-  const now = new Date();
+  const now = Date.now();
   const fields = allFields
     .filter((field) => field.venueId === venueId)
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -129,10 +106,11 @@ export async function getVenueDisplayPayload(venueId: string): Promise<VenueDisp
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   const fieldCards = fields.map((field) => {
     const fieldSessions = sessions.filter((session) => session.fieldId === field.id);
+    const projection = projectFieldSessions({ sessions: fieldSessions, now, timeZone: venue.timezone });
     return {
-      currentSession: fieldSessions.find((session) => isActiveSession(session, now)) ?? null,
+      currentSession: projection.current,
       field,
-      nextSession: fieldSessions.find((session) => isUpcomingSession(session, now)) ?? null,
+      nextSession: projection.next,
     };
   });
   const alerts = sortAlertsForDisplay(activeAlerts.filter((alert) => {
@@ -152,8 +130,6 @@ export async function getVenueDisplayPayload(venueId: string): Promise<VenueDisp
       venueId,
     }).length > 0);
   }));
-  const todaySessions = sessions.filter((session) => isToday(session.startTime, now));
-
   return {
     alerts,
     fields: fieldCards,
@@ -161,7 +137,7 @@ export async function getVenueDisplayPayload(venueId: string): Promise<VenueDisp
     organization,
     schedule: fields.map((field) => ({
       field,
-      sessions: todaySessions.filter((session) => session.fieldId === field.id),
+      sessions: projectFieldSessions({ sessions: sessions.filter((session) => session.fieldId === field.id), now, timeZone: venue.timezone }).today,
     })).filter((group) => group.sessions.length > 0),
     // Render-time enforcement of the venue's advertising policy. This board hangs
     // in a public concourse, so it gets the same gate as the field page.

@@ -3,6 +3,7 @@ import { getField } from "./fields";
 import { getSessionsByFieldId, getSession } from "./sessions";
 import { getSponsorPlacementsForFieldPage } from "./sponsors";
 import { getVenue } from "./venues";
+import { projectFieldSessions } from "./session-projection-core";
 
 export type ScoreboardPayload = {
   displayMode: "active" | "next" | "session";
@@ -12,23 +13,6 @@ export type ScoreboardPayload = {
   sponsor: SponsorPlacement | null;
   venue: Venue | null;
 };
-
-function isActiveSession(session: Session, now: Date) {
-  if (session.status === "active" || session.gameStatus === "active") {
-    return true;
-  }
-
-  if (!session.endTime) {
-    return false;
-  }
-
-  const timestamp = now.getTime();
-  return new Date(session.startTime).getTime() <= timestamp && timestamp <= new Date(session.endTime).getTime();
-}
-
-function isUpcomingSession(session: Session, now: Date) {
-  return session.status === "scheduled" && new Date(session.startTime).getTime() > now.getTime();
-}
 
 function pickSponsor(placements: SponsorPlacement[]) {
   return placements.find((placement) => placement.assignmentType === "session")
@@ -85,13 +69,11 @@ export async function getScoreboardPayloadByFieldId(fieldId: string): Promise<Sc
     };
   }
 
-  const now = new Date();
-  const sessions = await getSessionsByFieldId(fieldId);
-  const orderedSessions = [...sessions].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-  const activeSession = orderedSessions.find((session) => isActiveSession(session, now)) ?? null;
-  const nextSession = orderedSessions.find((session) => isUpcomingSession(session, now)) ?? null;
+  const [sessions, venue] = await Promise.all([getSessionsByFieldId(fieldId), getVenue(field.venueId)]);
+  const projection = projectFieldSessions({ sessions, now: Date.now(), timeZone: venue?.timezone });
+  const activeSession = projection.current;
+  const nextSession = projection.next;
   const session = activeSession ?? nextSession;
-  const venue = await getVenue(field.venueId);
   const sponsorPlacements = await getSponsorPlacementsForFieldPage({
     fieldId: field.id,
     sessionId: session?.id,

@@ -5,7 +5,7 @@
 -- venues by name — inserts nothing if a venue/field is missing, and never
 -- duplicates venue records.
 --   * "Manhattan Junior High" (existing venue)
---   * "Crossroads Test Complex" (the New Lenox Crossroads demo venue)
+--   * "Wintrust Crossroads Sports Complex" (the New Lenox flagship venue)
 
 with mjh_field as (
   select f.id, f.venue_id from fields f
@@ -13,7 +13,7 @@ with mjh_field as (
   order by f.name limit 1
 ), cross_field as (
   select f.id, f.venue_id from fields f
-  join venues v on v.id = f.venue_id and v.name = 'Crossroads Test Complex'
+  join venues v on v.id = f.venue_id and v.name = 'Wintrust Crossroads Sports Complex'
   order by f.name limit 1
 )
 insert into sessions (id, field_id, title, sport_type, home_team, away_team, start_time, end_time, status, game_status, lifecycle_status, is_demo, external_source, external_source_id)

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSession } from "@/lib/services/sessions";
 import type { Session } from "@/lib/types";
+import { requireScheduleAccess } from "@/lib/access/schedule-authorization";
 
 export type CreateSessionResult = {
   session?: Session;
@@ -47,6 +48,7 @@ export async function createSessionAction(formData: FormData): Promise<CreateSes
   }
 
   try {
+    await requireScheduleAccess({ fieldIds: [fieldId] });
     const session = await createSession({
       field_id: fieldId,
       tournament_id: tournamentId || null,

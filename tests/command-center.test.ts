@@ -118,6 +118,22 @@ test("buildFieldBoard: confirmed official on the next game clears the gap", () =
   assert.equal(board[0].recommendedAction, null); // on time, no recommendation
 });
 
+test("buildFieldBoard: aggregates quiet device health, staffing, incidents, and weather per field", () => {
+  const games = [game({ id: "nxt", status: "scheduled", startTime: minsAhead(30) })];
+  const assets = [
+    { id: "sb", fieldId: "F1", assetType: "scoreboard", assetCategory: "scoreboards", status: "healthy" },
+    { id: "pa", fieldId: "F1", assetType: "speaker", assetCategory: "audio", status: "offline" },
+  ] as unknown as VenueAsset[];
+  const issues = [{ id: "issue", venueId: "V1", fieldId: "F1", status: "acknowledged", closedAt: null }] as unknown as WorkOrder[];
+  const board = buildFieldBoard([field("F1", "Field 1")], games, [official("nxt", "confirmed")], NOW, "America/Chicago", assets, issues, { risk: "caution", reasons: [] });
+  assert.equal(board[0].devices.scoreboard.status, "online");
+  assert.equal(board[0].devices.audio.status, "offline");
+  assert.equal(board[0].devices.camera.status, "not_configured");
+  assert.equal(board[0].staffCoverage.confirmed, 1);
+  assert.equal(board[0].unresolvedIssueCount, 1);
+  assert.equal(board[0].weatherRisk, "caution");
+});
+
 // ---- buildAttentionQueue ---------------------------------------------------
 
 test("buildAttentionQueue: prioritizes urgent, then soon, then info", () => {
@@ -156,6 +172,35 @@ test("buildAttentionQueue: caution weather is soon, not urgent; clear venue is e
 
   const clear = buildAttentionQueue({ fields: [field("F1", "F1")], games: [], officials: [], workOrders: [], assets: [], audioProfiles: [], weather: { risk: "clear", reasons: [] }, now: NOW });
   assert.equal(clear.length, 0);
+});
+
+test("buildAttentionQueue: a tracked system issue replaces its duplicate computed exception", () => {
+  const tracked = {
+    id: "w-offline",
+    venueId: "V1",
+    fieldId: "F1",
+    title: "Scoreboard 1 is offline",
+    detail: "Technician dispatched",
+    priority: "urgent",
+    status: "assigned",
+    closedAt: null,
+    issueType: "scoreboard",
+    systemKey: "asset:a1:offline",
+    source: "system",
+    gameId: null,
+    assetId: "a1",
+    detectedAt: minsAgo(5),
+    assignedRole: "venue tech",
+    assignedToUserId: null,
+    acknowledgedAt: null,
+  } as unknown as WorkOrder;
+  const assetOffline = { id: "a1", venueId: "V1", fieldId: "F1", assetName: "Scoreboard 1", assetType: "scoreboard", assetCategory: "scoreboards", status: "offline" } as unknown as VenueAsset;
+  const queue = buildAttentionQueue({ fields: [field("F1", "Field 1")], games: [], officials: [], workOrders: [tracked], assets: [assetOffline], audioProfiles: [], weather: null, now: NOW });
+  assert.equal(queue.filter((item) => item.systemKey === "asset:a1:offline").length, 1);
+  const issue = queue.find((item) => item.issueId === "w-offline");
+  assert.equal(issue?.status, "assigned");
+  assert.equal(issue?.assignedTo, "venue tech");
+  assert.equal(issue?.acknowledged, false);
 });
 
 // ---- summarize -------------------------------------------------------------

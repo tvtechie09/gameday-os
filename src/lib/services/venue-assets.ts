@@ -1,5 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-import type { VenueAsset, VenueAssetCategory, VenueAssetIntegrationStatus, VenueAssetStatus, VenueAssetType, VenueBuilding } from "@/lib/types";
+import type { VenueAsset, VenueAssetCategory, VenueAssetConnectionHealth, VenueAssetIntegrationStatus, VenueAssetStatus, VenueAssetType, VenueBuilding } from "@/lib/types";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
 
 type DynamicSupabase = {
@@ -28,7 +28,7 @@ export const venueAssetTypes: VenueAssetType[] = ["scoreboard", "display", "tv",
 export const venueAssetStatuses: VenueAssetStatus[] = ["healthy", "offline", "maintenance_needed", "unknown"];
 export const venueAssetIntegrationStatuses: VenueAssetIntegrationStatus[] = ["not_configured", "configured", "connected", "testing"];
 
-const assetSelect = "id,organization_id,venue_id,building_id,field_id,asset_name,asset_type,asset_category,manufacturer,model,serial_number,ip_address,physical_location,map_x,map_y,status,integration_status,notes,installation_date,warranty_end,photos,manuals,created_at,updated_at";
+const assetSelect = "id,organization_id,venue_id,building_id,field_id,asset_name,asset_type,asset_category,manufacturer,model,serial_number,ip_address,physical_location,map_x,map_y,status,integration_status,connection_health,last_seen_at,health_message,edge_device_id,diagnostic_summary,notes,installation_date,warranty_end,photos,manuals,created_at,updated_at";
 const buildingSelect = "id,organization_id,venue_id,name,description,map_x,map_y,created_at,updated_at";
 
 function isMissingVenueAssetsError(error: { code?: string; message?: string } | null) {
@@ -66,6 +66,11 @@ function readIntegrationStatus(value: unknown): VenueAssetIntegrationStatus {
   return venueAssetIntegrationStatuses.find((status) => status === value) ?? "not_configured";
 }
 
+function readConnectionHealth(value: unknown): VenueAssetConnectionHealth {
+  const values: VenueAssetConnectionHealth[] = ["not_configured", "online", "degraded", "offline", "unknown"];
+  return values.find((status) => status === value) ?? "unknown";
+}
+
 function mapBuilding(row: Record<string, unknown>): VenueBuilding {
   return {
     createdAt: text(row.created_at) ?? "",
@@ -87,6 +92,9 @@ function mapAsset(row: Record<string, unknown>): VenueAsset {
     assetType: readType(row.asset_type),
     buildingId: text(row.building_id),
     createdAt: text(row.created_at) ?? "",
+    connectionHealth: readConnectionHealth(row.connection_health),
+    diagnosticSummary: row.diagnostic_summary && typeof row.diagnostic_summary === "object" && !Array.isArray(row.diagnostic_summary) ? row.diagnostic_summary as Record<string, unknown> : {},
+    edgeDeviceId: text(row.edge_device_id),
     fieldId: text(row.field_id),
     id: text(row.id) ?? "",
     installationDate: text(row.installation_date),
@@ -98,6 +106,8 @@ function mapAsset(row: Record<string, unknown>): VenueAsset {
     mapY: numberValue(row.map_y),
     model: text(row.model),
     notes: text(row.notes),
+    healthMessage: text(row.health_message),
+    lastSeenAt: text(row.last_seen_at),
     organizationId: text(row.organization_id),
     physicalLocation: text(row.physical_location),
     photos: stringArray(row.photos),

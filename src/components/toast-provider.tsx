@@ -55,23 +55,24 @@ export function ToastProvider() {
   }
 
   return (
-    <div className="fixed right-4 top-24 z-50 grid w-[calc(100vw-2rem)] max-w-sm gap-3" role="status" aria-live="polite">
+    <div className="fixed right-4 top-24 z-50 grid w-[calc(100vw-2rem)] max-w-sm gap-3">
       {toasts.map((toast) => {
         const Icon = toast.kind === "success" ? CheckCircle2 : AlertCircle;
         return (
           <div
             className={`ui-card flex items-start gap-3 p-4 shadow-xl ${toast.kind === "success" ? "border-green-200 bg-green-50 text-green-950" : "border-red-200 bg-red-50 text-red-950"}`}
             key={toast.id}
+            role={toast.kind === "error" ? "alert" : "status"}
           >
             <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
             <p className="min-w-0 flex-1 text-sm font-bold leading-6">{toast.text}</p>
             <button
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-md hover:bg-black/5"
+              aria-label="Dismiss notification"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-black/5"
               onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))}
               type="button"
             >
               <X className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">Dismiss</span>
             </button>
           </div>
         );

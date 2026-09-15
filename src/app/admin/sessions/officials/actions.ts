@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assignOfficial, removeOfficial } from "@/lib/services/officials";
+import { assignOfficial, getOfficial, removeOfficial } from "@/lib/services/officials";
 import { getPublicAppUrl } from "@/lib/public-url";
 import { publicErrorMessage } from "@/lib/public-error";
+import { requireScheduleAccess } from "@/lib/access/schedule-authorization";
 
 export type AssignOfficialResult = {
   ok: boolean;
@@ -19,6 +20,7 @@ export async function assignOfficialAction(formData: FormData): Promise<AssignOf
     if (!sessionId || name.length < 2) {
       return { ok: false, error: "Pick a game and enter the official's name." };
     }
+    await requireScheduleAccess({ sessionIds: [sessionId] });
     const result = await assignOfficial({
       sessionId,
       name,
@@ -38,6 +40,9 @@ export async function removeOfficialAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") || "");
   if (!id) return;
   try {
+    const official = await getOfficial(id);
+    if (!official) return;
+    await requireScheduleAccess({ sessionIds: [official.sessionId] });
     await removeOfficial(id);
   } catch {
     // Row stays; page re-render shows current state.

@@ -7,9 +7,11 @@
 
 import type { ExperienceRoleKey } from "./catalog";
 
-// Sidebar/scope label for the demo venue users. Must match the demo venue's
-// real name (Crossroads Test Complex) so the sidebar and page headers agree.
-export const flagshipVenueDisplayName = "Crossroads Test Complex";
+// Sidebar/scope label for the demo venue users. Keep this aligned to the
+// canonical populated venue; venueInScope accepts the corresponding name slug
+// in development while hosted role assignments resolve the venue UUID.
+export const flagshipVenueDisplayName = "Wintrust Crossroads Sports Complex";
+export const flagshipVenueScopeSlug = "wintrust-crossroads-sports-complex";
 export const platformScopeSentinel = "00000000-0000-0000-0000-000000000000";
 
 export type DemoUser = {
@@ -46,7 +48,7 @@ export const demoUsers: DemoUser[] = [
     displayName: "Crossroads GM",
     roleKey: "venue_director",
     scopeType: "venue",
-    scopeId: "crossroads-test-complex",
+    scopeId: flagshipVenueScopeSlug,
     venueName: flagshipVenueDisplayName,
     blurb: "Daily operations first. Venue-scoped settings, no billing or global platform admin.",
   },
@@ -57,7 +59,7 @@ export const demoUsers: DemoUser[] = [
     displayName: "Crossroads Staff",
     roleKey: "venue_staff",
     scopeType: "venue",
-    scopeId: "crossroads-test-complex",
+    scopeId: flagshipVenueScopeSlug,
     venueName: flagshipVenueDisplayName,
     blurb: "Assigned operational items only: today's tasks, field status, announcements. No admin.",
   },
@@ -68,7 +70,7 @@ export const demoUsers: DemoUser[] = [
     displayName: "Crossroads Tech Manager",
     roleKey: "venue_tech_manager",
     scopeType: "venue",
-    scopeId: "crossroads-test-complex",
+    scopeId: flagshipVenueScopeSlug,
     venueName: flagshipVenueDisplayName,
     blurb: "Devices, scoreboards, cameras, and field ops. No billing, users, permissions, or global settings.",
   },

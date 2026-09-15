@@ -1,110 +1,219 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { canManageVenueSettings, canOpenCloseField, isOrgScoped, type AccessContext } from "@/lib/access/capabilities";
+import { assertFieldInScope, assertVenueInScope, OrganizationScopeError } from "@/lib/access/scoped-venue-data";
+import { getSessionContext } from "@/lib/access/session";
+import { publicErrorMessage } from "@/lib/public-error";
+import { assertActorUserId, PermissionDeniedError, safelyLogAudit } from "@/lib/services/identity";
 import {
   acknowledgeWorkOrder,
   assignWorkOrder,
+  claimWorkOrder,
   createWorkOrder,
-  getWorkOrders,
+  escalateWorkOrder,
+  getWorkOrder,
+  getWorkOrderPeople,
+  reopenWorkOrder,
   resolveWorkOrder,
-  setWorkOrderStatus,
+  startWorkOrder,
+  WorkOrderConflictError,
+  type WorkOrder,
 } from "@/lib/services/work-orders";
-import { publicErrorMessage } from "@/lib/public-error";
-import { resolveSession } from "@/lib/access/session";
-import { assertFieldInScope } from "@/lib/access/scoped-venue-data";
 
-export type CreateWorkOrderResult = { ok: boolean; error?: string };
+export type WorkOrderActionResult = {
+  ok: boolean;
+  message: string;
+  code?: "conflict" | "missing" | "permission" | "temporary";
+  workOrderId?: string;
+};
 
-// Every write here takes an id or fieldId from the form, so each one has to
-// re-check scope server-side: the page list is filtered to the caller's fields,
-// but a crafted request isn't. Same guard shape as the sponsor/alert actions.
-async function assertIssueInScope(id: string): Promise<boolean> {
-  const order = (await getWorkOrders()).find((item) => item.id === id);
-  if (!order) return false;
-  await assertFieldInScope(order.fieldId);
-  return true;
+type AuthorizedOrder = {
+  ctx: AccessContext;
+  order: WorkOrder;
+};
+
+function requireWorker(ctx: AccessContext | null): asserts ctx is AccessContext {
+  if (!ctx || isOrgScoped(ctx) || !canOpenCloseField(ctx)) {
+    throw new PermissionDeniedError("You do not have permission to update work orders.");
+  }
 }
 
-export async function createWorkOrderAction(formData: FormData): Promise<CreateWorkOrderResult> {
+async function authorizeOrder(id: string, managementOnly = false): Promise<AuthorizedOrder> {
+  const ctx = await getSessionContext();
+  requireWorker(ctx);
+  if (managementOnly && !canManageVenueSettings(ctx)) {
+    throw new PermissionDeniedError("Only venue management can perform this action.");
+  }
+  const order = await getWorkOrder(id);
+  if (!order) throw new Error("Work order not found.");
+  await assertVenueInScope(order.venueId);
+  if (order.fieldId) await assertFieldInScope(order.fieldId);
+  return { ctx, order };
+}
+
+function revalidateWorkOrder(order: WorkOrder) {
+  revalidatePath("/admin");
+  revalidatePath("/today");
+  revalidatePath("/admin/fields");
+  revalidatePath("/admin/fields/work-orders");
+  revalidatePath(`/admin/fields/work-orders/${order.id}`);
+  if (order.fieldId) revalidatePath(`/admin/fields/${order.fieldId}/disruption`);
+}
+
+async function auditWorkOrder(order: WorkOrder, ctx: AccessContext, action: string, metadata: Record<string, string | null> = {}) {
+  await safelyLogAudit({
+    action,
+    actorUserId: assertActorUserId(ctx.userId),
+    metadata,
+    resourceId: order.id,
+    resourceType: "field_work_order",
+    scopeId: order.venueId,
+    scopeType: "venue",
+  });
+}
+
+function failure(error: unknown, fallback: string): WorkOrderActionResult {
+  if (error instanceof WorkOrderConflictError) return { ok: false, code: "conflict", message: error.message };
+  if (error instanceof PermissionDeniedError || error instanceof OrganizationScopeError) {
+    return { ok: false, code: "permission", message: publicErrorMessage(error, "You don't have permission to update this work order.") };
+  }
+  if (error instanceof Error && error.message === "Work order not found.") {
+    return { ok: false, code: "missing", message: "This work order is no longer available. We've refreshed the list." };
+  }
+  console.error("Work order action failed", error);
+  return { ok: false, code: "temporary", message: `${fallback} Check your connection and try again.` };
+}
+
+export async function createWorkOrderAction(formData: FormData): Promise<WorkOrderActionResult> {
   try {
+    const ctx = await getSessionContext();
+    requireWorker(ctx);
     const fieldId = String(formData.get("fieldId") || "");
     const title = String(formData.get("title") || "").trim();
-    if (!fieldId || !title) {
-      return { ok: false, error: "Field and a short description are required." };
-    }
+    if (!fieldId || !title) return { ok: false, message: "Field and a short description are required." };
     await assertFieldInScope(fieldId);
-    const session = await resolveSession();
-    const reportedBy = session.kind === "active" ? session.context?.displayName || session.context?.email || null : null;
-    await createWorkOrder({
+    const order = await createWorkOrder({
       fieldId,
       title,
       detail: String(formData.get("detail") || "") || null,
       priority: String(formData.get("priority") || "normal"),
-      reportedBy,
+      reportedBy: ctx.displayName || ctx.email,
     });
-    revalidatePath("/admin/fields/work-orders");
-    return { ok: true };
+    await auditWorkOrder(order, ctx, "work_order.created", { title: order.title });
+    revalidateWorkOrder(order);
+    return { ok: true, message: "Work order created.", workOrderId: order.id };
   } catch (error) {
-    return { ok: false, error: publicErrorMessage(error, "Unable to create the work order.") };
+    return failure(error, "Unable to create the work order.");
   }
 }
 
-export async function setWorkOrderStatusAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") || "");
-  const status = String(formData.get("status") || "");
-  if (!id || !status) return;
+export async function claimWorkOrderAction(id: string, expectedUpdatedAt: string): Promise<WorkOrderActionResult> {
   try {
-    if (!(await assertIssueInScope(id))) return;
-    await setWorkOrderStatus(id, status);
-  } catch {
-    // Status unchanged; page re-render shows current state.
+    const { ctx } = await authorizeOrder(id);
+    const updated = await claimWorkOrder(id, assertActorUserId(ctx.userId), expectedUpdatedAt);
+    await auditWorkOrder(updated, ctx, "work_order.claimed");
+    revalidateWorkOrder(updated);
+    return { ok: true, message: "This work order is assigned to you." };
+  } catch (error) {
+    return failure(error, "Unable to assign the work order.");
   }
-  revalidatePath("/admin/fields/work-orders");
 }
 
-// ---- Issue lifecycle -------------------------------------------------------
-
-export async function assignWorkOrderAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") || "");
-  if (!id) return;
+export async function assignWorkOrderAction(id: string, assigneeUserId: string, expectedUpdatedAt: string): Promise<WorkOrderActionResult> {
   try {
-    if (!(await assertIssueInScope(id))) return;
-    const role = String(formData.get("assigned_role") || "").trim();
-    const dueAt = String(formData.get("due_at") || "").trim();
-    await assignWorkOrder(id, {
-      role: role || null,
-      // A datetime-local value carries no zone; treat it as the server's local
-      // time by letting Date parse it, then store UTC.
-      dueAt: dueAt ? new Date(dueAt).toISOString() : null,
-    });
-  } catch {
-    // Unchanged; the re-render shows current state.
+    const { ctx, order } = await authorizeOrder(id, true);
+    const people = await getWorkOrderPeople([order.venueId], [assigneeUserId]);
+    const assignee = people.find((person) => person.id === assigneeUserId && person.venueIds.includes(order.venueId));
+    if (!assignee) throw new PermissionDeniedError("Choose a teammate assigned to this venue.");
+    const updated = await assignWorkOrder(id, { userId: assignee.id }, expectedUpdatedAt);
+    await auditWorkOrder(updated, ctx, "work_order.assigned", { assignee_name: assignee.displayName, assignee_user_id: assignee.id });
+    revalidateWorkOrder(updated);
+    return { ok: true, message: `Assigned to ${assignee.displayName}.` };
+  } catch (error) {
+    return failure(error, "Unable to update the assignment.");
   }
-  revalidatePath("/admin/fields/work-orders");
 }
 
-export async function acknowledgeWorkOrderAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") || "");
-  if (!id) return;
+export async function acknowledgeWorkOrderAction(id: string, expectedUpdatedAt: string): Promise<WorkOrderActionResult> {
   try {
-    if (!(await assertIssueInScope(id))) return;
-    const session = await resolveSession();
-    const actor = session.kind === "active" ? session.context?.userId ?? null : null;
-    await acknowledgeWorkOrder(id, actor);
-  } catch {
-    // Unchanged.
+    const { ctx, order } = await authorizeOrder(id);
+    if (order.assignedToUserId && order.assignedToUserId !== ctx.userId && !canManageVenueSettings(ctx)) {
+      throw new PermissionDeniedError("This work order is assigned to another teammate.");
+    }
+    const updated = await acknowledgeWorkOrder(id, assertActorUserId(ctx.userId), expectedUpdatedAt);
+    await auditWorkOrder(updated, ctx, "work_order.acknowledged");
+    revalidateWorkOrder(updated);
+    return { ok: true, message: "Responsibility acknowledged." };
+  } catch (error) {
+    return failure(error, "Unable to acknowledge the work order.");
   }
-  revalidatePath("/admin/fields/work-orders");
 }
 
-export async function resolveWorkOrderAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") || "");
-  if (!id) return;
+export async function startWorkOrderAction(id: string, expectedUpdatedAt: string): Promise<WorkOrderActionResult> {
   try {
-    if (!(await assertIssueInScope(id))) return;
-    await resolveWorkOrder(id, String(formData.get("resolution_notes") || "") || null);
-  } catch {
-    // Unchanged.
+    const { ctx, order } = await authorizeOrder(id);
+    if (order.acknowledgedBy && order.acknowledgedBy !== ctx.userId && !canManageVenueSettings(ctx)) {
+      throw new PermissionDeniedError("Another teammate acknowledged this work order.");
+    }
+    const updated = await startWorkOrder(id, expectedUpdatedAt);
+    await auditWorkOrder(updated, ctx, "work_order.started");
+    revalidateWorkOrder(updated);
+    return { ok: true, message: "Work started." };
+  } catch (error) {
+    return failure(error, "Unable to start the work order.");
   }
-  revalidatePath("/admin/fields/work-orders");
+}
+
+export async function resolveWorkOrderAction(id: string, expectedUpdatedAt: string, resolutionNote: string): Promise<WorkOrderActionResult> {
+  try {
+    const { ctx, order } = await authorizeOrder(id);
+    if (order.assignedToUserId && order.assignedToUserId !== ctx.userId && !canManageVenueSettings(ctx)) {
+      throw new PermissionDeniedError("Another teammate owns this work order.");
+    }
+    const note = resolutionNote.trim();
+    const updated = await resolveWorkOrder(id, expectedUpdatedAt, note || null);
+    await auditWorkOrder(updated, ctx, "work_order.resolved", { resolution_note: note || null });
+    revalidateWorkOrder(updated);
+    return { ok: true, message: "Work order resolved." };
+  } catch (error) {
+    return failure(error, "Unable to resolve the work order.");
+  }
+}
+
+export async function escalateWorkOrderAction(id: string, expectedUpdatedAt: string): Promise<WorkOrderActionResult> {
+  try {
+    const { ctx } = await authorizeOrder(id, true);
+    const updated = await escalateWorkOrder(id, expectedUpdatedAt);
+    await auditWorkOrder(updated, ctx, "work_order.escalated");
+    revalidateWorkOrder(updated);
+    return { ok: true, message: "Flagged as urgent for venue management." };
+  } catch (error) {
+    return failure(error, "Unable to escalate the work order.");
+  }
+}
+
+export async function addWorkOrderNoteAction(id: string, noteValue: string): Promise<WorkOrderActionResult> {
+  try {
+    const { ctx, order } = await authorizeOrder(id);
+    const note = noteValue.trim().slice(0, 1000);
+    if (!note) return { ok: false, message: "Write a note before saving." };
+    await auditWorkOrder(order, ctx, "work_order.note_added", { note });
+    revalidateWorkOrder(order);
+    return { ok: true, message: "Note added to history." };
+  } catch (error) {
+    return failure(error, "Unable to add the note.");
+  }
+}
+
+export async function reopenWorkOrderAction(id: string, expectedUpdatedAt: string): Promise<WorkOrderActionResult> {
+  try {
+    const { ctx } = await authorizeOrder(id, true);
+    const updated = await reopenWorkOrder(id, expectedUpdatedAt);
+    await auditWorkOrder(updated, ctx, "work_order.reopened");
+    revalidateWorkOrder(updated);
+    return { ok: true, message: "Work order reopened." };
+  } catch (error) {
+    return failure(error, "Unable to reopen the work order.");
+  }
 }

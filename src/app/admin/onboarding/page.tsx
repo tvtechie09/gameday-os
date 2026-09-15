@@ -64,7 +64,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
           </p>
           {Number(sp.boards ?? 0) > 0 || Number(sp.cameras ?? 0) > 0 ? (
             <p className="mt-2 text-xs font-semibold text-emerald-800">
-              Devices are registered but not yet reporting — the Command Center will show them as
+              Devices are registered but not yet reporting — Fields and Venue Systems will show them as
               &ldquo;registered, none reporting yet&rdquo; until they&rsquo;re installed and online. That&rsquo;s honest, not broken.
             </p>
           ) : null}
@@ -75,8 +75,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link className="inline-flex min-h-10 items-center rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" href="/admin/command-center">Open Command Center</Link>
+            <Link className="inline-flex min-h-10 items-center rounded-lg bg-[var(--accent)] px-4 text-sm font-black text-white" href={`/admin/pilot-launch?venueId=${sp.venue ?? ""}`}>Continue to Pilot Launch</Link>
+            <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/today">Open Today</Link>
             <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/fields">Fields &amp; QR codes</Link>
+            {sp.demo === "1" ? <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/demo">Prepare demo</Link> : null}
             <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/billing">Billing</Link>
             <Link className="inline-flex min-h-10 items-center rounded-lg border border-[var(--line)] bg-white px-4 text-sm font-bold" href="/admin/onboarding">Onboard another</Link>
           </div>

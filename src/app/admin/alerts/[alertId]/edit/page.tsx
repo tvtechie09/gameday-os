@@ -5,6 +5,9 @@ import { alertPriorities, alertScopes, alertTypes, alertVisibilities, getAlert, 
 import { getTournaments } from "@/lib/services/tournaments";
 import { assertOrganizationInScope, assertVenueInScope, getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { readAlertFormData } from "../../form-utils";
+import { canSendAnnouncement } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 
 type EditAlertPageProps = {
   params: Promise<{ alertId: string }>;
@@ -17,12 +20,16 @@ function toDateTimeLocal(value: string) {
 export const dynamic = "force-dynamic";
 
 export default async function EditAlertPage({ params }: EditAlertPageProps) {
+  const ctx = await getSessionContext();
+  if (!canSendAnnouncement(ctx)) redirect(getRoleHome(ctx));
   const { alertId } = await params;
   const [alert, scoped, tournaments] = await Promise.all([getAlert(alertId), getScopedVenuesAndFields(), getTournaments()]);
   const { venues, fields } = scoped;
 
   async function updateAlertAction(formData: FormData) {
     "use server";
+    const actingCtx = await getSessionContext();
+    if (!canSendAnnouncement(actingCtx)) redirect(getRoleHome(actingCtx));
 
     const parsed = readAlertFormData(formData);
     if ("error" in parsed) {
@@ -103,12 +110,13 @@ export default async function EditAlertPage({ params }: EditAlertPageProps) {
             </select>
           </label>
           <label className="grid gap-2">
-            <span className="text-sm font-bold">Visibility</span>
+            <span className="text-sm font-bold">Audience</span>
             <select className="min-h-11 rounded-lg border border-[var(--line)] bg-white px-3 text-base" defaultValue={alert.alertVisibility} name="alert_visibility" required>
-              {alertVisibilities.map((visibility) => <option key={visibility} value={visibility}>{visibility.replace("_", " ")}</option>)}
+              {alertVisibilities.map((visibility) => <option key={visibility} value={visibility}>{visibility === "public" ? "Family and public" : "Venue staff only"}</option>)}
             </select>
           </label>
         </div>
+        <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-900">Family and public announcements appear only for families with a relevant event at this venue, field, or tournament during the publish window.</p>
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="grid gap-2">
             <span className="text-sm font-bold">Venue</span>

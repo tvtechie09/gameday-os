@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { bulkUpdateSessions, deleteSessions, duplicateSessionsToDate } from "@/lib/services/sessions";
 import type { Session } from "@/lib/types";
+import { requireScheduleAccess } from "@/lib/access/schedule-authorization";
 
 export type BulkActionResult = {
   count?: number;
@@ -52,6 +53,7 @@ export async function bulkUpdateSessionsAction(formData: FormData): Promise<Bulk
   }
 
   try {
+    await requireScheduleAccess({ sessionIds, fieldIds: fieldId ? [fieldId] : [] });
     const count = await bulkUpdateSessions({
       sessionIds,
       status: status ? status as Session["status"] : null,
@@ -79,6 +81,7 @@ export async function duplicateSessionsAction(formData: FormData): Promise<BulkA
   }
 
   try {
+    await requireScheduleAccess({ sessionIds });
     const count = await duplicateSessionsToDate({
       sessionIds,
       target_date: targetDate,
@@ -103,6 +106,7 @@ export async function bulkDeleteSessionsAction(formData: FormData): Promise<Bulk
   }
 
   try {
+    await requireScheduleAccess({ sessionIds });
     const count = await deleteSessions(sessionIds);
     revalidateSessionSurfaces();
     return { count };

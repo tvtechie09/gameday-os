@@ -2,16 +2,19 @@ import Link from "next/link";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getExternalSources } from "@/lib/services/external-sources";
 import { getSessions } from "@/lib/services/sessions";
+import { getSyncJobs, getSyncQueueItems } from "@/lib/services/sync-engine";
 import { CalendarImportAdapter } from "./calendar-import-adapter";
 import { IntegrationFrameworkConsole } from "./integration-framework-console";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage() {
-  const [{ venues, fields }, sessions, sources] = await Promise.all([
+  const [{ venues, fields }, sessions, sources, syncJobs, queueItems] = await Promise.all([
     getScopedVenuesAndFields(),
     getSessions(),
     getExternalSources(),
+    getSyncJobs(),
+    getSyncQueueItems("all"),
   ]);
 
   return (
@@ -20,9 +23,10 @@ export default async function IntegrationsPage() {
         <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent-strong)]">Admin-only</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Integration Framework</h1>
         <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[var(--muted)]">
-          Manage real provider connections, credential readiness, sync runs, webhooks, logs, and future connector mappings. Weather is registered as an existing working provider; SportsEngine is ready for OAuth credentials.
+          Connect providers, map their data, review sync health, and resolve conflicts while each provider remains its system of record. Weather is live; SportsEngine schedule sync is credential-ready. Registration, payments, forms, scorebooks, and streams stay provider-owned.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
+          <Link className="ui-button ui-button-primary min-h-11" href="/admin/integrations/quality">Provider Health &amp; Data Quality</Link>
           <Link className="ui-button ui-button-secondary min-h-11" href="/admin/integrations/daktronics">Daktronics Read-Only</Link>
           <Link className="ui-button ui-button-secondary min-h-11" href="/admin/integrations/sportsengine">SportsEngine</Link>
         </div>
@@ -41,10 +45,11 @@ export default async function IntegrationsPage() {
         <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[var(--muted)]">
           Import from a calendar feed or a CSV export — SportsEngine, TeamSnap, LeagueApps, or anything
           that publishes a feed. No credentials required. Every event is matched to a field before it
-          is imported, and re-importing the same feed updates rather than duplicates.
+          is imported, and re-importing the same feed updates rather than duplicates. The provider
+          remains authoritative; GameDay adds venue operations and explicit conflict resolution.
         </p>
       </section>
-      <CalendarImportAdapter fields={fields} sessions={sessions} sources={sources} venues={venues} />
+      <CalendarImportAdapter fields={fields} pendingReviewCount={queueItems.filter((item) => item.reviewStatus === "pending" || item.reviewStatus === "approved").length} sessions={sessions} sources={sources} syncJobs={syncJobs} venues={venues} />
 
       <IntegrationFrameworkConsole defaultActorUserId={process.env.NEXT_PUBLIC_GAMEDAY_ADMIN_ACTOR_USER_ID ?? ""} venues={venues} />
     </main>

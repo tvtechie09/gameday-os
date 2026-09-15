@@ -45,6 +45,22 @@ test("a scheduled-but-never-played day is not a 100% on-time win", () => {
   assert.equal(r.onTimeRate, 0); // no games run => no credit claimed
 });
 
+test("recorded first pitch drives retrospective on-time claims when lifecycle history is available", () => {
+  const early = game({ id: "early", status: "final", startTime: minsAgo(200) });
+  const late = game({ id: "late", status: "final", startTime: minsAgo(200) });
+  const unmeasured = game({ id: "unmeasured", status: "final", startTime: minsAgo(200) });
+  const r = buildImpactReport(input({
+    games: [early, late, unmeasured],
+    actuals: new Map([
+      ["early", { startedAt: minsAgo(198), finalAt: minsAgo(100) }],
+      ["late", { startedAt: minsAgo(180), finalAt: minsAgo(80) }],
+    ]),
+  }));
+  assert.equal(r.gamesRun, 2);
+  assert.equal(r.gamesBehind, 1);
+  assert.equal(r.gamesOnTime, 1);
+});
+
 test("sponsor delivery rate is capped and never divides by zero", () => {
   const over = buildImpactReport(input({ sponsorPlacementsDelivered: 400, sponsorContracted: 324 }));
   assert.equal(over.sponsorDeliveryRate, 1); // over-delivery caps at 100%
