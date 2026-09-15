@@ -48,6 +48,9 @@ const PUBLIC_CONTENT_PREFIXES = [
 ];
 
 function isPublicContent(pathname: string): boolean {
+  // The general demo showcase is public, but the NLSA tenant is deliberately
+  // private and must pass normal Supabase Auth plus its server-side role guard.
+  if (pathname === "/demo/nlsa" || pathname.startsWith("/demo/nlsa/")) return false;
   if (pathname.startsWith("/api/venues/") && pathname.endsWith("/mode")) return true;
   return PUBLIC_CONTENT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 }
