@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData();
   const key = String(form.get("user") ?? "");
+  const requestedNext = String(form.get("next") ?? "");
   const demoUser = findDemoUserByKey(key);
 
   if (!demoUser) {
@@ -46,7 +47,14 @@ export async function POST(request: NextRequest) {
     venueId: null,
     venueName: demoUser.venueName,
   });
-  const response = NextResponse.redirect(new URL(getRoleHome(ctx), request.url));
+  // Preserve a private deep link through dev login, but accept only a local
+  // absolute path so the form cannot become an open redirect.
+  const safeNext = requestedNext.startsWith("/") && !requestedNext.startsWith("//")
+    ? requestedNext
+    : getRoleHome(ctx);
+  // Form submission must become a GET at the destination. The default 307
+  // preserves POST and leaves browser-based demo login stuck on the selector.
+  const response = NextResponse.redirect(new URL(safeNext, request.url), 303);
   response.cookies.set(sessionCookieName, sessionCookie, { httpOnly: true, sameSite: "lax", path: "/" });
   // Starting a fresh session ends any prior impersonation.
   response.cookies.delete(impersonatorCookieName);

@@ -30,6 +30,10 @@ const rolePriority = [
   "tournament_director",
   "venue_tech_manager",
   "venue_staff",
+  "organization_admin",
+  "league_staff",
+  "coach",
+  "parent",
 ];
 
 function primaryRole(keys: string[]): string {

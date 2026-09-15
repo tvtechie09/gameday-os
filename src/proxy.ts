@@ -6,6 +6,7 @@ import { getRoleHome, guardForAdminPath } from "@/lib/access/navigation";
 import { decodeSession, sessionCookieName } from "@/lib/access/session-cookie";
 import { createSupabaseMiddlewareClient } from "@/lib/supabase/auth-middleware";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { canAccessNlsaExperience, getNlsaHome, nlsaExperienceForPath } from "@/lib/demo/nlsa-access";
 
 function isAlwaysPublic(pathname: string): boolean {
   return pathname === "/login"
@@ -42,6 +43,9 @@ const PUBLIC_CONTENT_PREFIXES = [
 ];
 
 function isPublicContent(pathname: string): boolean {
+  // The deterministic Crossroads showcase remains public. The NLSA tenant is
+  // private and must pass the same Auth + canonical role resolution as the app.
+  if (pathname === "/demo/nlsa" || pathname.startsWith("/demo/nlsa/")) return false;
   if (pathname.startsWith("/api/venues/") && pathname.endsWith("/mode")) return true;
   return PUBLIC_CONTENT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 }
@@ -81,6 +85,22 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!ctx) {
+    return NextResponse.redirect(new URL("/no-access", request.url));
+  }
+
+  // Dedicated demo identities remain in their tenant experience on all
+  // authenticated app routes. Public showcases are intentionally public and
+  // contain no private tenant data, but /org, /today, and /admin never become a
+  // side door into another product surface.
+  const nlsaHome = getNlsaHome(ctx);
+  if (nlsaHome && pathname !== "/demo/nlsa" && !pathname.startsWith("/demo/nlsa/")) {
+    const home = new URL(nlsaHome, request.url);
+    home.searchParams.set("denied", pathname);
+    return NextResponse.redirect(home);
+  }
+
+  const nlsaExperience = nlsaExperienceForPath(pathname);
+  if (nlsaExperience && !canAccessNlsaExperience(ctx, nlsaExperience)) {
     return NextResponse.redirect(new URL("/no-access", request.url));
   }
 

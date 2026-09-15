@@ -20,7 +20,7 @@ export default async function NoAccessPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-12 text-center sm:px-6">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">GameDay OS</p>
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">Nurve Sports Operations</p>
       <h1 className="mt-2 text-2xl font-black leading-tight text-[var(--foreground)]">No access assigned</h1>
       <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
         You&apos;re signed in{email ? <> as <span className="font-bold">{email}</span></> : null}, but no role has been
