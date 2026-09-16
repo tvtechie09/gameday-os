@@ -35,8 +35,10 @@ test("Venue OS has deterministic ESM and type-validation gates", () => {
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
 });
 
-test("Venue OS pins the patched PostCSS security line", () => {
-  assert.equal(packageJson.overrides.postcss, "^8.5.10");
+test("Venue OS pins patched web and auth dependency lines", () => {
+  assert.equal(packageJson.overrides.postcss, "^8.5.23");
+  assert.equal(packageJson.dependencies.next, "^16.3.3");
+  assert.equal(packageJson.dependencies["@supabase/ssr"], "^0.12.7");
 });
 
 test("admin layout delegates to the capability-filtered AppFrame", () => {
