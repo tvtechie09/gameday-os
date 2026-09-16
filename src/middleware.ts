@@ -77,13 +77,19 @@ export async function middleware(request: NextRequest) {
   // (dev/staging only).
   const devPayload = devLogin ? await decodeSession(request.cookies.get(sessionCookieName)?.value) : null;
 
-  // Real auth: verify the Supabase user server-side.
+  // Authenticated responses must never be reused by the CDN for another
+  // request. Supabase also supplies refresh-specific cache headers through the
+  // middleware client's setAll callback.
+  response.headers.set("Cache-Control", "private, no-store");
+
+  // Real auth: validate the signed claims server-side. Supabase's SSR guidance
+  // requires getClaims() in the request proxy so browser and server token state
+  // stay synchronized across consecutive navigations.
   let authedUser: { id: string } | null = null;
   if (supabase) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    authedUser = user ? { id: user.id } : null;
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const subject = claimsData?.claims.sub;
+    authedUser = typeof subject === "string" ? { id: subject } : null;
   }
 
   if (!devPayload && !authedUser) {
