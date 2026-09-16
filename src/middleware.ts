@@ -79,18 +79,16 @@ export async function middleware(request: NextRequest) {
 
   // Authenticated responses must never be reused by the CDN for another
   // request. Supabase also supplies refresh-specific cache headers through the
-  // middleware client's setAll callback.
-  // Real auth: validate the signed claims server-side. Supabase's SSR guidance
-  // requires getClaims() in the request proxy so browser and server token state
-  // stay synchronized across consecutive navigations.
+  // middleware client's setAll callback. getUser() verifies the access token
+  // with Supabase Auth; the extra network hop is acceptable for this protected
+  // pilot and avoids relying on an edge-local claims refresh path.
   let authedUser: { id: string } | null = null;
   if (supabase) {
-    const { data: claimsData } = await supabase.auth.getClaims();
-    const subject = claimsData?.claims.sub;
-    authedUser = typeof subject === "string" ? { id: subject } : null;
+    const { data } = await supabase.auth.getUser();
+    authedUser = data.user ? { id: data.user.id } : null;
   }
 
-  // getClaims() may refresh the token and replace the middleware response.
+  // Auth validation may refresh the token and replace the middleware response.
   // Resolve it only after authentication so Set-Cookie and request-cookie
   // forwarding are not lost.
   const response = getResponse();

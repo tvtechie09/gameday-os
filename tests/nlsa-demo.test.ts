@@ -40,7 +40,7 @@ test("NLSA routes are private and map to one explicit experience", () => {
   const authServer = readFileSync(new URL("../src/lib/supabase/auth-server.ts", import.meta.url), "utf8");
   assert.match(middleware, /pathname === "\/demo\/nlsa"/);
   assert.match(middleware, /return false/);
-  assert.match(middleware, /auth\.getClaims\(\)/);
+  assert.match(middleware, /auth\.getUser\(\)/);
   assert.match(middleware, /const response = getResponse\(\)/);
   assert.match(authMiddleware, /getResponse: \(\) => response/);
   assert.match(middleware, /Cache-Control", "private, no-store"/);
