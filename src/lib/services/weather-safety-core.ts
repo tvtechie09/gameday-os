@@ -66,7 +66,7 @@ export type WeatherSafetyMutationPlan = {
 
 export type WeatherSafetyDenied = {
   ok: false;
-  reason: "not_authorized" | "scope_mismatch" | "incident_not_active";
+  reason: "not_authorized" | "scope_mismatch" | "incident_not_active" | "missing_prior_state";
 };
 
 export type WeatherSafetyPlanned = {
@@ -167,6 +167,13 @@ export function planLightningAllClear(input: ClearLightningHoldInput): WeatherSa
     return { ok: false, reason: "incident_not_active" };
   }
 
+  const hasCompleteRecoverySnapshot = input.incident.affectedFieldIds.every((fieldId) =>
+    Object.prototype.hasOwnProperty.call(input.incident.priorFieldStates, fieldId),
+  );
+  if (!hasCompleteRecoverySnapshot) {
+    return { ok: false, reason: "missing_prior_state" };
+  }
+
   const incident: WeatherSafetyIncident = {
     ...input.incident,
     status: "cleared",
@@ -184,7 +191,7 @@ export function planLightningAllClear(input: ClearLightningHoldInput): WeatherSa
       incident,
       fieldUpdates: input.incident.affectedFieldIds.map((fieldId) => ({
         fieldId,
-        status: input.incident.priorFieldStates[fieldId] ?? "open",
+        status: input.incident.priorFieldStates[fieldId],
       })),
       sessionOverlays: input.incident.affectedSessionIds.map((sessionId) => ({ sessionId, hold: false })),
     },
