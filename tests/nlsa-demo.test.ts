@@ -58,6 +58,16 @@ test("dev-login preserves a safe NLSA deep link and redirects after POST as GET"
   assert.match(route, /NextResponse\.redirect\(new URL\(safeNext, request\.url\), 303\)/);
 });
 
+test("normal login is completed server-side so hosted auth cookies are durable", () => {
+  const form = readFileSync(new URL("../src/components/auth/login-form.tsx", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../src/app/api/auth/login/route.ts", import.meta.url), "utf8");
+  assert.match(form, /fetch\("\/api\/auth\/login"/);
+  assert.doesNotMatch(form, /signInWithPassword\(\{ email, password \}\)/);
+  assert.match(route, /supabase\.auth\.signInWithPassword\(\{ email, password \}\)/);
+  assert.match(route, /response\.cookies\.set\(name, value, options\)/);
+  assert.match(route, /Cache-Control", "private, no-store"/);
+});
+
 test("NLSA role matrix allows only the intended positive paths", () => {
   const owner = actor("owner");
   const staff = actor("staff");
