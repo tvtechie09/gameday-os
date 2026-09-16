@@ -24,6 +24,7 @@ import {
   isPlatformAdmin,
   type AccessContext,
 } from "./capabilities.ts";
+import { getNlsaHome } from "../demo/nlsa-access.ts";
 
 export type NavGroupKey = "operations" | "admin";
 
@@ -134,6 +135,10 @@ export function getRoleHome(ctx: AccessContext | null): string {
   }
   if (isPlatformAdmin(ctx)) {
     return "/admin";
+  }
+  const nlsaHome = getNlsaHome(ctx);
+  if (nlsaHome) {
+    return nlsaHome;
   }
   // Before canViewCommandCenter: an org-scoped ctx can satisfy that permission
   // check (organization_admin) but has no venueId to render it for -- see the

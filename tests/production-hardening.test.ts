@@ -8,7 +8,7 @@ const adminLayout = readFileSync(new URL("../src/app/admin/layout.tsx", import.m
 const apiRequest = readFileSync(new URL("../src/lib/api-request.ts", import.meta.url), "utf8");
 const publicWriteRoutes = ["field-page-views", "follows", "sponsor-analytics/clicks", "sponsor-analytics/impressions", "resource-activations"].map((route) => readFileSync(new URL(`../src/app/api/${route}/route.ts`, import.meta.url), "utf8"));
 const liveReadRoutes = ["display/venue/[venueId]", "scoreboard/field/[fieldId]", "scoreboard/session/[sessionId]", "venues/[venueId]/mode", "weather/venue/[venueId]"].map((route) => readFileSync(new URL(`../src/app/api/${route}/route.ts`, import.meta.url), "utf8"));
-const middleware = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
+const middleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
 const serverAuth = readFileSync(new URL("../src/lib/supabase/server-auth.ts", import.meta.url), "utf8");
 const protectedAdminRoutes = [
   "automations/route.ts",
@@ -35,8 +35,10 @@ test("Venue OS has deterministic ESM and type-validation gates", () => {
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
 });
 
-test("Venue OS pins the patched PostCSS security line", () => {
-  assert.equal(packageJson.overrides.postcss, "^8.5.10");
+test("Venue OS pins patched web and auth dependency lines", () => {
+  assert.equal(packageJson.overrides.postcss, "^8.5.23");
+  assert.equal(packageJson.dependencies.next, "^16.3.3");
+  assert.equal(packageJson.dependencies["@supabase/ssr"], "^0.12.7");
 });
 
 test("admin layout delegates to the capability-filtered AppFrame", () => {

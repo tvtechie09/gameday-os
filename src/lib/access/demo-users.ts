@@ -11,6 +11,9 @@ import type { ExperienceRoleKey } from "./catalog";
 // real name (Crossroads Test Complex) so the sidebar and page headers agree.
 export const flagshipVenueDisplayName = "Crossroads Test Complex";
 export const platformScopeSentinel = "00000000-0000-0000-0000-000000000000";
+export const nlsaOrganizationId = "6e1a0000-0000-4000-8000-000000000001";
+export const nlsaTeamId = "6e1a0000-0000-4000-8000-000000000101";
+export const nlsaFamilyId = "6e1a0000-0000-4000-8000-000000000201";
 
 export type DemoUser = {
   id: string;
@@ -82,6 +85,50 @@ export const demoUsers: DemoUser[] = [
     scopeId: "crossroads-summer-classic",
     venueName: flagshipVenueDisplayName,
     blurb: "Tournament schedule, brackets, games, and announcements. Not venue hardware admin, not billing.",
+  },
+  {
+    id: "6e1a0000-0000-4000-8000-000000000011",
+    key: "nlsa.owner",
+    email: "president@newlenox.soccer",
+    displayName: "NLSA Organization Owner",
+    roleKey: "organization_admin",
+    scopeType: "organization",
+    scopeId: nlsaOrganizationId,
+    venueName: "New Lenox Soccer Association — Demo",
+    blurb: "NLSA-only organization status, match impacts, staffing, alerts, and provenance. No platform administration.",
+  },
+  {
+    id: "6e1a0000-0000-4000-8000-000000000012",
+    key: "nlsa.staff",
+    email: "nlsa.staff@gamedayos.test",
+    displayName: "NLSA Operations Staff",
+    roleKey: "league_staff",
+    scopeType: "organization",
+    scopeId: nlsaOrganizationId,
+    venueName: "New Lenox Soccer Association — Demo",
+    blurb: "NLSA schedule and operations coverage without owner, identity, or platform controls.",
+  },
+  {
+    id: "6e1a0000-0000-4000-8000-000000000013",
+    key: "nlsa.coach",
+    email: "nlsa.coach@gamedayos.test",
+    displayName: "NLSA U12 Coach",
+    roleKey: "coach",
+    scopeType: "team",
+    scopeId: nlsaTeamId,
+    venueName: "NLSA U12 Green",
+    blurb: "One team, one next match, and only the arrival and pitch updates that affect that team.",
+  },
+  {
+    id: "6e1a0000-0000-4000-8000-000000000014",
+    key: "nlsa.parent",
+    email: "nlsa.parent@gamedayos.test",
+    displayName: "NLSA Parent / Guardian",
+    roleKey: "parent",
+    scopeType: "family",
+    scopeId: nlsaFamilyId,
+    venueName: "NLSA U12 Green",
+    blurb: "Family-safe match destination, timing, alerts, and arrival information only.",
   },
 ];
 
