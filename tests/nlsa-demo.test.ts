@@ -120,6 +120,17 @@ test("NLSA identities land inside their least-privilege experience", () => {
   assert.match(admin, /redirect\(getRoleHome\(ctx\)\)/);
 });
 
+test("NLSA identities cannot enter shared venue, organization, or admin workspaces", () => {
+  const appFrame = readFileSync(new URL("../src/components/access/app-frame.tsx", import.meta.url), "utf8");
+  assert.match(appFrame, /import \{ getNlsaHome \} from "@\/lib\/demo\/nlsa-access"/);
+  assert.match(appFrame, /const nlsaHome = getNlsaHome\(ctx\)/);
+  assert.match(appFrame, /if \(nlsaHome\) \{[\s\S]*redirect\(nlsaHome\)/);
+  assert.ok(
+    appFrame.indexOf("redirect(nlsaHome)") < appFrame.indexOf("buildNavigation(ctx)"),
+    "NLSA containment must run before shared workspace navigation is built",
+  );
+});
+
 test("the disruption scenario is deterministic, scoped, and reversible by URL", () => {
   const normal = getNlsaScenario(undefined);
   const disrupted = getNlsaScenario("lightning");

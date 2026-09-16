@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { buildNavigation } from "@/lib/access/navigation";
 import { getImpersonatorContext, resolveSession } from "@/lib/access/session";
+import { getNlsaHome } from "@/lib/demo/nlsa-access";
 import { AppShell } from "./app-shell";
 import { ImpersonationBanner } from "./impersonation-banner";
 
@@ -16,6 +17,10 @@ export async function AppFrame({ children }: Readonly<{ children: React.ReactNod
     redirect("/no-access");
   }
   const ctx = resolved.context;
+  const nlsaHome = getNlsaHome(ctx);
+  if (nlsaHome) {
+    redirect(nlsaHome);
+  }
 
   const [navGroups, impersonator] = await Promise.all([
     Promise.resolve(buildNavigation(ctx)),
