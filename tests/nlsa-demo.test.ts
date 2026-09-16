@@ -35,17 +35,21 @@ function actor(key: keyof typeof identities): AccessContext {
 }
 
 test("NLSA routes are private and map to one explicit experience", () => {
-  const middleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
+  const runtimeMiddleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
+  const nlsaMiddleware = readFileSync(new URL("../src/lib/supabase/nlsa-middleware.ts", import.meta.url), "utf8");
   const authMiddleware = readFileSync(new URL("../src/lib/supabase/auth-middleware.ts", import.meta.url), "utf8");
   const authServer = readFileSync(new URL("../src/lib/supabase/auth-server.ts", import.meta.url), "utf8");
-  assert.match(middleware, /pathname === "\/demo\/nlsa"/);
-  assert.match(middleware, /return false/);
-  assert.match(middleware, /auth\.getUser\(\)/);
-  assert.match(middleware, /hasSupabaseAuthCookie\(request\)/);
-  assert.match(middleware, /name\.includes\("-auth-token"\) && value\.length > 0/);
-  assert.match(middleware, /const response = getResponse\(\)/);
+  assert.match(runtimeMiddleware, /protectNlsaRoute/);
+  assert.match(runtimeMiddleware, /request\.nextUrl\.pathname === "\/demo\/nlsa"/);
+  assert.match(runtimeMiddleware, /"\/demo\/nlsa\/:path\*"/);
+  assert.match(nlsaMiddleware, /createSupabaseMiddlewareClient\(request\)/);
+  assert.match(nlsaMiddleware, /supabase\.auth\.getUser\(\)/);
+  assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
+  assert.match(nlsaMiddleware, /hasSupabaseAuthCookie\(request\)/);
+  assert.match(nlsaMiddleware, /name\.includes\("-auth-token"\) && value\.length > 0/);
+  assert.match(nlsaMiddleware, /const response = getResponse\(\)/);
   assert.match(authMiddleware, /getResponse: \(\) => response/);
-  assert.match(middleware, /Cache-Control", "private, no-store"/);
+  assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
   assert.match(authMiddleware, /setAll\(cookiesToSet, headersToSet\)/);
   assert.doesNotMatch(authMiddleware, /encode: "tokens-only"/);
   assert.doesNotMatch(authMiddleware, /value\.length > 0 && options\.maxAge !== 0/);
