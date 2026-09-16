@@ -13,7 +13,9 @@ function hasSupabaseAuthCookie(request: NextRequest): boolean {
 export async function protectNlsaRoute(request: NextRequest) {
   const devLogin = isDevLoginEnabled();
   const devPayload = devLogin ? await decodeSession(request.cookies.get(sessionCookieName)?.value) : null;
-  const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
+  const { supabase, getResponse } = createSupabaseMiddlewareClient(request, {
+    preserveAuthCookiesOnDeletionOnly: true,
+  });
 
   let authedUser: { id: string } | null = null;
   if (supabase && hasSupabaseAuthCookie(request)) {

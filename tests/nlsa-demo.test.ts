@@ -42,7 +42,8 @@ test("NLSA routes are private and map to one explicit experience", () => {
   assert.match(runtimeMiddleware, /protectNlsaRoute/);
   assert.match(runtimeMiddleware, /request\.nextUrl\.pathname === "\/demo\/nlsa"/);
   assert.match(runtimeMiddleware, /"\/demo\/nlsa\/:path\*"/);
-  assert.match(nlsaMiddleware, /createSupabaseMiddlewareClient\(request\)/);
+  assert.match(nlsaMiddleware, /createSupabaseMiddlewareClient\(request, \{/);
+  assert.match(nlsaMiddleware, /preserveAuthCookiesOnDeletionOnly: true/);
   assert.match(nlsaMiddleware, /supabase\.auth\.getUser\(\)/);
   assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
   assert.match(nlsaMiddleware, /hasSupabaseAuthCookie\(request\)/);
@@ -52,8 +53,10 @@ test("NLSA routes are private and map to one explicit experience", () => {
   assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
   assert.match(authMiddleware, /setAll\(cookiesToSet, headersToSet\)/);
   assert.doesNotMatch(authMiddleware, /encode: "tokens-only"/);
-  assert.doesNotMatch(authMiddleware, /value\.length > 0 && options\.maxAge !== 0/);
-  assert.match(authMiddleware, /for \(const \{ name, value \} of cookiesToSet\)/);
+  assert.match(authMiddleware, /hasAuthSessionWrite/);
+  assert.match(authMiddleware, /effectiveCookies/);
+  assert.match(authMiddleware, /preserveAuthCookiesOnDeletionOnly/);
+  assert.match(authMiddleware, /for \(const \{ name, value \} of effectiveCookies\)/);
   assert.match(authMiddleware, /Object\.entries\(headersToSet\)/);
   assert.match(authServer, /auth\.getClaims\(\)/);
   assert.doesNotMatch(authServer, /encode: "tokens-only"/);
