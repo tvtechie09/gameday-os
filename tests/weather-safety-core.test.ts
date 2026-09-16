@@ -91,6 +91,21 @@ test("all clear restores exact prior field states and removes only the session h
   assert.deepEqual(result.plan.incident.sessionLifecycleStates, { "game-1": "active", "game-2": "scheduled" });
 });
 
+test("all clear fails closed instead of guessing open when a prior field snapshot is missing", () => {
+  const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
+  const corrupted: WeatherSafetyIncident = {
+    ...incident,
+    priorFieldStates: { "field-open": "open" },
+  };
+  const result = planLightningAllClear({
+    incident: corrupted,
+    actorUserId: "gm-2",
+    authorized: true,
+    clearedAt: "2026-09-16T18:30:00.000Z",
+  });
+  assert.deepEqual(result, { ok: false, reason: "missing_prior_state" });
+});
+
 test("delivery failure is audit history only and never rolls back incident truth", () => {
   const hold = requirePlanned(planManualLightningHold(baseInput));
   const afterFailure = recordWeatherSafetyDelivery(hold.incident, {
