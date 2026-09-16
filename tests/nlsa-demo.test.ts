@@ -47,9 +47,9 @@ test("NLSA routes are private and map to one explicit experience", () => {
   assert.match(authMiddleware, /setAll\(cookiesToSet, headersToSet\)/);
   assert.match(authMiddleware, /encode: "tokens-only"/);
   assert.match(authMiddleware, /Object\.entries\(headersToSet\)/);
-  assert.match(authServer, /auth\.getClaims\(\)/);
+  assert.match(authServer, /auth\.getUser\(\)/);
   assert.match(authServer, /encode: "tokens-only"/);
-  assert.doesNotMatch(authServer, /auth\.getUser\(\)/);
+  assert.doesNotMatch(authServer, /auth\.getClaims\(\)/);
   assert.doesNotMatch(authServer, /cookieStore\.set\(/);
   assert.equal(nlsaExperienceForPath("/demo/nlsa/today"), "owner");
   assert.equal(nlsaExperienceForPath("/demo/nlsa/operations"), "operations");
