@@ -4,8 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
 // Cookie-bound Supabase client for React Server Components and route handlers.
-// Reads/writes the Supabase auth cookies via next/headers so auth.getUser()
-// reflects the current signed-in user server-side. Returns null when Supabase
+// Reads/writes the Supabase auth cookies via next/headers so verified claims
+// reflect the current signed-in user server-side. Returns null when Supabase
 // env is not configured so the app still builds/runs without credentials.
 export async function getSupabaseAuthServerClient(): Promise<SupabaseClient<Database> | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,19 +37,20 @@ export async function getSupabaseAuthServerClient(): Promise<SupabaseClient<Data
   });
 }
 
-// Resolve the authenticated Supabase user (verified server-side). Returns null
-// when unconfigured or unauthenticated. Always uses auth.getUser() (contacts
-// the auth server) rather than trusting the client-held session.
+// Resolve the authenticated Supabase user from verified JWT claims. The proxy
+// refreshes the token before Server Components run; validating those claims
+// here avoids a second auth-network call that can try to rotate cookies from a
+// read-only Server Component response.
 export async function getSupabaseAuthUser(): Promise<{ id: string; email: string } | null> {
   const supabase = await getSupabaseAuthServerClient();
   if (!supabase) {
     return null;
   }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const { data } = await supabase.auth.getClaims();
+  const id = data?.claims.sub;
+  const email = data?.claims.email;
+  if (typeof id !== "string" || typeof email !== "string") {
     return null;
   }
-  return { id: user.id, email: user.email ?? "" };
+  return { id, email };
 }

@@ -37,6 +37,7 @@ function actor(key: keyof typeof identities): AccessContext {
 test("NLSA routes are private and map to one explicit experience", () => {
   const middleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
   const authMiddleware = readFileSync(new URL("../src/lib/supabase/auth-middleware.ts", import.meta.url), "utf8");
+  const authServer = readFileSync(new URL("../src/lib/supabase/auth-server.ts", import.meta.url), "utf8");
   assert.match(middleware, /pathname === "\/demo\/nlsa"/);
   assert.match(middleware, /return false/);
   assert.match(middleware, /auth\.getClaims\(\)/);
@@ -45,6 +46,8 @@ test("NLSA routes are private and map to one explicit experience", () => {
   assert.match(middleware, /Cache-Control", "private, no-store"/);
   assert.match(authMiddleware, /setAll\(cookiesToSet, headersToSet\)/);
   assert.match(authMiddleware, /Object\.entries\(headersToSet\)/);
+  assert.match(authServer, /auth\.getClaims\(\)/);
+  assert.doesNotMatch(authServer, /auth\.getUser\(\)/);
   assert.equal(nlsaExperienceForPath("/demo/nlsa/today"), "owner");
   assert.equal(nlsaExperienceForPath("/demo/nlsa/operations"), "operations");
   assert.equal(nlsaExperienceForPath("/demo/nlsa/coach"), "coach");
