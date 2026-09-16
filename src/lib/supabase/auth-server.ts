@@ -31,18 +31,19 @@ export async function getSupabaseAuthServerClient(): Promise<SupabaseClient<Data
   });
 }
 
-// Resolve the authenticated Supabase user through the Auth service. The client
-// is strictly read-only in this Server Component context; middleware remains
-// the sole owner of refresh-cookie persistence.
+// Resolve the authenticated user from cryptographically verified JWT claims.
+// Middleware has already refreshed and remotely verified the session before
+// Server Components run; validating its claims here avoids a second Auth
+// network call from a read-only cookie context.
 export async function getSupabaseAuthUser(): Promise<{ id: string; email: string } | null> {
   const supabase = await getSupabaseAuthServerClient();
   if (!supabase) {
     return null;
   }
-  const { data } = await supabase.auth.getUser();
-  const id = data.user?.id;
-  const email = data.user?.email;
-  if (!id || !email) {
+  const { data } = await supabase.auth.getClaims();
+  const id = data?.claims.sub;
+  const email = data?.claims.email;
+  if (typeof id !== "string" || typeof email !== "string") {
     return null;
   }
   return { id, email };
