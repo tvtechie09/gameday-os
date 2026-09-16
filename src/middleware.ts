@@ -55,6 +55,10 @@ function isPublicContent(pathname: string): boolean {
   return PUBLIC_CONTENT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 }
 
+function hasSupabaseAuthCookie(request: NextRequest): boolean {
+  return request.cookies.getAll().some(({ name, value }) => name.includes("-auth-token") && value.length > 0);
+}
+
 // Server-side login wall + /admin capability guards. Resolves the Supabase user
 // via getUser() (verified server-side); unauthenticated users are redirected to
 // /login. When dev-login is enabled a valid gameday_session cookie also
@@ -83,7 +87,12 @@ export async function middleware(request: NextRequest) {
   // with Supabase Auth; the extra network hop is acceptable for this protected
   // pilot and avoids relying on an edge-local claims refresh path.
   let authedUser: { id: string } | null = null;
-  if (supabase) {
+  // Do not ask the Auth client to recover an absent session. During a login
+  // navigation, a speculative protected request can race ahead of the newly
+  // written browser cookie. Recovering that empty request emits SIGNED_OUT
+  // removals that can erase the valid cookie from the successful sign-in.
+  // Skipping the call remains fail-closed: the request is redirected below.
+  if (supabase && hasSupabaseAuthCookie(request)) {
     const { data } = await supabase.auth.getUser();
     authedUser = data.user ? { id: data.user.id } : null;
   }
