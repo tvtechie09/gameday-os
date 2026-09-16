@@ -40,7 +40,11 @@ export function NlsaHeader({ ctx, active, scenario }: { ctx: AccessContext; acti
               <Link className={`inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-black ${active === link.key ? "bg-emerald-700 text-white" : "border border-slate-200 bg-white text-slate-800"}`} href={`${link.href}${scenarioSuffix}`} key={link.key}>{link.label}</Link>
             ))}
           </nav>
-          <Link className="inline-flex min-h-11 items-center rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-700" href="/logout">Sign out</Link>
+          <form action="/logout" method="post">
+            <button className="inline-flex min-h-11 items-center rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-700" type="submit">
+              Sign out
+            </button>
+          </form>
         </div>
       </div>
     </header>

@@ -72,6 +72,15 @@ test("normal login uses the bounded Supabase SSR cookie flow", () => {
   assert.match(route, /response\.cookies\.set/);
 });
 
+test("NLSA sign-out is POST-only so navigation prefetch cannot revoke the session", () => {
+  const header = readFileSync(new URL("../src/components/nlsa/nlsa-demo.tsx", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../src/app/logout/route.ts", import.meta.url), "utf8");
+  assert.match(header, /<form action="\/logout" method="post">/);
+  assert.doesNotMatch(header, /href="\/logout"/);
+  assert.match(route, /export async function POST\(request: NextRequest\)/);
+  assert.doesNotMatch(route, /export async function GET\(request: NextRequest\)/);
+});
+
 test("NLSA role matrix allows only the intended positive paths", () => {
   const owner = actor("owner");
   const staff = actor("staff");
