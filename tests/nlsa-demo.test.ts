@@ -66,6 +66,7 @@ test("normal login is completed server-side so hosted auth cookies are durable",
   const route = readFileSync(new URL("../src/app/api/auth/login/route.ts", import.meta.url), "utf8");
   assert.match(form, /fetch\("\/api\/auth\/login"/);
   assert.doesNotMatch(form, /signInWithPassword\(\{ email, password \}\)/);
+  assert.match(readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8"), /pathname === "\/api\/auth\/login"/);
   assert.match(route, /supabase\.auth\.signInWithPassword\(\{ email, password \}\)/);
   assert.match(route, /response\.cookies\.set\(name, value, options\)/);
   assert.match(route, /Cache-Control", "private, no-store"/);

@@ -10,6 +10,7 @@ import { createSupabaseMiddlewareClient } from "@/lib/supabase/auth-middleware";
 function isAlwaysPublic(pathname: string): boolean {
   return (
     pathname === "/login" ||
+    pathname === "/api/auth/login" ||
     pathname === "/no-access" ||
     pathname === "/logout" ||
     pathname.startsWith("/auth/")
