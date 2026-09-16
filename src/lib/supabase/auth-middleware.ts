@@ -26,11 +26,17 @@ export function createSupabaseMiddlewareClient(request: NextRequest): {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet, headersToSet) {
-        for (const { name, value } of cookiesToSet) {
+        // Auth validation must not turn a successful request into a logout.
+        // Explicit sign-out owns cookie deletion; middleware only forwards
+        // non-empty session writes (for example, a genuine token refresh).
+        const sessionWrites = cookiesToSet.filter(
+          ({ value, options }) => value.length > 0 && options.maxAge !== 0,
+        );
+        for (const { name, value } of sessionWrites) {
           request.cookies.set(name, value);
         }
         response = NextResponse.next({ request });
-        for (const { name, value, options } of cookiesToSet) {
+        for (const { name, value, options } of sessionWrites) {
           response.cookies.set(name, value, options);
         }
         for (const [name, value] of Object.entries(headersToSet)) {
