@@ -6,7 +6,8 @@ import { impersonationCookieName, impersonatorCookieName, sessionCookieName } fr
 // (sb-*), the legacy dev-login session, and the impersonation snapshot. Then
 // send the user back to the login wall.
 async function handleLogout(request: NextRequest) {
-  const response = NextResponse.redirect(new URL("/login", request.url));
+  // POST-redirect-GET: never replay the logout POST against the login page.
+  const response = NextResponse.redirect(new URL("/login", request.url), 303);
 
   try {
     const supabase = await getSupabaseAuthServerClient();

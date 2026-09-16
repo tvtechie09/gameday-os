@@ -79,6 +79,7 @@ test("NLSA sign-out is POST-only so navigation prefetch cannot revoke the sessio
   assert.doesNotMatch(header, /href="\/logout"/);
   assert.match(route, /export async function POST\(request: NextRequest\)/);
   assert.doesNotMatch(route, /export async function GET\(request: NextRequest\)/);
+  assert.match(route, /NextResponse\.redirect\(new URL\("\/login", request\.url\), 303\)/);
 });
 
 test("NLSA role matrix allows only the intended positive paths", () => {
