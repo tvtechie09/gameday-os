@@ -2,14 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { getSessionContext } from "@/lib/access/session";
-import { canDelayGame, canOpenCloseField, canSendAnnouncement, canStartGame, managesAllVenues, venueInScope, type AccessContext } from "@/lib/access/capabilities";
+import { canDelayGame, canStartGame, managesAllVenues, venueInScope, type AccessContext } from "@/lib/access/capabilities";
 import { getFields, updateFieldStatus } from "@/lib/services/fields";
 import { getVenue } from "@/lib/services/venues";
-import { createAlert } from "@/lib/services/alerts";
 import { getGameById, recordGameStateChange } from "@/lib/game-engine/game-service";
 import { assertTransition } from "@/lib/game-engine/game-lifecycle";
 import { randomUUID } from "crypto";
-import type { FieldStatus } from "@/lib/types";
 
 export type QuickActionResult = { ok: boolean; message: string };
 
@@ -81,49 +79,5 @@ export async function delayGameAction(fieldId: string): Promise<QuickActionResul
     return { ok: true, message: "Field flagged delayed — the hold is now public." };
   } catch {
     return { ok: false, message: "Could not delay the game. Try again." };
-  }
-}
-
-// Open/close a field: toggle its playable status.
-export async function setFieldStatusAction(fieldId: string, status: FieldStatus): Promise<QuickActionResult> {
-  const ctx = await getSessionContext();
-  if (!canOpenCloseField(ctx)) return { ok: false, message: "You don't have permission to change field status." };
-  if (!fieldId) return { ok: false, message: "Pick a field first." };
-  try {
-    if (!(await venueIdInScope(ctx, await venueIdForField(fieldId)))) return OUT_OF_SCOPE;
-    await updateFieldStatus(fieldId, status, ctx?.userId);
-    revalidateToday();
-    return { ok: true, message: "Field marked " + status + "." };
-  } catch {
-    return { ok: false, message: "Could not update the field. Try again." };
-  }
-}
-
-// Send a venue announcement (public alert).
-export async function sendAnnouncementAction(venueId: string, message: string): Promise<QuickActionResult> {
-  const ctx = await getSessionContext();
-  if (!canSendAnnouncement(ctx)) return { ok: false, message: "You don't have permission to send announcements." };
-  const text = message.trim();
-  if (!venueId) return { ok: false, message: "No venue to announce for." };
-  if (text.length < 3) return { ok: false, message: "Write a short message first." };
-  try {
-    if (!(await venueIdInScope(ctx, venueId))) return OUT_OF_SCOPE;
-    const now = new Date();
-    await createAlert({
-      title: "Venue announcement",
-      message: text.slice(0, 500),
-      alert_type: "info",
-      alert_scope: "venue",
-      alert_priority: "normal",
-      alert_visibility: "public",
-      venue_id: venueId,
-      start_time: now.toISOString(),
-      end_time: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-      is_active: true,
-    });
-    revalidateToday();
-    return { ok: true, message: "Announcement sent." };
-  } catch {
-    return { ok: false, message: "Could not send the announcement. Try again." };
   }
 }

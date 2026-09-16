@@ -2,6 +2,10 @@ import Link from "next/link";
 import { getTournaments } from "@/lib/services/tournaments";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { AlertForm } from "./alert-form";
+import { redirect } from "next/navigation";
+import { canSendAnnouncement } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +16,8 @@ type NewAlertPageProps = {
 };
 
 export default async function NewAlertPage({ searchParams }: NewAlertPageProps) {
+  const ctx = await getSessionContext();
+  if (!canSendAnnouncement(ctx)) redirect(getRoleHome(ctx));
   const resolvedSearchParams = await searchParams;
   const [scoped, tournaments] = await Promise.all([getScopedVenuesAndFields(), getTournaments()]);
   const { venues, fields } = scoped;
@@ -24,9 +30,9 @@ export default async function NewAlertPage({ searchParams }: NewAlertPageProps) 
       </Link>
       <div className="mt-5">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Communications</p>
-        <h1 className="mt-2 text-3xl font-black sm:text-4xl">Create alert</h1>
+        <h1 className="mt-2 text-3xl font-black sm:text-4xl">Publish an update</h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-          Share important venue, tournament, or field-specific updates with parents and coaches.
+          Write the message and publish window first. Targeting and attention level remain available when needed.
         </p>
       </div>
       <AlertForm

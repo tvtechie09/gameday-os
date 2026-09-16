@@ -5,6 +5,9 @@ import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getSession, updateSession } from "@/lib/services/sessions";
 import { getTournaments } from "@/lib/services/tournaments";
 import type { SessionLinkLabel, SessionSportType } from "@/lib/types";
+import { canManageSchedule, isOrgScoped } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 
 type EditSessionPageProps = {
   params: Promise<{ sessionId: string }>;
@@ -30,12 +33,17 @@ function readLinkLabel(formData: FormData, key: string): SessionLinkLabel | null
 export const dynamic = "force-dynamic";
 
 export default async function EditSessionPage({ params }: EditSessionPageProps) {
+  const ctx = await getSessionContext();
+  if (!canManageSchedule(ctx) || isOrgScoped(ctx)) redirect(getRoleHome(ctx));
   const { sessionId } = await params;
   const [session, scoped, tournaments] = await Promise.all([getSession(sessionId), getScopedVenuesAndFields(), getTournaments()]);
   const fields = scoped.fields;
 
   async function updateSessionAction(formData: FormData) {
     "use server";
+
+    const actingCtx = await getSessionContext();
+    if (!canManageSchedule(actingCtx) || isOrgScoped(actingCtx)) redirect(getRoleHome(actingCtx));
 
     const fieldId = String(formData.get("field_id") ?? "").trim();
     const tournamentId = String(formData.get("tournament_id") ?? "").trim();
@@ -49,6 +57,16 @@ export default async function EditSessionPage({ params }: EditSessionPageProps) 
 
     if (!fieldId || !title || !homeTeam || !awayTeam || !startTime) {
       return;
+    }
+
+    const actingScope = await getScopedVenuesAndFields();
+    const currentSession = await getSession(sessionId);
+    if (
+      !currentSession
+      || !actingScope.fields.some((field) => field.id === currentSession.fieldId)
+      || !actingScope.fields.some((field) => field.id === fieldId)
+    ) {
+      redirect("/admin/sessions");
     }
 
     await updateSession(sessionId, {

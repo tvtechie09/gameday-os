@@ -9,7 +9,8 @@ import { join } from "node:path";
 // name pointed at a different route than the one you were on. That is how a
 // reader (or a demo) ends up on the wrong screen believing it is the flagship.
 //
-// One screen owns the Command Center name: /admin/command-center.
+// UI/UX 1.1C retires the Command Center name from active screens. Its legacy
+// route is an authorized redirect to Today.
 
 const APP_ADMIN = new URL("../src/app/admin/", import.meta.url).pathname;
 
@@ -27,12 +28,12 @@ function h1Text(source: string): string[] {
   return [...source.matchAll(/<h1[^>]*>([^<{]+)</g)].map((m) => m[1].trim());
 }
 
-test("only the Command Center route titles itself Command Center", () => {
+test("no active admin screen titles itself Command Center", () => {
   const offenders: string[] = [];
   for (const file of pageFiles(APP_ADMIN)) {
     const route = file.slice(APP_ADMIN.length).replace(/\/page\.tsx$/, "");
     const claims = h1Text(readFileSync(file, "utf8")).filter((h) => /command center/i.test(h));
-    if (claims.length > 0 && route !== "command-center") {
+    if (claims.length > 0) {
       offenders.push(`/admin/${route} -> "${claims.join('", "')}"`);
     }
   }
@@ -44,7 +45,6 @@ test("no admin screen titles itself with another screen's route name", () => {
   // sends the reader to the wrong URL.
   const routeNames: Record<string, string> = {
     "operations center": "operations-center",
-    "command center": "command-center",
     "status board": "status-board",
   };
   const offenders: string[] = [];

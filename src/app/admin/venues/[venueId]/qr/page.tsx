@@ -4,7 +4,8 @@ import { PrintDownloadButton } from "@/components/print-download-button";
 import { getPublicVenueDisplayUrl, getPublicVenueUrl, publicAppUrlPointsToLocalhost } from "@/lib/public-url";
 import { getVenue } from "@/lib/services/venues";
 import { getSessionContext } from "@/lib/access/session";
-import { venueInScope } from "@/lib/access/capabilities";
+import { canManageVenueSettings, venueInScope } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
 import { redirect } from "next/navigation";
 import type { Venue } from "@/lib/types";
 
@@ -17,6 +18,8 @@ type VenueQrPageProps = {
 export const dynamic = "force-dynamic";
 
 export default async function VenueQrPage({ params }: VenueQrPageProps) {
+  const ctx = await getSessionContext();
+  if (!canManageVenueSettings(ctx)) redirect(getRoleHome(ctx));
   const { venueId } = await params;
   const publicVenueUrl = getPublicVenueUrl(venueId);
   const publicVenueDisplayUrl = getPublicVenueDisplayUrl(venueId);
@@ -30,7 +33,7 @@ export default async function VenueQrPage({ params }: VenueQrPageProps) {
     errorMessage = publicErrorMessage(error, "Unable to load venue QR page.");
   }
   // Scope check outside the try so the redirect isn't swallowed by the catch.
-  if (venue && !venueInScope(await getSessionContext(), venue)) {
+  if (venue && !venueInScope(ctx, venue)) {
     redirect("/admin/venues");
   }
 

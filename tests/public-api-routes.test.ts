@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 // The public field pages POST to these API routes with NO auth (a parent
 // follows a field, a volunteer signs up, a coach shares a community link).
-// middleware.ts redirects everything it doesn't recognize as public to /login,
+// src/proxy.ts redirects everything it doesn't recognize as public to /login,
 // so an endpoint missing from PUBLIC_CONTENT_PREFIXES is silently DEAD in
 // production -- the form submits and bounces to a login page.
 //
@@ -20,8 +20,8 @@ const REQUIRED_PUBLIC_API_ROUTES = [
 ];
 
 test("public form-submission API routes are allowlisted in middleware", () => {
-  const middleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
-  const missing = REQUIRED_PUBLIC_API_ROUTES.filter((route) => !middleware.includes(`"${route}"`));
+  const proxy = readFileSync(new URL("../src/proxy.ts", import.meta.url), "utf8");
+  const missing = REQUIRED_PUBLIC_API_ROUTES.filter((route) => !proxy.includes(`"${route}"`));
   assert.deepEqual(
     missing,
     [],

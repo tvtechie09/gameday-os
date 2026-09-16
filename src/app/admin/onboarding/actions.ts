@@ -72,7 +72,8 @@ export async function provisionVenueAction(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/onboarding");
   revalidatePath("/admin/venues");
-  revalidatePath("/admin/command-center");
+  revalidatePath("/today");
+  revalidatePath("/admin/fields");
   redirect(
     "/admin/onboarding?done=1"
     + "&venue=" + encodeURIComponent(result.venueId)

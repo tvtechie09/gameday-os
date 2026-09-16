@@ -68,7 +68,7 @@ export default async function AiAssistantPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link className="ui-button ui-button-secondary" href="/admin/operations-center">
-            Venue Command Center
+            Venue Status
           </Link>
           <Link className="ui-button ui-button-primary" href="/admin/system-health">
             System Health

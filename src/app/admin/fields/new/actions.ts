@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireServerActionPermission } from "@/lib/access/server-action";
 import { createField, fieldStatuses, readFieldStatus } from "@/lib/services/fields";
 import type { Field, FieldStatus } from "@/lib/types";
 
@@ -30,6 +31,7 @@ export async function createFieldAction(formData: FormData): Promise<CreateField
   }
 
   try {
+    const actorUserId = await requireServerActionPermission("venue.field.manage", "venue", venueId);
     const field = await createField(
       {
         venue_id: venueId,
@@ -40,6 +42,7 @@ export async function createFieldAction(formData: FormData): Promise<CreateField
         map_x: readOptionalCoordinate(formData, "map_x"),
         map_y: readOptionalCoordinate(formData, "map_y"),
       },
+      actorUserId,
     );
     revalidatePath("/admin/fields");
     return { field };

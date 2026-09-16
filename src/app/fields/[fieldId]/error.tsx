@@ -10,8 +10,8 @@ export default function PublicFieldError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Public field page error", error);
-  }, [error]);
+    console.error("Public field page error", error.digest ?? "no-digest");
+  }, [error.digest]);
 
   return (
     <section className="min-h-screen bg-white px-4 py-10">
@@ -21,7 +21,7 @@ export default function PublicFieldError({
         <p className="mt-3 text-sm leading-6 text-red-800">
           Try again, or ask the venue for an updated QR link.
         </p>
-        <button className="ui-button mt-5 bg-red-700 text-white hover:bg-red-800" onClick={reset} type="button">
+        <button className="ui-button mt-5 min-h-12 bg-red-700 text-white hover:bg-red-800" onClick={reset} type="button">
           Try again
         </button>
       </div>

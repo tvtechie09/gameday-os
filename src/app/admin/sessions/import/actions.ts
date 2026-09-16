@@ -5,6 +5,7 @@ import { validateScheduleRows, type ScheduleCsvRow } from "@/lib/schedule-import
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { createSession } from "@/lib/services/sessions";
 import { publicErrorMessage } from "@/lib/public-error";
+import { requireScheduleAccess } from "@/lib/access/schedule-authorization";
 
 export type ImportResult = {
   created?: number;
@@ -34,6 +35,7 @@ export async function importScheduleAction(formData: FormData): Promise<ImportRe
     const fields = scoped.fields.map((field) => ({ id: field.id, name: field.name, venueId: field.venueId }));
     const validated = validateScheduleRows(rows, fields, { defaultDate, gameMinutes, venueId });
     const ready = validated.filter((row) => !row.errors.length);
+    await requireScheduleAccess({ fieldIds: ready.map((row) => row.fieldId) });
     const failed = validated.filter((row) => row.errors.length);
 
     let created = 0;

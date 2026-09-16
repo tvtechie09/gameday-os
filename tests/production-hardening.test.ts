@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { buildContentSecurityPolicy } from "../next.config.ts";
 
 const nextConfig = readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -8,7 +9,7 @@ const adminLayout = readFileSync(new URL("../src/app/admin/layout.tsx", import.m
 const apiRequest = readFileSync(new URL("../src/lib/api-request.ts", import.meta.url), "utf8");
 const publicWriteRoutes = ["field-page-views", "follows", "sponsor-analytics/clicks", "sponsor-analytics/impressions", "resource-activations"].map((route) => readFileSync(new URL(`../src/app/api/${route}/route.ts`, import.meta.url), "utf8"));
 const liveReadRoutes = ["display/venue/[venueId]", "scoreboard/field/[fieldId]", "scoreboard/session/[sessionId]", "venues/[venueId]/mode", "weather/venue/[venueId]"].map((route) => readFileSync(new URL(`../src/app/api/${route}/route.ts`, import.meta.url), "utf8"));
-const middleware = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
+const proxy = readFileSync(new URL("../src/proxy.ts", import.meta.url), "utf8");
 const serverAuth = readFileSync(new URL("../src/lib/supabase/server-auth.ts", import.meta.url), "utf8");
 const protectedAdminRoutes = [
   "automations/route.ts",
@@ -28,6 +29,12 @@ test("Venue OS ships browser hardening headers", () => {
   for (const header of ["X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "X-Frame-Options"]) {
     assert.match(nextConfig, new RegExp(header));
   }
+});
+
+test("development hot reload does not weaken the production content security policy", () => {
+  assert.match(buildContentSecurityPolicy("development"), /'unsafe-eval'/);
+  assert.doesNotMatch(buildContentSecurityPolicy("production"), /'unsafe-eval'/);
+  assert.match(nextConfig, /allowedDevOrigins: \["127\.0\.0\.1"\]/);
 });
 
 test("Venue OS has deterministic ESM and type-validation gates", () => {
@@ -73,8 +80,8 @@ test("live operational reads explicitly prevent stale intermediary caching", () 
 });
 
 test("admin routes require a verified Supabase session", () => {
-  assert.match(middleware, /matcher: \["\/admin\/:path\*"\]/);
-  assert.match(middleware, /auth\.getUser\(\)/);
+  assert.match(proxy, /export async function proxy/);
+  assert.match(proxy, /auth\.getUser\(\)/);
   assert.match(serverAuth, /supabase\.auth\.getUser\(\)/);
   assert.match(serverAuth, /eq\("auth_user_id", data\.user\.id\)/);
   assert.match(serverAuth, /user_status.*active/);

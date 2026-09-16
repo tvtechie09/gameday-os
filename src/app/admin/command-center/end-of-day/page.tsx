@@ -51,8 +51,8 @@ export default async function EndOfDayPage({ searchParams }: { searchParams?: Pr
   return (
     <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
-        <Link className="text-sm font-bold text-[var(--accent-strong)]" href="/admin/command-center">
-          ← Command Center
+        <Link className="text-sm font-bold text-[var(--accent-strong)]" href="/today">
+          ← Today
         </Link>
         <PrintDownloadButton />
       </div>
@@ -79,7 +79,7 @@ export default async function EndOfDayPage({ searchParams }: { searchParams?: Pr
         {schedule.measured === 0 ? (
           <p className="rounded-lg border border-[var(--line)] bg-[var(--background)] p-4 text-sm font-semibold text-[var(--muted)]">
             No recorded first-pitch times for this day, so start accuracy can&apos;t be measured. Games started from the
-            Command Center record it automatically.
+            Today&apos;s game controls record it automatically.
           </p>
         ) : (
           <>

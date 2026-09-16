@@ -421,8 +421,8 @@ export default async function SystemHealthPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-          <Link className="ui-button ui-button-primary" href="/admin/pilot-prep">
-            Pilot Prep
+          <Link className="ui-button ui-button-primary" href="/admin/pilot-launch">
+            Pilot Launch
           </Link>
           <Link className="ui-button ui-button-secondary" href="/admin/executive">
             Executive Dashboard

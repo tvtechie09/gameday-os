@@ -35,6 +35,7 @@ function field(id: string, name: string, status = "open"): Field {
 function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
   return {
     id: "w1",
+    venueId: "V1",
     fieldId: "F1",
     title: "Sprinkler head",
     detail: null,
@@ -42,6 +43,7 @@ function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
     status: "open",
     reportedBy: null,
     createdAt: minsAgo(120),
+    updatedAt: minsAgo(120),
     closedAt: null,
     assignedRole: null,
     assignedToUserId: null,
@@ -52,6 +54,12 @@ function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
     source: "manual",
     gameId: null,
     assetId: null,
+    issueType: "maintenance",
+    systemKey: null,
+    detectedAt: minsAgo(120),
+    assignedAt: null,
+    startedAt: null,
+    metadata: {},
     ...overrides,
   };
 }

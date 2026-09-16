@@ -59,10 +59,11 @@ export default async function TournamentsPage() {
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Tournaments</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Tournament management</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Tournament Mode</p>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">Tournament operations</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Group sessions into tournament operations views and branded public field context.
+            Group scheduled sessions into an operations view and branded public field context. Brackets and
+            registration remain in your existing tournament platform.
           </p>
         </div>
         <Link href="/admin/tournaments/new" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 py-3 text-sm font-bold text-white">

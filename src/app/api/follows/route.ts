@@ -9,6 +9,7 @@ type FollowPayload = {
   sessionId?: unknown;
   followType?: unknown;
   displayName?: unknown;
+  notificationLevel?: unknown;
 };
 
 function readString(value: unknown) {
@@ -41,15 +42,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Session is required to follow a game." }, { status: 400 });
     }
 
-    await createFollow({
+    const email = readBoundedString((payload as { email?: unknown }).email, 254).toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "A valid email is required to receive updates." }, { status: 400 });
+    }
+
+    const follow = await createFollow({
       displayName: readBoundedString(payload.displayName, 120) || null,
-      email: readBoundedString((payload as { email?: unknown }).email, 254) || null,
+      email,
       fieldId,
       followType,
       sessionId: followType === "session" ? sessionId : null,
+      notificationLevel: payload.notificationLevel === "critical_only" ? "critical_only" : "all_updates",
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ manageUrl: `/follow/${follow.manageToken}`, ok: true });
   } catch (error) {
     if (error instanceof ApiRequestError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Failed to create follow", error);

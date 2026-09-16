@@ -35,7 +35,7 @@ export function CrossroadsPageShell({
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <Link href="/venue/crossroads" className="text-sm font-bold text-[var(--accent-strong)]">
+            <Link href="/venue/crossroads" className="inline-flex min-h-11 items-center text-sm font-bold text-[var(--accent-strong)]">
               Crossroads Demo
             </Link>
             <p className="mt-5 text-sm font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">{eyebrow}</p>

@@ -124,7 +124,7 @@ export const displayChannels: DisplayChannel[] = [
 export const futureVisionPhases: FutureVisionPhase[] = [
   phase("phase-1", "Phase 1", "Connected Venue Software", [
     ["Crossroads Today", "available in demo", "Front door for venue status, games, visitors, announcements, and links."],
-    ["Venue Command Center", "platform foundation", "Venue-owned communications, delays, maintenance, safety, assets, and staff visibility."],
+    ["Venue operating surfaces", "platform foundation", "Home, Today, Fields, Schedule, venue-wide status, communications, maintenance, safety, assets, and staff visibility."],
     ["Family and tournament views", "available in demo", "Parents and tournament directors see role-appropriate context."],
   ]),
   phase("phase-2", "Phase 2", "Read-Only Integrations", [
