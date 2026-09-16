@@ -17,6 +17,6 @@ const REQUIRED_PUBLIC_API_ROUTES = [
 
 test("public form-submission API routes remain outside the private-route middleware", () => {
   const middleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
-  assert.match(middleware, /matcher: \["\/admin\/:path\*", "\/demo\/nlsa\/:path\*"\]/);
+  assert.match(middleware, /matcher: \["\/admin\/:path\*"\]/);
   for (const route of REQUIRED_PUBLIC_API_ROUTES) assert.doesNotMatch(middleware, new RegExp(route));
 });

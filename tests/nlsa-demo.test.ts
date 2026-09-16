@@ -36,21 +36,11 @@ function actor(key: keyof typeof identities): AccessContext {
 
 test("NLSA routes are private and map to one explicit experience", () => {
   const runtimeMiddleware = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
-  const nlsaMiddleware = readFileSync(new URL("../src/lib/supabase/nlsa-middleware.ts", import.meta.url), "utf8");
   const authMiddleware = readFileSync(new URL("../src/lib/supabase/auth-middleware.ts", import.meta.url), "utf8");
   const authServer = readFileSync(new URL("../src/lib/supabase/auth-server.ts", import.meta.url), "utf8");
-  assert.match(runtimeMiddleware, /protectNlsaRoute/);
-  assert.match(runtimeMiddleware, /request\.nextUrl\.pathname === "\/demo\/nlsa"/);
-  assert.match(runtimeMiddleware, /"\/demo\/nlsa\/:path\*"/);
-  assert.match(nlsaMiddleware, /createSupabaseMiddlewareClient\(request\)/);
-  assert.match(nlsaMiddleware, /supabase\.auth\.getClaims\(\)/);
-  assert.match(nlsaMiddleware, /typeof data\?\.claims\.sub === "string"/);
-  assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
-  assert.match(nlsaMiddleware, /hasSupabaseAuthCookie\(request\)/);
-  assert.match(nlsaMiddleware, /name\.includes\("-auth-token"\) && value\.length > 0/);
-  assert.match(nlsaMiddleware, /const response = getResponse\(\)/);
+  assert.match(runtimeMiddleware, /matcher: \["\/admin\/:path\*"\]/);
+  assert.doesNotMatch(runtimeMiddleware, /demo\/nlsa/);
   assert.match(authMiddleware, /getResponse: \(\) => response/);
-  assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
   assert.match(authMiddleware, /setAll\(cookiesToSet, headersToSet\)/);
   assert.doesNotMatch(authMiddleware, /encode: "tokens-only"/);
   assert.match(authMiddleware, /for \(const \{ name, value \} of cookiesToSet\)/);

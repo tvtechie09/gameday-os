@@ -75,7 +75,7 @@ test("live operational reads explicitly prevent stale intermediary caching", () 
 });
 
 test("admin routes require a verified Supabase session", () => {
-  assert.match(middleware, /matcher: \["\/admin\/:path\*", "\/demo\/nlsa\/:path\*"\]/);
+  assert.match(middleware, /matcher: \["\/admin\/:path\*"\]/);
   assert.match(middleware, /auth\.getUser\(\)/);
   assert.match(serverAuth, /supabase\.auth\.getUser\(\)/);
   assert.match(serverAuth, /eq\("auth_user_id", data\.user\.id\)/);
