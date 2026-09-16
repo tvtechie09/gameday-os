@@ -21,17 +21,11 @@ export async function getSupabaseAuthServerClient(): Promise<SupabaseClient<Data
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
-        // In Server Components cookie writes are not allowed; ignore the
-        // failure. Token refresh cookies are persisted by the middleware
-        // client instead (see auth-middleware.ts).
-        try {
-          for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
-          }
-        } catch {
-          // no-op: read-only cookie context
-        }
+      setAll() {
+        // React Server Components are a read-only cookie context. Never begin
+        // a multi-cookie write here: a partial write can corrupt a chunked
+        // session before Next rejects the mutation. Middleware is the single
+        // owner of refresh-cookie persistence (see auth-middleware.ts).
       },
     },
   });
