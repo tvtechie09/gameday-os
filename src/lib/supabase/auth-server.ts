@@ -18,6 +18,7 @@ export async function getSupabaseAuthServerClient(): Promise<SupabaseClient<Data
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
+      encode: "tokens-only",
       getAll() {
         return cookieStore.getAll();
       },

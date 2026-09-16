@@ -21,6 +21,7 @@ export function createSupabaseMiddlewareClient(request: NextRequest): {
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
+      encode: "tokens-only",
       getAll() {
         return request.cookies.getAll();
       },

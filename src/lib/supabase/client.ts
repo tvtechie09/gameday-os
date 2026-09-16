@@ -12,6 +12,8 @@ export function getSupabaseBrowserClient() {
     return null;
   }
 
-  browserClient ??= createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  browserClient ??= createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+    cookies: { encode: "tokens-only" },
+  });
   return browserClient;
 }
