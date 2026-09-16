@@ -1,0 +1,241 @@
+import type { FieldStatus, SessionStatus } from "../types.ts";
+
+export type WeatherSafetyProviderHealth = "online" | "offline" | "unavailable";
+export type WeatherSafetyIncidentStatus = "active" | "cleared";
+export type WeatherSafetySource = "manual" | "automatic";
+export type WeatherSafetyTransitionType = "declared" | "cleared" | "delivery_failed" | "delivery_succeeded";
+
+export type WeatherSafetyFieldTarget = {
+  fieldId: string;
+  organizationId: string;
+  venueId: string;
+  status: FieldStatus;
+};
+
+export type WeatherSafetySessionTarget = {
+  sessionId: string;
+  organizationId: string;
+  venueId: string;
+  fieldId: string;
+  status: SessionStatus;
+};
+
+export type WeatherSafetyTransition = {
+  type: WeatherSafetyTransitionType;
+  at: string;
+  actorUserId: string | null;
+  detail?: string;
+};
+
+export type WeatherSafetyIncident = {
+  id: string;
+  type: "LIGHTNING_HOLD";
+  status: WeatherSafetyIncidentStatus;
+  organizationId: string;
+  venueId: string;
+  source: WeatherSafetySource;
+  providerHealth: WeatherSafetyProviderHealth;
+  declaredByUserId: string;
+  declaredAt: string;
+  clearedByUserId: string | null;
+  clearedAt: string | null;
+  nextUpdateAt: string | null;
+  clearanceCriteria: string | null;
+  affectedFieldIds: string[];
+  affectedSessionIds: string[];
+  priorFieldStates: Record<string, FieldStatus>;
+  sessionLifecycleStates: Record<string, SessionStatus>;
+  history: WeatherSafetyTransition[];
+};
+
+export type WeatherSafetyFieldProjection = {
+  fieldId: string;
+  status: FieldStatus;
+};
+
+export type WeatherSafetySessionOverlay = {
+  sessionId: string;
+  hold: boolean;
+};
+
+export type WeatherSafetyMutationPlan = {
+  incident: WeatherSafetyIncident;
+  fieldUpdates: WeatherSafetyFieldProjection[];
+  sessionOverlays: WeatherSafetySessionOverlay[];
+};
+
+export type WeatherSafetyDenied = {
+  ok: false;
+  reason: "not_authorized" | "scope_mismatch" | "incident_not_active";
+};
+
+export type WeatherSafetyPlanned = {
+  ok: true;
+  plan: WeatherSafetyMutationPlan;
+};
+
+export type WeatherSafetyPlanResult = WeatherSafetyDenied | WeatherSafetyPlanned;
+
+export type DeclareLightningHoldInput = {
+  incidentId: string;
+  organizationId: string;
+  venueId: string;
+  actorUserId: string;
+  authorized: boolean;
+  providerHealth: WeatherSafetyProviderHealth;
+  source: WeatherSafetySource;
+  declaredAt: string;
+  nextUpdateAt?: string | null;
+  clearanceCriteria?: string | null;
+  fields: WeatherSafetyFieldTarget[];
+  sessions: WeatherSafetySessionTarget[];
+};
+
+function targetsMatchScope(
+  organizationId: string,
+  venueId: string,
+  fields: WeatherSafetyFieldTarget[],
+  sessions: WeatherSafetySessionTarget[],
+) {
+  return fields.every((field) => field.organizationId === organizationId && field.venueId === venueId)
+    && sessions.every((session) => session.organizationId === organizationId && session.venueId === venueId);
+}
+
+export function planManualLightningHold(input: DeclareLightningHoldInput): WeatherSafetyPlanResult {
+  if (!input.authorized) {
+    return { ok: false, reason: "not_authorized" };
+  }
+
+  if (!targetsMatchScope(input.organizationId, input.venueId, input.fields, input.sessions)) {
+    return { ok: false, reason: "scope_mismatch" };
+  }
+
+  const priorFieldStates = Object.fromEntries(input.fields.map((field) => [field.fieldId, field.status])) as Record<string, FieldStatus>;
+  const sessionLifecycleStates = Object.fromEntries(input.sessions.map((session) => [session.sessionId, session.status])) as Record<string, SessionStatus>;
+
+  const incident: WeatherSafetyIncident = {
+    id: input.incidentId,
+    type: "LIGHTNING_HOLD",
+    status: "active",
+    organizationId: input.organizationId,
+    venueId: input.venueId,
+    source: input.source,
+    providerHealth: input.providerHealth,
+    declaredByUserId: input.actorUserId,
+    declaredAt: input.declaredAt,
+    clearedByUserId: null,
+    clearedAt: null,
+    nextUpdateAt: input.nextUpdateAt ?? null,
+    clearanceCriteria: input.clearanceCriteria ?? null,
+    affectedFieldIds: input.fields.map((field) => field.fieldId),
+    affectedSessionIds: input.sessions.map((session) => session.sessionId),
+    priorFieldStates,
+    sessionLifecycleStates,
+    history: [
+      {
+        type: "declared",
+        at: input.declaredAt,
+        actorUserId: input.actorUserId,
+        detail: `provider:${input.providerHealth};source:${input.source}`,
+      },
+    ],
+  };
+
+  return {
+    ok: true,
+    plan: {
+      incident,
+      fieldUpdates: input.fields.map((field) => ({ fieldId: field.fieldId, status: "delayed" })),
+      sessionOverlays: input.sessions.map((session) => ({ sessionId: session.sessionId, hold: true })),
+    },
+  };
+}
+
+export type ClearLightningHoldInput = {
+  incident: WeatherSafetyIncident;
+  actorUserId: string;
+  authorized: boolean;
+  clearedAt: string;
+};
+
+export function planLightningAllClear(input: ClearLightningHoldInput): WeatherSafetyPlanResult {
+  if (!input.authorized) {
+    return { ok: false, reason: "not_authorized" };
+  }
+
+  if (input.incident.status !== "active") {
+    return { ok: false, reason: "incident_not_active" };
+  }
+
+  const incident: WeatherSafetyIncident = {
+    ...input.incident,
+    status: "cleared",
+    clearedByUserId: input.actorUserId,
+    clearedAt: input.clearedAt,
+    history: [
+      ...input.incident.history,
+      { type: "cleared", at: input.clearedAt, actorUserId: input.actorUserId },
+    ],
+  };
+
+  return {
+    ok: true,
+    plan: {
+      incident,
+      fieldUpdates: input.incident.affectedFieldIds.map((fieldId) => ({
+        fieldId,
+        status: input.incident.priorFieldStates[fieldId] ?? "open",
+      })),
+      sessionOverlays: input.incident.affectedSessionIds.map((sessionId) => ({ sessionId, hold: false })),
+    },
+  };
+}
+
+export function recordWeatherSafetyDelivery(
+  incident: WeatherSafetyIncident,
+  input: { delivered: boolean; at: string; detail?: string },
+): WeatherSafetyIncident {
+  return {
+    ...incident,
+    history: [
+      ...incident.history,
+      {
+        type: input.delivered ? "delivery_succeeded" : "delivery_failed",
+        at: input.at,
+        actorUserId: null,
+        detail: input.detail,
+      },
+    ],
+  };
+}
+
+export type WeatherSafetyScopedView = {
+  incidentId: string;
+  status: WeatherSafetyIncidentStatus;
+  providerHealth: WeatherSafetyProviderHealth;
+  source: WeatherSafetySource;
+  affectedSessionIds: string[];
+  nextUpdateAt: string | null;
+  clearanceCriteria: string | null;
+};
+
+export function projectWeatherSafetyForSessions(
+  incident: WeatherSafetyIncident,
+  relevantSessionIds: string[],
+): WeatherSafetyScopedView | null {
+  const relevant = new Set(relevantSessionIds);
+  const affectedSessionIds = incident.affectedSessionIds.filter((sessionId) => relevant.has(sessionId));
+  if (affectedSessionIds.length === 0) {
+    return null;
+  }
+
+  return {
+    incidentId: incident.id,
+    status: incident.status,
+    providerHealth: incident.providerHealth,
+    source: incident.source,
+    affectedSessionIds,
+    nextUpdateAt: incident.nextUpdateAt,
+    clearanceCriteria: incident.clearanceCriteria,
+  };
+}
