@@ -11,7 +11,7 @@ export async function getVerifiedVenueActorId() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) throw new VenueAuthError("Supabase authentication is not configured.");
   const cookieStore = await cookies();
-  const supabase = createServerClient(url, key, { cookies: { encode: "tokens-only", getAll: () => cookieStore.getAll(), setAll: () => undefined } });
+  const supabase = createServerClient(url, key, { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } });
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw new VenueAuthError();
   const admin = getSupabaseAdminClient();

@@ -7,7 +7,7 @@ export async function middleware(request: NextRequest) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.next({ request });
   let response = NextResponse.next({ request });
-  const supabase = createServerClient(url, key, { cookies: { encode: "tokens-only", getAll: () => request.cookies.getAll(), setAll: (items) => { items.forEach(({ name, value, options }) => response.cookies.set(name, value, options)); } } });
+  const supabase = createServerClient(url, key, { cookies: { getAll: () => request.cookies.getAll(), setAll: (items) => { items.forEach(({ name, value, options }) => response.cookies.set(name, value, options)); } } });
   const { data } = await supabase.auth.getUser();
   if (data.user) return response;
   const login = request.nextUrl.clone();

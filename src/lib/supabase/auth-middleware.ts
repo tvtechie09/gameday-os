@@ -21,22 +21,18 @@ export function createSupabaseMiddlewareClient(request: NextRequest): {
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      encode: "tokens-only",
       getAll() {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet, headersToSet) {
-        // Auth validation must not turn a successful request into a logout.
-        // Explicit sign-out owns cookie deletion; middleware only forwards
-        // non-empty session writes (for example, a genuine token refresh).
-        const sessionWrites = cookiesToSet.filter(
-          ({ value, options }) => value.length > 0 && options.maxAge !== 0,
-        );
-        for (const { name, value } of sessionWrites) {
+        // Apply the complete cookie generation atomically. Supabase may remove
+        // stale chunks while writing a refreshed session; dropping those
+        // removals can leave the browser with a mixed, unreadable token.
+        for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
         response = NextResponse.next({ request });
-        for (const { name, value, options } of sessionWrites) {
+        for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }
         for (const [name, value] of Object.entries(headersToSet)) {
