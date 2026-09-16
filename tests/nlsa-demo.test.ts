@@ -42,8 +42,7 @@ test("NLSA routes are private and map to one explicit experience", () => {
   assert.match(runtimeMiddleware, /protectNlsaRoute/);
   assert.match(runtimeMiddleware, /request\.nextUrl\.pathname === "\/demo\/nlsa"/);
   assert.match(runtimeMiddleware, /"\/demo\/nlsa\/:path\*"/);
-  assert.match(nlsaMiddleware, /createSupabaseMiddlewareClient\(request, \{/);
-  assert.match(nlsaMiddleware, /preserveAuthCookiesOnDeletionOnly: true/);
+  assert.match(nlsaMiddleware, /createSupabaseMiddlewareClient\(request\)/);
   assert.match(nlsaMiddleware, /supabase\.auth\.getUser\(\)/);
   assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
   assert.match(nlsaMiddleware, /hasSupabaseAuthCookie\(request\)/);
@@ -53,10 +52,7 @@ test("NLSA routes are private and map to one explicit experience", () => {
   assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
   assert.match(authMiddleware, /setAll\(cookiesToSet, headersToSet\)/);
   assert.doesNotMatch(authMiddleware, /encode: "tokens-only"/);
-  assert.match(authMiddleware, /hasAuthSessionWrite/);
-  assert.match(authMiddleware, /effectiveCookies/);
-  assert.match(authMiddleware, /preserveAuthCookiesOnDeletionOnly/);
-  assert.match(authMiddleware, /for \(const \{ name, value \} of effectiveCookies\)/);
+  assert.match(authMiddleware, /for \(const \{ name, value \} of cookiesToSet\)/);
   assert.match(authMiddleware, /Object\.entries\(headersToSet\)/);
   assert.match(authServer, /auth\.getClaims\(\)/);
   assert.doesNotMatch(authServer, /encode: "tokens-only"/);
@@ -75,11 +71,14 @@ test("dev-login preserves a safe NLSA deep link and redirects after POST as GET"
   assert.match(route, /NextResponse\.redirect\(new URL\(safeNext, request\.url\), 303\)/);
 });
 
-test("normal login uses the patched Supabase browser cookie flow", () => {
+test("normal login uses the bounded Supabase SSR cookie flow", () => {
   const form = readFileSync(new URL("../src/components/auth/login-form.tsx", import.meta.url), "utf8");
-  assert.match(form, /getSupabaseAuthBrowserClient\(\)/);
-  assert.match(form, /signInWithPassword\(\{ email, password \}\)/);
-  assert.doesNotMatch(readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8"), /pathname === "\/api\/auth\/login"/);
+  const route = readFileSync(new URL("../src/app/api/auth/login/route.ts", import.meta.url), "utf8");
+  assert.match(form, /fetch\("\/api\/auth\/login"/);
+  assert.match(route, /signInWithPassword\(\{ email, password \}\)/);
+  assert.match(route, /origin !== request\.nextUrl\.origin/);
+  assert.match(route, /contentLength > 16_384/);
+  assert.match(route, /response\.cookies\.set/);
 });
 
 test("NLSA role matrix allows only the intended positive paths", () => {

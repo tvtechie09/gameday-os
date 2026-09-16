@@ -7,10 +7,7 @@ import type { Database } from "./types";
 // cookie writes to a mutable NextResponse so refreshed auth tokens are
 // persisted on every request. Returns { supabase, response } — callers must
 // return (a copy of) `response` for cookies to be sent.
-export function createSupabaseMiddlewareClient(
-  request: NextRequest,
-  options: { preserveAuthCookiesOnDeletionOnly?: boolean } = {},
-): {
+export function createSupabaseMiddlewareClient(request: NextRequest): {
   supabase: SupabaseClient<Database> | null;
   getResponse: () => NextResponse;
 } {
@@ -28,24 +25,14 @@ export function createSupabaseMiddlewareClient(
         return request.cookies.getAll();
       },
       setAll(cookiesToSet, headersToSet) {
-        const hasAuthSessionWrite = cookiesToSet.some(
-          ({ name, value, options: cookieOptions }) =>
-            name.includes("-auth-token") && value.length > 0 && cookieOptions.maxAge !== 0,
-        );
-        const effectiveCookies = options.preserveAuthCookiesOnDeletionOnly && !hasAuthSessionWrite
-          ? cookiesToSet.filter(
-              ({ name, value, options: cookieOptions }) =>
-                !(name.includes("-auth-token") && (value.length === 0 || cookieOptions.maxAge === 0)),
-            )
-          : cookiesToSet;
         // Apply the complete cookie generation atomically. Supabase may remove
         // stale chunks while writing a refreshed session; dropping those
         // removals can leave the browser with a mixed, unreadable token.
-        for (const { name, value } of effectiveCookies) {
+        for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
         response = NextResponse.next({ request });
-        for (const { name, value, options } of effectiveCookies) {
+        for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }
         for (const [name, value] of Object.entries(headersToSet)) {

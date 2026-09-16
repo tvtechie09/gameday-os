@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getSupabaseAuthBrowserClient } from "@/lib/supabase/auth-browser";
-import { isPlausibleTotpCode, needsMfaChallenge } from "@/lib/access/mfa-core";
+import { isPlausibleTotpCode } from "@/lib/access/mfa-core";
 
 // Email/password sign-in form. On success we do a full navigation so the server
 // re-resolves the session (cookies are now set) and routes to the role home.
@@ -29,29 +29,24 @@ export function LoginForm({
     setError(null);
     setSubmitting(true);
 
-    const supabase = getSupabaseAuthBrowserClient();
-    if (!supabase) {
-      setError("Authentication is not configured for this environment.");
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    }).catch(() => null);
+    const result = response
+      ? ((await response.json().catch(() => null)) as { error?: string; mfaFactorId?: string | null } | null)
+      : null;
+    if (!response?.ok) {
+      setError(result?.error ?? "Sign-in failed. Try again.");
       setSubmitting(false);
       return;
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError(signInError.message);
+    if (result?.mfaFactorId) {
+      setMfaFactorId(result.mfaFactorId);
       setSubmitting(false);
       return;
-    }
-
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (needsMfaChallenge(aal?.currentLevel ?? null, aal?.nextLevel ?? null)) {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const verified = factors?.totp?.find((factor) => factor.status === "verified");
-      if (verified) {
-        setMfaFactorId(verified.id);
-        setSubmitting(false);
-        return;
-      }
     }
 
     goToDestination();
