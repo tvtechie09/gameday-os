@@ -65,12 +65,12 @@ export async function middleware(request: NextRequest) {
 
   // Refresh the Supabase session on every request so tokens stay fresh and
   // getUser() is accurate. `response` carries any refreshed auth cookies.
-  const { supabase, response } = createSupabaseMiddlewareClient(request);
+  const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
 
   // Public paths: no auth required, but still return `response` so token
   // refresh cookies are persisted.
   if (isAlwaysPublic(pathname) || isPublicContent(pathname) || (devLogin && isDevLoginPath(pathname))) {
-    return response;
+    return getResponse();
   }
 
   // Dev-login break-glass: a valid signed session cookie satisfies the wall
@@ -80,8 +80,6 @@ export async function middleware(request: NextRequest) {
   // Authenticated responses must never be reused by the CDN for another
   // request. Supabase also supplies refresh-specific cache headers through the
   // middleware client's setAll callback.
-  response.headers.set("Cache-Control", "private, no-store");
-
   // Real auth: validate the signed claims server-side. Supabase's SSR guidance
   // requires getClaims() in the request proxy so browser and server token state
   // stay synchronized across consecutive navigations.
@@ -91,6 +89,12 @@ export async function middleware(request: NextRequest) {
     const subject = claimsData?.claims.sub;
     authedUser = typeof subject === "string" ? { id: subject } : null;
   }
+
+  // getClaims() may refresh the token and replace the middleware response.
+  // Resolve it only after authentication so Set-Cookie and request-cookie
+  // forwarding are not lost.
+  const response = getResponse();
+  response.headers.set("Cache-Control", "private, no-store");
 
   if (!devPayload && !authedUser) {
     const loginUrl = new URL("/login", request.url);

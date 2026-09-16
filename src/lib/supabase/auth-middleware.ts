@@ -9,14 +9,14 @@ import type { Database } from "./types";
 // return (a copy of) `response` for cookies to be sent.
 export function createSupabaseMiddlewareClient(request: NextRequest): {
   supabase: SupabaseClient<Database> | null;
-  response: NextResponse;
+  getResponse: () => NextResponse;
 } {
   let response = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnonKey) {
-    return { supabase: null, response };
+    return { supabase: null, getResponse: () => response };
   }
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -39,5 +39,9 @@ export function createSupabaseMiddlewareClient(request: NextRequest): {
     },
   });
 
-  return { supabase, response };
+  // `setAll` may replace `response` after a token refresh so it can carry the
+  // mutated request cookies forward to Server Components. Expose a getter
+  // instead of returning the initial response by value; otherwise callers can
+  // accidentally discard the refreshed cookies on the very next navigation.
+  return { supabase, getResponse: () => response };
 }

@@ -40,6 +40,8 @@ test("NLSA routes are private and map to one explicit experience", () => {
   assert.match(middleware, /pathname === "\/demo\/nlsa"/);
   assert.match(middleware, /return false/);
   assert.match(middleware, /auth\.getClaims\(\)/);
+  assert.match(middleware, /const response = getResponse\(\)/);
+  assert.match(authMiddleware, /getResponse: \(\) => response/);
   assert.match(middleware, /Cache-Control", "private, no-store"/);
   assert.match(authMiddleware, /setAll\(cookiesToSet, headersToSet\)/);
   assert.match(authMiddleware, /Object\.entries\(headersToSet\)/);
