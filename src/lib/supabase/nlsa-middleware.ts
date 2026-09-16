@@ -17,8 +17,8 @@ export async function protectNlsaRoute(request: NextRequest) {
 
   let authedUser: { id: string } | null = null;
   if (supabase && hasSupabaseAuthCookie(request)) {
-    const { data } = await supabase.auth.getUser();
-    authedUser = data.user ? { id: data.user.id } : null;
+    const { data } = await supabase.auth.getClaims();
+    authedUser = typeof data?.claims.sub === "string" ? { id: data.claims.sub } : null;
   }
 
   const response = getResponse();

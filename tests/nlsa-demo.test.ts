@@ -43,7 +43,8 @@ test("NLSA routes are private and map to one explicit experience", () => {
   assert.match(runtimeMiddleware, /request\.nextUrl\.pathname === "\/demo\/nlsa"/);
   assert.match(runtimeMiddleware, /"\/demo\/nlsa\/:path\*"/);
   assert.match(nlsaMiddleware, /createSupabaseMiddlewareClient\(request\)/);
-  assert.match(nlsaMiddleware, /supabase\.auth\.getUser\(\)/);
+  assert.match(nlsaMiddleware, /supabase\.auth\.getClaims\(\)/);
+  assert.match(nlsaMiddleware, /typeof data\?\.claims\.sub === "string"/);
   assert.match(nlsaMiddleware, /Cache-Control", "private, no-store"/);
   assert.match(nlsaMiddleware, /hasSupabaseAuthCookie\(request\)/);
   assert.match(nlsaMiddleware, /name\.includes\("-auth-token"\) && value\.length > 0/);
