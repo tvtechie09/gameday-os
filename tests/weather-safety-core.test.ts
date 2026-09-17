@@ -13,6 +13,7 @@ import {
 
 const baseInput = {
   incidentId: "incident-1",
+  operationId: "declare-op-1",
   organizationId: "org-a",
   venueId: "venue-a",
   actorUserId: "gm-1",
@@ -42,7 +43,7 @@ function quotedValues(checkList: string) {
   return [...checkList.matchAll(/'([^']+)'/g)].map((match) => match[1]);
 }
 
-test("SQL storage vocabulary stays aligned with the Weather & Safety domain contract", () => {
+test("SQL storage contract stays aligned with the Weather & Safety domain model", () => {
   const sql = readFileSync(
     new URL("../supabase/migrations/202609160001_weather_safety_incidents.sql", import.meta.url),
     "utf8",
@@ -55,6 +56,17 @@ test("SQL storage vocabulary stays aligned with the Weather & Safety domain cont
   assert.ok(providerHealth, "provider_health SQL constraint must exist");
   assert.deepEqual(quotedValues(incidentTypes), [...WEATHER_SAFETY_INCIDENT_TYPES]);
   assert.deepEqual(quotedValues(providerHealth), [...WEATHER_SAFETY_PROVIDER_HEALTH_VALUES]);
+
+  assert.match(sql, /declare_operation_id text not null/);
+  assert.match(sql, /clear_operation_id text/);
+  assert.match(sql, /session_lifecycle_states jsonb not null/);
+  assert.match(sql, /history jsonb not null/);
+  assert.doesNotMatch(sql, /prior_session_states/);
+  assert.doesNotMatch(sql, /transition_history/);
+  assert.doesNotMatch(sql, /delivery_history/);
+  assert.match(sql, /weather_safety_incidents_declare_operation_key/);
+  assert.match(sql, /weather_safety_incidents_clear_operation_key/);
+  assert.match(sql, /concurrency guard only/);
 });
 
 test("authorized manual hold succeeds while provider is offline and preserves session lifecycle", () => {
@@ -62,6 +74,8 @@ test("authorized manual hold succeeds while provider is offline and preserves se
 
   assert.equal(plan.incident.providerHealth, "offline");
   assert.equal(plan.incident.status, "active");
+  assert.equal(plan.incident.declareOperationId, "declare-op-1");
+  assert.equal(plan.incident.clearOperationId, null);
   assert.deepEqual(plan.fieldUpdates, [
     { fieldId: "field-open", status: "delayed" },
     { fieldId: "field-maintenance", status: "delayed" },
@@ -93,6 +107,7 @@ test("all clear restores exact prior field states and removes only the session h
   const hold = requirePlanned(planManualLightningHold(baseInput));
   const result = planLightningAllClear({
     incident: hold.incident,
+    operationId: "clear-op-1",
     actorUserId: "gm-2",
     authorized: true,
     clearedAt: "2026-09-16T18:30:00.000Z",
@@ -102,6 +117,8 @@ test("all clear restores exact prior field states and removes only the session h
   if (!result.ok) throw new Error(`Expected all-clear plan, got ${result.reason}`);
 
   assert.equal(result.plan.incident.status, "cleared");
+  assert.equal(result.plan.incident.declareOperationId, "declare-op-1");
+  assert.equal(result.plan.incident.clearOperationId, "clear-op-1");
   assert.deepEqual(result.plan.fieldUpdates, [
     { fieldId: "field-open", status: "open" },
     { fieldId: "field-maintenance", status: "maintenance" },
@@ -121,6 +138,7 @@ test("all clear fails closed instead of guessing open when a prior field snapsho
   };
   const result = planLightningAllClear({
     incident: corrupted,
+    operationId: "clear-op-1",
     actorUserId: "gm-2",
     authorized: true,
     clearedAt: "2026-09-16T18:30:00.000Z",
@@ -156,9 +174,15 @@ test("coach/family projection returns only sessions relevant to that viewer", ()
 
 test("an already-cleared incident cannot be cleared a second time", () => {
   const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
-  const cleared: WeatherSafetyIncident = { ...incident, status: "cleared", clearedAt: "2026-09-16T18:30:00.000Z" };
+  const cleared: WeatherSafetyIncident = {
+    ...incident,
+    status: "cleared",
+    clearOperationId: "clear-op-1",
+    clearedAt: "2026-09-16T18:30:00.000Z",
+  };
   const result = planLightningAllClear({
     incident: cleared,
+    operationId: "clear-op-2",
     actorUserId: "gm-2",
     authorized: true,
     clearedAt: "2026-09-16T18:45:00.000Z",
