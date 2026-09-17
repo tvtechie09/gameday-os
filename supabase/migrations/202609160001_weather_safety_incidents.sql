@@ -12,6 +12,8 @@ create table if not exists public.weather_safety_incidents (
   status text not null default 'active' check (status in ('active', 'cleared')),
   source text not null check (source in ('manual', 'automatic')),
   provider_health text not null check (provider_health in ('online', 'offline', 'unavailable')),
+  declare_operation_id text not null,
+  clear_operation_id text,
   declared_by_user_id uuid not null references public.users(id) on delete restrict,
   declared_at timestamptz not null default now(),
   cleared_by_user_id uuid references public.users(id) on delete restrict,
@@ -21,26 +23,35 @@ create table if not exists public.weather_safety_incidents (
   affected_field_ids jsonb not null default '[]'::jsonb,
   affected_session_ids jsonb not null default '[]'::jsonb,
   prior_field_states jsonb not null,
-  prior_session_states jsonb not null default '{}'::jsonb,
-  transition_history jsonb not null default '[]'::jsonb,
-  delivery_history jsonb not null default '[]'::jsonb,
+  session_lifecycle_states jsonb not null default '{}'::jsonb,
+  history jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint weather_safety_incidents_clear_state_check check (
-    (status = 'active' and cleared_at is null and cleared_by_user_id is null)
+    (status = 'active' and cleared_at is null and cleared_by_user_id is null and clear_operation_id is null)
     or
-    (status = 'cleared' and cleared_at is not null and cleared_by_user_id is not null)
+    (status = 'cleared' and cleared_at is not null and cleared_by_user_id is not null and clear_operation_id is not null)
   ),
   constraint weather_safety_incidents_field_ids_array_check check (jsonb_typeof(affected_field_ids) = 'array'),
   constraint weather_safety_incidents_session_ids_array_check check (jsonb_typeof(affected_session_ids) = 'array'),
   constraint weather_safety_incidents_prior_field_states_object_check check (jsonb_typeof(prior_field_states) = 'object'),
-  constraint weather_safety_incidents_prior_session_states_object_check check (jsonb_typeof(prior_session_states) = 'object'),
-  constraint weather_safety_incidents_transition_history_array_check check (jsonb_typeof(transition_history) = 'array'),
-  constraint weather_safety_incidents_delivery_history_array_check check (jsonb_typeof(delivery_history) = 'array')
+  constraint weather_safety_incidents_session_lifecycle_states_object_check check (jsonb_typeof(session_lifecycle_states) = 'object'),
+  constraint weather_safety_incidents_history_array_check check (jsonb_typeof(history) = 'array')
 );
 
--- A venue may have only one active incident of a given safety type. This is the
--- database backstop for idempotent declaration/retry behavior.
+-- Operation identities are the durable retry keys. They are intentionally
+-- distinct from the one-active-incident guard below so a retry can be
+-- distinguished from a legitimate new incident after All Clear.
+create unique index if not exists weather_safety_incidents_declare_operation_key
+  on public.weather_safety_incidents (organization_id, venue_id, declare_operation_id);
+
+create unique index if not exists weather_safety_incidents_clear_operation_key
+  on public.weather_safety_incidents (organization_id, venue_id, clear_operation_id)
+  where clear_operation_id is not null;
+
+-- A venue may have only one active incident of a given safety type. This is a
+-- concurrency guard only; declaration/clear idempotency is owned by the
+-- durable operation identities above.
 create unique index if not exists weather_safety_incidents_one_active_per_venue_type
   on public.weather_safety_incidents (organization_id, venue_id, incident_type)
   where status = 'active';
