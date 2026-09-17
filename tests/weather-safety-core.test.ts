@@ -67,6 +67,9 @@ test("SQL storage contract stays aligned with the Weather & Safety domain model"
   assert.match(sql, /weather_safety_incidents_declare_operation_key/);
   assert.match(sql, /weather_safety_incidents_clear_operation_key/);
   assert.match(sql, /concurrency guard only/);
+  assert.match(sql, /status = 'active' and cleared_at is null and cleared_by_user_id is null/);
+  assert.doesNotMatch(sql, /status = 'active'[\s\S]{0,160}clear_operation_id is null/);
+  assert.match(sql, /partial All Clear retries durably idempotent/);
 });
 
 test("authorized manual hold succeeds while provider is offline and preserves session lifecycle", () => {
