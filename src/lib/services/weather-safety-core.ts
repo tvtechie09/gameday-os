@@ -1,6 +1,10 @@
 import type { FieldStatus, SessionStatus } from "../types.ts";
 
-export type WeatherSafetyProviderHealth = "online" | "offline" | "unavailable";
+export const WEATHER_SAFETY_INCIDENT_TYPES = ["LIGHTNING_HOLD"] as const;
+export type WeatherSafetyIncidentType = (typeof WEATHER_SAFETY_INCIDENT_TYPES)[number];
+
+export const WEATHER_SAFETY_PROVIDER_HEALTH_VALUES = ["online", "offline", "unavailable"] as const;
+export type WeatherSafetyProviderHealth = (typeof WEATHER_SAFETY_PROVIDER_HEALTH_VALUES)[number];
 export type WeatherSafetyIncidentStatus = "active" | "cleared";
 export type WeatherSafetySource = "manual" | "automatic";
 export type WeatherSafetyTransitionType = "declared" | "cleared" | "delivery_failed" | "delivery_succeeded";
@@ -29,7 +33,7 @@ export type WeatherSafetyTransition = {
 
 export type WeatherSafetyIncident = {
   id: string;
-  type: "LIGHTNING_HOLD";
+  type: WeatherSafetyIncidentType;
   status: WeatherSafetyIncidentStatus;
   organizationId: string;
   venueId: string;
