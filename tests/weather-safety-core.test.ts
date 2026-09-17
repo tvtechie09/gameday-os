@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   planLightningAllClear,
   planManualLightningHold,
   projectWeatherSafetyForSessions,
   recordWeatherSafetyDelivery,
+  WEATHER_SAFETY_INCIDENT_TYPES,
+  WEATHER_SAFETY_PROVIDER_HEALTH_VALUES,
   type WeatherSafetyIncident,
 } from "../src/lib/services/weather-safety-core.ts";
 
@@ -34,6 +37,25 @@ function requirePlanned(result: ReturnType<typeof planManualLightningHold>) {
   if (!result.ok) throw new Error(`Expected plan, got ${result.reason}`);
   return result.plan;
 }
+
+function quotedValues(checkList: string) {
+  return [...checkList.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+}
+
+test("SQL storage vocabulary stays aligned with the Weather & Safety domain contract", () => {
+  const sql = readFileSync(
+    new URL("../supabase/migrations/202609160001_weather_safety_incidents.sql", import.meta.url),
+    "utf8",
+  );
+
+  const incidentTypes = sql.match(/incident_type text not null check \(incident_type in \(([^)]+)\)\)/)?.[1];
+  const providerHealth = sql.match(/provider_health text not null check \(provider_health in \(([^)]+)\)\)/)?.[1];
+
+  assert.ok(incidentTypes, "incident_type SQL constraint must exist");
+  assert.ok(providerHealth, "provider_health SQL constraint must exist");
+  assert.deepEqual(quotedValues(incidentTypes), [...WEATHER_SAFETY_INCIDENT_TYPES]);
+  assert.deepEqual(quotedValues(providerHealth), [...WEATHER_SAFETY_PROVIDER_HEALTH_VALUES]);
+});
 
 test("authorized manual hold succeeds while provider is offline and preserves session lifecycle", () => {
   const plan = requirePlanned(planManualLightningHold(baseInput));
