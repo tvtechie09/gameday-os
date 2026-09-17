@@ -28,7 +28,11 @@ create table if not exists public.weather_safety_incidents (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint weather_safety_incidents_clear_state_check check (
-    (status = 'active' and cleared_at is null and cleared_by_user_id is null and clear_operation_id is null)
+    -- An active incident may own a clear_operation_id while recovery is in
+    -- progress. This makes partial All Clear retries durably idempotent without
+    -- falsely marking the incident cleared before every prior field state is
+    -- restored.
+    (status = 'active' and cleared_at is null and cleared_by_user_id is null)
     or
     (status = 'cleared' and cleared_at is not null and cleared_by_user_id is not null and clear_operation_id is not null)
   ),
