@@ -39,6 +39,8 @@ export type WeatherSafetyIncident = {
   venueId: string;
   source: WeatherSafetySource;
   providerHealth: WeatherSafetyProviderHealth;
+  declareOperationId: string;
+  clearOperationId: string | null;
   declaredByUserId: string;
   declaredAt: string;
   clearedByUserId: string | null;
@@ -82,6 +84,7 @@ export type WeatherSafetyPlanResult = WeatherSafetyDenied | WeatherSafetyPlanned
 
 export type DeclareLightningHoldInput = {
   incidentId: string;
+  operationId: string;
   organizationId: string;
   venueId: string;
   actorUserId: string;
@@ -125,6 +128,8 @@ export function planManualLightningHold(input: DeclareLightningHoldInput): Weath
     venueId: input.venueId,
     source: input.source,
     providerHealth: input.providerHealth,
+    declareOperationId: input.operationId,
+    clearOperationId: null,
     declaredByUserId: input.actorUserId,
     declaredAt: input.declaredAt,
     clearedByUserId: null,
@@ -157,6 +162,7 @@ export function planManualLightningHold(input: DeclareLightningHoldInput): Weath
 
 export type ClearLightningHoldInput = {
   incident: WeatherSafetyIncident;
+  operationId: string;
   actorUserId: string;
   authorized: boolean;
   clearedAt: string;
@@ -181,6 +187,7 @@ export function planLightningAllClear(input: ClearLightningHoldInput): WeatherSa
   const incident: WeatherSafetyIncident = {
     ...input.incident,
     status: "cleared",
+    clearOperationId: input.operationId,
     clearedByUserId: input.actorUserId,
     clearedAt: input.clearedAt,
     history: [
