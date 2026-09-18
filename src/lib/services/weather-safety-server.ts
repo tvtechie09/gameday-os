@@ -288,14 +288,17 @@ async function loadScopeSnapshot(input: {
       .select("id,organization_id,field_id,status")
       .in("id", input.sessionIds);
     if (error) throw new Error(error.message);
-    return (data ?? []).map((row) => ({
-      id: row.id,
-      organizationId: row.organization_id,
-      fieldId: row.field_id,
-      status: sessionStatuses.includes(row.status as SessionStatus)
-        ? row.status as SessionStatus
-        : "scheduled" as const,
-    }));
+    return (data ?? []).map((row) => {
+      if (!sessionStatuses.includes(row.status as SessionStatus)) {
+        throw new Error(`Invalid session lifecycle status for ${row.id}.`);
+      }
+      return {
+        id: row.id,
+        organizationId: row.organization_id,
+        fieldId: row.field_id,
+        status: row.status as SessionStatus,
+      };
+    });
   };
 
   const [fields, sessions] = await Promise.all([loadFields(), loadSessions()]);
