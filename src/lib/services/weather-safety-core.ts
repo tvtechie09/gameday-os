@@ -72,7 +72,14 @@ export type WeatherSafetyMutationPlan = {
 
 export type WeatherSafetyDenied = {
   ok: false;
-  reason: "not_authorized" | "scope_mismatch" | "incident_not_active" | "missing_prior_state";
+  reason:
+    | "not_authorized"
+    | "scope_mismatch"
+    | "incident_not_active"
+    | "missing_prior_state"
+    | "clear_operation_conflict"
+    | "recovery_not_started"
+    | "recovery_incomplete";
 };
 
 export type WeatherSafetyPlanned = {
@@ -106,6 +113,19 @@ function targetsMatchScope(
 ) {
   return fields.every((field) => field.organizationId === organizationId && field.venueId === venueId)
     && sessions.every((session) => session.organizationId === organizationId && session.venueId === venueId);
+}
+
+function hasCompleteRecoverySnapshot(incident: WeatherSafetyIncident) {
+  return incident.affectedFieldIds.every((fieldId) =>
+    Object.prototype.hasOwnProperty.call(incident.priorFieldStates, fieldId),
+  );
+}
+
+function priorFieldRecoveryUpdates(incident: WeatherSafetyIncident): WeatherSafetyFieldProjection[] {
+  return incident.affectedFieldIds.map((fieldId) => ({
+    fieldId,
+    status: incident.priorFieldStates[fieldId],
+  }));
 }
 
 export function planManualLightningHold(input: DeclareLightningHoldInput): WeatherSafetyPlanResult {
@@ -160,15 +180,16 @@ export function planManualLightningHold(input: DeclareLightningHoldInput): Weath
   };
 }
 
-export type ClearLightningHoldInput = {
+export type BeginLightningAllClearRecoveryInput = {
   incident: WeatherSafetyIncident;
   operationId: string;
   actorUserId: string;
   authorized: boolean;
-  clearedAt: string;
 };
 
-export function planLightningAllClear(input: ClearLightningHoldInput): WeatherSafetyPlanResult {
+export function beginLightningAllClearRecovery(
+  input: BeginLightningAllClearRecoveryInput,
+): WeatherSafetyPlanResult {
   if (!input.authorized) {
     return { ok: false, reason: "not_authorized" };
   }
@@ -177,17 +198,83 @@ export function planLightningAllClear(input: ClearLightningHoldInput): WeatherSa
     return { ok: false, reason: "incident_not_active" };
   }
 
-  const hasCompleteRecoverySnapshot = input.incident.affectedFieldIds.every((fieldId) =>
-    Object.prototype.hasOwnProperty.call(input.incident.priorFieldStates, fieldId),
-  );
-  if (!hasCompleteRecoverySnapshot) {
+  if (!hasCompleteRecoverySnapshot(input.incident)) {
     return { ok: false, reason: "missing_prior_state" };
+  }
+
+  if (
+    input.incident.clearOperationId !== null
+    && input.incident.clearOperationId !== input.operationId
+  ) {
+    return { ok: false, reason: "clear_operation_conflict" };
+  }
+
+  const incident: WeatherSafetyIncident = input.incident.clearOperationId === input.operationId
+    ? input.incident
+    : {
+        ...input.incident,
+        clearOperationId: input.operationId,
+      };
+
+  return {
+    ok: true,
+    plan: {
+      incident,
+      fieldUpdates: priorFieldRecoveryUpdates(incident),
+      sessionOverlays: [],
+    },
+  };
+}
+
+export type FinalizeLightningAllClearInput = {
+  incident: WeatherSafetyIncident;
+  operationId: string;
+  actorUserId: string;
+  authorized: boolean;
+  clearedAt: string;
+  recoveredFieldIds: string[];
+};
+
+export function finalizeLightningAllClear(input: FinalizeLightningAllClearInput): WeatherSafetyPlanResult {
+  if (!input.authorized) {
+    return { ok: false, reason: "not_authorized" };
+  }
+
+  if (input.incident.status === "cleared") {
+    if (input.incident.clearOperationId !== input.operationId) {
+      return { ok: false, reason: "clear_operation_conflict" };
+    }
+
+    return {
+      ok: true,
+      plan: {
+        incident: input.incident,
+        fieldUpdates: [],
+        sessionOverlays: [],
+      },
+    };
+  }
+
+  if (input.incident.clearOperationId === null) {
+    return { ok: false, reason: "recovery_not_started" };
+  }
+
+  if (input.incident.clearOperationId !== input.operationId) {
+    return { ok: false, reason: "clear_operation_conflict" };
+  }
+
+  if (!hasCompleteRecoverySnapshot(input.incident)) {
+    return { ok: false, reason: "missing_prior_state" };
+  }
+
+  const recoveredFieldIds = new Set(input.recoveredFieldIds);
+  if (!input.incident.affectedFieldIds.every((fieldId) => recoveredFieldIds.has(fieldId))) {
+    return { ok: false, reason: "recovery_incomplete" };
   }
 
   const incident: WeatherSafetyIncident = {
     ...input.incident,
     status: "cleared",
-    clearOperationId: input.operationId,
     clearedByUserId: input.actorUserId,
     clearedAt: input.clearedAt,
     history: [
@@ -200,10 +287,7 @@ export function planLightningAllClear(input: ClearLightningHoldInput): WeatherSa
     ok: true,
     plan: {
       incident,
-      fieldUpdates: input.incident.affectedFieldIds.map((fieldId) => ({
-        fieldId,
-        status: input.incident.priorFieldStates[fieldId],
-      })),
+      fieldUpdates: [],
       sessionOverlays: input.incident.affectedSessionIds.map((sessionId) => ({ sessionId, hold: false })),
     },
   };
