@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  planLightningAllClear,
+  beginLightningAllClearRecovery,
+  finalizeLightningAllClear,
   planManualLightningHold,
   projectWeatherSafetyForSessions,
   recordWeatherSafetyDelivery,
@@ -37,6 +38,15 @@ function requirePlanned(result: ReturnType<typeof planManualLightningHold>) {
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error(`Expected plan, got ${result.reason}`);
   return result.plan;
+}
+
+function beginRecovery(incident: WeatherSafetyIncident, operationId = "clear-op-1") {
+  return beginLightningAllClearRecovery({
+    incident,
+    operationId,
+    actorUserId: "gm-2",
+    authorized: true,
+  });
 }
 
 function quotedValues(checkList: string) {
@@ -106,26 +116,99 @@ test("cross-tenant targets are rejected before any hold plan is produced", () =>
   assert.deepEqual(result, { ok: false, reason: "scope_mismatch" });
 });
 
-test("all clear restores exact prior field states and removes only the session hold overlay", () => {
+test("begin All Clear recovery restores exact prior field states but keeps the incident active", () => {
   const hold = requirePlanned(planManualLightningHold(baseInput));
-  const result = planLightningAllClear({
-    incident: hold.incident,
-    operationId: "clear-op-1",
-    actorUserId: "gm-2",
-    authorized: true,
-    clearedAt: "2026-09-16T18:30:00.000Z",
-  });
+  const result = beginRecovery(hold.incident);
 
   assert.equal(result.ok, true);
-  if (!result.ok) throw new Error(`Expected all-clear plan, got ${result.reason}`);
+  if (!result.ok) throw new Error(`Expected recovery plan, got ${result.reason}`);
 
-  assert.equal(result.plan.incident.status, "cleared");
+  assert.equal(result.plan.incident.status, "active");
   assert.equal(result.plan.incident.declareOperationId, "declare-op-1");
   assert.equal(result.plan.incident.clearOperationId, "clear-op-1");
+  assert.equal(result.plan.incident.clearedAt, null);
+  assert.equal(result.plan.incident.clearedByUserId, null);
+  assert.equal(result.plan.incident.history.filter((entry) => entry.type === "cleared").length, 0);
   assert.deepEqual(result.plan.fieldUpdates, [
     { fieldId: "field-open", status: "open" },
     { fieldId: "field-maintenance", status: "maintenance" },
   ]);
+  assert.deepEqual(result.plan.sessionOverlays, []);
+  assert.deepEqual(result.plan.incident.sessionLifecycleStates, { "game-1": "active", "game-2": "scheduled" });
+});
+
+test("same All Clear operation retry is stable while recovery is still active", () => {
+  const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
+  const first = beginRecovery(incident);
+  assert.equal(first.ok, true);
+  if (!first.ok) throw new Error(`Expected recovery plan, got ${first.reason}`);
+
+  const retry = beginRecovery(first.plan.incident);
+  assert.deepEqual(retry, first);
+});
+
+test("a different All Clear operation cannot replace an in-progress recovery claim", () => {
+  const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
+  const first = beginRecovery(incident);
+  assert.equal(first.ok, true);
+  if (!first.ok) throw new Error(`Expected recovery plan, got ${first.reason}`);
+
+  const conflict = beginRecovery(first.plan.incident, "clear-op-2");
+  assert.deepEqual(conflict, { ok: false, reason: "clear_operation_conflict" });
+});
+
+test("All Clear recovery fails closed instead of guessing open when a prior field snapshot is missing", () => {
+  const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
+  const corrupted: WeatherSafetyIncident = {
+    ...incident,
+    priorFieldStates: { "field-open": "open" },
+  };
+  const result = beginRecovery(corrupted);
+  assert.deepEqual(result, { ok: false, reason: "missing_prior_state" });
+});
+
+test("finalize All Clear fails closed until every affected field has recovered", () => {
+  const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
+  const recovery = beginRecovery(incident);
+  assert.equal(recovery.ok, true);
+  if (!recovery.ok) throw new Error(`Expected recovery plan, got ${recovery.reason}`);
+
+  const partial = finalizeLightningAllClear({
+    incident: recovery.plan.incident,
+    operationId: "clear-op-1",
+    actorUserId: "gm-2",
+    authorized: true,
+    clearedAt: "2026-09-16T18:30:00.000Z",
+    recoveredFieldIds: ["field-open"],
+  });
+
+  assert.deepEqual(partial, { ok: false, reason: "recovery_incomplete" });
+});
+
+test("finalize All Clear clears only after full field recovery and removes the session overlay", () => {
+  const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
+  const recovery = beginRecovery(incident);
+  assert.equal(recovery.ok, true);
+  if (!recovery.ok) throw new Error(`Expected recovery plan, got ${recovery.reason}`);
+
+  const result = finalizeLightningAllClear({
+    incident: recovery.plan.incident,
+    operationId: "clear-op-1",
+    actorUserId: "gm-2",
+    authorized: true,
+    clearedAt: "2026-09-16T18:30:00.000Z",
+    recoveredFieldIds: ["field-open", "field-maintenance"],
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error(`Expected final All Clear, got ${result.reason}`);
+
+  assert.equal(result.plan.incident.status, "cleared");
+  assert.equal(result.plan.incident.clearOperationId, "clear-op-1");
+  assert.equal(result.plan.incident.clearedByUserId, "gm-2");
+  assert.equal(result.plan.incident.clearedAt, "2026-09-16T18:30:00.000Z");
+  assert.equal(result.plan.incident.history.filter((entry) => entry.type === "cleared").length, 1);
+  assert.deepEqual(result.plan.fieldUpdates, []);
   assert.deepEqual(result.plan.sessionOverlays, [
     { sessionId: "game-1", hold: false },
     { sessionId: "game-2", hold: false },
@@ -133,20 +216,56 @@ test("all clear restores exact prior field states and removes only the session h
   assert.deepEqual(result.plan.incident.sessionLifecycleStates, { "game-1": "active", "game-2": "scheduled" });
 });
 
-test("all clear fails closed instead of guessing open when a prior field snapshot is missing", () => {
+test("retry after finalization is idempotent and cannot append a second cleared event", () => {
   const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
-  const corrupted: WeatherSafetyIncident = {
-    ...incident,
-    priorFieldStates: { "field-open": "open" },
-  };
-  const result = planLightningAllClear({
-    incident: corrupted,
+  const recovery = beginRecovery(incident);
+  assert.equal(recovery.ok, true);
+  if (!recovery.ok) throw new Error(`Expected recovery plan, got ${recovery.reason}`);
+
+  const first = finalizeLightningAllClear({
+    incident: recovery.plan.incident,
     operationId: "clear-op-1",
     actorUserId: "gm-2",
     authorized: true,
     clearedAt: "2026-09-16T18:30:00.000Z",
+    recoveredFieldIds: ["field-open", "field-maintenance"],
   });
-  assert.deepEqual(result, { ok: false, reason: "missing_prior_state" });
+  assert.equal(first.ok, true);
+  if (!first.ok) throw new Error(`Expected final All Clear, got ${first.reason}`);
+
+  const retry = finalizeLightningAllClear({
+    incident: first.plan.incident,
+    operationId: "clear-op-1",
+    actorUserId: "gm-2",
+    authorized: true,
+    clearedAt: "2026-09-16T18:31:00.000Z",
+    recoveredFieldIds: ["field-open", "field-maintenance"],
+  });
+
+  assert.equal(retry.ok, true);
+  if (!retry.ok) throw new Error(`Expected idempotent finalization, got ${retry.reason}`);
+  assert.deepEqual(retry.plan.incident, first.plan.incident);
+  assert.equal(retry.plan.incident.history.filter((entry) => entry.type === "cleared").length, 1);
+  assert.deepEqual(retry.plan.fieldUpdates, []);
+  assert.deepEqual(retry.plan.sessionOverlays, []);
+});
+
+test("finalize All Clear refuses a different operation after recovery has begun", () => {
+  const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
+  const recovery = beginRecovery(incident);
+  assert.equal(recovery.ok, true);
+  if (!recovery.ok) throw new Error(`Expected recovery plan, got ${recovery.reason}`);
+
+  const conflict = finalizeLightningAllClear({
+    incident: recovery.plan.incident,
+    operationId: "clear-op-2",
+    actorUserId: "gm-2",
+    authorized: true,
+    clearedAt: "2026-09-16T18:30:00.000Z",
+    recoveredFieldIds: ["field-open", "field-maintenance"],
+  });
+
+  assert.deepEqual(conflict, { ok: false, reason: "clear_operation_conflict" });
 });
 
 test("delivery failure is audit history only and never rolls back incident truth", () => {
@@ -173,22 +292,4 @@ test("coach/family projection returns only sessions relevant to that viewer", ()
   assert.equal(view.providerHealth, "offline");
 
   assert.equal(projectWeatherSafetyForSessions(hold.incident, ["other-game"]), null);
-});
-
-test("an already-cleared incident cannot be cleared a second time", () => {
-  const incident = requirePlanned(planManualLightningHold(baseInput)).incident;
-  const cleared: WeatherSafetyIncident = {
-    ...incident,
-    status: "cleared",
-    clearOperationId: "clear-op-1",
-    clearedAt: "2026-09-16T18:30:00.000Z",
-  };
-  const result = planLightningAllClear({
-    incident: cleared,
-    operationId: "clear-op-2",
-    actorUserId: "gm-2",
-    authorized: true,
-    clearedAt: "2026-09-16T18:45:00.000Z",
-  });
-  assert.deepEqual(result, { ok: false, reason: "incident_not_active" });
 });
