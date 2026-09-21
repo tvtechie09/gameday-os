@@ -1,50 +1,20 @@
 import { createHash } from "node:crypto";
+import { normalizeScoreboardPayload, type NormalizedScoreboardState } from "./scoreboard-adapter-core.ts";
 
 export type ScoreboardEventType = "scoreboard.game_started" | "scoreboard.score_changed" | "scoreboard.period_changed" | "scoreboard.game_final_detected" | "scoreboard.connection_lost" | "scoreboard.reading_received";
 
-export type NormalizedScoreboardState = {
-  awayScore: number;
-  balls: number | null;
-  gameClock: string | null;
-  homeScore: number;
-  inning: number | null;
-  outs: number | null;
-  periodLabel: string | null;
-  possession: string | null;
-  shotClock: string | null;
-  status: string;
-  strikes: number | null;
-  topBottom: "top" | "bottom" | null;
-};
+export type { NormalizedScoreboardState } from "./scoreboard-adapter-core.ts";
 
 export type DaktronicsReadingCorePayload = Partial<NormalizedScoreboardState>;
 
 const staleAfterMs = 30_000;
-
-function text(value: unknown) { return typeof value === "string" && value.trim() ? value.trim() : null; }
-function int(value: unknown) { return typeof value === "number" && Number.isFinite(value) ? Math.trunc(value) : null; }
-function status(value: unknown) { return text(value) ?? "unknown"; }
-function topBottom(value: unknown): "top" | "bottom" | null { const normalized = text(value)?.toLowerCase(); return normalized === "top" || normalized === "bottom" ? normalized : null; }
 
 export function validateDaktronicsAdapterToken(received: string | null | undefined, expected = process.env.DAKTRONICS_ADAPTER_TOKEN) {
   return Boolean(expected && received && received === expected);
 }
 
 export function normalizeDaktronicsReadingPayload(payload: DaktronicsReadingCorePayload): NormalizedScoreboardState {
-  return {
-    awayScore: int(payload.awayScore) ?? 0,
-    balls: int(payload.balls),
-    gameClock: text(payload.gameClock),
-    homeScore: int(payload.homeScore) ?? 0,
-    inning: int(payload.inning),
-    outs: int(payload.outs),
-    periodLabel: text(payload.periodLabel),
-    possession: text(payload.possession),
-    shotClock: text(payload.shotClock),
-    status: status(payload.status),
-    strikes: int(payload.strikes),
-    topBottom: topBottom(payload.topBottom),
-  };
+  return normalizeScoreboardPayload(payload as Record<string, unknown>);
 }
 
 export function hashScoreboardState(state: NormalizedScoreboardState) {
