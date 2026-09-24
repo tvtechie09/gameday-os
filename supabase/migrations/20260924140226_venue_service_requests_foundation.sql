@@ -13,12 +13,12 @@ create table public.venue_service_requests (
   request_type text not null check (request_type in (
     'TRAINER_ASSISTANCE',
     'MAINTENANCE_FIELD_ISSUE',
-    'SECURITY',
-    'TOURNAMENT_DIRECTOR',
-    'VENUE_STAFF',
-    'EMT',
-    'CUSTODIAL',
-    'IT_AV'
+    'SECURITY_ASSISTANCE',
+    'TOURNAMENT_VENUE_DIRECTOR_ASSISTANCE',
+    'OFFICIALS_ASSISTANCE',
+    'TECHNOLOGY_AV_SUPPORT',
+    'CUSTODIAL_FACILITY_SERVICE',
+    'GAME_OPERATIONS_ASSISTANCE'
   )),
   status text not null default 'REQUESTED' check (status in (
     'REQUESTED',
@@ -29,6 +29,8 @@ create table public.venue_service_requests (
     'RESOLVED'
   )),
   severity text check (severity in ('SAFETY', 'GAME_BLOCKING', 'NEEDS_ATTENTION', 'ROUTINE')),
+  priority text not null default 'NORMAL' check (priority in ('URGENT', 'HIGH', 'NORMAL', 'LOW')),
+  operational_impact text check (operational_impact is null or operational_impact = 'GAME_CANNOT_START_CONTINUE'),
   requester_user_id uuid references public.users(id) on delete set null,
   requester_name text check (requester_name is null or char_length(requester_name) <= 120),
   note text check (note is null or char_length(note) <= 1000),
@@ -37,6 +39,9 @@ create table public.venue_service_requests (
   photo_path text check (photo_path is null or (char_length(photo_path) <= 500 and photo_path !~ '^[a-z]+://')),
   source text not null default 'FIELD_PAGE' check (source in ('FIELD_PAGE', 'GAME_PAGE', 'FIELD_QR', 'OPS_DASHBOARD', 'API')),
   field_work_order_id uuid unique references public.field_work_orders(id) on delete set null,
+  assigned_role text check (assigned_role is null or char_length(assigned_role) <= 80),
+  assigned_to_user_id uuid references public.users(id) on delete set null,
+  resolution_note text check (resolution_note is null or char_length(resolution_note) <= 1000),
   requested_at timestamptz not null default now(),
   acknowledged_at timestamptz,
   assigned_at timestamptz,

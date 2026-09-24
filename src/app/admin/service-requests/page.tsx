@@ -57,7 +57,14 @@ export default async function ServiceRequestsPage() {
               </div>
               <span className="rounded-md bg-[var(--accent-soft)] px-2 py-1 text-xs font-black uppercase tracking-[0.1em] text-[var(--accent-strong)]">{venueServiceRequestStatusLabel(request.status)}</span>
             </div>
+            {request.operationalImpact === "GAME_CANNOT_START_CONTINUE" ? (
+              <p className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-black uppercase tracking-[0.08em] text-red-900">
+                Game cannot start or continue
+              </p>
+            ) : null}
+            <p className="mt-3 text-xs font-black uppercase tracking-[0.1em] text-[var(--muted)]">Priority: {request.priority}</p>
             {request.severity ? <p className="mt-3 text-sm font-black">Impact: {request.severity.replaceAll("_", " ")}</p> : null}
+            {request.assignedRole ? <p className="mt-2 text-sm font-bold">Owner: {request.assignedRole}</p> : null}
             {request.note ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{request.note}</p> : null}
             {request.requesterName ? <p className="mt-2 text-xs text-[var(--muted)]">Requested by {request.requesterName}</p> : null}
 

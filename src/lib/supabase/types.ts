@@ -329,12 +329,17 @@ export type Database = {
           request_type: string;
           status: string;
           severity: string | null;
+          priority: string;
+          operational_impact: string | null;
           requester_user_id: string | null;
           requester_name: string | null;
           note: string | null;
           photo_path: string | null;
           source: string;
           field_work_order_id: string | null;
+          assigned_role: string | null;
+          assigned_to_user_id: string | null;
+          resolution_note: string | null;
           requested_at: string;
           acknowledged_at: string | null;
           assigned_at: string | null;
@@ -353,12 +358,17 @@ export type Database = {
           request_type: string;
           status?: string;
           severity?: string | null;
+          priority?: string;
+          operational_impact?: string | null;
           requester_user_id?: string | null;
           requester_name?: string | null;
           note?: string | null;
           photo_path?: string | null;
           source?: string;
           field_work_order_id?: string | null;
+          assigned_role?: string | null;
+          assigned_to_user_id?: string | null;
+          resolution_note?: string | null;
           requested_at?: string;
           acknowledged_at?: string | null;
           assigned_at?: string | null;
@@ -371,6 +381,11 @@ export type Database = {
         Update: {
           status?: string;
           field_work_order_id?: string | null;
+          priority?: string;
+          operational_impact?: string | null;
+          assigned_role?: string | null;
+          assigned_to_user_id?: string | null;
+          resolution_note?: string | null;
           acknowledged_at?: string | null;
           assigned_at?: string | null;
           en_route_at?: string | null;

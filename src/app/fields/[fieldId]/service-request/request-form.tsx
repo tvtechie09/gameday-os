@@ -38,6 +38,10 @@ export function VenueServiceRequestForm({ fieldId, sessionId }: { fieldId: strin
         <p className="text-xs font-black uppercase tracking-[0.14em] text-red-700">Trainer assistance</p>
         <h2 className="mt-2 text-xl font-black">Send a trainer to this field</h2>
         <p className="mt-2 text-sm leading-6 text-red-950">{TRAINER_DISPATCH_NOTICE}</p>
+        <label className="mt-4 flex min-h-12 items-center gap-3 rounded-lg border border-red-300 bg-white px-3 text-sm font-black text-red-950">
+          <input className="size-5" name="operational_impact" type="checkbox" value="GAME_CANNOT_START_CONTINUE" />
+          Game cannot start or continue
+        </label>
         <label className="mt-4 grid gap-1">
           <span className="text-xs font-black uppercase tracking-[0.12em] text-red-800">Your name (optional)</span>
           <input className="min-h-11 rounded-lg border border-red-200 bg-white px-3 text-sm" maxLength={120} name="requester_name" />
@@ -57,10 +61,13 @@ export function VenueServiceRequestForm({ fieldId, sessionId }: { fieldId: strin
           <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">Operational impact</span>
           <select className="min-h-12 rounded-lg border border-[var(--line)] bg-white px-3 text-sm font-bold" defaultValue="NEEDS_ATTENTION" name="severity">
             <option value="SAFETY">Safety concern</option>
-            <option value="GAME_BLOCKING">Game blocking</option>
             <option value="NEEDS_ATTENTION">Needs attention</option>
             <option value="ROUTINE">Routine</option>
           </select>
+        </label>
+        <label className="mt-3 flex min-h-12 items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-black text-red-950">
+          <input className="size-5" name="operational_impact" type="checkbox" value="GAME_CANNOT_START_CONTINUE" />
+          Game cannot start or continue
         </label>
         <label className="mt-3 grid gap-1">
           <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted)]">What is happening? (optional)</span>

@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   canTransitionVenueServiceRequest,
+  deriveVenueServiceRequestPriority,
+  isVenueServiceOperationalImpact,
   maintenanceSeverityToWorkOrderPriority,
+  PHASE_ONE_VENUE_SERVICE_REQUEST_TYPES,
+  PHASE_TWO_VENUE_SERVICE_REQUEST_TYPES,
   TRAINER_DISPATCH_NOTICE,
   VENUE_SERVICE_REQUEST_TYPES,
 } from "../src/lib/services/venue-service-request-core.ts";
@@ -18,11 +22,20 @@ const fieldPage = readFileSync("src/app/fields/[fieldId]/page.tsx", "utf8");
 const accessNavigation = readFileSync("src/lib/access/navigation.ts", "utf8");
 
 describe("Venue Service Requests domain", () => {
-  it("keeps the approved first types and future routing types in one contract", () => {
-    assert.deepEqual(VENUE_SERVICE_REQUEST_TYPES.slice(0, 2), ["TRAINER_ASSISTANCE", "MAINTENANCE_FIELD_ISSUE"]);
-    for (const type of ["SECURITY", "TOURNAMENT_DIRECTOR", "VENUE_STAFF", "EMT", "CUSTODIAL", "IT_AV"]) {
-      assert(VENUE_SERVICE_REQUEST_TYPES.includes(type as (typeof VENUE_SERVICE_REQUEST_TYPES)[number]));
-    }
+  it("keeps Phase 1 user-facing types separate from the exact Phase 2 roadmap contract", () => {
+    assert.deepEqual(PHASE_ONE_VENUE_SERVICE_REQUEST_TYPES, ["TRAINER_ASSISTANCE", "MAINTENANCE_FIELD_ISSUE"]);
+    assert.deepEqual(PHASE_TWO_VENUE_SERVICE_REQUEST_TYPES, [
+      "SECURITY_ASSISTANCE",
+      "TOURNAMENT_VENUE_DIRECTOR_ASSISTANCE",
+      "OFFICIALS_ASSISTANCE",
+      "TECHNOLOGY_AV_SUPPORT",
+      "CUSTODIAL_FACILITY_SERVICE",
+      "GAME_OPERATIONS_ASSISTANCE",
+    ]);
+    assert.deepEqual(VENUE_SERVICE_REQUEST_TYPES, [
+      ...PHASE_ONE_VENUE_SERVICE_REQUEST_TYPES,
+      ...PHASE_TWO_VENUE_SERVICE_REQUEST_TYPES,
+    ]);
   });
 
   it("allows request-type-appropriate status transitions", () => {
@@ -39,6 +52,22 @@ describe("Venue Service Requests domain", () => {
     assert.equal(maintenanceSeverityToWorkOrderPriority("GAME_BLOCKING"), "high");
     assert.equal(maintenanceSeverityToWorkOrderPriority("NEEDS_ATTENTION"), "normal");
     assert.equal(maintenanceSeverityToWorkOrderPriority("ROUTINE"), "low");
+    assert.equal(deriveVenueServiceRequestPriority({ operationalImpact: "GAME_CANNOT_START_CONTINUE" }), "URGENT");
+    assert.equal(deriveVenueServiceRequestPriority({ severity: "SAFETY" }), "URGENT");
+    assert.equal(deriveVenueServiceRequestPriority({ severity: "ROUTINE" }), "LOW");
+  });
+
+  it("models game stoppage as a cross-cutting impact signal, not a request queue", () => {
+    assert.equal(isVenueServiceOperationalImpact("GAME_CANNOT_START_CONTINUE"), true);
+    assert.equal(VENUE_SERVICE_REQUEST_TYPES.includes("GAME_CANNOT_START_CONTINUE" as never), false);
+    assert.match(publicForm, /name="operational_impact" type="checkbox" value="GAME_CANNOT_START_CONTINUE"/);
+  });
+
+  it("exposes only Phase 1 types in the public workflow", () => {
+    for (const type of PHASE_TWO_VENUE_SERVICE_REQUEST_TYPES) {
+      assert.doesNotMatch(publicForm, new RegExp(type));
+    }
+    assert.match(publicAction, /requestTypeValue !== "TRAINER_ASSISTANCE" && requestTypeValue !== "MAINTENANCE_FIELD_ISSUE"/);
   });
 
   it("keeps trainer assistance dispatch-only with emergency guidance", () => {
@@ -84,6 +113,14 @@ describe("Venue Service Requests schema boundary", () => {
     assert.match(migration, /create table public\.venue_service_request_events/);
     assert.match(migration, /events are append-only/);
     assert.match(migration, /field_work_order_id uuid unique references public\.field_work_orders/);
+  });
+
+  it("supports shared priority, ownership, resolution, and operational-impact fields", () => {
+    assert.match(migration, /priority text not null default 'NORMAL'/);
+    assert.match(migration, /operational_impact text check \(operational_impact is null or operational_impact = 'GAME_CANNOT_START_CONTINUE'\)/);
+    assert.match(migration, /assigned_role text check/);
+    assert.match(migration, /assigned_to_user_id uuid references public\.users/);
+    assert.match(migration, /resolution_note text check/);
   });
 
   it("accepts only storage object paths for future photo support", () => {

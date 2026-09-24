@@ -3,12 +3,16 @@ import type { Database } from "@/lib/supabase/types";
 import { createWorkOrder } from "@/lib/services/work-orders";
 import {
   canTransitionVenueServiceRequest,
+  deriveVenueServiceRequestPriority,
   isMaintenanceSeverity,
+  isVenueServiceOperationalImpact,
   isVenueServiceRequestStatus,
   isVenueServiceRequestType,
   maintenanceSeverityToWorkOrderPriority,
   venueServiceRequestTypeLabel,
   type MaintenanceSeverity,
+  type VenueServiceOperationalImpact,
+  type VenueServiceRequestPriority,
   type VenueServiceRequestStatus,
   type VenueServiceRequestType,
 } from "@/lib/services/venue-service-request-core";
@@ -22,11 +26,16 @@ export type VenueServiceRequest = {
   requestType: VenueServiceRequestType;
   status: VenueServiceRequestStatus;
   severity: MaintenanceSeverity | null;
+  priority: VenueServiceRequestPriority;
+  operationalImpact: VenueServiceOperationalImpact | null;
   requesterName: string | null;
   note: string | null;
   photoPath: string | null;
   source: string;
   fieldWorkOrderId: string | null;
+  assignedRole: string | null;
+  assignedToUserId: string | null;
+  resolutionNote: string | null;
   requestedAt: string;
   updatedAt: string;
 };
@@ -36,6 +45,7 @@ export type CreateVenueServiceRequestInput = {
   sessionId?: string | null;
   requestType: VenueServiceRequestType;
   severity?: MaintenanceSeverity | null;
+  operationalImpact?: VenueServiceOperationalImpact | null;
   requesterUserId?: string | null;
   requesterName?: string | null;
   note?: string | null;
@@ -52,11 +62,16 @@ type RequestRow = {
   request_type: string;
   status: string;
   severity: string | null;
+  priority: string;
+  operational_impact: string | null;
   requester_name: string | null;
   note: string | null;
   photo_path: string | null;
   source: string;
   field_work_order_id: string | null;
+  assigned_role: string | null;
+  assigned_to_user_id: string | null;
+  resolution_note: string | null;
   requested_at: string;
   updated_at: string;
 };
@@ -64,6 +79,12 @@ type RequestRow = {
 function mapRequest(row: RequestRow): VenueServiceRequest {
   if (!isVenueServiceRequestType(row.request_type) || !isVenueServiceRequestStatus(row.status)) {
     throw new Error("Venue service request contains an unsupported type or status.");
+  }
+  if (!(["URGENT", "HIGH", "NORMAL", "LOW"] as const).includes(row.priority as VenueServiceRequestPriority)) {
+    throw new Error("Venue service request contains an unsupported priority.");
+  }
+  if (row.operational_impact && !isVenueServiceOperationalImpact(row.operational_impact)) {
+    throw new Error("Venue service request contains an unsupported operational impact.");
   }
   return {
     id: row.id,
@@ -74,11 +95,16 @@ function mapRequest(row: RequestRow): VenueServiceRequest {
     requestType: row.request_type,
     status: row.status,
     severity: row.severity && isMaintenanceSeverity(row.severity) ? row.severity : null,
+    priority: row.priority as VenueServiceRequestPriority,
+    operationalImpact: row.operational_impact as VenueServiceOperationalImpact | null,
     requesterName: row.requester_name,
     note: row.note,
     photoPath: row.photo_path,
     source: row.source,
     fieldWorkOrderId: row.field_work_order_id,
+    assignedRole: row.assigned_role,
+    assignedToUserId: row.assigned_to_user_id,
+    resolutionNote: row.resolution_note,
     requestedAt: row.requested_at,
     updatedAt: row.updated_at,
   };
@@ -126,6 +152,10 @@ export async function createVenueServiceRequest(input: CreateVenueServiceRequest
   const requesterName = input.requesterName?.trim().slice(0, 120) || null;
   const note = isMaintenance ? input.note?.trim().slice(0, 1000) || null : null;
   const photoPath = isMaintenance ? input.photoPath?.trim().slice(0, 500) || null : null;
+  const priority = deriveVenueServiceRequestPriority({
+    severity: input.severity,
+    operationalImpact: input.operationalImpact,
+  });
 
   let requestId: string | null = null;
   let workOrderId: string | null = null;
@@ -136,7 +166,9 @@ export async function createVenueServiceRequest(input: CreateVenueServiceRequest
         gameId: input.sessionId || null,
         title: `${venueServiceRequestTypeLabel(input.requestType)} (${input.severity.toLowerCase().replaceAll("_", " ")})`,
         detail: note,
-        priority: maintenanceSeverityToWorkOrderPriority(input.severity),
+        priority: input.operationalImpact === "GAME_CANNOT_START_CONTINUE"
+          ? "urgent"
+          : maintenanceSeverityToWorkOrderPriority(input.severity),
         reportedBy: requesterName,
         source: "venue_service_request",
       });
@@ -152,6 +184,8 @@ export async function createVenueServiceRequest(input: CreateVenueServiceRequest
         session_id: input.sessionId || null,
         request_type: input.requestType,
         severity: input.severity ?? null,
+        priority,
+        operational_impact: input.operationalImpact ?? null,
         requester_user_id: input.requesterUserId || null,
         requester_name: requesterName,
         note,
@@ -210,7 +244,10 @@ export async function transitionVenueServiceRequest(input: {
   if (input.nextStatus === "ASSIGNED") patch.assigned_at = now;
   if (input.nextStatus === "EN_ROUTE") patch.en_route_at = now;
   if (input.nextStatus === "IN_PROGRESS") patch.in_progress_at = now;
-  if (input.nextStatus === "RESOLVED") patch.resolved_at = now;
+  if (input.nextStatus === "RESOLVED") {
+    patch.resolved_at = now;
+    patch.resolution_note = input.note?.trim().slice(0, 1000) || null;
+  }
 
   const { data: updated, error: updateError } = await supabase
     .from("venue_service_requests")
@@ -235,7 +272,10 @@ export async function transitionVenueServiceRequest(input: {
     if (input.nextStatus === "ASSIGNED") rollback.assigned_at = null;
     if (input.nextStatus === "EN_ROUTE") rollback.en_route_at = null;
     if (input.nextStatus === "IN_PROGRESS") rollback.in_progress_at = null;
-    if (input.nextStatus === "RESOLVED") rollback.resolved_at = null;
+    if (input.nextStatus === "RESOLVED") {
+      rollback.resolved_at = null;
+      rollback.resolution_note = current.resolutionNote;
+    }
     await supabase.from("venue_service_requests").update(rollback).eq("id", current.id).eq("status", input.nextStatus);
     throw new Error(eventError.message);
   }
