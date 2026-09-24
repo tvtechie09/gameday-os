@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { LiveScore } from "./live-score";
 import { publicErrorMessage } from "@/lib/public-error";
 import Image from "next/image";
+import Link from "next/link";
 import { WeatherStatusCard } from "@/components/weather/weather-status-card";
 import { getField, getFieldStatusClass, getFieldStatusLabel } from "@/lib/services/fields";
 import { filterAlertsForFieldPage, getActiveAlerts, getAlertLabel, getAlerts, getAlertTone, isAlertActive, isAlertExpired } from "@/lib/services/alerts";
@@ -528,6 +529,12 @@ export default async function PublicFieldPage({ params }: FieldPageProps) {
                 <div className="mt-4 border-t border-[var(--line)] pt-4">
                   <FollowButtons fieldId={fieldId} sessionId={currentSession?.id} />
                 </div>
+                <Link
+                  className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-[var(--black-soft)] px-4 text-center text-sm font-black text-white"
+                  href={`/fields/${fieldId}/service-request${currentSession ? `?sessionId=${currentSession.id}` : ""}`}
+                >
+                  Get help at this field
+                </Link>
               </section>
             ) : null}
 
