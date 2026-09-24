@@ -33,6 +33,8 @@ export type CreateWorkOrderInput = {
   detail?: string | null;
   priority?: string;
   reportedBy?: string | null;
+  source?: string | null;
+  gameId?: string | null;
 };
 
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
@@ -112,6 +114,8 @@ export async function createWorkOrder(input: CreateWorkOrderInput): Promise<Work
       detail: input.detail?.trim().slice(0, 1000) || null,
       priority,
       reported_by: input.reportedBy?.trim().slice(0, 120) || null,
+      source: input.source?.trim().slice(0, 60) || "manual",
+      game_id: input.gameId || null,
     })
     .select("*")
     .single();

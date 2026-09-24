@@ -91,6 +91,9 @@ export default async function FieldsPage() {
         <Link href="/admin/fields/work-orders" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
           Work orders
         </Link>
+        <Link href="/admin/service-requests" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
+          Service requests
+        </Link>
         <Link href="/admin/fields/bookings" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold">
           Allocation &amp; permits
         </Link>

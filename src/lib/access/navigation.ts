@@ -54,6 +54,7 @@ export const navItems: NavItem[] = [
   // venueId is always null (Phase B), so Command Center has nothing to render
   // for it. Same dead-end Phase B flagged for /today; excluded the same way.
   { key: "command-center", href: "/admin/command-center", label: "Today's Operations", icon: "Home", group: "operations", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { key: "service-requests", href: "/admin/service-requests", label: "Service Requests", icon: "Bell", group: "operations", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { key: "org-home", href: "/org", label: "Organization Home", icon: "Home", group: "operations", cap: isOrgScoped },
   { key: "today", href: "/today", label: "Today's Operations", icon: "Home", group: "operations", cap: (ctx) => canViewOpsTasks(ctx) && !canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   // Reservations (grants + claims already exist) and the derived coaches
@@ -155,6 +156,7 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   // canAccessAdminWorkspace, which venue_staff does not satisfy -- they would see
   // the nav link and get bounced.
   { prefix: "/admin/command-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/service-requests", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/operations-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/impersonation", cap: canImpersonate },
   { prefix: "/admin/developer", cap: canViewDevTools },

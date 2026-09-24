@@ -319,6 +319,106 @@ export type Database = {
           },
         ];
       };
+      venue_service_requests: {
+        Row: {
+          id: string;
+          organization_id: string;
+          venue_id: string;
+          field_id: string | null;
+          session_id: string | null;
+          request_type: string;
+          status: string;
+          severity: string | null;
+          priority: string;
+          operational_impact: string | null;
+          requester_user_id: string | null;
+          requester_name: string | null;
+          note: string | null;
+          photo_path: string | null;
+          source: string;
+          field_work_order_id: string | null;
+          assigned_role: string | null;
+          assigned_to_user_id: string | null;
+          resolution_note: string | null;
+          requested_at: string;
+          acknowledged_at: string | null;
+          assigned_at: string | null;
+          en_route_at: string | null;
+          in_progress_at: string | null;
+          resolved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          venue_id: string;
+          field_id?: string | null;
+          session_id?: string | null;
+          request_type: string;
+          status?: string;
+          severity?: string | null;
+          priority?: string;
+          operational_impact?: string | null;
+          requester_user_id?: string | null;
+          requester_name?: string | null;
+          note?: string | null;
+          photo_path?: string | null;
+          source?: string;
+          field_work_order_id?: string | null;
+          assigned_role?: string | null;
+          assigned_to_user_id?: string | null;
+          resolution_note?: string | null;
+          requested_at?: string;
+          acknowledged_at?: string | null;
+          assigned_at?: string | null;
+          en_route_at?: string | null;
+          in_progress_at?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: string;
+          field_work_order_id?: string | null;
+          priority?: string;
+          operational_impact?: string | null;
+          assigned_role?: string | null;
+          assigned_to_user_id?: string | null;
+          resolution_note?: string | null;
+          acknowledged_at?: string | null;
+          assigned_at?: string | null;
+          en_route_at?: string | null;
+          in_progress_at?: string | null;
+          resolved_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      venue_service_request_events: {
+        Row: {
+          id: string;
+          request_id: string;
+          from_status: string | null;
+          to_status: string;
+          actor_user_id: string | null;
+          actor_label: string | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          request_id: string;
+          from_status?: string | null;
+          to_status: string;
+          actor_user_id?: string | null;
+          actor_label?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       billing_accounts: {
         Row: {
           id: string;
