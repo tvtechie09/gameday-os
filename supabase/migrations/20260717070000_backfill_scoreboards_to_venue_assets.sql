@@ -24,6 +24,13 @@
 -- The legacy `scoreboards` table is left in place; retiring it is a separate call.
 -- Idempotent: skips any field that already has a scoreboard asset.
 
+do $$
+begin
+  if to_regclass('public.scoreboards') is null then
+    return;
+  end if;
+
+  execute $backfill$
 insert into venue_assets (
   organization_id, venue_id, field_id, asset_name, asset_type, asset_category,
   manufacturer, model, physical_location, status, integration_status, notes
@@ -55,4 +62,7 @@ where s.venue_id is not null
   and not exists (
     select 1 from venue_assets a
     where a.field_id = s.field_id and a.asset_type = 'scoreboard'
-  );
+  )
+$backfill$;
+end;
+$$;

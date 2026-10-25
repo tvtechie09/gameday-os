@@ -3,4 +3,10 @@
 -- review. Close its anon-readable surface with deny-all RLS, matching the
 -- orphan `scoreboards` treatment. Not dropped (standing rule); drop is a later
 -- follow-up once confirmed unneeded. Applied live 2026-07-13.
-alter table public.game_states enable row level security;
+do $$
+begin
+  if to_regclass('public.game_states') is not null then
+    alter table public.game_states enable row level security;
+  end if;
+end;
+$$;

@@ -4,6 +4,14 @@ import { PermissionDeniedError, assertActorUserId, requirePermission, safelyLogA
 import { getSupabaseAdminClient } from "../supabase/server.ts";
 import { recordGameStateChange } from "../game-engine/game-service.ts";
 import type { Json } from "../supabase/types.ts";
+import {
+  normalizeProviderKey,
+  normalizeScoreboardPayload,
+  providerMatchesManufacturer,
+  resolveScoreboardAuthority,
+  resolveScoreboardSourceAuthority,
+  type ScoreboardProviderKey,
+} from "../scoreboard-adapter-core.ts";
 
 export type ScoreboardDeviceStatus = "configured" | "connected" | "stale" | "offline" | "error" | "disabled";
 export type ScoreboardConnectionType = "network" | "serial" | "controller_bridge" | "local_adapter" | "unknown";
@@ -15,7 +23,13 @@ export type DaktronicsReadingPayload = Partial<NormalizedScoreboardState> & {
   readAt?: string;
   sessionId?: string | null;
   rawPayload?: Json;
+  eventAt?: string;
+  eventId?: string;
+  originEventId?: string | null;
+  provider?: ScoreboardProviderKey;
+  sequence?: number | null;
 };
+export type ScoreboardReadingPayload = DaktronicsReadingPayload;
 
 export type ScoreboardDevice = {
   adapterKey: string | null;
@@ -51,6 +65,7 @@ type ConnectionRow = { id: string; device_id: string; provider_key: string; conn
 type ReadingRow = { id: string; device_id: string; connection_id: string | null; venue_id: string; field_id: string | null; session_id: string | null; source: string; home_score: number; away_score: number; period_label: string | null; inning: number | null; top_bottom: "top" | "bottom" | null; balls: number | null; strikes: number | null; outs: number | null; game_clock: string | null; shot_clock: string | null; possession: string | null; status: string; raw_payload: Json; payload_hash: string; is_official: boolean; read_at: string; created_at: string };
 type EventRow = { id: string; device_id: string; reading_id: string | null; venue_id: string; field_id: string | null; session_id: string | null; event_type: ScoreboardEventType; event_message: string; previous_state: Json | null; current_state: Json; created_at: string };
 type LogRow = { id: string; device_id: string | null; connection_id: string | null; log_level: "debug" | "info" | "warning" | "error"; message: string; metadata: Json; created_at: string };
+type SessionScopeRow = { id: string; field_id: string | null; venue_id: string };
 
 type ScoreboardTables = {
   scoreboard_devices: { Row: DeviceRow; Insert: Partial<DeviceRow> & Pick<DeviceRow, "venue_id" | "model">; Update: Partial<DeviceRow>; Relationships: [] };
@@ -58,6 +73,7 @@ type ScoreboardTables = {
   scoreboard_readings: { Row: ReadingRow; Insert: Partial<ReadingRow> & Pick<ReadingRow, "device_id" | "venue_id" | "payload_hash">; Update: Partial<ReadingRow>; Relationships: [] };
   scoreboard_events: { Row: EventRow; Insert: Partial<EventRow> & Pick<EventRow, "device_id" | "venue_id" | "event_type" | "event_message">; Update: Partial<EventRow>; Relationships: [] };
   scoreboard_adapter_logs: { Row: LogRow; Insert: Partial<LogRow> & Pick<LogRow, "message">; Update: Partial<LogRow>; Relationships: [] };
+  sessions: { Row: SessionScopeRow; Insert: Partial<SessionScopeRow> & Pick<SessionScopeRow, "venue_id">; Update: Partial<SessionScopeRow>; Relationships: [] };
 };
 
 type ScoreboardDatabase = { public: { Tables: ScoreboardTables; Views: Record<string, never>; Functions: Record<string, never>; Enums: Record<string, never>; CompositeTypes: Record<string, never> } };
@@ -127,6 +143,10 @@ async function writeAdapterLog(message: string, metadata: Json, level: LogRow["l
 }
 
 export async function ingestDaktronicsReading(payload: DaktronicsReadingPayload, requestMeta: { adapterHost?: string | null; adapterVersion?: string | null } = {}) {
+  return ingestScoreboardReading("daktronics", payload, requestMeta);
+}
+
+export async function ingestScoreboardReading(provider: ScoreboardProviderKey, payload: ScoreboardReadingPayload, requestMeta: { adapterHost?: string | null; adapterVersion?: string | null } = {}) {
   const deviceKey = text(payload.deviceId) ? { column: "id", value: text(payload.deviceId)! } : text(payload.adapterKey) ? { column: "adapter_key", value: text(payload.adapterKey)! } : null;
   if (!deviceKey) throw new Error("Missing scoreboard deviceId or adapterKey.");
   const supabase = getClient();
@@ -134,29 +154,94 @@ export async function ingestDaktronicsReading(payload: DaktronicsReadingPayload,
   if (deviceError) throw new Error(deviceError.message);
   if (!deviceData) throw new Error("Scoreboard device is not registered.");
   const device = deviceData as unknown as DeviceRow;
-  if (!device.is_read_only) throw new Error("Scoreboard device must be read-only for Daktronics reading ingestion.");
-
-  const state = normalizeDaktronicsReadingPayload(payload);
-  const payloadHash = hashScoreboardState(state);
-  const readAt = text(payload.readAt) ?? new Date().toISOString();
-  const { data: previousData } = await supabase.from("scoreboard_readings").select(readingSelect).eq("device_id", device.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-  const previousReading = previousData ? mapReading(previousData as unknown as ReadingRow) : null;
-  if (previousReading?.payloadHash === payloadHash) {
-    await supabase.from("scoreboard_devices").update({ last_seen_at: readAt, status: "connected", updated_at: new Date().toISOString() }).eq("id", device.id);
-    await writeAdapterLog("Duplicate Daktronics reading accepted without creating events.", { payloadHash }, "debug", device.id);
-    return { duplicate: true, events: [], reading: previousReading };
+  if (!device.is_read_only) throw new Error("Scoreboard device must be read-only for passive reading ingestion.");
+  if (!providerMatchesManufacturer(provider, device.manufacturer)) throw new Error("Scoreboard provider does not match the provisioned device manufacturer.");
+  if (!device.field_id) throw new Error("Scoreboard device must be provisioned to a field before ingestion.");
+  if (payload.fieldId && payload.fieldId !== device.field_id) throw new Error("Reading field does not match the provisioned scoreboard field.");
+  if (payload.sessionId) {
+    const { data: sessionData, error: sessionError } = await supabase.from("sessions").select("id,venue_id,field_id").eq("id", payload.sessionId).maybeSingle();
+    if (sessionError) throw new Error(sessionError.message);
+    const session = sessionData as unknown as SessionScopeRow | null;
+    if (!session || session.venue_id !== device.venue_id || session.field_id !== device.field_id) {
+      throw new Error("Reading session does not match the provisioned scoreboard venue and field.");
+    }
   }
 
-  const { data: connectionData } = await supabase.from("scoreboard_connections").select(connectionSelect).eq("device_id", device.id).maybeSingle();
+  const state = provider === "daktronics" ? normalizeDaktronicsReadingPayload(payload) : normalizeScoreboardPayload(payload as Record<string, unknown>);
+  const payloadHash = hashScoreboardState(state);
+  const readAt = text(payload.eventAt) ?? text(payload.readAt) ?? new Date().toISOString();
+  const { data: previousData } = await supabase.from("scoreboard_readings").select(readingSelect).eq("device_id", device.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const previousReading = previousData ? mapReading(previousData as unknown as ReadingRow) : null;
+  const authority = resolveScoreboardSourceAuthority(
+    [device.id, device.adapter_key].filter((value): value is string => Boolean(value)),
+  );
+  if (!authority) throw new Error("Scoreboard source authority is missing or invalid for this device.");
+
+  let primaryStateHash: string | null = null;
+  if (authority.role === "PRIMARY") {
+    const { data: peerData, error: peerError } = await supabase
+      .from("scoreboard_devices")
+      .select(deviceSelect)
+      .eq("venue_id", device.venue_id)
+      .eq("field_id", device.field_id)
+      .neq("id", device.id);
+    if (peerError) throw new Error(peerError.message);
+    const primaryPeerIds = ((peerData ?? []) as unknown as DeviceRow[])
+      .filter((peer) => resolveScoreboardSourceAuthority(
+        [peer.id, peer.adapter_key].filter((value): value is string => Boolean(value)),
+      )?.role === "PRIMARY")
+      .map((peer) => peer.id);
+    if (primaryPeerIds.length > 0) {
+      const { data: peerReading, error: peerReadingError } = await supabase
+        .from("scoreboard_readings")
+        .select(readingSelect)
+        .in("device_id", primaryPeerIds)
+        .eq("venue_id", device.venue_id)
+        .eq("field_id", device.field_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (peerReadingError) throw new Error(peerReadingError.message);
+      primaryStateHash = peerReading ? mapReading(peerReading as unknown as ReadingRow).payloadHash : null;
+    }
+  }
+
+  const authorityDecision = resolveScoreboardAuthority({
+    incomingOriginEventId: payload.originEventId,
+    incomingRole: authority.role,
+    incomingStateHash: payloadHash,
+    projectedOriginEventId: previousReading?.id ?? null,
+    primaryStateHash,
+    takeoverAuthorized: authority.takeoverAuthorized,
+  });
+  if (authorityDecision.action === "conflict") {
+    throw new Error("Scoreboard primary sources diverged; ingestion failed closed.");
+  }
+  if (authorityDecision.action === "ignore") {
+    await writeAdapterLog(
+      "Scoreboard reading ignored by source authority.",
+      { authorityAction: authorityDecision.action, authorityReason: authorityDecision.reason, provider },
+      "warning",
+      device.id,
+    );
+    return { accepted: false, authority: authorityDecision, duplicate: false, events: [], reading: previousReading };
+  }
+  if (previousReading?.payloadHash === payloadHash) {
+    await supabase.from("scoreboard_devices").update({ last_seen_at: readAt, status: "connected", updated_at: new Date().toISOString() }).eq("id", device.id);
+    await writeAdapterLog("Duplicate scoreboard reading accepted without creating events.", { payloadHash, provider }, "debug", device.id);
+    return { accepted: true, authority: authorityDecision, duplicate: true, events: [], reading: previousReading };
+  }
+
+  const { data: connectionData } = await supabase.from("scoreboard_connections").select(connectionSelect).eq("device_id", device.id).eq("provider_key", provider).maybeSingle();
   const connection = connectionData as unknown as ConnectionRow | null;
   const connectionId = connection?.id ?? null;
   if (connection) {
     await supabase.from("scoreboard_connections").update({ adapter_host: requestMeta.adapterHost ?? connection.adapter_host, adapter_version: requestMeta.adapterVersion ?? connection.adapter_version, connection_status: "connected", last_read_at: readAt, updated_at: new Date().toISOString() }).eq("id", connection.id);
   } else {
-    await supabase.from("scoreboard_connections").insert({ adapter_host: requestMeta.adapterHost ?? null, adapter_version: requestMeta.adapterVersion ?? null, connection_status: "connected", device_id: device.id, last_connected_at: readAt, last_read_at: readAt, provider_key: "daktronics" });
+    await supabase.from("scoreboard_connections").insert({ adapter_host: requestMeta.adapterHost ?? null, adapter_version: requestMeta.adapterVersion ?? null, connection_status: "connected", device_id: device.id, last_connected_at: readAt, last_read_at: readAt, provider_key: provider });
   }
 
-  const { data: readingData, error: readingError } = await supabase.from("scoreboard_readings").insert({ away_score: state.awayScore, balls: state.balls, connection_id: connectionId, device_id: device.id, field_id: payload.fieldId ?? device.field_id, game_clock: state.gameClock, home_score: state.homeScore, inning: state.inning, is_official: Boolean(payload.isOfficial), outs: state.outs, payload_hash: payloadHash, period_label: state.periodLabel, possession: state.possession, raw_payload: payload.rawPayload ?? payload as Json, read_at: readAt, session_id: payload.sessionId ?? null, shot_clock: state.shotClock, source: "daktronics_readonly", status: state.status, strikes: state.strikes, top_bottom: state.topBottom, venue_id: device.venue_id }).select(readingSelect).single();
+  const { data: readingData, error: readingError } = await supabase.from("scoreboard_readings").insert({ away_score: state.awayScore, balls: state.balls, connection_id: connectionId, device_id: device.id, field_id: device.field_id, game_clock: state.gameClock, home_score: state.homeScore, inning: state.inning, is_official: Boolean(payload.isOfficial), outs: state.outs, payload_hash: payloadHash, period_label: state.periodLabel, possession: state.possession, raw_payload: payload.rawPayload ?? payload as Json, read_at: readAt, session_id: payload.sessionId ?? null, shot_clock: state.shotClock, source: `${provider}_readonly`, status: state.status, strikes: state.strikes, top_bottom: state.topBottom, venue_id: device.venue_id }).select(readingSelect).single();
   if (readingError) throw new Error(readingError.message);
   const reading = mapReading(readingData as unknown as ReadingRow);
   await supabase.from("scoreboard_devices").update({ last_seen_at: readAt, status: "connected", updated_at: new Date().toISOString() }).eq("id", device.id);
@@ -166,7 +251,7 @@ export async function ingestDaktronicsReading(payload: DaktronicsReadingPayload,
   for (const eventType of eventTypes) {
     await supabase.from("scoreboard_events").insert({ current_state: state as unknown as Json, device_id: device.id, event_message: eventType.replace("scoreboard.", "Scoreboard ").replaceAll("_", " "), event_type: eventType, field_id: reading.fieldId, previous_state: previousState as unknown as Json, reading_id: reading.id, session_id: reading.sessionId, venue_id: reading.venueId });
   }
-  await writeAdapterLog("Daktronics read-only reading stored.", { eventTypes, payloadHash }, "info", device.id, connectionId);
+  await writeAdapterLog("Passive scoreboard reading stored.", { eventTypes, payloadHash, provider }, "info", device.id, connectionId);
 
   // Connected Game Engine device adapter: when the reading is attached to a
   // game, mirror it into game_live_state + game_events (score.changed) via the
@@ -187,15 +272,15 @@ export async function ingestDaktronicsReading(payload: DaktronicsReadingPayload,
         actorType: "device",
         actorId: reading.deviceId,
         sourceType: "scoreboard",
-        idempotencyKey: "daktronics:" + reading.id,
-        payload: { home: reading.homeScore, away: reading.awayScore, source: "daktronics" },
+        idempotencyKey: provider + ":" + reading.id,
+        payload: { home: reading.homeScore, away: reading.awayScore, source: provider, eventId: payload.eventId ?? null, originEventId: payload.originEventId ?? null, sequence: payload.sequence ?? null },
       });
     } catch (error) {
-      console.error("Game engine mirror (daktronics) failed; reading stored", error);
+      console.error(`Game engine mirror (${provider}) failed; reading stored`, error);
     }
   }
 
-  return { duplicate: false, events: eventTypes, reading };
+  return { accepted: true, authority: authorityDecision, duplicate: false, events: eventTypes, reading };
 }
 
 export async function getScoreboardAdapterLogs(actorUserId: string) {

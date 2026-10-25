@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getSupabaseAuthBrowserClient } from "@/lib/supabase/auth-browser";
 
 // Password form for invited/recovering users arriving from an emailed link.
@@ -10,6 +11,7 @@ import { getSupabaseAuthBrowserClient } from "@/lib/supabase/auth-browser";
 // hash tokens, which never reach the server. The browser client's
 // detectSessionInUrl handles the hash form on creation; we just wait for it.
 export function SetPasswordForm({ hasSession }: Readonly<{ hasSession: boolean }>) {
+  const router = useRouter();
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [checking, setChecking] = useState(!hasSession);
   const [password, setPassword] = useState("");
@@ -107,7 +109,8 @@ export function SetPasswordForm({ hasSession }: Readonly<{ hasSession: boolean }
       return;
     }
 
-    window.location.assign("/");
+    router.replace("/");
+    router.refresh();
   }
 
   return (

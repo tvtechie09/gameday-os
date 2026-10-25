@@ -5,7 +5,7 @@ import { getVerifiedVenueActorId, VenueAuthError } from "@/lib/supabase/server-a
 
 export const dynamic = "force-dynamic";
 
-export function automationApiError(error: unknown, fallback = "Automation request failed safely.") {
+function automationApiError(error: unknown, fallback = "Automation request failed safely.") {
   if (error instanceof VenueAuthError) {
     return NextResponse.json({ error: error.message, ok: false }, { status: 401 });
   }

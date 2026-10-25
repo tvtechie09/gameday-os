@@ -9,9 +9,13 @@ type Bucket = { count: number; limit: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
 
 export function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for") || "";
+  return clientIpFromHeaders(request.headers);
+}
+
+export function clientIpFromHeaders(headers: Pick<Headers, "get">): string {
+  const forwarded = headers.get("x-forwarded-for") || "";
   const first = forwarded.split(",")[0]?.trim();
-  return first || request.headers.get("x-real-ip") || "unknown";
+  return first || headers.get("x-real-ip") || "unknown";
 }
 
 function prune(now: number) {
