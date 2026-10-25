@@ -22,6 +22,11 @@
 --
 -- Idempotent.
 
+-- Some early hosted projects acquired this column outside the migration chain.
+-- Define it for deterministic blank-database rebuilds before recreating the
+-- compatibility view that has always exposed it.
+alter table public.venues add column if not exists venue_tier text;
+
 create or replace view public.venue_technology_profile as
 with venue_scoreboards as (
   select coalesce(a.venue_id, f.venue_id) as venue_id,

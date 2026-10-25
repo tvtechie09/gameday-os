@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { canAccessAdminWorkspace } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
 import { getFields } from "@/lib/services/fields";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsors } from "@/lib/services/sponsors";
@@ -16,6 +20,11 @@ async function loadCount(label: string, load: () => Promise<unknown[]>) {
 }
 
 export default async function AdminDashboard() {
+  const ctx = await getSessionContext();
+  if (!ctx || !canAccessAdminWorkspace(ctx)) {
+    redirect(getRoleHome(ctx));
+  }
+
   const [venueCount, fieldCount, sessionCount, sponsorCount] = await Promise.all([
     loadCount("venues", getVenues),
     loadCount("fields", getFields),

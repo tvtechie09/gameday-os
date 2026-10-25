@@ -11,6 +11,10 @@ export const roleKeys = [
   "venue_staff",
   "venue_tech_manager",
   "tournament_director",
+  "organization_admin",
+  "league_staff",
+  "coach",
+  "parent",
 ] as const;
 
 export type ExperienceRoleKey = (typeof roleKeys)[number];
@@ -22,6 +26,10 @@ export const roleLabels: Record<ExperienceRoleKey, string> = {
   venue_staff: "Venue Staff",
   venue_tech_manager: "Venue Tech Manager",
   tournament_director: "Tournament Director",
+  organization_admin: "Organization Owner",
+  league_staff: "League Staff",
+  coach: "Coach",
+  parent: "Parent / Guardian",
 };
 
 // Permission keys granted per role. For the seeded roles these mirror the live
@@ -114,6 +122,26 @@ export const rolePermissionCatalog: Record<ExperienceRoleKey, string[]> = {
     "tournament.score.approve",
     "identity.role.manage",
     "venue.alert.send",
+  ],
+  organization_admin: [
+    "league.manage",
+    "league.schedule.manage",
+    "league.team.manage",
+    "identity.review",
+    "audit.review",
+  ],
+  league_staff: [
+    "league.schedule.manage",
+    "league.team.manage",
+  ],
+  coach: [
+    "team.manage",
+  ],
+  // Family access is intentionally route-and-scope based. It receives a
+  // non-administrative read capability so hosted actor resolution can remain
+  // fail-closed without granting operational controls.
+  parent: [
+    "family.child.view",
   ],
 };
 

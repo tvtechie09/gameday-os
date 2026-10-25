@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", origin));
   }
 
-  const { supabase, response } = createSupabaseMiddlewareClient(request);
+  const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
   if (!supabase) {
     return NextResponse.redirect(new URL("/login", origin));
   }
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Carry the session cookies written during the exchange onto the redirect.
+  const response = getResponse();
   const redirectResponse = NextResponse.redirect(new URL(next, origin));
   for (const cookie of response.cookies.getAll()) {
     redirectResponse.cookies.set(cookie);

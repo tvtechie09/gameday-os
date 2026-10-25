@@ -4,8 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
 // Cookie-bound Supabase client for React Server Components and route handlers.
-// Reads/writes the Supabase auth cookies via next/headers so auth.getUser()
-// reflects the current signed-in user server-side. Returns null when Supabase
+// Reads/writes the Supabase auth cookies via next/headers so verified claims
+// reflect the current signed-in user server-side. Returns null when Supabase
 // env is not configured so the app still builds/runs without credentials.
 export async function getSupabaseAuthServerClient(): Promise<SupabaseClient<Database> | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,35 +21,30 @@ export async function getSupabaseAuthServerClient(): Promise<SupabaseClient<Data
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
-        // In Server Components cookie writes are not allowed; ignore the
-        // failure. Token refresh cookies are persisted by the middleware
-        // client instead (see auth-middleware.ts).
-        try {
-          for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
-          }
-        } catch {
-          // no-op: read-only cookie context
-        }
+      setAll() {
+        // React Server Components are a read-only cookie context. Never begin
+        // a multi-cookie write here: a partial write can corrupt a chunked
+        // session before Next rejects the mutation. Middleware is the single
+        // owner of refresh-cookie persistence (see auth-middleware.ts).
       },
     },
   });
 }
 
-// Resolve the authenticated Supabase user (verified server-side). Returns null
-// when unconfigured or unauthenticated. Always uses auth.getUser() (contacts
-// the auth server) rather than trusting the client-held session.
+// Resolve the authenticated user from cryptographically verified JWT claims.
+// Middleware has already refreshed and remotely verified the session before
+// Server Components run; validating its claims here avoids a second Auth
+// network call from a read-only cookie context.
 export async function getSupabaseAuthUser(): Promise<{ id: string; email: string } | null> {
   const supabase = await getSupabaseAuthServerClient();
   if (!supabase) {
     return null;
   }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const { data } = await supabase.auth.getClaims();
+  const id = data?.claims.sub;
+  const email = data?.claims.email;
+  if (typeof id !== "string" || typeof email !== "string") {
     return null;
   }
-  return { id: user.id, email: user.email ?? "" };
+  return { id, email };
 }

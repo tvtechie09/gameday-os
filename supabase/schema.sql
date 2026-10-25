@@ -109,44 +109,6 @@ create table if not exists public.scoreboard_adapters (
   notes text
 );
 
-create table if not exists public.resource_activations (
-  id uuid primary key default gen_random_uuid(),
-  resource_id uuid references public.resources(id) on delete set null,
-  venue_id uuid not null references public.venues(id) on delete cascade,
-  field_id uuid not null references public.fields(id) on delete cascade,
-  session_id uuid references public.sessions(id) on delete set null,
-  activation_type text not null check (activation_type in ('parent_camera', 'livestream_link', 'bluetooth_speaker', 'scoreboard_operator', 'announcer', 'other')),
-  display_name text not null,
-  contact_name text,
-  contact_email text,
-  resource_url text,
-  status text not null default 'requested' check (status in ('requested', 'active', 'ended', 'rejected')),
-  notes text,
-  starts_at timestamptz not null,
-  ends_at timestamptz not null,
-  assigned_to_session boolean not null default false,
-  approved_by text,
-  approved_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.volunteer_roles (
-  id uuid primary key default gen_random_uuid(),
-  venue_id uuid not null references public.venues(id) on delete cascade,
-  field_id uuid not null references public.fields(id) on delete cascade,
-  session_id uuid references public.sessions(id) on delete set null,
-  role_type text not null check (role_type in ('scorekeeper', 'stream_operator', 'audio_operator', 'announcer', 'scoreboard_operator', 'field_admin', 'other')),
-  display_name text not null,
-  contact_name text,
-  contact_email text,
-  contact_phone text,
-  status text not null default 'requested' check (status in ('requested', 'approved', 'active', 'ended', 'rejected')),
-  notes text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
 create table if not exists public.tournaments (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid references public.organizations(id) on delete set null,
@@ -188,6 +150,44 @@ create table if not exists public.sessions (
   external_source text,
   external_source_id text,
   external_source_url text,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.resource_activations (
+  id uuid primary key default gen_random_uuid(),
+  resource_id uuid references public.resources(id) on delete set null,
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  field_id uuid not null references public.fields(id) on delete cascade,
+  session_id uuid references public.sessions(id) on delete set null,
+  activation_type text not null check (activation_type in ('parent_camera', 'livestream_link', 'bluetooth_speaker', 'scoreboard_operator', 'announcer', 'other')),
+  display_name text not null,
+  contact_name text,
+  contact_email text,
+  resource_url text,
+  status text not null default 'requested' check (status in ('requested', 'active', 'ended', 'rejected')),
+  notes text,
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  assigned_to_session boolean not null default false,
+  approved_by text,
+  approved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.volunteer_roles (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references public.venues(id) on delete cascade,
+  field_id uuid not null references public.fields(id) on delete cascade,
+  session_id uuid references public.sessions(id) on delete set null,
+  role_type text not null check (role_type in ('scorekeeper', 'stream_operator', 'audio_operator', 'announcer', 'scoreboard_operator', 'field_admin', 'other')),
+  display_name text not null,
+  contact_name text,
+  contact_email text,
+  contact_phone text,
+  status text not null default 'requested' check (status in ('requested', 'approved', 'active', 'ended', 'rejected')),
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

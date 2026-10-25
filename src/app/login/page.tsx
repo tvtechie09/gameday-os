@@ -26,10 +26,10 @@ export default async function LoginPage({
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-12 sm:px-6">
       <div className="mb-8">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">GameDay OS</p>
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">Nurve Sports Operations</p>
         <h1 className="mt-2 text-3xl font-black leading-tight text-[var(--foreground)]">Sign in</h1>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-          Sign in with your GameDay OS account to continue.
+          Sign in with your assigned sports operations account to continue.
         </p>
       </div>
 

@@ -4,5 +4,13 @@
 -- 2) `venue_technology_profile` is a non-sensitive aggregate view unused by app
 --    code, but SECURITY DEFINER bypasses RLS on its base tables. Switch to
 --    security_invoker so it honors the caller's permissions.
-alter table public.scoreboards enable row level security;
-alter view public.venue_technology_profile set (security_invoker = true);
+do $$
+begin
+  if to_regclass('public.scoreboards') is not null then
+    alter table public.scoreboards enable row level security;
+  end if;
+  if to_regclass('public.venue_technology_profile') is not null then
+    alter view public.venue_technology_profile set (security_invoker = true);
+  end if;
+end;
+$$;

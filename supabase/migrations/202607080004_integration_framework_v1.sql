@@ -14,7 +14,7 @@ create table if not exists public.integration_providers (
   supports_oauth boolean not null default false,
   supports_webhooks boolean not null default false,
   supports_manual_sync boolean not null default false,
-  provider_status text not null default 'available' check (provider_status in ('available', 'disabled', 'future')),
+  provider_status text not null default 'available' check (provider_status in ('available', 'ready', 'disabled', 'future')),
   description text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
