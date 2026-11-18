@@ -3,8 +3,9 @@ import type { GameDayScheduleEvent } from "@/lib/sportsengine-integration";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";
 import type { Field } from "@/lib/types";
-import { createIntegrationConnection, getIntegrationLogs, getIntegrationProviderStatus, runIntegrationSync } from "./integration-framework";
-import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
+import { createIntegrationConnection, getAuthorizedIntegrationConnection, getIntegrationLogs, getIntegrationProviderStatus, runIntegrationSync } from "./integration-framework";
+import { assertActorUserId, PermissionDeniedError, safelyLogAudit } from "./identity";
+import { integrationFieldMappingScopeError } from "./integration-target-scope";
 
 type MappingStatus = "pending" | "mapped" | "missing_field" | "duplicate" | "imported" | "error";
 type FieldMappingStatus = "active" | "ignored" | "needs_review";
@@ -161,12 +162,13 @@ export async function connectSportsEngine(input: { organizationId?: string | nul
 }
 
 export async function syncSportsEngineSchedule(connectionId: string, actorUserId: string): Promise<SportsEngineSyncSummary> {
-  const run = await runIntegrationSync("sportsengine", actorUserId, `sportsengine:${connectionId}:${new Date().toISOString().slice(0, 16)}`);
+  const run = await runIntegrationSync("sportsengine", actorUserId, `sportsengine:${connectionId}:${new Date().toISOString().slice(0, 16)}`, connectionId);
   return { errors: run.error_message ? [run.error_message] : [], imported: run.records_imported, missingFieldMappings: run.records_missing_mapping, recordsFound: run.records_found, runId: run.id, skipped: run.records_skipped };
 }
 
 export async function getSportsEngineFieldMappings(connectionId: string, actorUserId: string) {
-  await getIntegrationProviderStatus("sportsengine", actorUserId);
+  const connection = await getAuthorizedIntegrationConnection(connectionId, actorUserId, "integrations.view");
+  if (connection.providerKey !== "sportsengine") throw new PermissionDeniedError("Integration connection is not available for SportsEngine.");
   const supabase = getClient();
   const { data, error } = await supabase.from("integration_field_mappings").select(fieldMappingSelect).eq("connection_id", connectionId).order("external_field_name", { ascending: true });
   if (error) throw new Error(error.message);
@@ -174,7 +176,8 @@ export async function getSportsEngineFieldMappings(connectionId: string, actorUs
 }
 
 export async function getSportsEngineEvents(connectionId: string, actorUserId: string) {
-  await getIntegrationProviderStatus("sportsengine", actorUserId);
+  const connection = await getAuthorizedIntegrationConnection(connectionId, actorUserId, "integrations.view");
+  if (connection.providerKey !== "sportsengine") throw new PermissionDeniedError("Integration connection is not available for SportsEngine.");
   const supabase = getClient();
   const { data, error } = await supabase.from("integration_event_mappings").select(eventMappingSelect).eq("connection_id", connectionId).order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -183,11 +186,16 @@ export async function getSportsEngineEvents(connectionId: string, actorUserId: s
 
 export async function upsertSportsEngineFieldMapping(input: { connectionId: string; venueId?: string | null; organizationId?: string | null; fieldId: string; externalVenueId?: string | null; externalFieldId: string; externalFieldName: string }, actorUserId: string) {
   const actor = assertActorUserId(actorUserId);
-  if (input.venueId) await requirePermission(actor, "integrations.edit", "venue", input.venueId);
+  const connection = await getAuthorizedIntegrationConnection(input.connectionId, actor, "integrations.edit");
+  if (connection.providerKey !== "sportsengine") throw new PermissionDeniedError("Integration connection is not available for SportsEngine.");
   const supabase = getClient();
-  const { data, error } = await supabase.from("integration_field_mappings").upsert({ connection_id: input.connectionId, external_field_id: input.externalFieldId, external_field_name: input.externalFieldName, external_venue_id: input.externalVenueId ?? null, field_id: input.fieldId, mapping_status: "active", organization_id: input.organizationId ?? null, provider_key: "sportsengine", updated_at: new Date().toISOString(), venue_id: input.venueId ?? null }, { onConflict: "connection_id,external_field_id" }).select(fieldMappingSelect).single();
+  const { data: field, error: fieldError } = await getSupabaseAdminClient().from("fields").select("id,venue_id,organization_id").eq("id", input.fieldId).maybeSingle();
+  if (fieldError) throw new Error(fieldError.message);
+  const scopeError = integrationFieldMappingScopeError(connection, field ? { id: field.id, organizationId: field.organization_id, venueId: field.venue_id } : null, input);
+  if (scopeError) throw new PermissionDeniedError(scopeError);
+  const { data, error } = await supabase.from("integration_field_mappings").upsert({ connection_id: connection.id, external_field_id: input.externalFieldId, external_field_name: input.externalFieldName, external_venue_id: input.externalVenueId ?? null, field_id: input.fieldId, mapping_status: "active", organization_id: field?.organization_id ?? null, provider_key: "sportsengine", updated_at: new Date().toISOString(), venue_id: field?.venue_id ?? null }, { onConflict: "connection_id,external_field_id" }).select(fieldMappingSelect).single();
   if (error) throw new Error(error.message);
-  await safelyLogAudit({ action: "integration.mapping_update", actorUserId: actor, metadata: { externalFieldId: input.externalFieldId, providerKey: "sportsengine" }, resourceId: (data as unknown as FieldMappingRow).id, resourceType: "integration_field_mapping", scopeId: input.venueId ?? input.organizationId ?? null, scopeType: input.venueId ? "venue" : "organization" });
+  await safelyLogAudit({ action: "integration.mapping_update", actorUserId: actor, metadata: { externalFieldId: input.externalFieldId, providerKey: "sportsengine" }, resourceId: (data as unknown as FieldMappingRow).id, resourceType: "integration_field_mapping", scopeId: field?.venue_id ?? field?.organization_id ?? null, scopeType: field?.venue_id ? "venue" : "organization" });
   return mapFieldMapping(data as unknown as FieldMappingRow);
 }
 
@@ -206,8 +214,8 @@ export async function getSportsEngineDashboardSchedule(venueId: string) {
   return { todayByField, upcoming, unmapped } satisfies SportsEngineDashboardSchedule;
 }
 
-export async function getSportsEngineSyncLogs(_connectionId: string, actorUserId: string) {
-  return getIntegrationLogs("sportsengine", actorUserId);
+export async function getSportsEngineSyncLogs(connectionId: string, actorUserId: string) {
+  return getIntegrationLogs("sportsengine", actorUserId, connectionId);
 }
 
 export function protectManualOverride(existing: { hasAdminOverride: boolean; adminOverride?: Json | null }) {
