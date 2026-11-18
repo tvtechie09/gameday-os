@@ -1,10 +1,12 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Session, SessionLinkLabel, SessionSportType, SyncJob, SyncJobStatus, SyncQueueItem, SyncQueueReviewStatus } from "@/lib/types";
 import { getAuthorizedExternalSource } from "./external-sources";
 import { assertActorUserId, PermissionDeniedError, requirePermission, safelyLogAudit } from "./identity";
 import { createSession, getSessionsByFieldId } from "./sessions";
 import { syncQueueFieldScopeError, syncQueueSourceVenueError, type SyncQueueFieldTarget } from "./sync-queue-scope";
+import { getScopedSyncReadIds } from "./sync-read-scope";
 
 type SyncJobRow = Database["public"]["Tables"]["sync_jobs"]["Row"];
 type SyncQueueRow = Database["public"]["Tables"]["sync_queue"]["Row"];
@@ -244,42 +246,48 @@ export async function createSyncJobWithQueue(data: CreateSyncJobInput, actorUser
   return syncJob;
 }
 
-export async function getSyncJobs(): Promise<SyncJob[]> {
+async function loadScopedSyncSnapshot(status?: SyncQueueReviewStatus | "all") {
   const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("sync_jobs")
-    .select(syncJobSelect)
-    .order("created_at", { ascending: false });
+  const [scope, jobsResult, queueResult] = await Promise.all([
+    getScopedVenuesAndFields(),
+    supabase.from("sync_jobs").select(syncJobSelect).order("created_at", { ascending: false }),
+    supabase.from("sync_queue").select(syncQueueSelect).order("created_at", { ascending: false }),
+  ]);
+  if (jobsResult.error) throw new Error(jobsResult.error.message);
+  if (queueResult.error) throw new Error(queueResult.error.message);
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  const jobs = (jobsResult.data ?? []).map(mapSyncJob);
+  const queue = (queueResult.data ?? []).map(mapSyncQueueItem);
+  const sourceIds = [...new Set(jobs.map((job) => job.sourceId).filter((id): id is string => Boolean(id)))];
+  const { data: sourceRows, error: sourceError } = sourceIds.length
+    ? await supabase.from("external_sources").select("id,venue_id").in("id", sourceIds)
+    : { data: [], error: null };
+  if (sourceError) throw new Error(sourceError.message);
 
-  return (data ?? []).map(mapSyncJob);
+  const { jobIds, queueIds } = getScopedSyncReadIds({
+    allowedFieldIds: new Set(scope.fields.map((field) => field.id)),
+    allowedVenueIds: new Set(scope.venues.map((venue) => venue.id)),
+    jobs,
+    queue: queue.map((item) => ({ fieldId: readFieldId(item.sourceData), id: item.id, syncJobId: item.syncJobId })),
+    sources: (sourceRows ?? []).map((source) => ({ id: source.id, venueId: source.venue_id })),
+  });
+
+  return {
+    jobs: jobs.filter((job) => jobIds.has(job.id)),
+    queue: queue.filter((item) => queueIds.has(item.id) && (!status || status === "all" || item.reviewStatus === status)),
+  };
+}
+
+export async function getSyncJobs(): Promise<SyncJob[]> {
+  return (await loadScopedSyncSnapshot()).jobs;
 }
 
 export async function getSyncQueueItems(status?: SyncQueueReviewStatus | "all"): Promise<SyncQueueItem[]> {
-  const supabase = getSupabaseAdminClient();
-  let query = supabase
-    .from("sync_queue")
-    .select(syncQueueSelect)
-    .order("created_at", { ascending: false });
-
-  if (status && status !== "all") {
-    query = query.eq("review_status", status);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data ?? []).map(mapSyncQueueItem);
+  return (await loadScopedSyncSnapshot(status)).queue;
 }
 
 export async function getSyncDashboardStats(): Promise<SyncDashboardStats> {
-  const [jobs, pendingQueue] = await Promise.all([getSyncJobs(), getSyncQueueItems("pending")]);
+  const { jobs, queue: pendingQueue } = await loadScopedSyncSnapshot("pending");
   return {
     failedJobs: jobs.filter((job) => job.status === "failed").length,
     lastSync: jobs.find((job) => job.completedAt)?.completedAt ?? jobs[0]?.createdAt ?? null,

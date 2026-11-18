@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { fetchPublicFeed, isPublicFeedAddress, validatePublicFeedUrl, type FeedAddressResolver } from "../src/lib/services/safe-feed-url.ts";
+import {
+  fetchPublicFeed,
+  isPublicFeedAddress,
+  readBoundedFeedBody,
+  validatePublicFeedUrl,
+  type FeedAddressResolver,
+  type FeedTransport,
+} from "../src/lib/services/safe-feed-url.ts";
 
 function resolver(entries: Record<string, string[]>): FeedAddressResolver {
   return async (hostname) => (entries[hostname] ?? []).map((address) => ({ address }));
@@ -46,25 +54,24 @@ describe("safe calendar feed URLs", () => {
   });
 
   it("manually validates every redirect destination before following it", async () => {
-    const fetched: string[] = [];
+    const fetched: Array<{ addresses: string[]; url: string }> = [];
     const response = await fetchPublicFeed("https://calendar.example/feed.ics", {
-      fetcher: async (url, init) => {
-        fetched.push(url);
-        assert.equal(init.redirect, "manual");
+      transport: async (url, addresses) => {
+        fetched.push({ addresses: addresses.map((item) => item.address), url: url.toString() });
         return new Response(null, { status: 302, headers: { location: "http://metadata.internal/latest" } });
       },
       resolver: resolver({ "calendar.example": ["8.8.8.8"] }),
     }).catch((error: unknown) => error);
 
     assert.match(String(response), /not allowed/);
-    assert.deepEqual(fetched, ["https://calendar.example/feed.ics"]);
+    assert.deepEqual(fetched, [{ addresses: ["8.8.8.8"], url: "https://calendar.example/feed.ics" }]);
   });
 
-  it("follows a bounded public redirect and returns the terminal response", async () => {
+  it("pins each request to that hop's validated addresses", async () => {
     const fetched: string[] = [];
     const response = await fetchPublicFeed("https://calendar.example/feed.ics", {
-      fetcher: async (url) => {
-        fetched.push(url);
+      transport: async (url, addresses) => {
+        fetched.push(`${url.hostname}=${addresses.map((item) => item.address).join(",")}`);
         if (fetched.length === 1) return new Response(null, { status: 307, headers: { location: "https://cdn.example/feed.ics" } });
         return new Response("BEGIN:VCALENDAR", { status: 200 });
       },
@@ -72,6 +79,32 @@ describe("safe calendar feed URLs", () => {
     });
 
     assert.equal(await response.text(), "BEGIN:VCALENDAR");
-    assert.deepEqual(fetched, ["https://calendar.example/feed.ics", "https://cdn.example/feed.ics"]);
+    assert.deepEqual(fetched, ["calendar.example=8.8.8.8", "cdn.example=1.1.1.1"]);
+  });
+
+  it("aborts a stalled transport at the configured deadline", async () => {
+    const stalledTransport: FeedTransport = async (_url, _addresses, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(new Error("transport aborted")), { once: true });
+    });
+    await assert.rejects(fetchPublicFeed("https://calendar.example/feed.ics", {
+      resolver: resolver({ "calendar.example": ["8.8.8.8"] }),
+      timeoutMs: 10,
+      transport: stalledTransport,
+    }), /timed out/);
+  });
+
+  it("rejects response bodies over the byte limit without a network request", async () => {
+    async function* chunks() {
+      yield Buffer.from("123");
+      yield Buffer.from("456");
+    }
+    await assert.rejects(readBoundedFeedBody(chunks(), 5), /too large/);
+    assert.equal((await readBoundedFeedBody(chunks(), 6)).toString(), "123456");
+  });
+
+  it("uses a pinned Node transport rather than resolving again through fetch", () => {
+    const service = readFileSync("src/lib/services/safe-feed-url.ts", "utf8");
+    assert.match(service, /lookupPinnedAddress[\s\S]*resolvedAddress\.address[\s\S]*(?:httpsRequest|httpRequest)/);
+    assert.doesNotMatch(service, /\bfetch\(/);
   });
 });
