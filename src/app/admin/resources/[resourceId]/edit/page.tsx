@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { getResource, getResourceStatusLabel, getResourceTypeLabel, resourceStatuses, resourceTypes, updateResource } from "@/lib/services/resources";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { readResourceFormData } from "../../form-utils";
+import { resolveSession } from "@/lib/access/session";
+import { PermissionDeniedError } from "@/lib/services/identity";
 
 type EditResourcePageProps = {
   params: Promise<{ resourceId: string }>;
@@ -24,7 +26,9 @@ export default async function EditResourcePage({ params }: EditResourcePageProps
       return;
     }
 
-    await updateResource(resourceId, parsed.data);
+    const session = await resolveSession();
+    if (session.kind !== "active") throw new PermissionDeniedError();
+    await updateResource(resourceId, parsed.data, session.context);
     revalidatePath("/admin/resources");
     revalidatePath("/fields/[fieldId]", "page");
     redirect("/admin/resources");

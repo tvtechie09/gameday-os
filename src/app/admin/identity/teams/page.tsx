@@ -1,18 +1,22 @@
 import { getIdentityTeamMembers, getIdentityTeams, getIdentityTeamSessionLinks } from "@/lib/services/identity-platform";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function IdentityTeamsPage() {
+  const ctx = await getSessionContext();
+  if (!ctx) return null;
+  const identityScope = { actorUserId: ctx.userId, scopeType: ctx.scopeType, scopeId: ctx.scopeId };
   const [teams, teamMembers, sessionLinks] = await Promise.all([
-    getIdentityTeams().catch((error: unknown) => {
+    getIdentityTeams(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity teams", error);
       return [];
     }),
-    getIdentityTeamMembers().catch((error: unknown) => {
+    getIdentityTeamMembers(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity team members", error);
       return [];
     }),
-    getIdentityTeamSessionLinks().catch((error: unknown) => {
+    getIdentityTeamSessionLinks(identityScope).catch((error: unknown) => {
       console.error("Failed to load team session links", error);
       return [];
     }),

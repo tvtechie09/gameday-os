@@ -17,6 +17,7 @@ import {
   getIdentityUsers,
   getOrganizationMemberships,
 } from "@/lib/services/identity";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
@@ -33,58 +34,61 @@ function scopeLabel(value: string) {
 }
 
 export default async function IdentityPage() {
+  const ctx = await getSessionContext();
+  if (!ctx) return null;
+  const identityScope = { actorUserId: ctx.userId, scopeType: ctx.scopeType, scopeId: ctx.scopeId };
   const [roles, users, memberships, assignments, invites, accessRequests, approvals] = await Promise.all([
-    getIdentityRoles().catch((error: unknown) => {
+    getIdentityRoles(identityScope).catch((error: unknown) => {
       console.error("Failed to load Identity Platform roles", error);
       return [];
     }),
-    getIdentityUsers().catch((error: unknown) => {
+    getIdentityUsers(identityScope).catch((error: unknown) => {
       console.error("Failed to load Identity Platform users", error);
       return [];
     }),
-    getOrganizationMemberships().catch((error: unknown) => {
+    getOrganizationMemberships(identityScope).catch((error: unknown) => {
       console.error("Failed to load Identity Platform memberships", error);
       return [];
     }),
-    getIdentityRoleAssignments().catch((error: unknown) => {
+    getIdentityRoleAssignments(identityScope).catch((error: unknown) => {
       console.error("Failed to load Identity Platform assignments", error);
       return [];
     }),
-    getIdentityInvites().catch((error: unknown) => {
+    getIdentityInvites(identityScope).catch((error: unknown) => {
       console.error("Failed to load Identity Platform invites", error);
       return [];
     }),
-    getIdentityAccessRequests().catch((error: unknown) => {
+    getIdentityAccessRequests(identityScope).catch((error: unknown) => {
       console.error("Failed to load Identity Platform access requests", error);
       return [];
     }),
-    getIdentityApprovals().catch((error: unknown) => {
+    getIdentityApprovals(identityScope).catch((error: unknown) => {
       console.error("Failed to load Identity Platform approvals", error);
       return [];
     }),
   ]);
   const [people, families, familyMembers, teams, teamMembers, teamSessionLinks] = await Promise.all([
-    getIdentityPeople().catch((error: unknown) => {
+    getIdentityPeople(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity people", error);
       return [];
     }),
-    getIdentityFamilies().catch((error: unknown) => {
+    getIdentityFamilies(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity families", error);
       return [];
     }),
-    getIdentityFamilyMembers().catch((error: unknown) => {
+    getIdentityFamilyMembers(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity family members", error);
       return [];
     }),
-    getIdentityTeams().catch((error: unknown) => {
+    getIdentityTeams(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity teams", error);
       return [];
     }),
-    getIdentityTeamMembers().catch((error: unknown) => {
+    getIdentityTeamMembers(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity team members", error);
       return [];
     }),
-    getIdentityTeamSessionLinks().catch((error: unknown) => {
+    getIdentityTeamSessionLinks(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity team session links", error);
       return [];
     }),

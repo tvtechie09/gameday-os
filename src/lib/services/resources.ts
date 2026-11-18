@@ -1,7 +1,9 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { Resource, ResourceStatus, ResourceType } from "@/lib/types";
-import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
+import { canManageDevices, venueInScope, type AccessContext } from "../access/capabilities";
+import { getCurrentOrganizationScope } from "../organization-scope";
+import { PermissionDeniedError } from "./identity";
 
 type ResourceRow = Database["public"]["Tables"]["resources"]["Row"];
 
@@ -121,9 +123,9 @@ export async function getResourcesForFieldPage({ venueId, fieldId }: { venueId: 
   return resources.filter((resource) => resource.status === "active" && resource.venueId === venueId && (!resource.fieldId || resource.fieldId === fieldId));
 }
 
-export async function createResource(data: CreateResourceInput): Promise<Resource> {
+export async function createResource(data: CreateResourceInput, actor: AccessContext): Promise<Resource> {
   const supabase = getSupabaseAdminClient();
-  const organizationId = await getOrganizationIdForVenue(data.venue_id);
+  const organizationId = await authorizeResourceTarget(data, actor);
   const { data: resource, error } = await supabase
     .from("resources")
     .insert({
@@ -148,9 +150,17 @@ export async function createResource(data: CreateResourceInput): Promise<Resourc
   return mapResource(resource);
 }
 
-export async function updateResource(id: string, data: UpdateResourceInput): Promise<Resource> {
+export async function updateResource(id: string, data: UpdateResourceInput, actor: AccessContext): Promise<Resource> {
   const supabase = getSupabaseAdminClient();
-  const organizationId = await getOrganizationIdForVenue(data.venue_id);
+  const { data: existing, error: existingError } = await supabase
+    .from("resources")
+    .select("id,venue_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+  if (!existing) throw new Error("Resource not found.");
+  await authorizeResourceTarget({ venue_id: existing.venue_id, field_id: null }, actor);
+  const organizationId = await authorizeResourceTarget(data, actor);
   const { data: resource, error } = await supabase
     .from("resources")
     .update({
@@ -177,17 +187,32 @@ export async function updateResource(id: string, data: UpdateResourceInput): Pro
   return mapResource(resource);
 }
 
-async function getOrganizationIdForVenue(venueId: string) {
+async function authorizeResourceTarget(data: Pick<CreateResourceInput, "venue_id" | "field_id">, actor: AccessContext) {
+  if (!canManageDevices(actor)) throw new PermissionDeniedError("Device management permission is required.");
   const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
+  const { data: venue, error } = await supabase
     .from("venues")
-    .select("organization_id")
-    .eq("id", venueId)
+    .select("id,name,organization_id")
+    .eq("id", data.venue_id)
     .maybeSingle();
 
-  if (error) {
-    console.error("Failed to load venue organization for resource", error);
+  if (error) throw new Error(error.message);
+  if (!venue || !venue.organization_id) throw new PermissionDeniedError("The target venue is unavailable.");
+  if (!venueInScope(actor, { id: venue.id, name: venue.name, organizationId: venue.organization_id })) {
+    throw new PermissionDeniedError("The target venue is outside your authorized scope.");
   }
 
-  return data?.organization_id ?? await getWritableOrganizationId();
+  const fieldId = readOptionalText(data.field_id);
+  if (fieldId) {
+    const { data: field, error: fieldError } = await supabase
+      .from("fields")
+      .select("id")
+      .eq("id", fieldId)
+      .eq("venue_id", venue.id)
+      .maybeSingle();
+    if (fieldError) throw new Error(fieldError.message);
+    if (!field) throw new PermissionDeniedError("The target field does not belong to the selected venue.");
+  }
+
+  return venue.organization_id;
 }

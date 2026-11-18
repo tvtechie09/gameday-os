@@ -1,9 +1,12 @@
 import { getIdentityPeople } from "@/lib/services/identity-platform";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function IdentityPeoplePage() {
-  const people = await getIdentityPeople().catch((error: unknown) => {
+  const ctx = await getSessionContext();
+  if (!ctx) return null;
+  const people = await getIdentityPeople({ actorUserId: ctx.userId, scopeType: ctx.scopeType, scopeId: ctx.scopeId }).catch((error: unknown) => {
     console.error("Failed to load identity people", error);
     return [];
   });

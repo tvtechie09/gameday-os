@@ -6,7 +6,7 @@ import { getAudioModeLabel, getAudioProfileForField, getAudioStatusLabel } from 
 import { notFound } from "next/navigation";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getField } from "@/lib/services/fields";
-import { getIdentityTeams, getIdentityTeamSessionLinks } from "@/lib/services/identity-platform";
+import { getIdentityTeamsForAuthorizedSession } from "@/lib/services/identity-platform";
 import { getActiveResourceActivationsForField } from "@/lib/services/resource-activations";
 import { getScoreboardIntegrationModeLabel, getScoreboardProfileForField, getScoreboardStatusLabel } from "@/lib/services/scoreboards";
 import { getConnectedSessionProfile } from "@/lib/services/session-command-center";
@@ -111,6 +111,10 @@ export default async function SessionCommandCenterPage({ params }: CommandCenter
     console.error("Failed to load command center venue", error);
     return null;
   }) : null;
+  const { links: teamLinks, teams } = await getIdentityTeamsForAuthorizedSession(session.id).catch((error: unknown) => {
+    console.error("Failed to load session-scoped identity teams", error);
+    return { links: [], teams: [] };
+  });
 
   const [
     connectedProfile,
@@ -121,8 +125,6 @@ export default async function SessionCommandCenterPage({ params }: CommandCenter
     volunteerRoles,
     sessionEvents,
     sponsorPlacements,
-    teamLinks,
-    teams,
   ] = await Promise.all([
     getConnectedSessionProfile(session.id),
     getActiveAlerts().catch((error: unknown) => {
@@ -147,14 +149,6 @@ export default async function SessionCommandCenterPage({ params }: CommandCenter
       console.error("Failed to load command center sponsors", error);
       return [];
     }) : Promise.resolve([]),
-    getIdentityTeamSessionLinks().catch((error: unknown) => {
-      console.error("Failed to load team-session links", error);
-      return [];
-    }),
-    getIdentityTeams().catch((error: unknown) => {
-      console.error("Failed to load identity teams", error);
-      return [];
-    }),
   ]);
 
   const operationAlerts = venue && field ? filterAlertsForFieldPage({

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createResource } from "@/lib/services/resources";
+import { resolveSession } from "@/lib/access/session";
+import { PermissionDeniedError } from "@/lib/services/identity";
 import type { Resource } from "@/lib/types";
 import { readResourceFormData } from "./form-utils";
 
@@ -23,7 +25,9 @@ export async function createResourceAction(formData: FormData): Promise<CreateRe
   }
 
   try {
-    const resource = await createResource(parsed.data);
+    const session = await resolveSession();
+    if (session.kind !== "active") throw new PermissionDeniedError();
+    const resource = await createResource(parsed.data, session.context);
     revalidateResourceSurfaces();
     return { resource };
   } catch (error) {

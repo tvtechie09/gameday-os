@@ -224,7 +224,19 @@ function normalizeOptionalText(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
-export async function getIdentityRoles(): Promise<IdentityRole[]> {
+export type IdentityReadScope = {
+  actorUserId: string;
+  scopeType: IdentityScopeType | string;
+  scopeId: string;
+};
+
+async function authorizeIdentityRead(scope: IdentityReadScope) {
+  const actor = assertActorUserId(scope.actorUserId);
+  await requirePermission(actor, "identity.role.manage", scope.scopeType, scope.scopeId);
+  return actor;
+}
+
+async function loadIdentityRoles(): Promise<IdentityRole[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase.from("roles").select(roleSelect).order("name", { ascending: true });
 
@@ -235,9 +247,39 @@ export async function getIdentityRoles(): Promise<IdentityRole[]> {
   return (data ?? []).map(mapRole);
 }
 
-export async function getIdentityUsers(): Promise<IdentityUser[]> {
+export async function getIdentityRoles(scope: IdentityReadScope): Promise<IdentityRole[]> {
+  await authorizeIdentityRead(scope);
+  return loadIdentityRoles();
+}
+
+export async function getIdentityUsers(scope: IdentityReadScope): Promise<IdentityUser[]> {
+  await authorizeIdentityRead(scope);
   const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase.from("users").select(userSelect).order("created_at", { ascending: false });
+  let visibleUserIds: string[] | null = null;
+
+  if (scope.scopeType !== "platform") {
+    const { data: assignments, error: assignmentError } = await supabase
+      .from("user_role_assignments")
+      .select("user_id")
+      .eq("scope_type", scope.scopeType)
+      .eq("scope_id", scope.scopeId);
+    if (assignmentError) throw new Error(assignmentError.message);
+    visibleUserIds = [...new Set((assignments ?? []).map((assignment) => assignment.user_id))];
+
+    if (scope.scopeType === "organization") {
+      const { data: memberships, error: membershipError } = await supabase
+        .from("organization_memberships")
+        .select("user_id")
+        .eq("organization_id", scope.scopeId);
+      if (membershipError) throw new Error(membershipError.message);
+      visibleUserIds = [...new Set([...visibleUserIds, ...(memberships ?? []).map((membership) => membership.user_id)])];
+    }
+  }
+
+  if (visibleUserIds?.length === 0) return [];
+  let query = supabase.from("users").select(userSelect).order("created_at", { ascending: false });
+  if (visibleUserIds) query = query.in("id", visibleUserIds);
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -246,11 +288,13 @@ export async function getIdentityUsers(): Promise<IdentityUser[]> {
   return (data ?? []).map(mapIdentityUser);
 }
 
-export async function getOrganizationMemberships(): Promise<OrganizationMembership[]> {
+export async function getOrganizationMemberships(scope: IdentityReadScope): Promise<OrganizationMembership[]> {
+  await authorizeIdentityRead(scope);
   const supabase = getSupabaseAdminClient();
-  const organizationId = await getCurrentOrganizationScope();
+  const selectedOrganizationId = scope.scopeType === "organization" ? scope.scopeId : await getCurrentOrganizationScope();
   const query = supabase.from("organization_memberships").select(membershipSelect).order("created_at", { ascending: false });
-  const { data, error } = organizationId ? await query.eq("organization_id", organizationId) : await query;
+  if (scope.scopeType !== "platform" && !selectedOrganizationId) return [];
+  const { data, error } = selectedOrganizationId ? await query.eq("organization_id", selectedOrganizationId) : await query;
 
   if (error) {
     throw new Error(error.message);
@@ -259,7 +303,8 @@ export async function getOrganizationMemberships(): Promise<OrganizationMembersh
   return (data ?? []).map(mapOrganizationMembership);
 }
 
-export async function getIdentityPermissions(): Promise<IdentityPermission[]> {
+export async function getIdentityPermissions(scope: IdentityReadScope): Promise<IdentityPermission[]> {
+  await authorizeIdentityRead(scope);
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase.from("permissions").select(permissionSelect).order("key", { ascending: true });
 
@@ -270,15 +315,16 @@ export async function getIdentityPermissions(): Promise<IdentityPermission[]> {
   return (data ?? []).map(mapPermission);
 }
 
-export async function getIdentityRoleAssignments(): Promise<IdentityRoleAssignment[]> {
+export async function getIdentityRoleAssignments(scope: IdentityReadScope): Promise<IdentityRoleAssignment[]> {
+  await authorizeIdentityRead(scope);
   const supabase = getSupabaseAdminClient();
-  const organizationId = await getCurrentOrganizationScope();
-  const [{ data: assignments, error: assignmentError }, roles, memberships] = await Promise.all([
-    supabase.from("user_role_assignments").select(assignmentSelect).order("created_at", { ascending: false }),
-    getIdentityRoles(),
-    organizationId
-      ? supabase.from("organization_memberships").select("user_id").eq("organization_id", organizationId)
-      : Promise.resolve({ data: null, error: null }),
+  let assignmentQuery = supabase.from("user_role_assignments").select(assignmentSelect).order("created_at", { ascending: false });
+  if (scope.scopeType !== "platform") {
+    assignmentQuery = assignmentQuery.eq("scope_type", scope.scopeType).eq("scope_id", scope.scopeId);
+  }
+  const [{ data: assignments, error: assignmentError }, roles] = await Promise.all([
+    assignmentQuery,
+    loadIdentityRoles(),
   ]);
 
   if (assignmentError) {
@@ -286,21 +332,17 @@ export async function getIdentityRoleAssignments(): Promise<IdentityRoleAssignme
   }
 
   const rolesById = mapRolesById(roles);
-  const organizationUserIds = new Set((memberships.data ?? []).map((membership) => membership.user_id));
-  const scopedAssignments = organizationId
-    ? (assignments ?? []).filter((assignment) => organizationUserIds.has(assignment.user_id) || assignment.scope_id === organizationId)
-    : assignments ?? [];
-
-  return scopedAssignments.map((assignment) => mapAssignment(assignment, rolesById.get(assignment.role_id)));
+  return (assignments ?? []).map((assignment) => mapAssignment(assignment, rolesById.get(assignment.role_id)));
 }
 
-export async function getIdentityInvites(): Promise<IdentityInvite[]> {
+export async function getIdentityInvites(scope: IdentityReadScope): Promise<IdentityInvite[]> {
+  await authorizeIdentityRead(scope);
   const supabase = getSupabaseAdminClient();
-  const organizationId = await getCurrentOrganizationScope();
-  const inviteQuery = supabase.from("identity_invites").select(inviteSelect).order("created_at", { ascending: false });
+  let inviteQuery = supabase.from("identity_invites").select(inviteSelect).order("created_at", { ascending: false });
+  if (scope.scopeType !== "platform") inviteQuery = inviteQuery.eq("scope_type", scope.scopeType).eq("scope_id", scope.scopeId);
   const [{ data: invites, error }, roles] = await Promise.all([
-    organizationId ? inviteQuery.eq("organization_id", organizationId) : inviteQuery,
-    getIdentityRoles(),
+    inviteQuery,
+    loadIdentityRoles(),
   ]);
 
   if (error) {
@@ -311,13 +353,14 @@ export async function getIdentityInvites(): Promise<IdentityInvite[]> {
   return (invites ?? []).map((invite) => mapInvite(invite, rolesById.get(invite.role_id)));
 }
 
-export async function getIdentityAccessRequests(): Promise<IdentityAccessRequest[]> {
+export async function getIdentityAccessRequests(scope: IdentityReadScope): Promise<IdentityAccessRequest[]> {
+  await authorizeIdentityRead(scope);
   const supabase = getSupabaseAdminClient();
-  const organizationId = await getCurrentOrganizationScope();
-  const accessRequestQuery = supabase.from("identity_access_requests").select(accessRequestSelect).order("created_at", { ascending: false });
+  let accessRequestQuery = supabase.from("identity_access_requests").select(accessRequestSelect).order("created_at", { ascending: false });
+  if (scope.scopeType !== "platform") accessRequestQuery = accessRequestQuery.eq("scope_type", scope.scopeType).eq("scope_id", scope.scopeId);
   const [{ data: accessRequests, error }, roles] = await Promise.all([
-    organizationId ? accessRequestQuery.eq("scope_id", organizationId) : accessRequestQuery,
-    getIdentityRoles(),
+    accessRequestQuery,
+    loadIdentityRoles(),
   ]);
 
   if (error) {
@@ -328,11 +371,12 @@ export async function getIdentityAccessRequests(): Promise<IdentityAccessRequest
   return (accessRequests ?? []).map((accessRequest) => mapAccessRequest(accessRequest, accessRequest.requested_role_id ? rolesById.get(accessRequest.requested_role_id) : undefined));
 }
 
-export async function getIdentityApprovals(): Promise<IdentityApproval[]> {
+export async function getIdentityApprovals(scope: IdentityReadScope): Promise<IdentityApproval[]> {
+  await authorizeIdentityRead(scope);
   const supabase = getSupabaseAdminClient();
-  const organizationId = await getCurrentOrganizationScope();
-  const query = supabase.from("identity_approvals").select(approvalSelect).order("created_at", { ascending: false });
-  const { data, error } = organizationId ? await query.eq("scope_id", organizationId) : await query;
+  let query = supabase.from("identity_approvals").select(approvalSelect).order("created_at", { ascending: false });
+  if (scope.scopeType !== "platform") query = query.eq("scope_type", scope.scopeType).eq("scope_id", scope.scopeId);
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -375,7 +419,7 @@ export async function createUserRoleAssignment(data: {
     throw new Error(error.message);
   }
 
-  const roles = await getIdentityRoles();
+  const roles = await loadIdentityRoles();
   const mappedAssignment = mapAssignment(assignment, roles.find((role) => role.id === assignment.role_id));
   await safelyLogAudit({
     action: "identity.role_assignment.created",
@@ -439,7 +483,7 @@ export async function createIdentityInvite(data: {
     throw new Error(error.message);
   }
 
-  const roles = await getIdentityRoles();
+  const roles = await loadIdentityRoles();
   const mappedInvite = mapInvite(invite, roles.find((role) => role.id === invite.role_id));
   await safelyLogAudit({
     action: "identity.invite.created",
@@ -504,7 +548,7 @@ export async function decideIdentityInvite(data: {
     throw new Error(error.message);
   }
 
-  const roles = await getIdentityRoles();
+  const roles = await loadIdentityRoles();
   const mappedInvite = mapInvite(invite, roles.find((role) => role.id === invite.role_id));
   await updateApprovalRecordForInvite({
     decidedBy: actor,
@@ -564,7 +608,7 @@ export async function revokeIdentityInvite(data: {
     throw new Error(error.message);
   }
 
-  const roles = await getIdentityRoles();
+  const roles = await loadIdentityRoles();
   const mappedInvite = mapInvite(invite, roles.find((role) => role.id === invite.role_id));
   await updateApprovalRecordForInvite({
     decidedBy: actor,
@@ -617,7 +661,7 @@ export async function createIdentityAccessRequest(data: {
     throw new Error(error.message);
   }
 
-  const roles = await getIdentityRoles();
+  const roles = await loadIdentityRoles();
   const mappedRequest = mapAccessRequest(accessRequest, accessRequest.requested_role_id ? roles.find((role) => role.id === accessRequest.requested_role_id) : undefined);
   await createApprovalRecord({
     accessRequestId: mappedRequest.id,
@@ -671,7 +715,7 @@ export async function decideIdentityAccessRequest(data: {
     throw new Error(error.message);
   }
 
-  const roles = await getIdentityRoles();
+  const roles = await loadIdentityRoles();
   const mappedRequest = mapAccessRequest(accessRequest, accessRequest.requested_role_id ? roles.find((role) => role.id === accessRequest.requested_role_id) : undefined);
   let assignment: IdentityRoleAssignment | null = null;
   if (data.status === "approved" && mappedRequest.userId && mappedRequest.requestedRoleId) {
@@ -746,7 +790,7 @@ export async function revokeIdentityAccessRequest(data: {
     throw new Error(error.message);
   }
 
-  const roles = await getIdentityRoles();
+  const roles = await loadIdentityRoles();
   const mappedRequest = mapAccessRequest(accessRequest, accessRequest.requested_role_id ? roles.find((role) => role.id === accessRequest.requested_role_id) : undefined);
   await updateApprovalRecordForAccessRequest({
     accessRequestId: mappedRequest.id,
@@ -806,7 +850,7 @@ export async function revokeUserRoleAssignment(data: {
     throw new Error(error.message);
   }
 
-  const roles = await getIdentityRoles();
+  const roles = await loadIdentityRoles();
   const mappedAssignment = mapAssignment(assignment, roles.find((role) => role.id === assignment.role_id));
   await createApprovalRecord({
     approvalStatus: "revoked",

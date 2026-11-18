@@ -13,7 +13,6 @@ import {
 import { getPublicVenueDisplayUrl } from "@/lib/public-url";
 import { getActiveAlerts, getAlertLabel, sortAlertsForDisplay } from "@/lib/services/alerts";
 import { getExternalSources } from "@/lib/services/external-sources";
-import { getFields } from "@/lib/services/fields";
 import { getResourceActivations } from "@/lib/services/resource-activations";
 import { getResources } from "@/lib/services/resources";
 import { getRecentSessionEvents, getSessionEventTypeLabel } from "@/lib/services/session-events";
@@ -22,13 +21,16 @@ import { getSponsorAnalytics } from "@/lib/services/sponsor-analytics";
 import { getSponsors } from "@/lib/services/sponsors";
 import { getSyncJobs, getSyncQueueItems } from "@/lib/services/sync-engine";
 import { getVenueAssets } from "@/lib/services/venue-assets";
-import { getVenues } from "@/lib/services/venues";
 import { getVolunteerRoles } from "@/lib/services/volunteer-roles";
 import { getDistrictReport, type DistrictReport } from "@/lib/services/district-report";
+import { canManageVenueSettings, isOrgScoped, managesAllVenues } from "@/lib/access/capabilities";
+import { getRoleHome } from "@/lib/access/navigation";
+import { getSessionContext } from "@/lib/access/session";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
+import { redirect } from "next/navigation";
 import type {
   Alert,
   ExternalSource,
-  Field,
   Resource,
   ResourceActivation,
   Session,
@@ -37,7 +39,6 @@ import type {
   SponsorAnalyticsSummary,
   SyncJob,
   SyncQueueItem,
-  Venue,
   VenueAsset,
   VolunteerRole,
 } from "@/lib/types";
@@ -202,24 +203,23 @@ function buildRecentActivity({
 }
 
 export default async function ExecutiveDashboardPage() {
+  const ctx = await getSessionContext();
+  if (!ctx || !canManageVenueSettings(ctx) || isOrgScoped(ctx)) redirect(getRoleHome(ctx));
   const now = new Date();
+  const { venues, fields } = await getScopedVenuesAndFields();
   const [
-    venues,
-    fields,
-    sessions,
-    sponsors,
-    activeAlerts,
-    resources,
-    activations,
-    volunteerRoles,
-    externalSources,
-    syncJobs,
-    syncQueueItems,
-    sessionEvents,
-    venueAssets,
+    allSessions,
+    allSponsors,
+    allActiveAlerts,
+    allResources,
+    allActivations,
+    allVolunteerRoles,
+    allExternalSources,
+    allSyncJobs,
+    allSyncQueueItems,
+    allSessionEvents,
+    allVenueAssets,
   ] = await Promise.all([
-    safeLoad<Venue>("venues", getVenues),
-    safeLoad<Field>("fields", getFields),
     safeLoad<Session>("sessions", getSessions),
     safeLoad<Sponsor>("sponsors", getSponsors),
     safeLoad<Alert>("active alerts", getActiveAlerts),
@@ -233,7 +233,25 @@ export default async function ExecutiveDashboardPage() {
     safeLoad<VenueAsset>("venue assets", getVenueAssets),
   ]);
 
-  const districtReport: DistrictReport = await getDistrictReport().catch(() => ({
+  const venueIds = new Set(venues.map((venue) => venue.id));
+  const fieldIds = new Set(fields.map((field) => field.id));
+  const organizationIds = new Set(venues.map((venue) => venue.organizationId).filter((id): id is string => Boolean(id)));
+  const sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
+  const sessionIds = new Set(sessions.map((session) => session.id));
+  const sponsors = allSponsors.filter((sponsor) => Boolean(sponsor.organizationId && organizationIds.has(sponsor.organizationId)));
+  const activeAlerts = allActiveAlerts.filter((alert) => venueIds.has(alert.venueId));
+  const resources = allResources.filter((resource) => venueIds.has(resource.venueId));
+  const activations = allActivations.filter((activation) => venueIds.has(activation.venueId));
+  const volunteerRoles = allVolunteerRoles.filter((role) => venueIds.has(role.venueId));
+  const externalSources = allExternalSources.filter((source) => venueIds.has(source.venueId));
+  const sourceIds = new Set(externalSources.map((source) => source.id));
+  const syncJobs = allSyncJobs.filter((job) => Boolean(job.sourceId && sourceIds.has(job.sourceId)));
+  const syncJobIds = new Set(syncJobs.map((job) => job.id));
+  const syncQueueItems = allSyncQueueItems.filter((item) => syncJobIds.has(item.syncJobId));
+  const sessionEvents = allSessionEvents.filter((event) => sessionIds.has(event.sessionId));
+  const venueAssets = allVenueAssets.filter((asset) => venueIds.has(asset.venueId));
+
+  const unavailableDistrictReport: DistrictReport = {
     available: false,
     divisions: 0,
     teams: 0,
@@ -241,7 +259,10 @@ export default async function ExecutiveDashboardPage() {
     pendingVerifications: 0,
     upcomingBookings: 0,
     openWorkOrders: 0,
-  }));
+  };
+  const districtReport = managesAllVenues(ctx)
+    ? await getDistrictReport().catch(() => unavailableDistrictReport)
+    : unavailableDistrictReport;
 
   const sponsorAnalyticsResult = await getSponsorAnalytics(sponsors.map((sponsor) => sponsor.id), "all").then(
     (data) => ({ available: true, data }),

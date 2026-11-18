@@ -1,5 +1,6 @@
 import { permissionAreas, permissionsMatrix } from "@/lib/identity-permissions-matrix";
 import { getIdentityRoleAssignments, getIdentityRoles } from "@/lib/services/identity";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,15 @@ const levelTone = {
 };
 
 export default async function IdentityRolesPage() {
+  const ctx = await getSessionContext();
+  if (!ctx) return null;
+  const identityScope = { actorUserId: ctx.userId, scopeType: ctx.scopeType, scopeId: ctx.scopeId };
   const [roles, assignments] = await Promise.all([
-    getIdentityRoles().catch((error: unknown) => {
+    getIdentityRoles(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity roles", error);
       return [];
     }),
-    getIdentityRoleAssignments().catch((error: unknown) => {
+    getIdentityRoleAssignments(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity role assignments", error);
       return [];
     }),
