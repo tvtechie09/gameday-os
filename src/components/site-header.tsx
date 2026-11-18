@@ -45,7 +45,13 @@ export function SiteHeader() {
   // Signed-in app routes render the capability-filtered sidebar (AppFrame);
   // showing this public header there duplicates navigation. Keep it for
   // public, QR, and auth pages only.
-  if (pathname.startsWith("/admin") || pathname === "/today" || pathname.startsWith("/today/") || pathname.startsWith("/demo/nlsa")) {
+  if (
+    pathname.startsWith("/admin") ||
+    pathname === "/today" ||
+    pathname.startsWith("/today/") ||
+    pathname.startsWith("/demo/nlsa") ||
+    pathname.startsWith("/demo/manhattan-patriots")
+  ) {
     return null;
   }
 
