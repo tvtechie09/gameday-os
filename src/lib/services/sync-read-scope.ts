@@ -1,33 +1,35 @@
 export type SyncReadJobTarget = {
   id: string;
-  sourceId: string | null;
 };
 
 export type SyncReadQueueTarget = {
-  fieldId: string | null;
   id: string;
   syncJobId: string;
+  venueId: string | null;
 };
 
-export type SyncReadSourceTarget = {
-  id: string;
+export type SyncReadJobVenue = {
+  syncJobId: string;
   venueId: string;
 };
 
 export function getScopedSyncReadIds({
-  allowedFieldIds,
   allowedVenueIds,
+  jobVenues,
   jobs,
   queue,
-  sources,
 }: {
-  allowedFieldIds: ReadonlySet<string>;
   allowedVenueIds: ReadonlySet<string>;
+  jobVenues: SyncReadJobVenue[];
   jobs: SyncReadJobTarget[];
   queue: SyncReadQueueTarget[];
-  sources: SyncReadSourceTarget[];
 }) {
-  const sourceVenueById = new Map(sources.map((source) => [source.id, source.venueId]));
+  const venuesByJobId = new Map<string, string[]>();
+  for (const ownership of jobVenues) {
+    const venueIds = venuesByJobId.get(ownership.syncJobId) ?? [];
+    venueIds.push(ownership.venueId);
+    venuesByJobId.set(ownership.syncJobId, venueIds);
+  }
   const queueByJobId = new Map<string, SyncReadQueueTarget[]>();
   for (const item of queue) {
     const items = queueByJobId.get(item.syncJobId) ?? [];
@@ -37,19 +39,18 @@ export function getScopedSyncReadIds({
 
   const jobIds = new Set<string>();
   for (const job of jobs) {
+    const venueIds = venuesByJobId.get(job.id) ?? [];
     const items = queueByJobId.get(job.id) ?? [];
-    const sourceVenueId = job.sourceId ? sourceVenueById.get(job.sourceId) : null;
-    const sourceAllowed = job.sourceId ? Boolean(sourceVenueId && allowedVenueIds.has(sourceVenueId)) : true;
     // Job aggregates can contain counts from every queue row, so a mixed-scope
     // job is hidden in full instead of returning only its in-scope children.
-    const queueAllowed = items.length > 0
-      && items.every((item) => Boolean(item.fieldId && allowedFieldIds.has(item.fieldId)));
-    if (sourceAllowed && queueAllowed) jobIds.add(job.id);
-    if (sourceAllowed && items.length === 0 && job.sourceId) jobIds.add(job.id);
+    const queueOwnershipIsSafe = items.every((item) => Boolean(item.venueId && allowedVenueIds.has(item.venueId)));
+    if (venueIds.length > 0 && venueIds.every((venueId) => allowedVenueIds.has(venueId)) && queueOwnershipIsSafe) {
+      jobIds.add(job.id);
+    }
   }
 
   const queueIds = new Set(queue
-    .filter((item) => jobIds.has(item.syncJobId) && Boolean(item.fieldId && allowedFieldIds.has(item.fieldId)))
+    .filter((item) => jobIds.has(item.syncJobId) && Boolean(item.venueId && allowedVenueIds.has(item.venueId)))
     .map((item) => item.id));
 
   return { jobIds, queueIds };
