@@ -37,7 +37,7 @@ test("Venue OS has deterministic ESM and type-validation gates", () => {
 
 test("Venue OS pins patched web and auth dependency lines", () => {
   assert.equal(packageJson.overrides.postcss, "^8.5.23");
-  assert.equal(packageJson.dependencies.next, "16.4.3");
+  assert.equal(packageJson.dependencies.next, "16.4.5");
   assert.equal(packageJson.dependencies["@supabase/ssr"], "^0.12.7");
 });
 
