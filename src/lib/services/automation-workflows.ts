@@ -4,6 +4,7 @@ import { getCurrentOrganizationScope } from "@/lib/organization-scope";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";
 import type { IdentityScopeType } from "@/lib/types";
+import { automationTargetScopeError } from "./automation-target-scope";
 import { assertActorUserId, PermissionDeniedError, requirePermission, safelyLogAudit } from "./identity";
 
 type WorkflowRow = { id: string; template_id: string | null; template_key: string | null; organization_id: string | null; venue_id: string | null; field_id: string | null; tournament_id: string | null; name: string; description: string | null; workflow_type: AutomationWorkflowType; workflow_status: AutomationWorkflowStatus; event_type: string; notification_audience: string | null; scope_type: IdentityScopeType; scope_id: string; created_by: string | null; updated_by: string | null; created_at: string; updated_at: string };
@@ -285,7 +286,44 @@ function resolveVenueId(workflow: AutomationWorkflow, payload: Json) { return re
 function resolveSessionId(payload: Json, action: AutomationAction) { return readStringFromJson(payload, "sessionId") ?? readStringFromJson(action.actionConfig, "sessionId"); }
 function resolveFieldIds(workflow: AutomationWorkflow, payload: Json, action: AutomationAction) { const ids = [...readStringArrayFromJson(payload, "fieldIds"), ...readStringArrayFromJson(action.actionConfig, "fieldIds")]; const payloadFieldId = readStringFromJson(payload, "fieldId"); const actionFieldId = readStringFromJson(action.actionConfig, "fieldId"); if (payloadFieldId) ids.push(payloadFieldId); if (actionFieldId) ids.push(actionFieldId); if (workflow.fieldId) ids.push(workflow.fieldId); return [...new Set(ids)]; }
 
-async function executeAutomationAction(workflow: AutomationWorkflow, action: AutomationAction, runId: string, triggerPayload: Json) {
+async function authorizeAutomationTargets(workflow: AutomationWorkflow, triggerPayload: Json) {
+  const supabase = getSupabaseAdminClient();
+  const requestedVenueId = resolveVenueId(workflow, triggerPayload);
+  const requestedFieldIds = [...new Set(workflow.actions.flatMap((action) => resolveFieldIds(workflow, triggerPayload, action)))];
+  const requestedSessionIds = [...new Set(workflow.actions.map((action) => resolveSessionId(triggerPayload, action)).filter((id): id is string => Boolean(id)))];
+  if (requestedSessionIds.length > 1) throw new AutomationError("A test run cannot span multiple session targets.", 403);
+  const requestedSessionId = requestedSessionIds[0] ?? null;
+
+  const { data: session, error: sessionError } = requestedSessionId
+    ? await supabase.from("sessions").select("id,field_id,tournament_id,organization_id").eq("id", requestedSessionId).maybeSingle()
+    : { data: null, error: null };
+  if (sessionError) throw new Error(sessionError.message);
+  if (session?.field_id) requestedFieldIds.push(session.field_id);
+  const uniqueFieldIds = [...new Set(requestedFieldIds)];
+
+  const [{ data: venue, error: venueError }, { data: fields, error: fieldError }] = await Promise.all([
+    requestedVenueId
+      ? supabase.from("venues").select("id,organization_id").eq("id", requestedVenueId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    uniqueFieldIds.length
+      ? supabase.from("fields").select("id,venue_id,organization_id").in("id", uniqueFieldIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (venueError) throw new Error(venueError.message);
+  if (fieldError) throw new Error(fieldError.message);
+
+  const error = automationTargetScopeError(workflow, {
+    fields: (fields ?? []).map((field) => ({ id: field.id, organizationId: field.organization_id, venueId: field.venue_id })),
+    requestedFieldIds: uniqueFieldIds,
+    requestedSessionId,
+    requestedVenueId,
+    session: session ? { fieldId: session.field_id, id: session.id, organizationId: session.organization_id, tournamentId: session.tournament_id } : null,
+    venue: venue ? { id: venue.id, organizationId: venue.organization_id } : null,
+  });
+  if (error) throw new AutomationError(error, 403);
+}
+
+async function executeAutomationAction(workflow: AutomationWorkflow, action: AutomationAction, runId: string, triggerPayload: Json, dryRun: boolean) {
   const supabase = getSupabaseAdminClient();
   const now = new Date();
   const fieldIds = resolveFieldIds(workflow, triggerPayload, action);
@@ -297,18 +335,22 @@ async function executeAutomationAction(workflow: AutomationWorkflow, action: Aut
     case "update_field_availability": {
       if (!fieldIds.length) throw new AutomationError("Field target is required for this field status action.");
       const status = action.actionType === "mark_fields_delayed" ? "delayed" : readStringFromJson(action.actionConfig, "status") ?? "open";
-      const { error } = await supabase.from("fields").update({ field_status: status, updated_at: now.toISOString() }).in("id", fieldIds);
-      if (error) throw new Error(error.message);
-      await createRunLog(runId, workflow.id, "info", "Field status updated.", { fieldIds, status });
+      if (!dryRun) {
+        const { error } = await supabase.from("fields").update({ field_status: status, updated_at: now.toISOString() }).in("id", fieldIds);
+        if (error) throw new Error(error.message);
+      }
+      await createRunLog(runId, workflow.id, "info", dryRun ? "Dry run validated field status update; no field was changed." : "Field status updated.", { dryRun, fieldIds, status });
       return;
     }
     case "create_venue_alert": {
       if (!venueId) throw new AutomationError("Venue target is required to create a venue alert.");
       const start = now.toISOString();
       const end = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
-      const { error } = await supabase.from("alerts").insert({ alert_priority: readStringFromJson(action.actionConfig, "priority") ?? "normal", alert_scope: fieldIds.length === 1 ? "field" : "venue", alert_type: readStringFromJson(action.actionConfig, "alertType") ?? "info", alert_visibility: readStringFromJson(action.actionConfig, "visibility") ?? "public", end_time: end, field_id: fieldIds.length === 1 ? fieldIds[0] : null, is_active: true, message: readStringFromJson(action.actionConfig, "message") ?? workflow.description ?? workflow.name, organization_id: workflow.organizationId, start_time: start, title: readStringFromJson(action.actionConfig, "title") ?? workflow.name, tournament_id: workflow.tournamentId, venue_id: venueId });
-      if (error) throw new Error(error.message);
-      await createRunLog(runId, workflow.id, "info", "Venue alert created.", { fieldIds, venueId });
+      if (!dryRun) {
+        const { error } = await supabase.from("alerts").insert({ alert_priority: readStringFromJson(action.actionConfig, "priority") ?? "normal", alert_scope: fieldIds.length === 1 ? "field" : "venue", alert_type: readStringFromJson(action.actionConfig, "alertType") ?? "info", alert_visibility: readStringFromJson(action.actionConfig, "visibility") ?? "public", end_time: end, field_id: fieldIds.length === 1 ? fieldIds[0] : null, is_active: true, message: readStringFromJson(action.actionConfig, "message") ?? workflow.description ?? workflow.name, organization_id: workflow.organizationId, start_time: start, title: readStringFromJson(action.actionConfig, "title") ?? workflow.name, tournament_id: workflow.tournamentId, venue_id: venueId });
+        if (error) throw new Error(error.message);
+      }
+      await createRunLog(runId, workflow.id, "info", dryRun ? "Dry run validated venue alert creation; no alert was created." : "Venue alert created.", { dryRun, fieldIds, venueId });
       return;
     }
     case "mark_schedule_impacted": {
@@ -317,26 +359,28 @@ async function executeAutomationAction(workflow: AutomationWorkflow, action: Aut
       if (sessionId) query = query.eq("id", sessionId); else query = query.in("field_id", fieldIds);
       const { count, error } = await query;
       if (error) throw new Error(error.message);
-      await createRunLog(runId, workflow.id, "warning", "Schedule marked impacted for operations review.", { affectedSessions: count ?? 0, fieldIds, sessionId });
+      await createRunLog(runId, workflow.id, "warning", dryRun ? "Dry run counted sessions that would be marked impacted; no schedule was changed." : "Schedule marked impacted for operations review.", { affectedSessions: count ?? 0, dryRun, fieldIds, sessionId });
       return;
     }
     case "record_session_timeline": {
       if (!sessionId) throw new AutomationError("Session target is required to record a session timeline event.");
       const eventType = readStringFromJson(action.actionConfig, "eventType") ?? workflow.eventType ?? "automation_event";
-      const { error } = await supabase.from("session_events").insert({ event_message: `${workflow.name}: ${eventType.replaceAll("_", " ")}`, event_type: eventType, session_id: sessionId });
-      if (error) throw new Error(error.message);
-      await createRunLog(runId, workflow.id, "info", "Session timeline event recorded.", { eventType, sessionId });
+      if (!dryRun) {
+        const { error } = await supabase.from("session_events").insert({ event_message: `${workflow.name}: ${eventType.replaceAll("_", " ")}`, event_type: eventType, session_id: sessionId });
+        if (error) throw new Error(error.message);
+      }
+      await createRunLog(runId, workflow.id, "info", dryRun ? "Dry run validated session timeline event; no event was recorded." : "Session timeline event recorded.", { dryRun, eventType, sessionId });
       return;
     }
     case "prep_next_game": {
       if (!fieldIds.length) throw new AutomationError("Field target is required to prep the next game workflow.");
       const { count, error } = await supabase.from("sessions").select("id", { count: "exact", head: true }).in("field_id", fieldIds).eq("status", "scheduled").gte("start_time", now.toISOString());
       if (error) throw new Error(error.message);
-      await createRunLog(runId, workflow.id, "info", "Next game prep queued for operations review.", { fieldIds, upcomingSessions: count ?? 0 });
+      await createRunLog(runId, workflow.id, "info", dryRun ? "Dry run counted upcoming sessions; no game prep was queued." : "Next game prep queued for operations review.", { dryRun, fieldIds, upcomingSessions: count ?? 0 });
       return;
     }
     case "notify_admins":
-      await createRunLog(runId, workflow.id, "info", "Admin notification queued inside GameDay OS.", { channel: readStringFromJson(action.actionConfig, "channel") ?? "admin_dashboard" });
+      await createRunLog(runId, workflow.id, "info", dryRun ? "Dry run validated the admin notification; no notification was queued." : "Admin notification queued inside GameDay OS.", { channel: readStringFromJson(action.actionConfig, "channel") ?? "admin_dashboard", dryRun });
       return;
     default:
       throw new AutomationError(`Unsupported Phase 1 automation action: ${action.actionType}`);
@@ -346,6 +390,7 @@ async function executeAutomationAction(workflow: AutomationWorkflow, action: Aut
 export async function runAutomationWorkflowTest(id: string, actorUserId: string, triggerPayload: Json = {}) {
   const workflow = await getAutomationWorkflow(id, actorUserId, "automation.workflows.test");
   if (!workflow) throw new AutomationError("Automation workflow not found.", 404);
+  await authorizeAutomationTargets(workflow, triggerPayload);
   const actor = assertActorUserId(actorUserId);
   const supabase = getAutomationSupabase();
   const { data: runRow, error: runError } = await supabase.from("automation_runs").insert({ run_status: "running", run_type: "test", trigger_payload: triggerPayload, triggered_by: actor, workflow_id: workflow.id }).select(runSelect).single();
@@ -359,7 +404,7 @@ export async function runAutomationWorkflowTest(id: string, actorUserId: string,
       if (error) throw new Error(error.message);
       return mapRun(skippedRun as unknown as RunRow);
     }
-    for (const action of workflow.actions) { await createRunLog(run.id, workflow.id, "info", describeAutomationAction(action), { actionType: action.actionType }); await executeAutomationAction(workflow, action, run.id, triggerPayload); }
+    for (const action of workflow.actions) { await createRunLog(run.id, workflow.id, "info", `Dry run: ${describeAutomationAction(action)}`, { actionType: action.actionType, dryRun: true }); await executeAutomationAction(workflow, action, run.id, triggerPayload, true); }
     const { data: completedRun, error } = await supabase.from("automation_runs").update({ completed_at: new Date().toISOString(), run_status: "completed" }).eq("id", run.id).select(runSelect).single();
     if (error) throw new Error(error.message);
     await safelyLogAudit({ action: "automation.workflow.test_run", actorUserId: actor, metadata: { actionCount: workflow.actions.length, runId: run.id }, resourceId: workflow.id, resourceType: "automation_workflow", scopeId: workflow.scopeId, scopeType: workflow.scopeType });

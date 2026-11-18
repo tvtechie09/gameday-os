@@ -1,18 +1,22 @@
 import { getIdentityFamilies, getIdentityFamilyMembers, getIdentityPeople } from "@/lib/services/identity-platform";
+import { getSessionContext } from "@/lib/access/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function IdentityFamiliesPage() {
+  const ctx = await getSessionContext();
+  if (!ctx) return null;
+  const identityScope = { actorUserId: ctx.userId, scopeType: ctx.scopeType, scopeId: ctx.scopeId };
   const [families, familyMembers, people] = await Promise.all([
-    getIdentityFamilies().catch((error: unknown) => {
+    getIdentityFamilies(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity families", error);
       return [];
     }),
-    getIdentityFamilyMembers().catch((error: unknown) => {
+    getIdentityFamilyMembers(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity family members", error);
       return [];
     }),
-    getIdentityPeople().catch((error: unknown) => {
+    getIdentityPeople(identityScope).catch((error: unknown) => {
       console.error("Failed to load identity people for families", error);
       return [];
     }),

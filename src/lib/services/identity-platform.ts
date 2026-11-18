@@ -7,7 +7,7 @@ import type {
   IdentityTeamMember,
   IdentityTeamSessionLink,
 } from "@/lib/types";
-import { getCurrentOrganizationScope } from "../organization-scope";
+import { assertActorUserId, requirePermission, type IdentityReadScope } from "./identity";
 
 type QueryResult<T> = {
   data: T[] | null;
@@ -117,41 +117,71 @@ function mapTeamSessionLink(row: Record<string, unknown>): IdentityTeamSessionLi
   };
 }
 
-async function loadTable<T>(table: string, select: string, orderBy: string, mapper: (row: Record<string, unknown>) => T): Promise<T[]> {
+async function loadTable<T>(scope: IdentityReadScope, table: string, select: string, orderBy: string, mapper: (row: Record<string, unknown>) => T): Promise<T[]> {
+  const actor = assertActorUserId(scope.actorUserId);
+  await requirePermission(actor, "identity.role.manage", scope.scopeType, scope.scopeId);
   const { data, error } = await adminClient().from(table).select(select).order(orderBy, { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const organizationId = await getCurrentOrganizationScope();
-  const rows = organizationId
-    ? (data ?? []).filter((row) => row.organization_id === organizationId)
-    : data ?? [];
+  const rows = scope.scopeType === "platform"
+    ? data ?? []
+    : scope.scopeType === "organization"
+      ? (data ?? []).filter((row) => row.organization_id === scope.scopeId)
+      : (data ?? []).filter((row) => row.id === scope.scopeId || row.team_id === scope.scopeId || row.family_id === scope.scopeId);
 
   return rows.map(mapper);
 }
 
-export function getIdentityPeople(): Promise<IdentityPerson[]> {
-  return loadTable("people", "id,organization_id,user_id,display_name,email,phone,person_type,notes,created_at,updated_at", "created_at", mapPerson);
+export function getIdentityPeople(scope: IdentityReadScope): Promise<IdentityPerson[]> {
+  return loadTable(scope, "people", "id,organization_id,user_id,display_name,email,phone,person_type,notes,created_at,updated_at", "created_at", mapPerson);
 }
 
-export function getIdentityFamilies(): Promise<IdentityFamily[]> {
-  return loadTable("families", "id,organization_id,name,primary_contact_person_id,notes,created_at,updated_at", "created_at", mapFamily);
+export function getIdentityFamilies(scope: IdentityReadScope): Promise<IdentityFamily[]> {
+  return loadTable(scope, "families", "id,organization_id,name,primary_contact_person_id,notes,created_at,updated_at", "created_at", mapFamily);
 }
 
-export function getIdentityFamilyMembers(): Promise<IdentityFamilyMember[]> {
-  return loadTable("family_members", "id,organization_id,family_id,person_id,relationship,is_primary_guardian,created_at", "created_at", mapFamilyMember);
+export function getIdentityFamilyMembers(scope: IdentityReadScope): Promise<IdentityFamilyMember[]> {
+  return loadTable(scope, "family_members", "id,organization_id,family_id,person_id,relationship,is_primary_guardian,created_at", "created_at", mapFamilyMember);
 }
 
-export function getIdentityTeams(): Promise<IdentityTeam[]> {
-  return loadTable("teams", "id,organization_id,venue_id,league_id,name,sport_type,age_group,season_name,status,created_at,updated_at", "created_at", mapTeam);
+export function getIdentityTeams(scope: IdentityReadScope): Promise<IdentityTeam[]> {
+  return loadTable(scope, "teams", "id,organization_id,venue_id,league_id,name,sport_type,age_group,season_name,status,created_at,updated_at", "created_at", mapTeam);
 }
 
-export function getIdentityTeamMembers(): Promise<IdentityTeamMember[]> {
-  return loadTable("team_members", "id,organization_id,team_id,person_id,role_type,status,created_at,updated_at", "created_at", mapTeamMember);
+export function getIdentityTeamMembers(scope: IdentityReadScope): Promise<IdentityTeamMember[]> {
+  return loadTable(scope, "team_members", "id,organization_id,team_id,person_id,role_type,status,created_at,updated_at", "created_at", mapTeamMember);
 }
 
-export function getIdentityTeamSessionLinks(): Promise<IdentityTeamSessionLink[]> {
-  return loadTable("team_session_links", "id,organization_id,team_id,session_id,relationship_type,created_at", "created_at", mapTeamSessionLink);
+export function getIdentityTeamSessionLinks(scope: IdentityReadScope): Promise<IdentityTeamSessionLink[]> {
+  return loadTable(scope, "team_session_links", "id,organization_id,team_id,session_id,relationship_type,created_at", "created_at", mapTeamSessionLink);
+}
+
+// Operational session pages need only the teams linked to the one session that
+// the page has already object-authorized. Keep that narrow read separate from
+// the privileged Identity admin loaders above.
+export async function getIdentityTeamsForAuthorizedSession(sessionId: string): Promise<{
+  links: IdentityTeamSessionLink[];
+  teams: IdentityTeam[];
+}> {
+  const normalizedSessionId = sessionId.trim();
+  if (!normalizedSessionId) return { links: [], teams: [] };
+
+  const { data: linkRows, error: linkError } = await adminClient()
+    .from("team_session_links")
+    .select("id,organization_id,team_id,session_id,relationship_type,created_at")
+    .order("created_at", { ascending: false });
+  if (linkError) throw new Error(linkError.message);
+  const links = (linkRows ?? []).filter((row) => row.session_id === normalizedSessionId).map(mapTeamSessionLink);
+  const teamIds = new Set(links.map((link) => link.teamId));
+  if (teamIds.size === 0) return { links, teams: [] };
+
+  const { data: teamRows, error: teamError } = await adminClient()
+    .from("teams")
+    .select("id,organization_id,venue_id,league_id,name,sport_type,age_group,season_name,status,created_at,updated_at")
+    .order("created_at", { ascending: false });
+  if (teamError) throw new Error(teamError.message);
+  return { links, teams: (teamRows ?? []).filter((row) => teamIds.has(text(row.id))).map(mapTeam) };
 }

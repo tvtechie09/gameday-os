@@ -184,6 +184,7 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   { prefix: "/admin/weather", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/alerts", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/notifications", cap: (ctx) => canSendAnnouncement(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/executive", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/sponsors", cap: (ctx) => hasPermission(ctx, "sponsor.manage") },
   { prefix: "/admin/account", cap: (ctx) => Boolean(ctx) },
   { prefix: "/admin/feedback", cap: canAccessAdminWorkspace },
