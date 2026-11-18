@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { externalSourceImportScopeError } from "@/lib/services/external-source-scope";
 import { getAuthorizedExternalSource, updateExternalSourceLastSync } from "@/lib/services/external-sources";
 import { PermissionDeniedError } from "@/lib/services/identity";
+import { fetchPublicFeed } from "@/lib/services/safe-feed-url";
 import { getSessions } from "@/lib/services/sessions";
 import { createSyncJobWithQueue, type CreateSyncQueueRecordInput } from "@/lib/services/sync-engine";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -169,22 +170,8 @@ function externalUrlKey(session: Pick<Session, "externalSource" | "externalSourc
 
 export async function fetchCalendarEventsAction(feedUrl: string, sourceId: string): Promise<FetchCalendarResult> {
   await getAuthorizedExternalSource(sourceId, await getVerifiedVenueActorId(), "integrations.view");
-  let url: URL;
   try {
-    url = new URL(feedUrl);
-  } catch {
-    return { events: [], error: "This feed could not be imported. Try CSV import instead." };
-  }
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { events: [], error: "This feed could not be imported. Try CSV import instead." };
-  }
-
-  try {
-    const response = await fetch(url.toString(), {
-      cache: "no-store",
-      headers: { Accept: "text/calendar,text/plain,*/*" },
-    });
+    const response = await fetchPublicFeed(feedUrl);
 
     if (!response.ok) {
       return { events: [], error: "This feed could not be imported. Try CSV import instead." };
@@ -289,7 +276,7 @@ export async function importCalendarSessionsAction({
     recordsSkipped: skipped,
     sourceId,
     sourceType: storedExternalSourceName,
-  });
+  }, actorUserId);
 
   await updateExternalSourceLastSync(sourceId, actorUserId);
 

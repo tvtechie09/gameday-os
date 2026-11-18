@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSyncJobWithQueue } from "@/lib/services/sync-engine";
+import { getVerifiedVenueActorId } from "@/lib/supabase/server-auth";
 import type { Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
 
 export type ImportSessionRow = {
@@ -28,6 +29,7 @@ export type ImportSessionsResult = {
 };
 
 export async function importSessionsAction(rows: ImportSessionRow[]): Promise<ImportSessionsResult> {
+  const actorUserId = await getVerifiedVenueActorId();
   const job = await createSyncJobWithQueue({
     records: rows.map((row, index) => ({
       sourceData: {
@@ -51,7 +53,7 @@ export async function importSessionsAction(rows: ImportSessionRow[]): Promise<Im
     })),
     recordsFound: rows.length,
     sourceType: "csv",
-  });
+  }, actorUserId);
 
   revalidatePath("/admin/sessions");
   revalidatePath("/admin/import");
