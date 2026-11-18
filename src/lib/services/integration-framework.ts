@@ -3,6 +3,7 @@ import { getProviderEnvStatus, integrationProviders, type IntegrationConnectionS
 import { getCurrentOrganizationScope } from "@/lib/organization-scope";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";
+import { canonicalizeIntegrationConnectionScope, type CanonicalIntegrationConnectionScope, type IntegrationConnectionScopeInput } from "./integration-connection-scope";
 import { assertActorUserId, PermissionDeniedError, requirePermission, safelyLogAudit } from "./identity";
 
 type ConnectionRow = {
@@ -161,6 +162,33 @@ export async function getAuthorizedIntegrationConnection(connectionId: string, a
   return connection;
 }
 
+async function resolveCanonicalConnectionScope(input: IntegrationConnectionScopeInput): Promise<CanonicalIntegrationConnectionScope> {
+  const organizationId = input.organizationId?.trim() || null;
+  const tournamentId = input.tournamentId?.trim() || null;
+  const venueId = input.venueId?.trim() || null;
+  const supabase = getSupabaseAdminClient();
+  const [organizationResult, tournamentResult, venueResult] = await Promise.all([
+    organizationId
+      ? supabase.from("organizations").select("id").eq("id", organizationId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    tournamentId
+      ? supabase.from("tournaments").select("id,organization_id").eq("id", tournamentId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    venueId
+      ? supabase.from("venues").select("id,organization_id").eq("id", venueId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  const readError = organizationResult.error ?? tournamentResult.error ?? venueResult.error;
+  if (readError) throw new Error(readError.message);
+  const result = canonicalizeIntegrationConnectionScope(input, {
+    organization: organizationResult.data ? { id: organizationResult.data.id } : null,
+    tournament: tournamentResult.data ? { id: tournamentResult.data.id, organizationId: tournamentResult.data.organization_id } : null,
+    venue: venueResult.data ? { id: venueResult.data.id, organizationId: venueResult.data.organization_id } : null,
+  });
+  if (!result.scope) throw new PermissionDeniedError(result.error);
+  return result.scope;
+}
+
 export async function getIntegrationSummaries(actorUserId: string): Promise<IntegrationSummary[]> {
   const actor = assertActorUserId(actorUserId);
   const supabase = getClient();
@@ -198,7 +226,8 @@ export async function createIntegrationConnection(input: { providerKey: Integrat
   const provider = integrationProviders.find((item) => item.key === input.providerKey);
   if (!provider) throw new Error("Integration provider not found.");
   const actor = assertActorUserId(actorUserId);
-  await requireScopePermission(actor, "integrations.connect", null, input);
+  const scope = await resolveCanonicalConnectionScope(input);
+  await requireScopePermission(actor, "integrations.connect", null, scope);
   const providerStatus = getProviderEnvStatus(provider);
   const supabase = getClient();
   const { data, error } = await supabase.from("integration_connections").insert({
@@ -211,13 +240,13 @@ export async function createIntegrationConnection(input: { providerKey: Integrat
     external_account_name: input.externalAccountName ?? null,
     external_org_id: input.externalOrgId ?? null,
     notes: input.notes ?? null,
-    organization_id: input.organizationId ?? null,
+    organization_id: scope.organizationId,
     provider_key: provider.key,
     provider_name: provider.name,
     source_url: input.sourceUrl ?? null,
-    tournament_id: input.tournamentId ?? null,
+    tournament_id: scope.tournamentId,
     updated_by: actor,
-    venue_id: input.venueId ?? null,
+    venue_id: scope.venueId,
   }).select(connectionSelect).single();
   if (error) throw new Error(error.message);
   const connection = mapConnection(data as unknown as ConnectionRow);
