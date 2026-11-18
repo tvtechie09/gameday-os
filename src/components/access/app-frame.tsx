@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { buildNavigation } from "@/lib/access/navigation";
+import { headers } from "next/headers";
+import { buildNavigation, getRoleHome, guardForAdminPath } from "@/lib/access/navigation";
 import { getImpersonatorContext, resolveSession } from "@/lib/access/session";
 import { getNlsaHome } from "@/lib/demo/nlsa-access";
 import { AppShell } from "./app-shell";
@@ -20,6 +21,15 @@ export async function AppFrame({ children }: Readonly<{ children: React.ReactNod
   const nlsaHome = getNlsaHome(ctx);
   if (nlsaHome) {
     redirect(nlsaHome);
+  }
+
+  // Middleware supplies the canonical request path and overwrites any inbound
+  // value. Navigation visibility is not authorization: enforce the matching
+  // capability here before any admin page or loader can render.
+  const requestHeaders = await headers();
+  const pathname = requestHeaders.get("x-gameday-admin-path") ?? "/admin";
+  if (!guardForAdminPath(pathname)(ctx)) {
+    redirect(getRoleHome(ctx));
   }
 
   const [navGroups, impersonator] = await Promise.all([
