@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { runExternalSourceTestSync, updateExternalSourceStatus } from "@/lib/services/external-sources";
+import { getVerifiedVenueActorId } from "@/lib/supabase/server-auth";
 import type { ExternalSourceStatus } from "@/lib/types";
 
 const healthStatuses: ExternalSourceStatus[] = ["connected", "not_configured", "error", "paused", "unknown"];
@@ -21,7 +22,7 @@ export async function updateExternalSourceHealthAction(formData: FormData) {
   const sourceId = String(formData.get("source_id") ?? "").trim();
   if (!sourceId) return;
 
-  await updateExternalSourceStatus(sourceId, readHealthStatus(formData.get("source_status")));
+  await updateExternalSourceStatus(sourceId, readHealthStatus(formData.get("source_status")), await getVerifiedVenueActorId());
   revalidateHealthSurfaces();
 }
 
@@ -29,7 +30,7 @@ export async function runTestSyncAction(formData: FormData) {
   const sourceId = String(formData.get("source_id") ?? "").trim();
   if (!sourceId) return;
 
-  await runExternalSourceTestSync(sourceId);
+  await runExternalSourceTestSync(sourceId, await getVerifiedVenueActorId());
   revalidateHealthSurfaces();
   redirect("/admin/integrations/health?sync=success");
 }

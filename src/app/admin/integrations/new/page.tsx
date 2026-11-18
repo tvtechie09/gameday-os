@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createExternalSource, externalSourceStatuses, externalSourceTypes, getExternalSourceStatusLabel, getExternalSourceTypeLabel } from "@/lib/services/external-sources";
 import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
+import { getVerifiedVenueActorId } from "@/lib/supabase/server-auth";
 import type { ExternalSourceStatus, ExternalSourceType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export default async function NewIntegrationSourcePage() {
       source_type: readSourceType(formData.get("source_type")),
       source_url: String(formData.get("source_url") ?? ""),
       venue_id: venueId,
-    });
+    }, await getVerifiedVenueActorId());
 
     revalidatePath("/admin/integrations");
     redirect("/admin/integrations");

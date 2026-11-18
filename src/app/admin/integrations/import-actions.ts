@@ -1,9 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getExternalSource, updateExternalSourceLastSync } from "@/lib/services/external-sources";
+import { externalSourceImportScopeError } from "@/lib/services/external-source-scope";
+import { getAuthorizedExternalSource, updateExternalSourceLastSync } from "@/lib/services/external-sources";
+import { PermissionDeniedError } from "@/lib/services/identity";
 import { getSessions } from "@/lib/services/sessions";
 import { createSyncJobWithQueue, type CreateSyncQueueRecordInput } from "@/lib/services/sync-engine";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { getVerifiedVenueActorId } from "@/lib/supabase/server-auth";
 import type { Session, SessionSportType } from "@/lib/types";
 
 export type CalendarImportEvent = {
@@ -163,7 +167,8 @@ function externalUrlKey(session: Pick<Session, "externalSource" | "externalSourc
   return session.externalSource && session.externalSourceUrl ? `${session.externalSource}|url|${session.externalSourceUrl}` : null;
 }
 
-export async function fetchCalendarEventsAction(feedUrl: string): Promise<FetchCalendarResult> {
+export async function fetchCalendarEventsAction(feedUrl: string, sourceId: string): Promise<FetchCalendarResult> {
+  await getAuthorizedExternalSource(sourceId, await getVerifiedVenueActorId(), "integrations.view");
   let url: URL;
   try {
     url = new URL(feedUrl);
@@ -210,12 +215,18 @@ export async function importCalendarSessionsAction({
   rows: CalendarImportRow[];
   sourceId: string;
 }): Promise<ImportCalendarResult> {
-  const externalSource = await getExternalSource(sourceId);
-  if (!externalSource) {
-    return { created: 0, errors: ["Choose a valid integration source."], queued: 0, skipped: 0 };
-  }
+  const actorUserId = await getVerifiedVenueActorId();
+  const externalSource = await getAuthorizedExternalSource(sourceId, actorUserId, "integrations.sync");
+  const fieldIds = [...new Set(rows.map((row) => row.fieldId))];
+  const { data: fieldRows, error: fieldError } = fieldIds.length
+    ? await getSupabaseAdminClient().from("fields").select("id,venue_id").in("id", fieldIds)
+    : { data: [], error: null };
+  if (fieldError) throw new Error(fieldError.message);
+  const scopeError = externalSourceImportScopeError(externalSource.venueId, rows.map((row) => row.fieldId), (fieldRows ?? []).map((field) => ({ id: field.id, venueId: field.venue_id })));
+  if (scopeError) throw new PermissionDeniedError(scopeError);
 
-  const existingSessions = await getSessions();
+  const allowedFieldIds = new Set(fieldIds);
+  const existingSessions = (await getSessions()).filter((session) => allowedFieldIds.has(session.fieldId));
   const existingExternalKeys = new Set(existingSessions.flatMap((session) => {
     const idKey = externalKey(session);
     const urlKey = externalUrlKey(session);
@@ -280,7 +291,7 @@ export async function importCalendarSessionsAction({
     sourceType: storedExternalSourceName,
   });
 
-  await updateExternalSourceLastSync(sourceId);
+  await updateExternalSourceLastSync(sourceId, actorUserId);
 
   revalidatePath("/admin/integrations");
   revalidatePath("/admin/sessions");

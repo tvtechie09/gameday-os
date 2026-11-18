@@ -302,7 +302,7 @@ export function CalendarImportAdapter({ fields, sessions, sources, venues }: Cal
     setIsFetching(true);
     setErrorMessage(null);
     setSummary(null);
-    const result = await fetchCalendarEventsAction(feedUrl);
+    const result = await fetchCalendarEventsAction(feedUrl, sourceId);
     setIsFetching(false);
 
     if (result.error) {
