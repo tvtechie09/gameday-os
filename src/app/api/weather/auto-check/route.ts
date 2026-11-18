@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getWeatherProfiles } from "@/lib/services/weather-profiles";
 import { assessStormRisk, executeStormResponse } from "@/lib/services/storm-watch";
 import { automationActorUserId } from "@/lib/access/automation-actor";
+import { isWeatherCronAuthorized, summarizeAutomaticStormResponse, summarizeWeatherAutoCheck, type WeatherAutoCheckResult } from "@/lib/services/weather-auto-check";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,7 @@ const RETRIGGER_COOLDOWN_MS = 30 * 60 * 1000;
 
 function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET || process.env.WEATHER_CRON_SECRET;
-  if (!secret) return false; // Fail closed: no open trigger endpoint.
-  const header = request.headers.get("authorization") || "";
-  if (header === "Bearer " + secret) return true;
-  const token = new URL(request.url).searchParams.get("token");
-  return token === secret;
+  return isWeatherCronAuthorized(request.headers.get("authorization"), secret);
 }
 
 export async function GET(request: Request) {
@@ -28,34 +25,55 @@ export async function GET(request: Request) {
   }
 
   const now = Date.now();
-  const profiles = (await getWeatherProfiles().catch(() => [])).filter((profile) => profile.autoResponseMode === "automatic");
-  const results: Array<{ venueId: string; risk: string; acted: boolean; reason: string }> = [];
+  let profiles;
+  try {
+    profiles = (await getWeatherProfiles({ requireAvailable: true }))
+      .filter((profile) => profile.autoResponseMode === "automatic");
+  } catch {
+    console.error("Weather auto-check could not load weather profiles.");
+    return NextResponse.json(
+      { ok: false, checked: 0, failed: 1, results: [], error: "Weather profiles unavailable." },
+      { status: 503, headers: { "cache-control": "no-store" } },
+    );
+  }
+  const results: WeatherAutoCheckResult[] = [];
 
   for (const profile of profiles) {
     const lastTriggered = profile.autoLastTriggeredAt ? new Date(profile.autoLastTriggeredAt).getTime() : 0;
     if (now - lastTriggered < RETRIGGER_COOLDOWN_MS) {
-      results.push({ venueId: profile.venueId, risk: "-", acted: false, reason: "cooldown" });
+      results.push({ venueId: profile.venueId, risk: "-", acted: false, reason: "cooldown", status: "skipped" });
       continue;
     }
-    const assessment = await assessStormRisk(profile.venueId).catch(() => null);
-    if (!assessment) {
-      results.push({ venueId: profile.venueId, risk: "-", acted: false, reason: "no assessment" });
+    const assessment = await assessStormRisk(profile.venueId, { requireAvailable: true }).catch(() => null);
+    if (!assessment || !assessment.profile || !assessment.weather) {
+      console.error(`Weather auto-check assessment unavailable for venue ${profile.venueId}.`);
+      results.push({ venueId: profile.venueId, risk: "-", acted: false, reason: "assessment unavailable", status: "failed" });
       continue;
     }
     if (assessment.risk !== "severe") {
-      results.push({ venueId: profile.venueId, risk: assessment.risk, acted: false, reason: "not severe" });
+      results.push({ venueId: profile.venueId, risk: assessment.risk, acted: false, reason: "not severe", status: "completed" });
       continue;
     }
-    const summary = await executeStormResponse(assessment, { severe: true, source: "automatic", actorUserId: automationActorUserId });
+    const summary = await executeStormResponse(assessment, { severe: true, source: "automatic", actorUserId: automationActorUserId })
+      .catch(() => null);
+    if (!summary) {
+      console.error(`Weather auto-check storm response failed for venue ${profile.venueId}.`);
+      results.push({ venueId: profile.venueId, risk: "severe", acted: false, reason: "storm response failed", status: "failed" });
+      continue;
+    }
     // "acted" used to be hardcoded true, so a run that held zero fields still
     // reported success. Report what actually happened.
+    const outcome = summarizeAutomaticStormResponse(assessment.fieldCount, summary);
+    if (outcome.status === "failed") {
+      console.error(`Weather auto-check storm response incomplete for venue ${profile.venueId}: ${outcome.reason}.`);
+    }
     results.push({
       venueId: profile.venueId,
       risk: "severe",
-      acted: summary.fieldsHeld > 0 || summary.alertSent,
-      reason: "held " + summary.fieldsHeld + " fields, texted " + summary.umpiresTexted + " umpires",
+      ...outcome,
     });
   }
 
-  return NextResponse.json({ ok: true, checked: profiles.length, results }, { headers: { "cache-control": "no-store" } });
+  const response = summarizeWeatherAutoCheck(profiles.length, results);
+  return NextResponse.json(response.body, { status: response.status, headers: { "cache-control": "no-store" } });
 }
