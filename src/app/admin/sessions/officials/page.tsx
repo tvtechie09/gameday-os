@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { publicErrorMessage } from "@/lib/public-error";
-import { getSessions } from "@/lib/services/sessions";
+import { getScheduleSessionsInScope } from "@/lib/access/scoped-session-data";
 import { getOfficialsForSessions, type SessionOfficial } from "@/lib/services/officials";
 import { removeOfficialAction } from "./actions";
 import { AssignOfficialForm } from "./assign-form";
@@ -23,7 +23,7 @@ export default async function OfficialsPage() {
   let officials: SessionOfficial[] = [];
 
   try {
-    const sessions = await getSessions();
+    const sessions = await getScheduleSessionsInScope();
     const cutoff = Date.now() - 6 * 60 * 60 * 1000;
     upcoming = sessions
       .filter((session) => new Date(session.startTime).getTime() >= cutoff)

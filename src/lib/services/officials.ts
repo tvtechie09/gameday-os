@@ -1,6 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { canManageSchedule, type AccessContext } from "@/lib/access/capabilities";
+import { PermissionDeniedError } from "./identity";
+import { getSession } from "./sessions";
+import { getField } from "./fields";
+import { getVenue } from "./venues";
 import { sendViaResend } from "./alert-delivery";
+import { classifyOfficialDelivery, officialSessionScopeError, type OfficialDeliveryStatus } from "./officials-safety";
 
 // Umpire/official assignment: the last unstaffed game-day role. Assign an
 // official to a session, flag double-bookings, and hand them a tokenized
@@ -27,6 +33,24 @@ type OfficialRow = {
   status: string;
   confirm_token: string;
 };
+
+async function requireOfficialSessionMutation(ctx: AccessContext | null, sessionId: string) {
+  if (!canManageSchedule(ctx)) {
+    throw new PermissionDeniedError("You do not have permission to manage officials.");
+  }
+  const session = await getSession(sessionId);
+  if (!session) throw new PermissionDeniedError("That game no longer exists.");
+  if (ctx?.scopeType === "tournament") {
+    const tournamentScopeError = officialSessionScopeError(ctx, session, null);
+    if (tournamentScopeError) throw new PermissionDeniedError(tournamentScopeError);
+    return session;
+  }
+  const field = await getField(session.fieldId);
+  const venue = field ? await getVenue(field.venueId) : null;
+  const scopeError = officialSessionScopeError(ctx, session, venue);
+  if (scopeError) throw new PermissionDeniedError(scopeError);
+  return session;
+}
 
 function mapOfficial(row: OfficialRow): SessionOfficial {
   return {
@@ -75,7 +99,11 @@ export async function findOfficialConflicts(officialEmail: string, sessionId: st
     .map((session) => session.title || session.home_team + " vs " + session.away_team);
 }
 
-export async function assignOfficial(input: { sessionId: string; name: string; email?: string | null; phone?: string | null; role?: string; confirmBaseUrl: string }): Promise<{ official: SessionOfficial; conflicts: string[]; confirmUrl: string }> {
+export async function assignOfficial(
+  input: { sessionId: string; name: string; email?: string | null; phone?: string | null; role?: string; confirmBaseUrl: string },
+  actor: AccessContext | null,
+): Promise<{ official: SessionOfficial; conflicts: string[]; confirmUrl: string; deliveryStatus: OfficialDeliveryStatus }> {
+  await requireOfficialSessionMutation(actor, input.sessionId);
   const supabase = getSupabaseAdminClient();
   const email = (input.email || "").trim().toLowerCase() || null;
   const phone = (input.phone || "").trim().slice(0, 32) || null;
@@ -95,17 +123,23 @@ export async function assignOfficial(input: { sessionId: string; name: string; e
     .single();
   if (error) throw new Error(error.message);
   const confirmUrl = input.confirmBaseUrl.replace(/\/$/, "") + "/officiate/" + token;
+  let deliveryStatus: OfficialDeliveryStatus = "not_requested";
   if (email) {
     const { data: session } = await supabase.from("sessions").select("title,home_team,away_team,start_time").eq("id", input.sessionId).maybeSingle();
     const label = session?.title || (session ? session.home_team + " vs " + session.away_team : "a game");
     const when = session?.start_time ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(session.start_time)) : "";
-    await sendViaResend(email, "[GameDay OS] You're assigned: " + label, "You've been assigned as " + (input.role || "umpire") + " for " + label + (when ? " on " + when : "") + ".\n\nConfirm or decline here: " + confirmUrl).catch(() => undefined);
+    const delivery = await sendViaResend(email, "[GameDay OS] You're assigned: " + label, "You've been assigned as " + (input.role || "umpire") + " for " + label + (when ? " on " + when : "") + ".\n\nConfirm or decline here: " + confirmUrl);
+    deliveryStatus = classifyOfficialDelivery(email, delivery);
   }
-  return { official: mapOfficial(data), conflicts, confirmUrl };
+  return { official: mapOfficial(data), conflicts, confirmUrl, deliveryStatus };
 }
 
-export async function removeOfficial(id: string): Promise<void> {
+export async function removeOfficial(id: string, actor: AccessContext | null): Promise<void> {
   const supabase = getSupabaseAdminClient();
+  const { data: existing, error: loadError } = await supabase.from("session_officials").select("session_id").eq("id", id).maybeSingle();
+  if (loadError) throw new Error(loadError.message);
+  if (!existing?.session_id) throw new PermissionDeniedError("That official assignment no longer exists.");
+  await requireOfficialSessionMutation(actor, existing.session_id);
   const { error } = await supabase.from("session_officials").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
