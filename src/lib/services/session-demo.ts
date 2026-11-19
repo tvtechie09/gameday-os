@@ -1,4 +1,5 @@
 import { updateSessionGameState } from "@/lib/services/sessions";
+import type { AccessContext } from "@/lib/access/capabilities";
 import type { Session } from "@/lib/types";
 
 export type DemoScoreboardAction = "start" | "home_plus_one" | "away_plus_one" | "next_period" | "reset";
@@ -17,7 +18,7 @@ function nextDemoPeriod(session: Session) {
   };
 }
 
-export async function applyDemoScoreboardAction(session: Session, action: DemoScoreboardAction) {
+export async function applyDemoScoreboardAction(session: Session, action: DemoScoreboardAction, actor: AccessContext | null) {
   if (!session.isDemo) {
     throw new Error("Demo controls are locked for real sessions. Mark this session as demo before running scoreboard demos.");
   }
@@ -74,5 +75,5 @@ export async function applyDemoScoreboardAction(session: Session, action: DemoSc
     nextState.strikes = 0;
   }
 
-  return updateSessionGameState(session.id, nextState);
+  return updateSessionGameState(session.id, nextState, actor);
 }

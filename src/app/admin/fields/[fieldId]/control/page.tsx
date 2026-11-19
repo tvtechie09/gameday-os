@@ -137,6 +137,7 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
   async function startControlledSessionAction(formData: FormData) {
     "use server";
 
+    const actor = await getSessionContext();
     const sessionId = String(formData.get("session_id") ?? "").trim();
     const session = sessionId ? await getSession(sessionId) : null;
 
@@ -159,7 +160,7 @@ export default async function FieldControlCenterPage({ params, searchParams }: F
         secondary_link_label: session.secondaryLinkLabel,
         secondary_link_url: session.secondaryLinkUrl,
         strikes: session.strikes,
-      });
+      }, actor);
       revalidatePath(`/admin/fields/${fieldId}/control`);
       revalidatePath(`/admin/sessions/${session.id}`);
       revalidatePath(`/scoreboard/${session.id}`);

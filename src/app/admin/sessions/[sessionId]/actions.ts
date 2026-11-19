@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getSessionContext } from "@/lib/access/session";
 import { updateSessionGameState, type UpdateSessionGameStateInput } from "@/lib/services/sessions";
 import type { InningHalf, Session } from "@/lib/types";
 
@@ -30,6 +31,7 @@ export async function updateSessionStateAction(
   const gameStatus = validGameStatuses.includes(data.game_status) ? data.game_status : "scheduled";
 
   try {
+    const actor = await getSessionContext();
     const session = await updateSessionGameState(
       sessionId,
       {
@@ -47,6 +49,7 @@ export async function updateSessionStateAction(
         secondary_link_url: data.secondary_link_url,
         notes: data.notes,
       },
+      actor,
     );
 
     revalidatePath("/admin/sessions");
