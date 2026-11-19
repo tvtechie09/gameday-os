@@ -69,7 +69,14 @@ export function AssignOfficialForm({ sessions }: { sessions: SessionOption[] }) 
             </p>
           ) : null}
           <p className="rounded-lg bg-green-50 p-3 text-sm text-green-800">
-            <span className="font-black">Assigned.</span> Confirm link (also emailed when an address was given):{" "}
+            <span className="font-black">Assigned.</span>{" "}
+            {result.deliveryStatus === "sent"
+              ? "Confirmation email sent."
+              : result.deliveryStatus === "failed"
+                ? "The confirmation email failed; share the link manually."
+                : result.deliveryStatus === "not_configured"
+                  ? "Email delivery is not configured; share the link manually."
+                  : "Share the confirmation link manually."}{" "}
             <span className="break-all font-mono text-xs">{result.confirmUrl}</span>
           </p>
         </div>
