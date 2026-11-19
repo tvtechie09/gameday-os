@@ -11,6 +11,10 @@ export function classifyOfficialDelivery(
   return result?.provider ? "failed" : "not_configured";
 }
 
+export function officialConflictLabel(label: string, scopeError: string | null): string {
+  return scopeError ? "Another assignment at this time" : label;
+}
+
 export function officialSessionScopeError(
   ctx: AccessContext | null,
   session: { tournamentId?: string | null },

@@ -6,7 +6,7 @@ import { getSession } from "./sessions";
 import { getField } from "./fields";
 import { getVenue } from "./venues";
 import { sendViaResend } from "./alert-delivery";
-import { classifyOfficialDelivery, officialSessionScopeError, type OfficialDeliveryStatus } from "./officials-safety";
+import { classifyOfficialDelivery, officialConflictLabel, officialSessionScopeError, type OfficialDeliveryStatus } from "./officials-safety";
 
 // Umpire/official assignment: the last unstaffed game-day role. Assign an
 // official to a session, flag double-bookings, and hand them a tokenized
@@ -78,8 +78,26 @@ export async function getOfficialsForSessions(sessionIds: string[]): Promise<Ses
   return (data ?? []).map(mapOfficial);
 }
 
+async function conflictScopeError(
+  actor: AccessContext | null,
+  session: { field_id: string; tournament_id: string | null },
+): Promise<string | null> {
+  if (actor?.scopeType === "tournament") {
+    return officialSessionScopeError(actor, { tournamentId: session.tournament_id }, null);
+  }
+  const field = await getField(session.field_id);
+  const venue = field ? await getVenue(field.venueId) : null;
+  return officialSessionScopeError(actor, { tournamentId: session.tournament_id }, venue);
+}
+
 // Double-booking check: same email on another session overlapping ±2h.
-export async function findOfficialConflicts(officialEmail: string, sessionId: string): Promise<string[]> {
+// A conflict outside the actor's scope remains useful, but its tenant-owned
+// session and team labels must not cross the service-role read boundary.
+export async function findOfficialConflicts(
+  officialEmail: string,
+  sessionId: string,
+  actor: AccessContext | null,
+): Promise<string[]> {
   if (!officialEmail) return [];
   const supabase = getSupabaseAdminClient();
   const { data: target } = await supabase.from("sessions").select("start_time").eq("id", sessionId).maybeSingle();
@@ -93,10 +111,17 @@ export async function findOfficialConflicts(officialEmail: string, sessionId: st
     .neq("status", "declined");
   const otherIds = (others ?? []).map((row) => row.session_id);
   if (!otherIds.length) return [];
-  const { data: sessions } = await supabase.from("sessions").select("id,title,home_team,away_team,start_time").in("id", otherIds);
-  return (sessions ?? [])
-    .filter((session) => Math.abs(new Date(session.start_time).getTime() - start) < 2 * 60 * 60 * 1000)
-    .map((session) => session.title || session.home_team + " vs " + session.away_team);
+  const { data: sessions } = await supabase
+    .from("sessions")
+    .select("id,title,home_team,away_team,start_time,field_id,tournament_id")
+    .in("id", otherIds);
+  const overlapping = (sessions ?? [])
+    .filter((session) => Math.abs(new Date(session.start_time).getTime() - start) < 2 * 60 * 60 * 1000);
+  const labels = await Promise.all(overlapping.map(async (session) => officialConflictLabel(
+    session.title || session.home_team + " vs " + session.away_team,
+    await conflictScopeError(actor, session),
+  )));
+  return [...new Set(labels)];
 }
 
 export async function assignOfficial(
@@ -107,7 +132,7 @@ export async function assignOfficial(
   const supabase = getSupabaseAdminClient();
   const email = (input.email || "").trim().toLowerCase() || null;
   const phone = (input.phone || "").trim().slice(0, 32) || null;
-  const conflicts = email ? await findOfficialConflicts(email, input.sessionId) : [];
+  const conflicts = email ? await findOfficialConflicts(email, input.sessionId, actor) : [];
   const token = randomBytes(16).toString("hex");
   const { data, error } = await supabase
     .from("session_officials")
