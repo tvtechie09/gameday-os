@@ -70,7 +70,7 @@ export const syncJobStatuses: SyncJobStatus[] = ["pending", "running", "complete
 export const syncQueueReviewStatuses: SyncQueueReviewStatus[] = ["pending", "approved", "rejected", "imported"];
 
 const syncJobSelect = "id,source_id,source_type,status,records_found,records_imported,records_skipped,created_at,completed_at";
-const syncQueueSelect = "id,sync_job_id,source_record_id,source_data,review_status,created_at";
+const syncQueueSelect = "id,sync_job_id,venue_id,source_record_id,source_data,review_status,created_at";
 
 function readJobStatus(value: string): SyncJobStatus {
   return syncJobStatuses.find((status) => status === value) ?? "pending";
@@ -98,6 +98,7 @@ function mapSyncQueueItem(row: SyncQueueRow): SyncQueueItem {
   return {
     id: row.id,
     syncJobId: row.sync_job_id,
+    venueId: row.venue_id,
     sourceRecordId: row.source_record_id,
     sourceData: row.source_data,
     reviewStatus: readQueueStatus(row.review_status),
@@ -187,6 +188,9 @@ async function getAuthorizedSyncQueueItem(id: string, actor: string) {
   const fieldId = readFieldId(item.sourceData);
   if (!fieldId) throw new PermissionDeniedError("Sync queue item is missing a canonical field target.");
   const [field] = await loadCanonicalSyncFields([fieldId]);
+  if (!item.venueId || item.venueId !== field.venueId) {
+    throw new PermissionDeniedError("Sync queue ownership does not match its canonical field.");
+  }
   await authorizeSyncFields(actor, [field]);
   return { field, item };
 }
@@ -224,14 +228,20 @@ export async function createSyncJobWithQueue(data: CreateSyncJobInput, actorUser
   }
 
   if (data.records.length > 0) {
+    const venueByFieldId = new Map(fields.map((field) => [field.id, field.venueId]));
     const { error: queueError } = await supabase
       .from("sync_queue")
-      .insert(data.records.map((record) => ({
-        review_status: "pending",
-        source_data: record.sourceData as Json,
-        source_record_id: record.sourceRecordId,
-        sync_job_id: job.id,
-      })));
+      .insert(data.records.map((record) => {
+        const venueId = venueByFieldId.get(record.sourceData.session.field_id.trim());
+        if (!venueId) throw new PermissionDeniedError("Sync queue field ownership is not available.");
+        return {
+          review_status: "pending",
+          source_data: record.sourceData as Json,
+          source_record_id: record.sourceRecordId,
+          sync_job_id: job.id,
+          venue_id: venueId,
+        };
+      }));
 
     if (queueError) {
       await supabase.from("sync_jobs").update({ status: "failed" }).eq("id", job.id);
@@ -248,28 +258,27 @@ export async function createSyncJobWithQueue(data: CreateSyncJobInput, actorUser
 
 async function loadScopedSyncSnapshot(status?: SyncQueueReviewStatus | "all") {
   const supabase = getSupabaseAdminClient();
-  const [scope, jobsResult, queueResult] = await Promise.all([
+  const [scope, jobsResult, queueResult, ownershipResult] = await Promise.all([
     getScopedVenuesAndFields(),
     supabase.from("sync_jobs").select(syncJobSelect).order("created_at", { ascending: false }),
     supabase.from("sync_queue").select(syncQueueSelect).order("created_at", { ascending: false }),
+    supabase.from("sync_job_venues").select("sync_job_id,venue_id"),
   ]);
   if (jobsResult.error) throw new Error(jobsResult.error.message);
   if (queueResult.error) throw new Error(queueResult.error.message);
+  if (ownershipResult.error) throw new Error(ownershipResult.error.message);
 
   const jobs = (jobsResult.data ?? []).map(mapSyncJob);
   const queue = (queueResult.data ?? []).map(mapSyncQueueItem);
-  const sourceIds = [...new Set(jobs.map((job) => job.sourceId).filter((id): id is string => Boolean(id)))];
-  const { data: sourceRows, error: sourceError } = sourceIds.length
-    ? await supabase.from("external_sources").select("id,venue_id").in("id", sourceIds)
-    : { data: [], error: null };
-  if (sourceError) throw new Error(sourceError.message);
 
   const { jobIds, queueIds } = getScopedSyncReadIds({
-    allowedFieldIds: new Set(scope.fields.map((field) => field.id)),
     allowedVenueIds: new Set(scope.venues.map((venue) => venue.id)),
+    jobVenues: (ownershipResult.data ?? []).map((ownership) => ({
+      syncJobId: ownership.sync_job_id,
+      venueId: ownership.venue_id,
+    })),
     jobs,
-    queue: queue.map((item) => ({ fieldId: readFieldId(item.sourceData), id: item.id, syncJobId: item.syncJobId })),
-    sources: (sourceRows ?? []).map((source) => ({ id: source.id, venueId: source.venue_id })),
+    queue: queue.map((item) => ({ id: item.id, syncJobId: item.syncJobId, venueId: item.venueId })),
   });
 
   return {

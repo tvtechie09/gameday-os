@@ -3,17 +3,15 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { getScopedSyncReadIds } from "../src/lib/services/sync-read-scope.ts";
 
-const fields = new Set(["field-a"]);
 const venues = new Set(["venue-a"]);
 
 describe("sync dashboard tenant scope", () => {
-  it("returns a job and queue rows wholly contained in the caller's fields", () => {
+  it("returns a job and queue rows wholly contained in the caller's venues", () => {
     const result = getScopedSyncReadIds({
-      allowedFieldIds: fields,
       allowedVenueIds: venues,
-      jobs: [{ id: "job-a", sourceId: null }],
-      queue: [{ fieldId: "field-a", id: "queue-a", syncJobId: "job-a" }],
-      sources: [],
+      jobs: [{ id: "job-a" }],
+      jobVenues: [{ syncJobId: "job-a", venueId: "venue-a" }],
+      queue: [{ id: "queue-a", syncJobId: "job-a", venueId: "venue-a" }],
     });
     assert.deepEqual([...result.jobIds], ["job-a"]);
     assert.deepEqual([...result.queueIds], ["queue-a"]);
@@ -21,44 +19,55 @@ describe("sync dashboard tenant scope", () => {
 
   it("hides the entire job when any queue row crosses the tenant boundary", () => {
     const result = getScopedSyncReadIds({
-      allowedFieldIds: fields,
       allowedVenueIds: venues,
-      jobs: [{ id: "job-mixed", sourceId: null }],
-      queue: [
-        { fieldId: "field-a", id: "queue-a", syncJobId: "job-mixed" },
-        { fieldId: "field-b", id: "queue-b", syncJobId: "job-mixed" },
+      jobs: [{ id: "job-mixed" }],
+      jobVenues: [
+        { syncJobId: "job-mixed", venueId: "venue-a" },
+        { syncJobId: "job-mixed", venueId: "venue-b" },
       ],
-      sources: [],
+      queue: [
+        { id: "queue-a", syncJobId: "job-mixed", venueId: "venue-a" },
+        { id: "queue-b", syncJobId: "job-mixed", venueId: "venue-b" },
+      ],
     });
     assert.equal(result.jobIds.size, 0);
     assert.equal(result.queueIds.size, 0);
   });
 
-  it("scopes empty source jobs by canonical source venue and hides unscoped CSV jobs", () => {
+  it("uses durable ownership for empty source jobs and hides unowned CSV jobs", () => {
     const result = getScopedSyncReadIds({
-      allowedFieldIds: fields,
       allowedVenueIds: venues,
       jobs: [
-        { id: "job-source-a", sourceId: "source-a" },
-        { id: "job-source-b", sourceId: "source-b" },
-        { id: "job-unscoped", sourceId: null },
+        { id: "job-source-a" },
+        { id: "job-source-b" },
+        { id: "job-unscoped" },
+      ],
+      jobVenues: [
+        { syncJobId: "job-source-a", venueId: "venue-a" },
+        { syncJobId: "job-source-b", venueId: "venue-b" },
       ],
       queue: [],
-      sources: [
-        { id: "source-a", venueId: "venue-a" },
-        { id: "source-b", venueId: "venue-b" },
-      ],
     });
     assert.deepEqual([...result.jobIds], ["job-source-a"]);
   });
 
-  it("requires both source venue and every field to be in scope", () => {
+  it("requires job ownership and each queue row to be in scope", () => {
     const result = getScopedSyncReadIds({
-      allowedFieldIds: fields,
       allowedVenueIds: venues,
-      jobs: [{ id: "job-source-b", sourceId: "source-b" }],
-      queue: [{ fieldId: "field-a", id: "queue-a", syncJobId: "job-source-b" }],
-      sources: [{ id: "source-b", venueId: "venue-b" }],
+      jobs: [{ id: "job-source-b" }],
+      jobVenues: [{ syncJobId: "job-source-b", venueId: "venue-b" }],
+      queue: [{ id: "queue-a", syncJobId: "job-source-b", venueId: "venue-a" }],
+    });
+    assert.equal(result.jobIds.size, 0);
+    assert.equal(result.queueIds.size, 0);
+  });
+
+  it("hides a canonically owned job when any legacy queue row is unattributed", () => {
+    const result = getScopedSyncReadIds({
+      allowedVenueIds: venues,
+      jobs: [{ id: "job-ambiguous" }],
+      jobVenues: [{ syncJobId: "job-ambiguous", venueId: "venue-a" }],
+      queue: [{ id: "queue-ambiguous", syncJobId: "job-ambiguous", venueId: null }],
     });
     assert.equal(result.jobIds.size, 0);
     assert.equal(result.queueIds.size, 0);

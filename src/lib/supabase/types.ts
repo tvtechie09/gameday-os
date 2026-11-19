@@ -1267,6 +1267,39 @@ export type Database = {
           },
         ];
       };
+      sync_job_venues: {
+        Row: {
+          sync_job_id: string;
+          venue_id: string;
+          created_at: string;
+        };
+        Insert: {
+          sync_job_id: string;
+          venue_id: string;
+          created_at?: string;
+        };
+        Update: {
+          sync_job_id?: string;
+          venue_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sync_job_venues_sync_job_id_fkey";
+            columns: ["sync_job_id"];
+            isOneToOne: false;
+            referencedRelation: "sync_jobs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sync_job_venues_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sync_queue: {
         Row: {
           id: string;
@@ -1274,6 +1307,7 @@ export type Database = {
           source_record_id: string;
           source_data: Json;
           review_status: string;
+          venue_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -1282,6 +1316,7 @@ export type Database = {
           source_record_id: string;
           source_data: Json;
           review_status?: string;
+          venue_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -1290,6 +1325,7 @@ export type Database = {
           source_record_id?: string;
           source_data?: Json;
           review_status?: string;
+          venue_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -1298,6 +1334,13 @@ export type Database = {
             columns: ["sync_job_id"];
             isOneToOne: false;
             referencedRelation: "sync_jobs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sync_queue_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
             referencedColumns: ["id"];
           },
         ];

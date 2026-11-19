@@ -627,6 +627,7 @@ export interface RoleAssignment {
 export interface SyncQueueItem {
   id: string;
   syncJobId: string;
+  venueId: string | null;
   sourceRecordId: string;
   sourceData: unknown;
   reviewStatus: SyncQueueReviewStatus;
