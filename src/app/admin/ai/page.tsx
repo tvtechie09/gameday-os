@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { AiRecommendationsPanel } from "@/components/ai/ai-recommendations-panel";
 import { generateAiRecommendations } from "@/lib/ai-recommendations";
+import { getScopedVenuesAndFields } from "@/lib/access/scoped-venue-data";
 import { getActiveAlerts, getAlerts } from "@/lib/services/alerts";
-import { getFields } from "@/lib/services/fields";
 import { getResources } from "@/lib/services/resources";
 import { getScoreboardProfiles } from "@/lib/services/scoreboards";
 import { getSessions } from "@/lib/services/sessions";
 import { getSponsorAssignments, getSponsors } from "@/lib/services/sponsors";
-import { getVenues } from "@/lib/services/venues";
 import type { Alert, Field, Resource, ScoreboardProfile, Session, Sponsor, SponsorAssignment, Venue } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +30,11 @@ function ContextCard({ label, value }: { label: string; value: number }) {
 }
 
 export default async function AiAssistantPage() {
-  const [venues, fields, sessions, alerts, activeAlerts, scoreboards, sponsors, sponsorAssignments, resources] = await Promise.all([
-    safeLoad<Venue>("venues", getVenues),
-    safeLoad<Field>("fields", getFields),
+  const [scoped, allSessions, allAlerts, allActiveAlerts, allScoreboards, allSponsors, allSponsorAssignments, allResources] = await Promise.all([
+    getScopedVenuesAndFields().catch((error: unknown) => {
+      console.error("Failed to load scoped venues and fields for AI Assistant", error);
+      return { venues: [] as Venue[], fields: [] as Field[] };
+    }),
     safeLoad<Session>("sessions", getSessions),
     safeLoad<Alert>("alerts", getAlerts),
     safeLoad<Alert>("active alerts", getActiveAlerts),
@@ -42,6 +43,26 @@ export default async function AiAssistantPage() {
     safeLoad<SponsorAssignment>("sponsor assignments", getSponsorAssignments),
     safeLoad<Resource>("resources", getResources),
   ]);
+  const { venues, fields } = scoped;
+  const venueIds = new Set(venues.map((venue) => venue.id));
+  const fieldIds = new Set(fields.map((field) => field.id));
+  const organizationIds = new Set(venues.map((venue) => venue.organizationId).filter((id): id is string => Boolean(id)));
+  const sessions = allSessions.filter((session) => fieldIds.has(session.fieldId));
+  const sessionIds = new Set(sessions.map((session) => session.id));
+  const alerts = allAlerts.filter((alert) => venueIds.has(alert.venueId));
+  const activeAlerts = allActiveAlerts.filter((alert) => venueIds.has(alert.venueId));
+  const scoreboards = allScoreboards.filter((scoreboard) => venueIds.has(scoreboard.venueId));
+  const sponsorAssignments = allSponsorAssignments.filter((assignment) => (
+    Boolean(assignment.venueId && venueIds.has(assignment.venueId))
+    || Boolean(assignment.fieldId && fieldIds.has(assignment.fieldId))
+    || Boolean(assignment.sessionId && sessionIds.has(assignment.sessionId))
+  ));
+  const assignedSponsorIds = new Set(sponsorAssignments.map((assignment) => assignment.sponsorId));
+  const sponsors = allSponsors.filter((sponsor) => (
+    assignedSponsorIds.has(sponsor.id)
+    || Boolean(sponsor.organizationId && organizationIds.has(sponsor.organizationId))
+  ));
+  const resources = allResources.filter((resource) => venueIds.has(resource.venueId));
   const recommendations = generateAiRecommendations({
     activeAlerts,
     alerts,

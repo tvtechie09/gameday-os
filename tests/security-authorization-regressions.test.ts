@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
 import { automationTargetScopeError } from "../src/lib/services/automation-target-scope.ts";
+import { buildAccessContext } from "../src/lib/access/capabilities.ts";
+import { guardForAdminPath } from "../src/lib/access/navigation.ts";
 
 const venueWorkflow = {
   fieldId: null,
@@ -13,6 +15,82 @@ const venueWorkflow = {
 };
 
 describe("high-risk authorization regressions", () => {
+  it("denies direct admin URLs when the caller lacks the route capability", () => {
+    const venueStaff = buildAccessContext({
+      displayName: "Venue Staff",
+      email: "staff@example.test",
+      permissions: ["venue.field.manage", "game.status.update"],
+      roleKey: "venue_staff",
+      scopeId: "venue-a",
+      scopeType: "venue",
+      userId: "user-a",
+      venueId: "venue-a",
+    });
+    assert.equal(guardForAdminPath("/admin/command-center")(venueStaff), true);
+    assert.equal(guardForAdminPath("/admin/identity/people")(venueStaff), false);
+    assert.equal(guardForAdminPath("/admin/sessions")(venueStaff), false);
+    assert.equal(guardForAdminPath("/admin/ai")(venueStaff), true);
+    assert.equal(guardForAdminPath("/admin/unregistered-future-page")(venueStaff), false);
+  });
+
+  it("denies revoked route capabilities even when the role catalog normally grants them", () => {
+    const revokedDirector = buildAccessContext({
+      displayName: "Revoked Director",
+      email: "director@example.test",
+      permissions: [],
+      roleKey: "venue_director",
+      scopeId: "venue-a",
+      scopeType: "venue",
+      userId: "user-a",
+      venueId: "venue-a",
+    });
+    assert.equal(guardForAdminPath("/admin/venues")(revokedDirector), false);
+    assert.equal(guardForAdminPath("/admin/resources")(revokedDirector), false);
+  });
+
+  it("requires every admin page to be registered with the fail-closed route guard", () => {
+    const platformAdmin = buildAccessContext({
+      displayName: "Platform Admin",
+      email: "admin@example.test",
+      roleKey: "platform_admin",
+      scopeId: "platform",
+      scopeType: "platform",
+      userId: "admin-a",
+    });
+    const pages = readdirSync("src/app/admin", { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name === "page.tsx")
+      .map((entry) => {
+        const relative = `${entry.parentPath}/page.tsx`.replace("src/app", "").replace(/\/page\.tsx$/, "");
+        return relative || "/admin";
+      });
+    for (const page of pages) {
+      assert.equal(guardForAdminPath(page)(platformAdmin), true, `${page} is missing an admin route guard`);
+    }
+  });
+
+  it("wires the canonical admin pathname into the server capability gate", () => {
+    const middleware = readFileSync("src/middleware.ts", "utf8");
+    const frame = readFileSync("src/components/access/app-frame.tsx", "utf8");
+    assert.match(middleware, /requestHeaders\.set\("x-gameday-admin-path", request\.nextUrl\.pathname\)/);
+    assert.match(frame, /guardForAdminPath\(pathname\)\(ctx\)/);
+  });
+
+  it("keeps the operator-linked AI route tenant scoped", () => {
+    const ai = readFileSync("src/app/admin/ai/page.tsx", "utf8");
+    assert.match(ai, /getScopedVenuesAndFields/);
+    assert.match(ai, /allSessions\.filter\(\(session\) => fieldIds\.has\(session\.fieldId\)\)/);
+    assert.match(ai, /allAlerts\.filter\(\(alert\) => venueIds\.has\(alert\.venueId\)\)/);
+    assert.match(ai, /allResources\.filter\(\(resource\) => venueIds\.has\(resource\.venueId\)\)/);
+  });
+
+  it("rejects inactive hosted users and treats live permission grants as authoritative", () => {
+    const session = readFileSync("src/lib/access/session.ts", "utf8");
+    assert.match(session, /userRow\.user_status !== "active"/);
+    assert.match(session, /if \(live === null\)[\s\S]*return \{ kind: "no-access"/);
+    assert.match(session, /permissions: live/);
+    assert.doesNotMatch(session, /for \(const key of activeRoleKeys\)[\s\S]*permissionsForRole\(key\)/);
+  });
+
   it("allows canonical automation targets inside the workflow venue", () => {
     assert.equal(automationTargetScopeError(venueWorkflow, {
       fields: [{ id: "field-a", organizationId: "org-a", venueId: "venue-a" }],

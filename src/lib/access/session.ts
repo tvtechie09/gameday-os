@@ -107,7 +107,9 @@ async function livePermissionsForUser(userId: string): Promise<Set<string> | nul
         keys.add(permission.key);
       }
     }
-    return keys.size > 0 ? keys : null;
+    // An empty live grant set is authoritative: it represents a role whose
+    // permissions were revoked, not a reason to restore the static catalog.
+    return keys;
   } catch {
     return null;
   }
@@ -271,12 +273,12 @@ async function resolveIdentityForAuthUser(authUser: {
     // 1) Find public.users by auth_user_id, then fall back to email (link on
     //    first login so subsequent lookups hit the fast path).
     let userRow:
-      | { id: string; email: string | null; display_name: string | null; auth_user_id: string | null }
+      | { id: string; email: string | null; display_name: string | null; auth_user_id: string | null; user_status: string }
       | null = null;
 
     const byAuthId = await supabase
       .from("users")
-      .select("id,email,display_name,auth_user_id")
+      .select("id,email,display_name,auth_user_id,user_status")
       .eq("auth_user_id", authUser.id)
       .maybeSingle();
 
@@ -285,7 +287,7 @@ async function resolveIdentityForAuthUser(authUser: {
     } else if (authUser.email) {
       const byEmail = await supabase
         .from("users")
-        .select("id,email,display_name,auth_user_id")
+        .select("id,email,display_name,auth_user_id,user_status")
         .ilike("email", authUser.email)
         .maybeSingle();
       if (byEmail.data) {
@@ -298,6 +300,9 @@ async function resolveIdentityForAuthUser(authUser: {
 
     // No public.users row at all -> no access (do NOT auto-create).
     if (!userRow) {
+      return { kind: "no-access", email: authUser.email };
+    }
+    if (userRow.user_status !== "active") {
       return { kind: "no-access", email: authUser.email };
     }
 
@@ -330,19 +335,12 @@ async function resolveIdentityForAuthUser(authUser: {
     const primaryRoleKey = pickPrimaryRoleKey(activeRoleKeys);
     const primaryAssignment = active.find((row) => roleKeyFor(row) === primaryRoleKey) ?? active[0];
 
-    // 3) Resolve capabilities: catalog permissions for every active role, plus
-    //    any live role_permissions rows, merged into a single set.
-    const permissions = new Set<string>();
-    for (const key of activeRoleKeys) {
-      for (const perm of permissionsForRole(key)) {
-        permissions.add(perm);
-      }
-    }
+    // 3) Resolve capabilities from live role_permissions. Once hosted identity
+    //    rows have resolved successfully, the database is authoritative: a
+    //    removed grant must not be silently restored from the static catalog.
     const live = await livePermissionsForUser(userRow.id);
-    if (live) {
-      for (const key of live) {
-        permissions.add(key);
-      }
+    if (live === null) {
+      return { kind: "no-access", email: authUser.email };
     }
 
     const context = buildAccessContext({
@@ -352,7 +350,7 @@ async function resolveIdentityForAuthUser(authUser: {
       roleKey: primaryRoleKey,
       scopeType: primaryAssignment.scope_type,
       scopeId: primaryAssignment.scope_id,
-      permissions,
+      permissions: live,
       isImpersonating: false,
     });
 

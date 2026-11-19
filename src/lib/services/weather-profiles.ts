@@ -130,7 +130,7 @@ export function getWeatherStatusClass(status: WeatherProfileStatus) {
   return "bg-slate-100 text-slate-700";
 }
 
-export async function getWeatherProfiles(): Promise<WeatherProfile[]> {
+export async function getWeatherProfiles(options: { requireAvailable?: boolean } = {}): Promise<WeatherProfile[]> {
   const supabase = getSupabaseAdminClient();
   const scope = await getOrganizationDataScope();
   const { data, error } = await supabase
@@ -139,7 +139,7 @@ export async function getWeatherProfiles(): Promise<WeatherProfile[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    if (isMissingWeatherProfilesTableError(error)) {
+    if (isMissingWeatherProfilesTableError(error) && !options.requireAvailable) {
       console.error("weather_profiles table is unavailable; returning no weather profiles.", error);
       return [];
     }
@@ -184,7 +184,8 @@ export function getStormResponseModeLabel(mode: StormResponseMode) {
 // the same storm on every poll.
 export async function markStormAutoTriggered(profileId: string, timestamp: string): Promise<void> {
   const supabase = getSupabaseAdminClient();
-  await supabase.from("weather_profiles").update({ auto_last_triggered_at: timestamp }).eq("id", profileId);
+  const { error } = await supabase.from("weather_profiles").update({ auto_last_triggered_at: timestamp }).eq("id", profileId);
+  if (error) throw new Error(error.message);
 }
 
 export async function createWeatherProfile(data: CreateWeatherProfileInput): Promise<WeatherProfile> {

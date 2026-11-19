@@ -163,6 +163,22 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
   { prefix: "/admin/command-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/service-requests", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/operations-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/venue-command-center", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/assets", cap: (ctx) => canManageDevices(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/volunteers", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/import", cap: (ctx) => canManageSchedule(ctx) && !isOrgScoped(ctx) },
+  { prefix: "/admin/automations", cap: (ctx) => isPlatformAdmin(ctx) || hasPermission(ctx, "automation.workflows.view") },
+  { prefix: "/admin/ai", cap: (ctx) => canViewCommandCenter(ctx) && !isOrgScoped(ctx) },
+  // These demo/pilot reports still aggregate service-role reads without
+  // per-tenant filtering. Keep them platform-only until their loaders are
+  // converted to canonical scoped services.
+  { prefix: "/admin/demo", cap: isPlatformAdmin },
+  { prefix: "/admin/pilot-launch", cap: isPlatformAdmin },
+  { prefix: "/admin/pilot-prep", cap: isPlatformAdmin },
+  { prefix: "/admin/pilot-script", cap: isPlatformAdmin },
+  { prefix: "/admin/showcase", cap: isPlatformAdmin },
+  { prefix: "/admin/onboarding", cap: isPlatformAdmin },
+  { prefix: "/admin/impact", cap: (ctx) => canManageVenueSettings(ctx) && !isOrgScoped(ctx) },
   { prefix: "/admin/impersonation", cap: canImpersonate },
   { prefix: "/admin/developer", cap: canViewDevTools },
   { prefix: "/admin/marketplace", cap: canViewDevTools },
@@ -191,8 +207,13 @@ export const adminRouteGuards: Array<{ prefix: string; cap: (ctx: AccessContext 
 ];
 
 export function guardForAdminPath(pathname: string): (ctx: AccessContext | null) => boolean {
+  if (pathname === "/admin") {
+    return canAccessAdminWorkspace;
+  }
   const match = adminRouteGuards
     .filter((guard) => pathname === guard.prefix || pathname.startsWith(`${guard.prefix}/`))
     .sort((a, b) => b.prefix.length - a.prefix.length)[0];
-  return match ? match.cap : canAccessAdminWorkspace;
+  // New admin pages are private by default. A route must declare its required
+  // capability here before AppFrame will render it.
+  return match ? match.cap : () => false;
 }
