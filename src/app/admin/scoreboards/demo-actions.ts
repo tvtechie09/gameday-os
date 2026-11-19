@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getSessionContext } from "@/lib/access/session";
 import { applyDemoScoreboardAction, type DemoScoreboardAction } from "@/lib/services/session-demo";
 import { getSession } from "@/lib/services/sessions";
 import type { Session } from "@/lib/types";
@@ -18,13 +19,14 @@ export async function runDemoScoreboardAction(sessionId: string, action: DemoSco
   }
 
   try {
+    const actor = await getSessionContext();
     const session = await getSession(sessionId);
 
     if (!session) {
       return { error: "Session not found." };
     }
 
-    const updatedSession = await applyDemoScoreboardAction(session, action);
+    const updatedSession = await applyDemoScoreboardAction(session, action, actor);
 
     revalidatePath(`/admin/sessions/${sessionId}`);
     revalidatePath(`/fields/${updatedSession.fieldId}`);

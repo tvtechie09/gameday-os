@@ -1,8 +1,10 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { InningHalf, Session, SessionLinkLabel, SessionSportType } from "@/lib/types";
+import type { AccessContext } from "@/lib/access/capabilities";
+import { requiredGameStatePermissions, sessionGameStatePermissionScopes, type GameStatePermission } from "@/lib/access/session-game-state-scope";
 import { getCurrentOrganizationScope, getWritableOrganizationId } from "../organization-scope";
-import { assertActorUserId, requirePermission, safelyLogAudit } from "./identity";
+import { assertActorUserId, canUser, PermissionDeniedError, requirePermission, safelyLogAudit } from "./identity";
 import { safelyCreateNotification } from "./notifications";
 import { notifyScheduleChange } from "./schedule-notifications";
 import { recordSessionEvent } from "./session-events";
@@ -391,29 +393,68 @@ export async function setSessionStatus(id: string, status: Session["status"]): P
   return mappedSession;
 }
 
-export async function updateSessionGameState(id: string, data: UpdateSessionGameStateInput, actorUserId?: string | null): Promise<Session> {
-  const actor = assertActorUserId(actorUserId);
-  await requirePermission(actor, "game.score.update", "session", id);
+async function requireSessionGameStatePermission(
+  actor: AccessContext,
+  permission: GameStatePermission,
+  session: Session,
+  venueId: string | null,
+) {
+  const scopes = sessionGameStatePermissionScopes(permission, session, venueId, actor);
+  for (const scope of scopes) {
+    if (await canUser(actor.userId, permission, scope.scopeType, scope.scopeId)) return;
+  }
+  throw new PermissionDeniedError(`Missing permission ${permission} for this session.`);
+}
+
+export async function updateSessionGameState(id: string, data: UpdateSessionGameStateInput, actorContext: AccessContext | null): Promise<Session> {
+  const actor = assertActorUserId(actorContext?.userId);
+  if (!actorContext) throw new PermissionDeniedError("Authenticated actor context is required for this permission-checked action.");
+  const previousSession = await getSession(id);
+  if (!previousSession) throw new Error("Session not found.");
+
+  const normalized = {
+    home_score: data.home_score,
+    away_score: data.away_score,
+    inning: data.inning,
+    inning_half: data.inning_half,
+    balls: data.balls,
+    strikes: data.strikes,
+    outs: data.outs,
+    game_status: data.game_status,
+    primary_link_label: readLinkLabel(data.primary_link_label),
+    primary_link_url: readOptionalText(data.primary_link_url),
+    secondary_link_label: readLinkLabel(data.secondary_link_label),
+    secondary_link_url: readOptionalText(data.secondary_link_url),
+    notes: readOptionalText(data.notes),
+  };
+  const scoreStateChanged = previousSession.homeScore !== normalized.home_score
+    || previousSession.awayScore !== normalized.away_score
+    || previousSession.inning !== normalized.inning
+    || previousSession.inningHalf !== normalized.inning_half
+    || previousSession.balls !== normalized.balls
+    || previousSession.strikes !== normalized.strikes
+    || previousSession.outs !== normalized.outs
+    || previousSession.primaryLinkLabel !== normalized.primary_link_label
+    || previousSession.primaryLinkUrl !== normalized.primary_link_url
+    || previousSession.secondaryLinkLabel !== normalized.secondary_link_label
+    || previousSession.secondaryLinkUrl !== normalized.secondary_link_url
+    || previousSession.notes !== normalized.notes;
+  const statusChanged = previousSession.gameStatus !== normalized.game_status;
+  const venueId = await getVenueIdForField(previousSession.fieldId);
+
+  // A status-only field-control action uses game.status.update. Any score or
+  // detailed game-state edit still requires game.score.update; a combined edit
+  // requires both grants at a canonical scope.
+  for (const permission of requiredGameStatePermissions({ scoreStateChanged, statusChanged })) {
+    await requireSessionGameStatePermission(actorContext, permission, previousSession, venueId);
+  }
 
   const supabase = getSupabaseAdminClient();
-  const previousSession = await getSession(id);
   const { data: session, error } = await supabase
     .from("sessions")
     .update({
-      home_score: data.home_score,
-      away_score: data.away_score,
-      inning: data.inning,
-      inning_half: data.inning_half,
-      balls: data.balls,
-      strikes: data.strikes,
-      outs: data.outs,
-      game_status: data.game_status,
-      status: data.game_status,
-      primary_link_label: readLinkLabel(data.primary_link_label),
-      primary_link_url: readOptionalText(data.primary_link_url),
-      secondary_link_label: readLinkLabel(data.secondary_link_label),
-      secondary_link_url: readOptionalText(data.secondary_link_url),
-      notes: readOptionalText(data.notes),
+      ...normalized,
+      status: normalized.game_status,
     })
     .eq("id", id)
     .select(sessionSelect)
