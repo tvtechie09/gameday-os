@@ -1,5 +1,11 @@
 import { randomBytes, randomInt, timingSafeEqual } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import type { AccessContext } from "@/lib/access/capabilities";
+import { sessionDashboardScopeError } from "@/lib/access/session-dashboard-scope";
+import { PermissionDeniedError } from "./identity";
+import { getSession } from "./sessions";
+import { getField } from "./fields";
+import { getVenue } from "./venues";
 import { recordGameStateChange } from "@/lib/game-engine/game-service";
 import { lifecycleFromLegacy } from "@/lib/game-engine/game-lifecycle";
 import { scorekeeperIdempotencyKey } from "@/lib/game-engine/game-events";
@@ -109,8 +115,18 @@ function toView(row: SessionRow, fieldName: string): ScorekeeperSessionView {
   };
 }
 
+async function requireScorekeeperSessionAccess(sessionId: string, actor: AccessContext | null) {
+  const session = await getSession(sessionId);
+  if (!session) throw new PermissionDeniedError("That game no longer exists.");
+  const field = await getField(session.fieldId);
+  const venue = field ? await getVenue(field.venueId) : null;
+  const scopeError = sessionDashboardScopeError(actor, session, venue);
+  if (scopeError) throw new PermissionDeniedError(scopeError);
+}
+
 /** Admin-side: create (or return existing) scorekeeper credentials for a session. */
-export async function ensureScorekeeperAccess(sessionId: string) {
+export async function ensureScorekeeperAccess(sessionId: string, actor: AccessContext | null) {
+  await requireScorekeeperSessionAccess(sessionId, actor);
   const supabase = getSupabaseAdminClient();
   const { data: existing, error } = await supabase.from("sessions").select("id,scorekeeper_token,scorekeeper_pin").eq("id", sessionId).maybeSingle();
   if (error || !existing) throw new Error("Session not found.");

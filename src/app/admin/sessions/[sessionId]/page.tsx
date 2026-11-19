@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSessionContext } from "@/lib/access/session";
-import { venueInScope } from "@/lib/access/capabilities";
+import { sessionDashboardScopeError } from "@/lib/access/session-dashboard-scope";
 import { publicErrorMessage } from "@/lib/public-error";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { getPublicAppUrl, getPublicScoreboardUrl } from "@/lib/public-url";
@@ -50,26 +50,31 @@ export default async function SessionDashboardPage({ params }: SessionDashboardP
   let activeResources: ResourceActivation[] = [];
   let sessionEvents: SessionEvent[] = [];
   let followCount = 0;
+  let denied = false;
 
   try {
+    const ctx = await getSessionContext();
     session = await getSession(sessionId);
     if (session) {
-      scorekeeper = await ensureScorekeeperAccess(session.id).catch(() => null);
-      [field, volunteerRoles, followCount, sessionEvents] = await Promise.all([
-        getField(session.fieldId),
-        getVolunteerRolesBySessionId(session.id),
-        getFollowCountForSession(session.id),
-        getSessionEvents(session.id),
-      ]);
-      activeResources = await getActiveResourceActivationsForField({ fieldId: session.fieldId, sessionId: session.id });
+      field = await getField(session.fieldId);
       venue = field ? await getVenue(field.venueId) : null;
+      denied = Boolean(sessionDashboardScopeError(ctx, session, venue));
+      if (!denied) {
+        [scorekeeper, volunteerRoles, followCount, sessionEvents] = await Promise.all([
+          ensureScorekeeperAccess(session.id, ctx).catch(() => null),
+          getVolunteerRolesBySessionId(session.id),
+          getFollowCountForSession(session.id),
+          getSessionEvents(session.id),
+        ]);
+        activeResources = await getActiveResourceActivationsForField({ fieldId: session.fieldId, sessionId: session.id });
+      }
     }
   } catch (error) {
     errorMessage = publicErrorMessage(error, "Unable to load session dashboard.");
   }
 
-  // Object-level authorization: don't expose another venue's session by URL.
-  if (session && venue && !venueInScope(await getSessionContext(), venue)) {
+  // Authorize before generating credentials or loading tenant-owned detail.
+  if (denied) {
     notFound();
   }
 
