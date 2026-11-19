@@ -1,7 +1,10 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { Session, SessionLinkLabel, SessionSportType, SyncJob, SyncJobStatus, SyncQueueItem, SyncQueueReviewStatus } from "@/lib/types";
-import { createSession, getSessions } from "./sessions";
+import { getAuthorizedExternalSource } from "./external-sources";
+import { assertActorUserId, PermissionDeniedError, requirePermission, safelyLogAudit } from "./identity";
+import { createSession, getSessionsByFieldId } from "./sessions";
+import { syncQueueFieldScopeError, syncQueueSourceVenueError, type SyncQueueFieldTarget } from "./sync-queue-scope";
 
 type SyncJobRow = Database["public"]["Tables"]["sync_jobs"]["Row"];
 type SyncQueueRow = Database["public"]["Tables"]["sync_queue"]["Row"];
@@ -150,11 +153,55 @@ function readSessionPayload(value: unknown): SyncSessionPayload | null {
   };
 }
 
+function readFieldId(value: unknown) {
+  if (!isRecord(value) || value.kind !== "session" || !isRecord(value.session)) return null;
+  return typeof value.session.field_id === "string" ? value.session.field_id.trim() || null : null;
+}
+
+async function loadCanonicalSyncFields(fieldIds: string[]): Promise<SyncQueueFieldTarget[]> {
+  const uniqueFieldIds = [...new Set(fieldIds.map((id) => id.trim()).filter(Boolean))];
+  const { data, error } = uniqueFieldIds.length
+    ? await getSupabaseAdminClient().from("fields").select("id,venue_id").in("id", uniqueFieldIds)
+    : { data: [], error: null };
+  if (error) throw new Error(error.message);
+  const fields = (data ?? []).map((field) => ({ id: field.id, venueId: field.venue_id }));
+  const scopeError = syncQueueFieldScopeError(fieldIds, fields);
+  if (scopeError) throw new PermissionDeniedError(scopeError);
+  return fields;
+}
+
+async function authorizeSyncFields(actor: string, fields: SyncQueueFieldTarget[]) {
+  for (const venueId of new Set(fields.map((field) => field.venueId))) {
+    await requirePermission(actor, "integrations.sync", "venue", venueId);
+  }
+}
+
+async function getAuthorizedSyncQueueItem(id: string, actor: string) {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase.from("sync_queue").select(syncQueueSelect).eq("id", id.trim()).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new PermissionDeniedError("Sync queue item is not available in this scope.");
+  const item = mapSyncQueueItem(data);
+  const fieldId = readFieldId(item.sourceData);
+  if (!fieldId) throw new PermissionDeniedError("Sync queue item is missing a canonical field target.");
+  const [field] = await loadCanonicalSyncFields([fieldId]);
+  await authorizeSyncFields(actor, [field]);
+  return { field, item };
+}
+
 export function getSyncStatusLabel(status: SyncJobStatus | SyncQueueReviewStatus) {
   return status.replace("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export async function createSyncJobWithQueue(data: CreateSyncJobInput): Promise<SyncJob> {
+export async function createSyncJobWithQueue(data: CreateSyncJobInput, actorUserId: string): Promise<SyncJob> {
+  const actor = assertActorUserId(actorUserId);
+  const fields = await loadCanonicalSyncFields(data.records.map((record) => record.sourceData.session.field_id));
+  await authorizeSyncFields(actor, fields);
+  if (data.sourceId) {
+    const source = await getAuthorizedExternalSource(data.sourceId, actor, "integrations.sync");
+    const sourceScopeError = syncQueueSourceVenueError(source.venueId, fields);
+    if (sourceScopeError) throw new PermissionDeniedError(sourceScopeError);
+  }
   const supabase = getSupabaseAdminClient();
   const { data: job, error } = await supabase
     .from("sync_jobs")
@@ -190,7 +237,11 @@ export async function createSyncJobWithQueue(data: CreateSyncJobInput): Promise<
     }
   }
 
-  return mapSyncJob(job);
+  const syncJob = mapSyncJob(job);
+  for (const venueId of new Set(fields.map((field) => field.venueId))) {
+    await safelyLogAudit({ action: "integration.sync_job_create", actorUserId: actor, metadata: { recordsFound: data.recordsFound, sourceType: data.sourceType }, resourceId: syncJob.id, resourceType: "sync_job", scopeId: venueId, scopeType: "venue" });
+  }
+  return syncJob;
 }
 
 export async function getSyncJobs(): Promise<SyncJob[]> {
@@ -236,12 +287,15 @@ export async function getSyncDashboardStats(): Promise<SyncDashboardStats> {
   };
 }
 
-export async function updateSyncQueueReviewStatus(id: string, status: Exclude<SyncQueueReviewStatus, "imported">): Promise<SyncQueueItem> {
+export async function updateSyncQueueReviewStatus(id: string, status: Exclude<SyncQueueReviewStatus, "imported">, actorUserId: string): Promise<SyncQueueItem> {
+  const actor = assertActorUserId(actorUserId);
+  const { field, item } = await getAuthorizedSyncQueueItem(id, actor);
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("sync_queue")
     .update({ review_status: status })
-    .eq("id", id)
+    .eq("id", item.id)
+    .eq("sync_job_id", item.syncJobId)
     .select(syncQueueSelect)
     .single();
 
@@ -249,33 +303,23 @@ export async function updateSyncQueueReviewStatus(id: string, status: Exclude<Sy
     throw new Error(error.message);
   }
 
-  return mapSyncQueueItem(data);
+  const updatedItem = mapSyncQueueItem(data);
+  await safelyLogAudit({ action: "integration.sync_queue_review", actorUserId: actor, metadata: { status }, resourceId: updatedItem.id, resourceType: "sync_queue_item", scopeId: field.venueId, scopeType: "venue" });
+  return updatedItem;
 }
 
-export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueResult> {
+export async function importSyncQueueItem(id: string, actorUserId: string): Promise<ImportSyncQueueResult> {
+  const actor = assertActorUserId(actorUserId);
+  const { field, item } = await getAuthorizedSyncQueueItem(id, actor);
   const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("sync_queue")
-    .select(syncQueueSelect)
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data) {
-    return { errors: ["Queue item not found."], imported: 0, skipped: 0 };
-  }
-
-  const item = mapSyncQueueItem(data);
-  const session = readSessionPayload(item.sourceData);
-  if (!session) {
-    await updateSyncQueueReviewStatus(id, "rejected");
+  const queuedSession = readSessionPayload(item.sourceData);
+  if (!queuedSession) {
+    await supabase.from("sync_queue").update({ review_status: "rejected" }).eq("id", item.id).eq("sync_job_id", item.syncJobId);
     return { errors: ["Queue item is not a valid session record."], imported: 0, skipped: 0 };
   }
+  const session = { ...queuedSession, field_id: field.id };
 
-  const existingSessions = await getSessions();
+  const existingSessions = await getSessionsByFieldId(field.id);
   const existingSessionKeys = new Set(existingSessions.map((existingSession) => duplicateKey({
     away_team: existingSession.awayTeam,
     field_id: existingSession.fieldId,
@@ -291,7 +335,7 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
   }));
 
   if (existingSessionKeys.has(duplicateKey(session)) || externalDuplicate) {
-    await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);
+    await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", item.id).eq("sync_job_id", item.syncJobId);
     await supabase.from("sync_jobs").update({ records_skipped: await nextJobCount(item.syncJobId, "records_skipped") }).eq("id", item.syncJobId);
     return { errors: [], imported: 0, skipped: 1 };
   }
@@ -315,8 +359,9 @@ export async function importSyncQueueItem(id: string): Promise<ImportSyncQueueRe
       status: session.status ?? "scheduled",
       title: session.title,
     });
-    await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", id);
+    await supabase.from("sync_queue").update({ review_status: "imported" }).eq("id", item.id).eq("sync_job_id", item.syncJobId);
     await supabase.from("sync_jobs").update({ records_imported: await nextJobCount(item.syncJobId, "records_imported") }).eq("id", item.syncJobId);
+    await safelyLogAudit({ action: "integration.sync_queue_import", actorUserId: actor, resourceId: item.id, resourceType: "sync_queue_item", scopeId: field.venueId, scopeType: "venue" });
     return { errors: [], imported: 1, skipped: 0 };
   } catch (error) {
     return { errors: [error instanceof Error ? error.message : "Unable to import sync record."], imported: 0, skipped: 0 };
