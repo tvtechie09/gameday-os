@@ -2,6 +2,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { ExternalSource, ExternalSourceStatus, ExternalSourceType } from "@/lib/types";
 import { getCurrentOrganizationScope } from "../organization-scope";
+import { assertActorUserId, PermissionDeniedError, requirePermission, safelyLogAudit } from "./identity";
 
 type ExternalSourceRow = Database["public"]["Tables"]["external_sources"]["Row"];
 
@@ -112,19 +113,33 @@ export async function getExternalSource(id: string): Promise<ExternalSource | nu
   return data ? mapExternalSource(data) : null;
 }
 
-export async function createExternalSource(data: CreateExternalSourceInput): Promise<ExternalSource> {
+export async function getAuthorizedExternalSource(id: string, actorUserId: string, permissionKey: string): Promise<ExternalSource> {
+  const actor = assertActorUserId(actorUserId);
+  const sourceId = id.trim();
+  if (!sourceId) throw new PermissionDeniedError("External source is required.");
+  const source = await getExternalSource(sourceId);
+  if (!source) throw new PermissionDeniedError("External source is not available in this scope.");
+  await requirePermission(actor, permissionKey, "venue", source.venueId);
+  return source;
+}
+
+export async function createExternalSource(data: CreateExternalSourceInput, actorUserId: string): Promise<ExternalSource> {
+  const actor = assertActorUserId(actorUserId);
   const supabase = getSupabaseAdminClient();
-  const organizationId = await getOrganizationIdForVenue(data.venue_id);
+  const { data: venue, error: venueError } = await supabase.from("venues").select("id,organization_id").eq("id", data.venue_id.trim()).maybeSingle();
+  if (venueError) throw new Error(venueError.message);
+  if (!venue) throw new PermissionDeniedError("External source venue is not available in this scope.");
+  await requirePermission(actor, "integrations.create", "venue", venue.id);
   const { data: externalSource, error } = await supabase
     .from("external_sources")
     .insert({
-      organization_id: organizationId,
+      organization_id: venue.organization_id,
       notes: readOptionalText(data.notes),
       source_name: data.source_name,
       source_status: readSourceStatus(data.source_status),
       source_type: readSourceType(data.source_type),
       source_url: readOptionalText(data.source_url),
-      venue_id: data.venue_id,
+      venue_id: venue.id,
     })
     .select(externalSourceSelect)
     .single();
@@ -133,25 +148,14 @@ export async function createExternalSource(data: CreateExternalSourceInput): Pro
     throw new Error(error.message);
   }
 
-  return mapExternalSource(externalSource);
+  const source = mapExternalSource(externalSource);
+  await safelyLogAudit({ action: "integration.external_source_create", actorUserId: actor, metadata: { sourceType: source.sourceType }, resourceId: source.id, resourceType: "external_source", scopeId: source.venueId, scopeType: "venue" });
+  return source;
 }
 
-async function getOrganizationIdForVenue(venueId: string) {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("venues")
-    .select("organization_id")
-    .eq("id", venueId)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Failed to load venue organization for integration", error);
-  }
-
-  return data?.organization_id ?? null;
-}
-
-export async function updateExternalSourceLastSync(id: string): Promise<void> {
+export async function updateExternalSourceLastSync(id: string, actorUserId: string): Promise<void> {
+  const actor = assertActorUserId(actorUserId);
+  const source = await getAuthorizedExternalSource(id, actor, "integrations.sync");
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("external_sources")
@@ -160,28 +164,35 @@ export async function updateExternalSourceLastSync(id: string): Promise<void> {
       source_status: "connected",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", source.id)
+    .eq("venue_id", source.venueId);
 
   if (error) {
     throw new Error(error.message);
   }
+  await safelyLogAudit({ action: "integration.external_source_sync", actorUserId: actor, resourceId: source.id, resourceType: "external_source", scopeId: source.venueId, scopeType: "venue" });
 }
 
-export async function updateExternalSourceStatus(id: string, status: ExternalSourceStatus): Promise<void> {
+export async function updateExternalSourceStatus(id: string, status: ExternalSourceStatus, actorUserId: string): Promise<void> {
+  const actor = assertActorUserId(actorUserId);
+  const source = await getAuthorizedExternalSource(id, actor, "integrations.edit");
+  const normalizedStatus = readSourceStatus(status);
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("external_sources")
     .update({
-      source_status: readSourceStatus(status),
+      source_status: normalizedStatus,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", source.id)
+    .eq("venue_id", source.venueId);
 
   if (error) {
     throw new Error(error.message);
   }
+  await safelyLogAudit({ action: "integration.external_source_status_update", actorUserId: actor, metadata: { status: normalizedStatus }, resourceId: source.id, resourceType: "external_source", scopeId: source.venueId, scopeType: "venue" });
 }
 
-export async function runExternalSourceTestSync(id: string): Promise<void> {
-  await updateExternalSourceLastSync(id);
+export async function runExternalSourceTestSync(id: string, actorUserId: string): Promise<void> {
+  await updateExternalSourceLastSync(id, actorUserId);
 }
