@@ -149,6 +149,18 @@ async function requireScopePermission(actor: string, permissionKey: string, conn
   throw new PermissionDeniedError("Integration connection is missing a permission scope.");
 }
 
+export async function getAuthorizedIntegrationConnection(connectionId: string, actorUserId: string, permissionKey = "integrations.view") {
+  const actor = assertActorUserId(actorUserId);
+  if (!connectionId.trim()) throw new PermissionDeniedError("Integration connection is required.");
+  const supabase = getClient();
+  const { data, error } = await supabase.from("integration_connections").select(connectionSelect).eq("id", connectionId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new PermissionDeniedError("Integration connection is not available in this scope.");
+  const connection = mapConnection(data as unknown as ConnectionRow);
+  await requireScopePermission(actor, permissionKey, connection);
+  return connection;
+}
+
 export async function getIntegrationSummaries(actorUserId: string): Promise<IntegrationSummary[]> {
   const actor = assertActorUserId(actorUserId);
   const supabase = getClient();
@@ -160,13 +172,17 @@ export async function getIntegrationSummaries(actorUserId: string): Promise<Inte
   const connections = ((data ?? []) as unknown as ConnectionRow[]).map(mapConnection);
   const summaries: IntegrationSummary[] = [];
   for (const provider of integrationProviders) {
-    const connection = connections.find((item) => item.providerKey === provider.key) ?? null;
-    try {
-      if (connection) await requireScopePermission(actor, "integrations.view", connection);
-      summaries.push({ ...getProviderEnvStatus(provider), connection });
-    } catch (permissionError) {
-      if (!(permissionError instanceof PermissionDeniedError)) throw permissionError;
+    let connection: IntegrationConnection | null = null;
+    for (const candidate of connections.filter((item) => item.providerKey === provider.key)) {
+      try {
+        await requireScopePermission(actor, "integrations.view", candidate);
+        connection = candidate;
+        break;
+      } catch (permissionError) {
+        if (!(permissionError instanceof PermissionDeniedError)) throw permissionError;
+      }
     }
+    summaries.push({ ...getProviderEnvStatus(provider), connection });
   }
   return summaries;
 }
@@ -221,34 +237,42 @@ export async function disconnectIntegration(providerKey: string, actorUserId: st
   return mapConnection(data as unknown as ConnectionRow);
 }
 
-export async function runIntegrationSync(providerKey: string, actorUserId: string, idempotencyKey?: string | null) {
-  const status = await getIntegrationProviderStatus(providerKey, actorUserId);
-  if (!status.connection) throw new Error("Integration connection not found.");
+export async function runIntegrationSync(providerKey: string, actorUserId: string, idempotencyKey?: string | null, connectionId?: string | null) {
+  const provider = integrationProviders.find((item) => item.key === providerKey);
+  if (!provider) throw new Error("Integration provider not found.");
   const actor = assertActorUserId(actorUserId);
-  await requireScopePermission(actor, "integrations.sync", status.connection);
+  const connection = connectionId
+    ? await getAuthorizedIntegrationConnection(connectionId, actor, "integrations.sync")
+    : (await getIntegrationProviderStatus(providerKey, actor)).connection;
+  if (!connection || connection.providerKey !== providerKey) throw new PermissionDeniedError("Integration connection is not available for this provider.");
+  if (!connectionId) await requireScopePermission(actor, "integrations.sync", connection);
+  const providerStatus = getProviderEnvStatus(provider);
   const supabase = getClient();
-  const key = idempotencyKey || `${providerKey}:${status.connection.id}:${new Date().toISOString().slice(0, 16)}`;
-  const { data: existingRun } = await supabase.from("integration_sync_runs").select(syncRunSelect).eq("connection_id", status.connection.id).eq("idempotency_key", key).maybeSingle();
+  const key = idempotencyKey || `${providerKey}:${connection.id}:${new Date().toISOString().slice(0, 16)}`;
+  const { data: existingRun } = await supabase.from("integration_sync_runs").select(syncRunSelect).eq("connection_id", connection.id).eq("idempotency_key", key).maybeSingle();
   if (existingRun) return existingRun as unknown as SyncRunRow;
 
-  const canSync = status.connection.connectionStatus === "connected";
-  const message = canSync ? "Provider sync adapter is not implemented yet." : `Cannot sync ${status.provider.name}: ${status.connection.errorMessage || status.message}`;
+  const canSync = connection.connectionStatus === "connected";
+  const message = canSync ? "Provider sync adapter is not implemented yet." : `Cannot sync ${provider.name}: ${connection.errorMessage || providerStatus.message}`;
   const runStatus: IntegrationSyncStatus = "failed";
-  const { data, error } = await supabase.from("integration_sync_runs").insert({ completed_at: new Date().toISOString(), connection_id: status.connection.id, created_by: actor, error_message: message, idempotency_key: key, provider_key: providerKey, run_status: runStatus, source: "admin_manual", sync_type: "manual" }).select(syncRunSelect).single();
+  const { data, error } = await supabase.from("integration_sync_runs").insert({ completed_at: new Date().toISOString(), connection_id: connection.id, created_by: actor, error_message: message, idempotency_key: key, provider_key: providerKey, run_status: runStatus, source: "admin_manual", sync_type: "manual" }).select(syncRunSelect).single();
   if (error) throw new Error(error.message);
   const run = data as unknown as SyncRunRow;
-  await writeIntegrationLog({ connectionId: status.connection.id, level: "error", message, metadata: { providerKey, status: status.connection.connectionStatus }, providerKey, runId: run.id });
-  await safelyLogAudit({ action: "integration.sync_failed", actorUserId: actor, metadata: { idempotencyKey: key, providerKey, reason: message }, resourceId: status.connection.id, resourceType: "integration_connection", scopeId: status.connection.venueId ?? status.connection.tournamentId ?? status.connection.organizationId, scopeType: status.connection.venueId ? "venue" : status.connection.tournamentId ? "tournament" : "organization" });
+  await writeIntegrationLog({ connectionId: connection.id, level: "error", message, metadata: { providerKey, status: connection.connectionStatus }, providerKey, runId: run.id });
+  await safelyLogAudit({ action: "integration.sync_failed", actorUserId: actor, metadata: { idempotencyKey: key, providerKey, reason: message }, resourceId: connection.id, resourceType: "integration_connection", scopeId: connection.venueId ?? connection.tournamentId ?? connection.organizationId, scopeType: connection.venueId ? "venue" : connection.tournamentId ? "tournament" : "organization" });
   return run;
 }
 
-export async function getIntegrationLogs(providerKey: string, actorUserId: string) {
-  const status = await getIntegrationProviderStatus(providerKey, actorUserId);
-  if (!status.connection) return [];
+export async function getIntegrationLogs(providerKey: string, actorUserId: string, connectionId?: string | null) {
   const actor = assertActorUserId(actorUserId);
-  await requireScopePermission(actor, "integrations.view_logs", status.connection);
+  const connection = connectionId
+    ? await getAuthorizedIntegrationConnection(connectionId, actor, "integrations.view_logs")
+    : (await getIntegrationProviderStatus(providerKey, actor)).connection;
+  if (!connection) return [];
+  if (connection.providerKey !== providerKey) throw new PermissionDeniedError("Integration connection is not available for this provider.");
+  if (!connectionId) await requireScopePermission(actor, "integrations.view_logs", connection);
   const supabase = getClient();
-  const { data, error } = await supabase.from("integration_sync_logs").select(syncLogSelect).eq("connection_id", status.connection.id).order("created_at", { ascending: false }).limit(50);
+  const { data, error } = await supabase.from("integration_sync_logs").select(syncLogSelect).eq("connection_id", connection.id).order("created_at", { ascending: false }).limit(50);
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as SyncLogRow[]).map(mapLog);
 }
