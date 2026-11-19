@@ -109,7 +109,7 @@ export function canAccessAdminWorkspace(ctx: AccessContext | null): boolean {
 
 // --- Platform-only capabilities ---------------------------------------------
 export function canManageBilling(ctx: AccessContext | null): boolean {
-  return hasPermission(ctx, "platform.billing.manage");
+  return isPlatformAdmin(ctx) || hasPermission(ctx, "platform.billing.manage");
 }
 
 // Billing belongs to the ACCOUNT HOLDER, not day-to-day field ops. GameDay staff
@@ -121,23 +121,23 @@ export function canViewBilling(ctx: AccessContext | null): boolean {
 }
 
 export function canManageUsers(ctx: AccessContext | null): boolean {
-  return hasPermission(ctx, "platform.users.manage");
+  return isPlatformAdmin(ctx) || hasPermission(ctx, "platform.users.manage");
 }
 
 export function canManagePermissions(ctx: AccessContext | null): boolean {
-  return hasPermission(ctx, "platform.permissions.manage");
+  return isPlatformAdmin(ctx) || hasPermission(ctx, "platform.permissions.manage");
 }
 
 export function canImpersonate(ctx: AccessContext | null): boolean {
-  return hasPermission(ctx, "platform.impersonate");
+  return isPlatformAdmin(ctx) || hasPermission(ctx, "platform.impersonate");
 }
 
 export function canViewDevTools(ctx: AccessContext | null): boolean {
-  return hasPermission(ctx, "platform.devtools");
+  return isPlatformAdmin(ctx) || hasPermission(ctx, "platform.devtools");
 }
 
 export function canManagePlatform(ctx: AccessContext | null): boolean {
-  return hasPermission(ctx, "platform.manage");
+  return isPlatformAdmin(ctx) || hasPermission(ctx, "platform.manage");
 }
 
 // --- Venue / device / integration capabilities ------------------------------
